@@ -188,6 +188,7 @@ namespace Objects.Engineering
 			if (Inventory.ServerConsume(itemSlot, 1))
 			{
 				fuelAmount += fuelPerSheet;
+				RunningDry();
 			}
 			else
 			{
@@ -211,6 +212,14 @@ namespace Objects.Engineering
 				return true;
 			}
 			return false;
+		}
+
+		private void RunningDry()
+		{
+			if (fuelAmount == 0 || itemSlot.Item)
+			{
+				SoundManager.PlayAtPositionAttached(generatorRunningDry, registerTile.WorldPosition, gameObject);
+			}
 		}
 
 		private void ToggleOn()
