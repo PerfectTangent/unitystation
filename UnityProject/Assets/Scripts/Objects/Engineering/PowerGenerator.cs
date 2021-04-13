@@ -17,7 +17,7 @@ namespace Objects.Engineering
 		private bool startAsOn = false;
 
 		[Tooltip("The rate of fuel this generator should consume.")]
-		[Range(0.01f, 0.1f)]
+		[Range(0.01f, 0.2f)]
 		[SerializeField]
 		private float plasmaConsumptionRate = 0.02f;
 
@@ -31,6 +31,8 @@ namespace Objects.Engineering
 		private AddressableAudioSource generatorRunSfx = null;
 		[SerializeField]
 		private AddressableAudioSource generatorEndSfx = null;
+		[SerializeField]
+		private AddressableAudioSource generatorRunningDry = null;
 		[SerializeField]
 		private ParticleSystem smokeParticles = default;
 
@@ -105,6 +107,26 @@ namespace Objects.Engineering
 				SoundManager.PlayAtPosition(generatorEndSfx, registerTile.WorldPosition, gameObject);
 			}
 		}
+
+		private int SheetAmount
+        {
+			get
+            {
+				if (itemSlot.ItemObject == null)
+                {
+					return 0;
+                }
+				if (itemSlot.ItemObject.TryGetComponent<Stackable>(out var stackComp))
+                {
+					return stackComp.Amount;
+                }
+                else
+                {
+					return 0;
+                }
+            }
+        }
+
 
 		#region Interaction
 
@@ -188,7 +210,7 @@ namespace Objects.Engineering
 			if (Inventory.ServerConsume(itemSlot, 1))
 			{
 				fuelAmount += fuelPerSheet;
-				RunningDry();
+				OnSheetConsumed();
 			}
 			else
 			{
@@ -214,11 +236,11 @@ namespace Objects.Engineering
 			return false;
 		}
 
-		private void RunningDry()
+		private void OnSheetConsumed()
 		{
-			if (fuelAmount == 0 || itemSlot.Item)
+			if (SheetAmount == 1) // if only one sheet left, then the generator beeps
 			{
-				SoundManager.PlayAtPositionAttached(generatorRunningDry, registerTile.WorldPosition, gameObject);
+				SoundManager.PlayAtPosition(generatorRunningDry, registerTile.WorldPosition, gameObject);
 			}
 		}
 
