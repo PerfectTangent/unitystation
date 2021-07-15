@@ -7,6 +7,65 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1347883603031345274, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: itemStorageCapacity
+      value: 
+      objectReference: {fileID: 11400000, guid: 73b77e9612d687640a9a09cca056f5da,
+        type: 2}
+    - target: {fileID: 1347883603031345274, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: itemStorageStructure
+      value: 
+      objectReference: {fileID: 11400000, guid: 096f6d13a1aabf54f9a41174ad31687c,
+        type: 2}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[1].SlotArea
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[2].SlotArea
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[1].hoverName
+      value: Pocket
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[1].namedSlot
+      value: 19
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[2].hoverName
+      value: Pocket
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[2].namedSlot
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[1].placeholderSprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 0cd89423299c9c749b386915e51cecca,
+        type: 3}
+    - target: {fileID: 1378717272908032000, guid: f7b1874a6ebd85a439111098540d72d7,
+        type: 3}
+      propertyPath: storage.Array.data[2].placeholderSprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 0cd89423299c9c749b386915e51cecca,
+        type: 3}
     - target: {fileID: 1776973182312912146, guid: f7b1874a6ebd85a439111098540d72d7,
         type: 3}
       propertyPath: m_AssetId
