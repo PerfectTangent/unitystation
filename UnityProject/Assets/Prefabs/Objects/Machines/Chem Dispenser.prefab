@@ -1,12 +1,24 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &6296215769768710650
+--- !u!1001 &1660822144874016107
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 768889878625444157, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: MachineParts
+      value: 
+      objectReference: {fileID: 11400000, guid: 7efd7855b5dccc04ca1d549cf9a18301,
+        type: 2}
+    - target: {fileID: 768889878625444157, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: machineBoardPrefab
+      value: 
+      objectReference: {fileID: 8026946951644424067, guid: c242e43da5bd5cb418a0cdccf5cf1358,
+        type: 3}
     - target: {fileID: 1583724279418462635, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_Size.x
@@ -21,7 +33,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300006, guid: 816e5851d1c70aa48b88be8f64982e99,
+      objectReference: {fileID: 21300000, guid: 9c6adb778c2805849849d51722af9a9e,
         type: 3}
     - target: {fileID: 1583724279418462635, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
@@ -50,18 +62,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
@@ -81,87 +98,83 @@ PrefabInstance:
     - target: {fileID: 1628816798482564540, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_Name
-      value: Sleeper
+      value: Chem Dispenser
       objectReference: {fileID: 0}
     - target: {fileID: 2444135299207855093, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: foreverID
-      value: be26d178314bedc419e95cd4466da4e5
-      objectReference: {fileID: 0}
-    - target: {fileID: 3314592590375341583, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3314592590375341583, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3314592590375341583, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6109775972905365350, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: variantIndex
-      value: 3
+      value: eb0f53b92f001714089889c792a0280f
       objectReference: {fileID: 0}
     - target: {fileID: 6109775972905365350, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
-      objectReference: {fileID: 11400000, guid: 8e4e9525c051e48419b65c63b35ac59a,
+      objectReference: {fileID: 11400000, guid: 126766663bd8096409e1c42f532aebd8,
         type: 2}
-    - target: {fileID: 6109775972905365350, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: initialVariantIndex
-      value: 3
-      objectReference: {fileID: 0}
     - target: {fileID: 7153803037707514078, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_AssetId
-      value: be26d178314bedc419e95cd4466da4e5
+      value: eb0f53b92f001714089889c792a0280f
       objectReference: {fileID: 0}
-    - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: initialName
-      value: Sleeper
-      objectReference: {fileID: 0}
-    - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: initialDescription
-      value: An enclosed machine used to stabilize and heal patients or store them
-        in a hibernetic state.
-      objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 768889878625444157, guid: b69bfc56f39849d4ba9139d2d51bedb6, type: 3}
+    m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b69bfc56f39849d4ba9139d2d51bedb6, type: 3}
---- !u!1 &4754146294802994246 stripped
+--- !u!1 &114512827845142743 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1628816798482564540, guid: b69bfc56f39849d4ba9139d2d51bedb6,
     type: 3}
-  m_PrefabInstance: {fileID: 6296215769768710650}
+  m_PrefabInstance: {fileID: 1660822144874016107}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1567080291210981908
+--- !u!114 &-8224092006794817844
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4754146294802994246}
+  m_GameObject: {fileID: 114512827845142743}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819809cff2481914d883a6e1fefb4edd, type: 3}
+  m_Script: {fileID: 11500000, guid: 2ac94ea034f589c46b4568ffe0d4d992, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
-  MethodRotation: 0
-  ChangeSprites: 1
-  isChangingSO: 0
-  CurrentDirection: 3
-  IgnoreServerUpdatesIfLocalPlayer: 0
-  IsAtmosphericDevice: 0
-  doNotResetOtherSpriteOptions: 0
+  ThisState: 0
+--- !u!114 &-2454431335395078237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 114512827845142743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d7277dcc993463cb6c7f79b663f36fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NetTabType: 5
+  aiInteractable: 1
+--- !u!114 &49972863116258859
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 114512827845142743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdce8a163088453ca593c0e98f2c5f07, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemStorageStructure: {fileID: 11400000, guid: 263bf834f99424f12bda19d67c3ab5fc,
+    type: 2}
+  itemStorageCapacity: {fileID: 11400000, guid: 14ba874224f65461b97794ca4c792e7f,
+    type: 2}
+  itemStoragePopulator: {fileID: 0}
+  forceSpawnContents: 0
+  dropItemsOnDespawn: 0
+  UesAddlistPopulater: 0
+  Populater:
+    SlotContents: []
+    DeprecatedContents: []
+  ashPrefab: {fileID: 2957035178188790827, guid: 9ac6968a3f3ed54428662c9aae5a4b32,
+    type: 3}

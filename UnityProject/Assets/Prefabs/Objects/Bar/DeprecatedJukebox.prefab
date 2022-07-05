@@ -23,7 +23,7 @@ GameObject:
   - component: {fileID: 610456076500646556}
   - component: {fileID: 4052659865295203801}
   m_Layer: 11
-  m_Name: Jukebox
+  m_Name: DeprecatedJukebox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -324,21 +324,25 @@ MonoBehaviour:
   LocalTargetPosition: {x: 0, y: 0, z: 0}
   ChangesDirectionPush: 0
   Intangible: 0
+  CanBeWindPushed: 1
+  IsPlayer: 0
   InitialLocationSynchronised: 0
   tileMoveSpeed: 1
   isNotPushable: 1
-  newtonianMovement: {x: 0, y: 0}
   airTime: 0
   slideTime: 0
+  SetIgnoreSticky: 0
   thrownBy: {fileID: 0}
   aim: 0
   spinMagnitude: 0
+  ForcedPushedFrame: 0
+  TryPushedFrame: 0
   PushedFrame: 0
   FramePushDecision: 1
   stickyMovement: 0
+  OnThrowEndResetRotation: 0
   maximumStickSpeed: 1.5
   onStationMovementsRound: 0
-  attributes: {fileID: 0}
   registerTile: {fileID: 0}
   ContextGameObjects:
   - {fileID: 0}
@@ -348,14 +352,12 @@ MonoBehaviour:
   CorrectingCourse: 0
   Pushing: []
   Hits: []
-  Speed: 1
-  AIR: 3
-  SLIDE: 4
   Animating: 0
-  IsFlyingSliding: 0
+  isFlyingSliding: 0
   IsMoving: 0
   MoveIsWalking: 0
   LastUpdateClientFlying: 0
+  BuckledToObject: {fileID: 0}
 --- !u!1 &1000010906387252
 GameObject:
   m_ObjectHideFlags: 0

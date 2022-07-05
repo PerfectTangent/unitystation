@@ -1,12 +1,24 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &6296215769768710650
+--- !u!1001 &4019180926256668955
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 768889878625444157, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: MachineParts
+      value: 
+      objectReference: {fileID: 11400000, guid: fb6b786c3a5d4df45a8fe68e806a5d4a,
+        type: 2}
+    - target: {fileID: 768889878625444157, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: machineBoardPrefab
+      value: 
+      objectReference: {fileID: 2407683757881208479, guid: dd0556b2e76bfac48bfb3217e1177605,
+        type: 3}
     - target: {fileID: 1583724279418462635, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_Size.x
@@ -21,7 +33,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300006, guid: 816e5851d1c70aa48b88be8f64982e99,
+      objectReference: {fileID: 21300000, guid: 3e87d6d35daeeda40bebbd74313588d8,
         type: 3}
     - target: {fileID: 1583724279418462635, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
@@ -50,18 +62,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1625533340043428710, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
@@ -81,87 +98,93 @@ PrefabInstance:
     - target: {fileID: 1628816798482564540, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_Name
-      value: Sleeper
+      value: Jukebox
       objectReference: {fileID: 0}
     - target: {fileID: 2444135299207855093, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: foreverID
-      value: be26d178314bedc419e95cd4466da4e5
-      objectReference: {fileID: 0}
-    - target: {fileID: 3314592590375341583, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3314592590375341583, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3314592590375341583, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6109775972905365350, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: variantIndex
-      value: 3
+      value: 8a87d270b7e1d994bbb494998f5c04c9
       objectReference: {fileID: 0}
     - target: {fileID: 6109775972905365350, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
-      objectReference: {fileID: 11400000, guid: 8e4e9525c051e48419b65c63b35ac59a,
+      objectReference: {fileID: 11400000, guid: f0ef570011ab3c3448bc70e91b398ef4,
         type: 2}
-    - target: {fileID: 6109775972905365350, guid: b69bfc56f39849d4ba9139d2d51bedb6,
-        type: 3}
-      propertyPath: initialVariantIndex
-      value: 3
-      objectReference: {fileID: 0}
     - target: {fileID: 7153803037707514078, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: m_AssetId
-      value: be26d178314bedc419e95cd4466da4e5
+      value: 8a87d270b7e1d994bbb494998f5c04c9
+      objectReference: {fileID: 0}
+    - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: exportCost
+      value: 250
+      objectReference: {fileID: 0}
+    - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: exportName
+      value: jukebox
       objectReference: {fileID: 0}
     - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: initialName
-      value: Sleeper
+      value: jukebox
+      objectReference: {fileID: 0}
+    - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
+        type: 3}
+      propertyPath: exportMessage
+      value: Jukebox succesfully received, we might throw a party here at CentCom!
       objectReference: {fileID: 0}
     - target: {fileID: 8232375373487905420, guid: b69bfc56f39849d4ba9139d2d51bedb6,
         type: 3}
       propertyPath: initialDescription
-      value: An enclosed machine used to stabilize and heal patients or store them
-        in a hibernetic state.
+      value: A bastion of goodwill, peace, and hope.
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 768889878625444157, guid: b69bfc56f39849d4ba9139d2d51bedb6, type: 3}
+    m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b69bfc56f39849d4ba9139d2d51bedb6, type: 3}
---- !u!1 &4754146294802994246 stripped
+--- !u!1 &2403875455480620199 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1628816798482564540, guid: b69bfc56f39849d4ba9139d2d51bedb6,
     type: 3}
-  m_PrefabInstance: {fileID: 6296215769768710650}
+  m_PrefabInstance: {fileID: 4019180926256668955}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1567080291210981908
+--- !u!114 &-7670930115997898256
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4754146294802994246}
+  m_GameObject: {fileID: 2403875455480620199}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819809cff2481914d883a6e1fefb4edd, type: 3}
+  m_Script: {fileID: 11500000, guid: baa13b882cdefdd47943e954e59250f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
-  MethodRotation: 0
-  ChangeSprites: 1
-  isChangingSO: 0
-  CurrentDirection: 3
-  IgnoreServerUpdatesIfLocalPlayer: 0
-  IsAtmosphericDevice: 0
-  doNotResetOtherSpriteOptions: 0
+  StandByWattUsage: 5
+  InUseWattUsage: 15
+  spriteHandler: {fileID: 0}
+  SpriteIdle: {fileID: 11400000, guid: f0ef570011ab3c3448bc70e91b398ef4, type: 2}
+  SpritePlaying: {fileID: 11400000, guid: 92d17c50f2351c94cb27834ffd5b9009, type: 2}
+  SpriteDamaged: {fileID: 11400000, guid: fcc308c26f6ee4044a16d7cb8764c24c, type: 2}
+  MinSoundDistance: 4
+  MaxSoundDistance: 10
+  Volume: 1
+  Spread: 192
+  adminMusic: {fileID: 0}
+--- !u!114 &6037716304691515273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2403875455480620199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d7277dcc993463cb6c7f79b663f36fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NetTabType: 27
+  aiInteractable: 1
