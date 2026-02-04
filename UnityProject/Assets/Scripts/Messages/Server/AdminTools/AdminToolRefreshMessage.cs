@@ -1,8 +1,13 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using AdminTools;
+using DatabaseAPI;
 using InGameEvents;
 using Mirror;
+using Newtonsoft.Json;
+using SecureStuff;
+using Systems.Permissions;
 using UnityEngine;
 
 namespace Messages.Server.AdminTools
@@ -21,7 +26,7 @@ namespace Messages.Server.AdminTools
 		public override void Process(NetMessage msg)
 		{
 			LoadNetworkObject(msg.Recipient);
-			var adminPageData = JsonUtility.FromJson<AdminPageRefreshData>(msg.JsonData);
+			var adminPageData = JsonConvert.DeserializeObject<AdminPageRefreshData>(msg.JsonData);
 
 			var pages = GameObject.FindObjectsOfType<AdminPage>();
 			foreach (var g in pages)
@@ -30,7 +35,7 @@ namespace Messages.Server.AdminTools
 			}
 		}
 
-		public static NetMessage Send(GameObject recipient, string adminID)
+		public static NetMessage Send(GameObject recipient, string adminID, bool ShowIP =  true)
 		{
 			//Gather the data:
 			var pageData = new AdminPageRefreshData();
@@ -50,17 +55,23 @@ namespace Messages.Server.AdminTools
 			pageData.allowLavaLand = SubSceneManager.AdminAllowLavaland;
 			pageData.alertLevel = GameManager.Instance.CentComm.CurrentAlertLevel.ToString();
 
-			//Centcom
-			pageData.blockCall = GameManager.Instance.PrimaryEscapeShuttle.blockCall;
-			pageData.blockRecall = GameManager.Instance.PrimaryEscapeShuttle.blockRecall;
+			if (GameManager.Instance.PrimaryEscapeShuttle != null)
+			{
+				//Centcom
+				pageData.blockCall = GameManager.Instance.PrimaryEscapeShuttle.blockCall;
+				pageData.blockRecall = GameManager.Instance.PrimaryEscapeShuttle.blockRecall;
+			}
+
 
 			//Player list info:
-			pageData.players = GetAllPlayerStates(adminID);
+			pageData.players = GetAllPlayerStates(adminID, false, ShowIP);
 
 			//Server Setting
 			pageData.playerLimit = GameManager.Instance.PlayerLimit;
+			pageData.maxFrameRate = Application.targetFrameRate;
+			pageData.serverPassword = ServerData.ServerConfig.ConnectionPassword;
 
-			var data = JsonUtility.ToJson(pageData);
+			var data = JsonConvert.SerializeObject(pageData);
 
 			NetMessage  msg =
 				new NetMessage  {Recipient = recipient.GetComponent<NetworkIdentity>().netId, JsonData = data};
@@ -69,7 +80,7 @@ namespace Messages.Server.AdminTools
 			return msg;
 		}
 
-		public static List<AdminPlayerEntryData> GetAllPlayerStates(string adminID, bool onlineOnly = false)
+		public static List<AdminPlayerEntryData> GetAllPlayerStates(string adminID, bool onlineOnly = false, bool showIp = true)
 		{
 			var playerList = new List<AdminPlayerEntryData>();
 			if (string.IsNullOrEmpty(adminID)) return playerList;
@@ -87,21 +98,58 @@ namespace Messages.Server.AdminTools
 
 				var entry = new AdminPlayerEntryData();
 				entry.name = player.Name;
-				entry.uid = player.UserId;
+				entry.uid = player.AccountId;
 				entry.currentJob = player.Job.ToString();
 				entry.accountName = player.Username;
 
-				entry.ipAddress = player.ConnectionIP;
+				if (showIp)
+				{
+					entry.ipAddress = player.ConnectionIP;
+				}
 
 				if (player.Script != null && player.Script.playerHealth != null)
 				{
 					entry.isAlive = player.Script.playerHealth.ConsciousState != ConsciousState.DEAD;
 				}
 
+				Rank rank = PlayerList.GetRankForAccount(player.AccountId);
+
+				var notePath = Path.Combine(AccessFile.AdminFolder, "Notes", player.AccountId);
+				if (AccessFile.Exists(notePath,true ,  FolderType.Logs))
+				{
+					entry.PlayerNotes = AccessFile.ReadAllLines(notePath, FolderType.Logs, false)[0];
+				}
+				else
+				{
+					entry.PlayerNotes = "";
+				}
+
 				entry.isAntag = PlayerList.Instance.AntagPlayers.Contains(player);
-				entry.isAdmin = PlayerList.Instance.IsAdmin(player.UserId);
-				entry.isMentor = PlayerList.Instance.IsMentor(player.UserId);
-				entry.isOnline = player.Connection != null;
+				entry.hasAChat = PlayerList.HasTAGServer(TAG.ADMIN_CHAT, player.AccountId);
+				entry.roleSmall = rank?.Abbreviation;
+				entry.roleColour = rank?.Color;
+
+				entry.hasMentorRole = rank?.Name == "mentor";
+				entry.isOnline = player.Connection.observing.Count > 0;
+				entry.isOOCMuted = player.IsOOCMuted;
+				if (AdminSetWatchlist.Watchlist.ContainsKey(player.AccountId))
+				{
+					entry.OnWatchlist = AdminSetWatchlist.Watchlist[player.AccountId];
+				}
+				
+				if (AdminJail.AdminJailLocation != null && AdminJail.AdminJailLocation.JailedLocations.ContainsKey(player.AccountId))
+				{
+					entry.InJail = true;
+				}
+				else
+				{
+					entry.InJail = false;
+				}
+
+				if (player?.Script != null)
+				{
+					if (player.Script.gameObject != null) entry.playerObject = player.Script.gameObject.NetId();
+				}
 
 				playerList.Add(entry);
 			}

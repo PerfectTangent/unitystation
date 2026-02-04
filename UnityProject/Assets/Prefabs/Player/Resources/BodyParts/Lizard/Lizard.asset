@@ -31,6 +31,7 @@ MonoBehaviour:
     LegLeft:
       Elements:
       - {fileID: 7598470278081952332, guid: 5cfb33daa98005f40ab7166bbbb9994e, type: 3}
+    allowedToChangeling: 1
     CustomisationSettings: []
     bodyTypeSettings:
       AvailableBodyTypes:
@@ -41,7 +42,6 @@ MonoBehaviour:
       - bodyType: 0
         Name: NonBinary
     SkinColours: []
-    BloodType: {fileID: 11400000, guid: efcde740e9b85074485bcd68a7a21816, type: 2}
     RootImplantProcedure: {fileID: 11400000, guid: 3de247ed9ca572941975e45430051197,
       type: 2}
     BodyPartsThatShareTheSkinTone:
@@ -49,4 +49,81 @@ MonoBehaviour:
     - {fileID: 1644536323247627075, guid: f145adb7bc76bfc4a86a8612714230d1, type: 3}
     - {fileID: 3601734041678046290, guid: 2e6e8409def4d76428e3e72233ab61c6, type: 3}
     - {fileID: 1723238164438836345, guid: 6c6b9b73c0bb8d14c9329b24820e0a9a, type: 3}
-    NumberOfMinutesBeforeStarving: 60
+    ClueString: a scale
+    MeatProduce: {fileID: 4953946644942081198, guid: b85088e84ab30b547ad7989834b28aaa,
+      type: 3}
+    SkinProduce: {fileID: 4002763221575329545, guid: e283eb6a930786e46a05cfc69e1b125b,
+      type: 3}
+    SkinningItemTrait: {fileID: 11400000, guid: 4fd46b7ca0066174bb16d0435eef3baa,
+      type: 2}
+    CanBeEmagged: 0
+    CanBePlayerChosen: 1
+    PreviewSprite: {fileID: 11400000, guid: d0262d585491cd34d95efefea7c7a023, type: 2}
+    SystemSettings:
+    - rid: 5920833068371804161
+    - rid: 5920833068371804162
+    - rid: 5920833068371804164
+    - rid: 5920833068371804166
+    StartingMutations: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 5920833068371804161
+      type: {class: ReagentPoolSystem, ns: HealthV2.Living.PolymorphicSystems, asm: Assets}
+      data:
+        Base: {fileID: 0}
+        BloodPool:
+          temperature: 273.15
+          reagents:
+            m_keys: []
+            m_values: []
+          reagentKeys: []
+        StartingBlood: 500
+        NormalBlood: 500
+        bloodReagent: {fileID: 11400000, guid: efcde740e9b85074485bcd68a7a21816, type: 2}
+        PumpingDevices: []
+        TempBloodReservoir:
+          temperature: 273.15
+          reagents:
+            m_keys: []
+            m_values: []
+          reagentKeys: []
+        ReservoirReturnMultiplier: 0.15
+    - rid: 5920833068371804162
+      type: {class: ChemicalMetabolismSystem, ns: HealthV2.Living.PolymorphicSystems,
+        asm: Assets}
+      data:
+        Base: {fileID: 0}
+        InternalMetabolismPerSecond: 1
+        ExternalMetabolismPerSecond: 2
+        MetabolismReactionSets:
+        - {fileID: 11400000, guid: c489a27500b5c5b4392c5f90d1d2fce9, type: 2}
+        ALLMetabolismReactions: []
+        MetabolismComponents: []
+    - rid: 5920833068371804164
+      type: {class: HungerSystem, ns: HealthV2.Living.PolymorphicSystems, asm: Assets}
+      data:
+        Base: {fileID: 0}
+        BodyParts: []
+        NumberOfMinutesBeforeStarving: 30
+        BodyNutriment: {fileID: 11400000, guid: 068bcb587110477558045ad0cfd78237,
+          type: 2}
+        CashedHungerState: 1
+        HungerStatusEffects:
+          NotHungryStatusEffect: {fileID: 11400000, guid: 8a92c094201a758498a79523323565eb,
+            type: 2}
+          StravingStatusEffect: {fileID: 11400000, guid: 8526c1e024fdd1e4d8bc35595159d8a4,
+            type: 2}
+          HungryStatusEffect: {fileID: 11400000, guid: a7b8118c2b73a574cbb4425327020959,
+            type: 2}
+          FatStatusEffect: {fileID: 11400000, guid: 8a92c094201a758498a79523323565eb,
+            type: 2}
+    - rid: 5920833068371804166
+      type: {class: NaturalChemicalReleaseSystem, ns: HealthV2.Living.PolymorphicSystems,
+        asm: Assets}
+      data:
+        Base: {fileID: 0}
+        BodyParts: []
+        TotalToxinGenerationPerSecond: 0.1
+        BodyNaturalToxinReagent: {fileID: 11400000, guid: 6c3a3878e8878972ea633a27c6d0ba12,
+          type: 2}

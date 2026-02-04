@@ -33,6 +33,9 @@ namespace AdminTools.VariableViewer
 
 		public TMP_InputField InputField;
 
+		public GameObject HierarchyLibrary;
+		public GameObject BooksOnBookshelf;
+
 		private void OnEnable()
 		{
 			EventManager.AddHandler(Event.RoundEnded, Reset);
@@ -42,6 +45,23 @@ namespace AdminTools.VariableViewer
 		{
 			SetUp(new List<VariableViewerNetworking.NetFriendlyHierarchyBookShelf>());
 		}
+
+		public void OpenAll()
+		{
+			HierarchyLibrary.SetActive(true);
+			BooksOnBookshelf.SetActive(true);
+		}
+
+		public void CloseHierarchy_library()
+		{
+			HierarchyLibrary.SetActive(false);
+		}
+
+		public void CloseBooksOnBookshelf()
+		{
+			BooksOnBookshelf.SetActive(false);
+		}
+
 
 		public void NetRefresh()
 		{
@@ -66,8 +86,15 @@ namespace AdminTools.VariableViewer
 
 		public void Search()
 		{
+
+
 			ClearHierarchy();
 			var SearchString = InputField.text.ToLower();
+			if (SearchString.Length == 0)
+			{
+				Refresh();
+				return;
+			}
 			List<VariableViewerNetworking.NetFriendlyHierarchyBookShelf> ToShow = new List<VariableViewerNetworking.NetFriendlyHierarchyBookShelf>();
 			foreach (var netFriendly in THisCompressedHierarchy)
 			{
@@ -102,7 +129,7 @@ namespace AdminTools.VariableViewer
 			IDtoBookShelves.Clear();
 			THisCompressedHierarchy.Clear();
 			THisCompressedHierarchy.AddRange(CompressedHierarchy);
-			//Logger.Log("CompressedHierarchy Count > " + CompressedHierarchy.Count);
+			//Loggy.Log("CompressedHierarchy Count > " + CompressedHierarchy.Count);
 			foreach (var Compressed in CompressedHierarchy)
 			{
 				IDtoBookShelves[Compressed.ID] = Compressed;
@@ -191,8 +218,13 @@ namespace AdminTools.VariableViewer
 				}
 
 			}
+
+			if (InputField.text.Length > 0)
+			{
+				Search();
+			}
 		}
-		
+
 		public HierarchyEntry RecursiveGetParent(
 				VariableViewerNetworking.NetFriendlyHierarchyBookShelf bookShelf,
 				List<VariableViewerNetworking.NetFriendlyHierarchyBookShelf> passlist)

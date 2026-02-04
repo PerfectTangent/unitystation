@@ -1,7 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using DatabaseAPI;
-using TMPro;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -30,7 +27,7 @@ namespace UI
 			voteCount.text = currentCount;
 			voteTimer.text = timer;
 
-			if (PlayerList.Instance.AdminToken == null) return;
+			if (PlayerList.HasTAGClient(TAG.ADMIN_VOTE_VETO) == false) return;
 
 			vetoBtn.gameObject.SetActive(true);
 		}
@@ -74,9 +71,9 @@ namespace UI
 		public void Vote(string vote)
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			if (PlayerManager.PlayerScript != null)
+			if (PlayerManager.LocalPlayerScript != null)
 			{
-				PlayerManager.PlayerScript.playerNetworkActions.CmdRegisterVote(vote);
+				PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdRegisterVote(vote);
 			}
 
 			buttonPresses++;
@@ -86,9 +83,9 @@ namespace UI
 		public void AdminVeto()
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			if (PlayerManager.PlayerScript != null)
+			if (PlayerManager.LocalPlayerScript != null)
 			{
-				PlayerManager.PlayerScript.playerNetworkActions.CmdVetoRestartVote();
+				PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdVetoRestartVote();
 			}
 			buttonPresses++;
 		}

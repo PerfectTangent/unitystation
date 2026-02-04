@@ -5,95 +5,61 @@ using UnityEditor;
 using System.Text;
 using System.Linq;
 using System.IO;
-using UnityEditor.SceneManagement;
+using Logs;
 
-namespace Tests
+namespace Tests.Asset
 {
+	/// <summary>
+	/// Checks for missing references on prefabs and scriptable objects.
+	/// </summary>
+	[Category(nameof(Asset))]
 	public class MissingAssetReferences
 	{
 		/// <summary>
-		/// Checks if there is any prefab with missing reference component
+		/// Checks if there is any prefab with components that could not be loaded.
 		/// </summary>
 		[Test]
 		public void CheckMissingComponentOnPrefabs()
 		{
-			List<string> listResult = new List<string>();
+			var report = new TestReport();
 
-			string[] allPrefabs = SearchAndDestroy.GetAllPrefabs();
-			foreach (string prefab in allPrefabs)
+			foreach (var prefab in Utils.FindPrefabs(false))
 			{
-				Object o = AssetDatabase.LoadMainAssetAtPath(prefab);
+				var hasNullComponents = prefab.GetComponentsInChildren<Component>(true).Any(c => c == null);
 
-				// Check if it's gameobject
-				if (!(o is GameObject))
-				{
-					Logger.LogFormat("For some reason, prefab {0} won't cast to GameObject", Category.Tests, prefab);
-					continue;
-				}
-
-				var go = (GameObject)o;
-				Component[] components = go.GetComponentsInChildren<Component>(true);
-				foreach (Component c in components)
-				{
-					if (c == null)
-					{
-						listResult.Add(prefab);
-					}
-				}
+				report.FailIf(hasNullComponents)
+					.AppendLine($"The script for a component on {prefab.name} could not be loaded.");
 			}
 
-			foreach (string s in listResult)
-			{
-				Logger.LogFormat("Missing reference found in prefab {0}", Category.Tests, s);
-			}
-
-			Assert.IsEmpty(listResult, "Missing references found: {0}", string.Join(", ", listResult));
+			report.AssertPassed();
 		}
 
 		/// <summary>
-		/// Check if there any prefab with MissingReference field
+		/// Checks if there is any prefab with missing references in its components.
 		/// </summary>
 		[Test]
 		public void CheckMissingReferenceFieldsOnPrefabs()
 		{
-			// GameObject name - Component Name - Field Nme
-			var listResult = new List<(string, string, string)>();
+			var report = new TestReport();
+			var serializedObjectFieldsMap = new SerializedObjectFieldsMap();
 
-			string[] allPrefabs = SearchAndDestroy.GetAllPrefabs();
-			foreach (string prefab in allPrefabs)
+			foreach (var prefab in Utils.FindPrefabs(false))
 			{
-				Object o = AssetDatabase.LoadMainAssetAtPath(prefab);
-
-				// Check if it's gameobject
-				if (!(o is GameObject))
+				foreach (var component in prefab.GetComponentsInChildren<Component>(true).NotNull())
 				{
-					Logger.LogFormat("For some reason, prefab {0} won't cast to GameObject", Category.Tests, prefab);
-					continue;
-				}
+					var compType = component.GetType();
+					var missingRefs = serializedObjectFieldsMap
+						.FieldNamesWithStatus(component, ReferenceStatus.Missing)
+						.Select(pair => pair.name)
+						.ToList();
 
-				var go = (GameObject)o;
-				Component[] components = go.GetComponentsInChildren<Component>(true);
-				foreach (Component c in components)
-				{
-					if (c == null)
-						continue;
-
-					var so = new SerializedObject(c);
-					var missingRefs = GetMissingRefs(so);
-					foreach (var miss in missingRefs)
-						listResult.Add((go.name, c.name, miss));
+					report.FailIf(missingRefs.Any())
+						.AppendLine($"Prefab ({prefab.name}) has missing references in component {compType.Name}: ")
+						.AppendLineRange(missingRefs, "\tField: ");
 				}
 			}
 
-			var report = new StringBuilder();
-			foreach (var s in listResult)
-			{
-				var msg = $"Missing reference found in prefab {s.Item1} component {s.Item2} field {s.Item3}";
-				Logger.Log(msg, Category.Tests);
-				report.AppendLine(msg);
-			}
-
-			Assert.IsEmpty(listResult, report.ToString());
+			report.AssertPassed();
 		}
 
 		/// <summary>
@@ -124,161 +90,104 @@ namespace Tests
 			{
 				var fileName = Path.GetFileName(brokenAssetFilePath);
 				var msg = $"Can't load asset {fileName}. Maybe linked ScriptableObject script is missing?";
-				Logger.Log(msg, Category.Tests);
+				Loggy.Info(msg, Category.Tests);
 				report.AppendLine(msg);
 			}
 
 			Assert.IsEmpty(listResults, report.ToString());
+		}
+
+		private void CheckMissingOrNullReferenceFieldsSpriteSOs()
+		{
+			var report = new TestReport();
+			var FieldInfo =  typeof(SpriteDataSO.Frame).GetField("sprite");
+			List<string> Missing = new List<string>();
+			foreach (var so in Utils.FindAssetsByType<SpriteDataSO>(""))
+			{
+				for (int i = 0; i < so.Variance.Count; i++)
+				{
+					for (int j = 0; j < so.Variance[i].Frames.Count; j++)
+					{
+						var Status =  SerializedObjectFieldsMap.GetReferenceStatus(FieldInfo, so.Variance[i].Frames[j], true, out var Indexs);
+						switch (Status)
+						{
+								case ReferenceStatus.Null:
+									Missing.Add( $"{so.name} Index {i} Subindex {j} is None/Null " + Indexs);
+									break;
+								case ReferenceStatus.Missing:
+									Missing.Add($"{so.name} Index {i} Subindex {j} has a missing reference."  + Indexs);
+									break;
+								default:
+									break;
+						}
+					}
+				}
+			}
+
+
+			report.FailIf(Missing.Any());
+			foreach (var Missed in Missing)
+			{
+				report.AppendLine(Missed);
+			}
+			report.AssertPassed();
+		}
+
+		private void CheckMissingOrNullReferenceFieldsScriptableObjects(string path, ReferenceStatus status)
+		{
+			var report = new TestReport();
+			var serializedObjectFieldsMap = new SerializedObjectFieldsMap();
+
+			var Objects =Utils.FindAssetsByType<ScriptableObject>(path);
+			foreach (var so in Objects)
+			{
+				var missingRefs = serializedObjectFieldsMap
+					.FieldNamesWithStatus(so, status)
+					.Select(pair => pair.status switch
+						{
+							ReferenceStatus.Null => $"{pair.name} is None/Null",
+							ReferenceStatus.Missing => $"{pair.name} has a missing reference.",
+							_ => string.Empty
+						}
+					)
+					.ToList();
+
+				var message = $"ScriptableObject ({so.name}) has invalid serializable Unity object fields: ";
+
+				report.FailIf(missingRefs.Any())
+					.AppendLine(message)
+					.AppendLineRange(missingRefs, "\tField: ");
+			}
+
+			report.AssertPassed();
 		}
 
 		/// <summary>
-		/// Check if there are scriptable objects that has missing reference fields
+		/// Check if there are scriptable objects that have serializable object fields with a missing reference.
 		/// </summary>
-		private void CheckMissingReferenceFieldsScriptableObjects(string path, bool checkEmpty = false)
-		{
-			// Get all assets paths
-			var allResourcesPaths = AssetDatabase.GetAllAssetPaths()
-				.Where(p => p.Contains(path));
-
-			// Find all .asset (almost always it is SO)
-			var allAssetPaths = allResourcesPaths.Where((a) => a.EndsWith(".asset")).ToArray();
-
-			var listResults = new List<(string, string)>();
-			foreach (var lookUpPath in allAssetPaths)
-			{
-				var asset = AssetDatabase.LoadMainAssetAtPath(lookUpPath);
-
-				// skip invalid assets
-				if (!asset || !(asset is ScriptableObject))
-					continue;
-
-				var so = new SerializedObject(asset);
-				var missRefs = GetMissingRefs(so, checkEmpty);
-				foreach (var miss in missRefs)
-					listResults.Add((asset.name, miss));
-			}
-
-			// Form report
-			var report = new StringBuilder();
-			foreach (var s in listResults)
-			{
-				var msg = $"Missing reference found in scriptable object {s.Item1} field {s.Item2}";
-				Logger.Log(msg, Category.Tests);
-				report.AppendLine(msg);
-			}
-
-			Assert.IsEmpty(listResults, report.ToString());
-		}
-
 		[Test]
 		public void TestScriptableObjects()
 		{
 			CheckMissingScriptableObjects("ScriptableObjects");
-			CheckMissingReferenceFieldsScriptableObjects("ScriptableObjects");
+			CheckMissingOrNullReferenceFieldsScriptableObjects("ScriptableObjects",
+				ReferenceStatus.Missing);
 		}
 
+		[Test]
+		public void TestScriptableObjectsSprites()
+		{
+			CheckMissingOrNullReferenceFieldsSpriteSOs();
+		}
+
+		/// <summary>
+		/// Check if there are singleton scriptable objects that have serializable object fields with no reference.
+		/// </summary>
 		[Test]
 		public void TestSingletonScriptableObjects()
 		{
 			CheckMissingScriptableObjects("Resources/ScriptableObjectsSingletons");
-			CheckMissingReferenceFieldsScriptableObjects("Resources/ScriptableObjectsSingletons", true);
-		}
-
-
-		/// <summary>
-		/// Check if there are missing components or reference fields in a scene
-		/// Checks only scenes selected for build
-		/// </summary>
-		[Test]
-		public void CheckMissingComponentsOnScenes()
-		{
-			var buildScenes = EditorBuildSettings.scenes;
-
-			var missingComponentsReport = new List<(string, string)>();
-			var missingFieldsReport = new List<(string, string, string, string)>();
-
-			foreach (var scene in buildScenes)
-			{
-				var currentScene = EditorSceneManager.OpenScene(scene.path, OpenSceneMode.Single);
-				var currentSceneName = currentScene.name;
-
-				var allGO = GameObject.FindObjectsOfType<GameObject>();
-				foreach (var go in allGO)
-				{
-					Component[] components = go.GetComponents<Component>();
-					foreach (Component c in components)
-					{
-						var parent = go.transform.parent;
-						var parentName = parent ? parent.name +'/' : "";
-
-						if (c == null)
-						{
-							missingComponentsReport.Add((currentSceneName, parentName + go.name));
-						}
-						else
-						{
-							var so = new SerializedObject(c);
-							var missingRefs = GetMissingRefs(so);
-							foreach (var miss in missingRefs)
-								missingFieldsReport.Add((currentSceneName, parentName + go.name, c.name, miss));
-						}
-					}
-				}
-			}
-
-			// Form report about missing components
-			var report = new StringBuilder();
-			foreach (var s in missingComponentsReport)
-			{
-				var missingComponentMsg = $"Missing component found in scene {s.Item1}, GameObject {s.Item2}";
-				Logger.Log(missingComponentMsg, Category.Tests);
-				report.AppendLine(missingComponentMsg);
-			}
-
-			Assert.IsEmpty(missingComponentsReport, report.ToString());
-
-			// Form report about missing refs
-			report = new StringBuilder();
-			foreach (var s in missingFieldsReport)
-			{
-				var missingFieldsMsg = $"Missing reference found in scene {s.Item1}, GameObject {s.Item2}, Component {s.Item3}, FieldName {s.Item4}";
-				Logger.Log(missingFieldsMsg, Category.Tests);
-				report.AppendLine(missingFieldsMsg);
-			}
-
-			Assert.IsEmpty(missingFieldsReport, report.ToString());
-
-		}
-
-		private static List<string> GetMissingRefs(SerializedObject so, bool checkEmpty = false)
-		{
-			var sp = so.GetIterator();
-			var listResult = new List<string>();
-
-			while (sp.NextVisible(true))
-			{
-				if (sp.propertyType == SerializedPropertyType.ObjectReference)
-				{
-					if (checkEmpty)
-					{
-						if (sp.objectReferenceValue == null
-						    || sp.objectReferenceInstanceIDValue == 0)
-						{
-							listResult.Add(sp.displayName);
-						}
-
-						continue;
-					}
-
-					if (sp.objectReferenceValue == null
-					    && sp.objectReferenceInstanceIDValue != 0)
-					{
-						listResult.Add(sp.displayName);
-					}
-				}
-			}
-
-			return listResult;
+			CheckMissingOrNullReferenceFieldsScriptableObjects("Resources/ScriptableObjectsSingletons",
+				ReferenceStatus.Null | ReferenceStatus.Missing);
 		}
 	}
 }

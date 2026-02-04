@@ -1,48 +1,49 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Chemistry;
-using UnityEngine;
+using HealthV2;
+using HealthV2.Living.PolymorphicSystems.Bodypart;
 
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class Kidneys : BodyPartFunctionality
 	{
-		public List<Reagent> WhiteListReagents = new List<Reagent>();
+		public List<ReagentNPercentage> BlacklistReagents = new List<ReagentNPercentage>();
 		//add Special nutrients in body
 
-		public Dictionary<Reagent, float> ContainedBADReagents = new Dictionary<Reagent, float>();
+		[System.Serializable]
 
-		public float ProcessingPercentage = 0.2f;
-
-		public override void SetUpSystems()
+		public class ReagentNPercentage
 		{
-			base.SetUpSystems();
-			if(WhiteListReagents.Count == 0)
-			{
-				WhiteListReagents.Add(RelatedPart.requiredReagent);
-				WhiteListReagents.Add(RelatedPart.wasteReagent);
-				WhiteListReagents.Add(RelatedPart.Nutriment);
-			}
+			public Reagent Reagent;
+			public float Percentage;
+
 		}
+
+		public ReagentCirculatedComponent _ReagentCirculatedComponent;
+
+
+		public float ProcessingPercentage = 0.05f;
+
+		public override void Awake()
+		{
+			base.Awake();
+			_ReagentCirculatedComponent = this.GetComponent<ReagentCirculatedComponent>();
+		}
+
 
 		public override void ImplantPeriodicUpdate()
 		{
 			base.ImplantPeriodicUpdate();
-			ContainedBADReagents.Clear();
 
-			foreach (var Reagent in RelatedPart.BloodContainer)
+			var poolToClean = _ReagentCirculatedComponent.AssociatedSystem.BloodPool.Take(
+				ProcessingPercentage*_ReagentCirculatedComponent.AssociatedSystem.BloodPool.Total);
+
+			foreach (var Reagent in BlacklistReagents)
 			{
-				if (WhiteListReagents.Contains(Reagent.Key) == false && Reagent.Key is BloodType == false)
-				{
-					ContainedBADReagents.Add(Reagent.Key, Reagent.Value * ProcessingPercentage * RelatedPart.TotalModified);
-
-				}
+				poolToClean.Remove(Reagent.Reagent, poolToClean[Reagent.Reagent] * Reagent.Percentage);
 			}
 
-			foreach (var Reagents in ContainedBADReagents)
-			{
-				RelatedPart.BloodContainer.CurrentReagentMix.Remove(Reagents.Key, Reagents.Value);
-			}
+			_ReagentCirculatedComponent.AssociatedSystem.BloodPool.Add(poolToClean);
 			//Debug.Log("Kidney: " + BloodContainer[requiredReagent]/bloodType.GetGasCapacity(BloodContainer.CurrentReagentMix));
 		}
 	}

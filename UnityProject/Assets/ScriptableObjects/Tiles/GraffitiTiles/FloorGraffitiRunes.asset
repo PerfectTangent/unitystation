@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c83684e46853b2499cbc2c259f76dbe, type: 3}
+  m_Name: FloorGraffitiRunes
+  m_EditorClassIdentifier: 
+  graffitiTiles:
+  - {fileID: 11400000, guid: 768e7a8f9db9bf640ba1cce5a98b31a4, type: 2}
+  - {fileID: 11400000, guid: adc9aa93ce0fa514f8c3a51eae4106c7, type: 2}
+  - {fileID: 11400000, guid: 69fecb65bf173614c9bcebe5174e2259, type: 2}
+  - {fileID: 11400000, guid: d53e7b9c8bd7b3343a2e9ce56e6d4342, type: 2}
+  - {fileID: 11400000, guid: ffbd4d48afa41544a9f8ca853ba8a98b, type: 2}
+  - {fileID: 11400000, guid: 9c157d91fafb35d4f8d655aed270db4c, type: 2}

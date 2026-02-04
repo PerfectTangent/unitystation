@@ -15,7 +15,7 @@ namespace UI.Objects.Atmospherics.Acu
 	public class GUI_AcuScrubberEntry : DynamicEntry
 	{
 		[SerializeField]
-		private NetLabel label = default;
+		private NetText_label label = default;
 
 		private static readonly string m = "<mark=#00FF0040>";
 		private static readonly string um = "</mark>";
@@ -44,12 +44,13 @@ namespace UI.Objects.Atmospherics.Acu
 				{ Gas.NitrousOxide, "N<sub>2</sub>O" },
 				{ Gas.Nitryl, "NO<sub>2</sub>" },
 				{ Gas.Hydrogen, "H<sub>2</sub>" },
+				{ Gas.CarbonMonoxide, "CO" }
 			};
 
 			line1 = new GasSO[] { Gas.Oxygen, Gas.Nitrogen, Gas.CarbonDioxide, Gas.WaterVapor, Gas.NitrousOxide, Gas.Nitryl, Gas.Hydrogen };
 			line2 = new GasSO[] { Gas.Plasma, Gas.Tritium, Gas.Freon, Gas.Miasma, Gas.BZ };
 			line3 = new GasSO[] { Gas.Pluoxium, Gas.Stimulum, Gas.HyperNoblium };
-			line4 = new GasSO[] { Gas.Smoke, Gas.Ash };
+			line4 = new GasSO[] { Gas.Smoke, Gas.Ash, Gas.CarbonMonoxide };
 		}
 
 		public void SetValues(GUI_Acu acuUi, Scrubber scrubber)
@@ -98,13 +99,13 @@ namespace UI.Objects.Atmospherics.Acu
 					$"| Mode:       {modeStr}         |\n" +
 					$"| Range:      {rangeStr}         |\n" +
 					"|                                                 |\n" +
-					$"| {filteredGasLines[0]}<sub> </sub>     |\n" + 
+					$"| {filteredGasLines[0]}<sub> </sub>     |\n" +
 					$"| {filteredGasLines[1]}  |\n" +
 					$"| {filteredGasLines[2]}       |\n" +
 					$"| {filteredGasLines[3]}                                |\n" +
 					"---------------------------------------------------\n";
 
-			label.SetValueServer(str);
+			label.MasterSetValue(str);
 		}
 
 		private void SetSetting(System.Action callback)

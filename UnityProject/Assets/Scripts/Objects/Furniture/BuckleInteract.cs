@@ -1,6 +1,10 @@
-﻿using System.Linq;
-using Player.Movement;
+﻿using System;
+using System.Linq;
+using Core;
+using HealthV2;
+using Logs;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
@@ -9,13 +13,28 @@ namespace Objects
 	/// them when the object is hand-applied to.
 	/// </summary>
 	public class BuckleInteract : MonoBehaviour, ICheckedInteractable<MouseDrop>, ICheckedInteractable<HandApply>,
-		IServerLifecycle
+		IServerDespawn
 	{
-		//may be null
-		private OccupiableDirectionalSprite occupiableDirectionalSprite;
+		//may be null, catalogue index 0 is the occupied sprite
+		[SerializeField]
+		private SpriteHandler occupiedSpriteHandler;
 		private Integrity integrity;
 
-		public PlayerScript OccupantPlayerScript;
+		///<summary>
+		/// Event that get invoked when a player Buckles into an object that has this component
+		///</summary>
+		public event Action OnBuckleEvent;
+		///<summary>
+		/// Event that get invoked when a player Unbuckles into an object that has this component
+		///</summary>
+		public event Action OnUnbuckleEvent;
+
+		/// <summary>
+		/// Do the resist even if uncuffed, e.g alien nest
+		/// </summary>
+		[SerializeField]
+		private bool doResistUncuffed = false;
+		public bool DoResistUncuffed => doResistUncuffed;
 
 		/// <summary>
 		/// The time that a mob will spend trying to unbuckle himself from a chair when he is handcuffed.
@@ -30,9 +49,13 @@ namespace Objects
 		[Tooltip("Whether the object you can trying to buckle to is impassable, therefore should bypass the push check")]
 		private bool allowImpassable;
 
-		private void Start()
+		private RegisterTile registerTile;
+		private UniversalObjectPhysics objectPhysics;
+
+		private void Awake()
 		{
-			occupiableDirectionalSprite = GetComponent<OccupiableDirectionalSprite>();
+			registerTile = GetComponent<RegisterTile>();
+			objectPhysics = GetComponent<UniversalObjectPhysics>();
 		}
 
 		private bool IsPushEnough(MouseDrop interaction, NetworkSide side, PlayerScript playerScript, out bool sameSquare, out Vector2Int dir)
@@ -47,14 +70,14 @@ namespace Objects
 				sameSquare = false;
 
 				bool canPush = false;
-				var playerPushPull = playerScript.pushPull;
+				var playerPushPull = playerScript.ObjectPhysics;
 				if (side == NetworkSide.Server)
 				{
-					canPush = playerPushPull.CanPushServer((Vector3Int)playerWorldPos, dir);
+					canPush = playerPushPull.CanPush(dir);
 				}
 				else
 				{
-					canPush = playerPushPull.CanPushClient((Vector3Int)playerWorldPos, dir);
+					canPush = playerPushPull.CanPush(dir);
 				}
 
 				if (canPush == false) return false;
@@ -64,24 +87,23 @@ namespace Objects
 
 		public bool WillInteract(MouseDrop interaction, NetworkSide side)
 		{
-			if (DefaultWillInteract.Default(interaction, side) == false) return false;
-			if (Validations.HasComponent<PlayerMove>(interaction.DroppedObject) == false) return false;
+			if (DefaultWillInteract.Default(interaction, side,
+					Validations.CheckState(x => x.CanBuckleOthers), AllowTelekinesis: false) == false) return false;
 
-			var playerMove = interaction.DroppedObject.GetComponent<PlayerMove>();
+			if (Validations.HasComponent<MovementSynchronisation>(interaction.DroppedObject) == false) return false;
+
+			var playerMove = interaction.DroppedObject.GetComponent<MovementSynchronisation>();
 			var registerPlayer = playerMove.GetComponent<RegisterPlayer>();
-			// Determine if a push into the tile would be necessary or insufficient.
 
+			// Determine if a push into the tile would be necessary or insufficient.
 			if (allowImpassable == false && IsPushEnough(interaction, side, registerPlayer.PlayerScript, out _, out _) == false) return false;
 
 			//if there are any restrained players already here, we can't restrain another one here
-			if (MatrixManager.GetAt<PlayerMove>(interaction.TargetObject, side)
-				.Any(pm => pm.IsBuckled))
-			{
-				return false;
-			}
+			if (MatrixManager.GetAt<MovementSynchronisation>(interaction.TargetObject, side)
+				.Any(pm => pm.IsBuckled)) return false;
 
 			//can't buckle during movement
-			var playerSync = interaction.DroppedObject.GetComponent<PlayerSync>();
+			var playerSync = interaction.DroppedObject.GetComponent<MovementSynchronisation>();
 			if (playerSync.IsMoving) return false;
 
 			//if the player to buckle is currently downed, we cannot buckle if there is another player on the tile
@@ -93,7 +115,7 @@ namespace Objects
 			//Player to buckle is down,
 			//return false if there are any blocking players on this tile (because if we buckle this player
 			//they would become blocking, and we can't have 2 blocking players on the same tile).
-			return MatrixManager.GetAt<PlayerMove>(interaction.TargetObject, side)
+			return MatrixManager.GetAt<MovementSynchronisation>(interaction.TargetObject, side)
 				.Any(pm => pm != playerMove && pm.GetComponent<RegisterPlayer>().IsBlocking) == false;
 		}
 
@@ -101,14 +123,23 @@ namespace Objects
 		{
 			var playerScript = drop.UsedObject.GetComponent<PlayerScript>();
 
-			IsPushEnough(drop, NetworkSide.Server, playerScript, out bool sameSquare, out Vector2Int dir);
+			if (playerScript.playerMove.IsBuckled && playerScript.playerMove?.BuckledToObject?.gameObject == this.gameObject)
+			{				UnBuckle(playerScript);
 
-			if (sameSquare == false)
+			}
+			else
 			{
-				playerScript.pushPull.QueuePush(dir, forcePush: allowImpassable);
+				IsPushEnough(drop, NetworkSide.Server, playerScript, out bool sameSquare, out Vector2Int dir);
+
+				if (sameSquare == false)
+				{
+					playerScript.ObjectPhysics.AppearAtWorldPositionServer(transform.position);
+				}
+
+				BucklePlayer(playerScript);
 			}
 
-			BucklePlayer(playerScript);
+
 		}
 
 		/// <summary>
@@ -116,64 +147,107 @@ namespace Objects
 		/// </summary>
 		public void BucklePlayer(PlayerScript playerScript)
 		{
-			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Click01, gameObject.WorldPosServer(), sourceObj: gameObject);
+			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Click01, gameObject.AssumedWorldPosServer(), sourceObj: gameObject);
 
-			playerScript.playerMove.ServerBuckle(this, OnUnbuckle);
+			if (forceLayingDown && playerScript.RegisterPlayer.IsLayingDown == false) playerScript.RegisterPlayer.ServerSetIsStanding(false);
 
-			//if this is a directional sprite, we render it in front of the player
-			//when they are buckled
-			occupiableDirectionalSprite?.SetOccupant(playerScript.netId);
+			objectPhysics.BuckleTo(playerScript.playerMove);
+			occupiedSpriteHandler.OrNull()?.SetCatalogueIndexSprite(0);
+			OnBuckleEvent?.Invoke();
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (DefaultWillInteract.Default(interaction, side, Validations.CheckState(x => x.CanBuckleOthers)) == false) return false;
 			if (interaction.TargetObject != gameObject) return false;
 			//can only do this empty handed
-			if (interaction.HandObject != null) return false;
+			if (interaction.HandObject != null && interaction.IsAltClick == false)
+			{
+				return false;
+			}
 
 			//can only do this if there is a buckled player here
-			return MatrixManager.GetAt<PlayerMove>(interaction.TargetObject, side)
-				.Any(pm => pm.IsBuckled);
+			return  MatrixManager.GetAt<MovementSynchronisation>(interaction.TargetObject, side).Any(pm => pm.IsBuckled);
+
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Click01, interaction.TargetObject.WorldPosServer(), sourceObj: gameObject);
+			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Click01, interaction.TargetObject.AssumedWorldPosServer(), sourceObj: gameObject);
 
-			Unbuckle();
+			UnbuckleAll();
 		}
 
 		/// <summary>
 		/// Eject whoever is buckled to this
 		/// </summary>
-		public void Unbuckle()
+		public void UnbuckleAll()
 		{
-			if (CustomNetworkManager.IsServer == false)
-			{
-				return;
-			}
-			foreach (var playerMove in MatrixManager.GetAt<PlayerMove>(gameObject, NetworkSide.Server))
+			if (CustomNetworkManager.IsServer == false) return;
+
+			foreach (var playerMove in MatrixManager.GetAt<MovementSynchronisation>(gameObject, NetworkSide.Server))
 			{
 				if (playerMove.IsBuckled)
 				{
-					playerMove.Unbuckle();
+					UnBuckle(playerMove.playerScript);
 					return;
 				}
 			}
 		}
 
-		//delegate invoked from playerMove when they are unrestrained from this
-		private void OnUnbuckle()
-		{
-			occupiableDirectionalSprite?.SetOccupant(NetId.Empty);
-		}
-
-		public void OnSpawnServer(SpawnInfo info) { }
-
 		public void OnDespawnServer(DespawnInfo info)
 		{
-			Unbuckle();
+			UnbuckleAll();
+		}
+
+		public void TryUnbuckle(PlayerScript playerScript)
+		{
+			if (playerScript.PlayerSync.IsCuffed || doResistUncuffed)
+			{
+				if (CanUnBuckleSelf(playerScript))
+				{
+					Chat.AddActionMsgToChat(
+						playerScript.gameObject,
+						$"You start trying to unbuckle yourself from the {gameObject.ExpensiveName()}! (this will take some time...)",
+						$"{playerScript.visibleName} is trying to unbuckle themself from the {gameObject.ExpensiveName()}!"
+					);
+
+					StandardProgressAction.Create(
+						new StandardProgressActionConfig(StandardProgressActionType.Unbuckle),
+						() =>
+						{
+							UnBuckle(playerScript);
+						}).ServerStartProgress(registerTile, resistTime, playerScript.gameObject);
+
+				}
+			}
+			else
+			{
+				UnBuckle(playerScript);
+			}
+		}
+
+		private void UnBuckle(PlayerScript playerScript)
+		{
+			playerScript.PlayerSync.Unbuckle();
+			objectPhysics.Unbuckle();
+			occupiedSpriteHandler.OrNull()?.PushClear();
+			OnUnbuckleEvent?.Invoke();
+		}
+
+		private bool CanUnBuckleSelf(PlayerScript playerScript)
+		{
+			PlayerHealthV2 playerHealth = playerScript.playerHealth;
+
+			if (playerHealth == null) return false;
+
+			if (playerHealth.ConsciousState == ConsciousState.DEAD) return false;
+
+			if (playerHealth.ConsciousState == ConsciousState.UNCONSCIOUS) return false;
+
+			if (playerHealth.ConsciousState == ConsciousState.BARELY_CONSCIOUS) return false;
+
+			return true;
 		}
 	}
 }

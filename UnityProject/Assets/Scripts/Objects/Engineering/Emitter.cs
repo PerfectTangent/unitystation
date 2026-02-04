@@ -1,12 +1,13 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 using NaughtyAttributes;
 using AddressableReferences;
-using Messages.Server;
+using Core;
 using Systems.Clearance;
 using Systems.Electricity;
 using Systems.Electricity.NodeModules;
 using Systems.Interaction;
+using Weapons.Projectiles;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Objects.Engineering
@@ -14,11 +15,10 @@ namespace Objects.Engineering
 	public class Emitter : MonoBehaviour, ICheckedInteractable<HandApply>, INodeControl, IExaminable, ICheckedInteractable<AiActivate>
 	{
 		private Rotatable directional;
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 		private RegisterTile registerTile;
 		private SpriteHandler spriteHandler;
-		private AccessRestrictions accessRestrictions;
-		private ClearanceCheckable clearanceCheckable;
+		private ClearanceRestricted clearanceRestricted;
 		private ElectricalNodeControl electricalNodeControl;
 
 		[SerializeField]
@@ -27,6 +27,10 @@ namespace Objects.Engineering
 		[SerializeField]
 		[Tooltip("Whether this emitter should start wrenched and welded")]
 		private bool startSetUp;
+
+		[SerializeField, ShowIf(nameof(startSetUp))]
+		[Tooltip("Whether or not it should try shooting straight away")]
+		private bool startOn;
 
 		[SerializeField]
 		[Tooltip("Whether this emitter should always shoot even if no power")]
@@ -41,9 +45,17 @@ namespace Objects.Engineering
 		[Foldout("AddressableSound")]
 		private AddressableAudioSource sound = null;
 
+		[SerializeField]
+		[Tooltip("Used if you want Overwrite functionality and prevent it from firing")]
+		private bool DoesNotShoot = false;
+
+
 		private bool isWelded;
 		private bool isWrenched;
 		private bool isOn;
+
+		public bool IsOn => isOn;
+
 		private bool isLocked;
 
 		// Voltage in wire
@@ -54,10 +66,9 @@ namespace Objects.Engineering
 		private void Awake()
 		{
 			directional = GetComponent<Rotatable>();
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 			registerTile = GetComponent<RegisterTile>();
-			accessRestrictions = GetComponent<AccessRestrictions>();
-			clearanceCheckable = GetComponent<ClearanceCheckable>();
+			clearanceRestricted = GetComponent<ClearanceRestricted>();
 			electricalNodeControl = GetComponent<ElectricalNodeControl>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
 		}
@@ -71,7 +82,8 @@ namespace Objects.Engineering
 				isWelded = true;
 				isWrenched = true;
 				directional.LockDirectionTo(true, directional.CurrentDirection);
-				objectBehaviour.ServerSetPushable(false);
+				objectBehaviour.SetIsNotPushable(true);
+				TogglePower(startOn);
 			}
 		}
 
@@ -97,16 +109,9 @@ namespace Objects.Engineering
 		/// </summary>
 		private void EmitterUpdate()
 		{
-			if(isOn == false && alwaysShoot == false) return;
 
-			if (voltage < minVoltage && alwaysShoot == false)
-			{
-				spriteHandler.ChangeSprite(2);
-				return;
-			}
-
-			//Reset sprite if power is now available
-			TogglePower(isOn);
+			if (ValidSetup() == false) return;
+			if (DoesNotShoot) return;
 
 			//Shoot 75% of the time, to add variation
 			if(DMMath.Prob(25)) return;
@@ -114,9 +119,31 @@ namespace Objects.Engineering
 			ShootEmitter();
 		}
 
+
+		public bool ValidSetup(bool IgnoreOn = false)
+		{
+			if (isWrenched == false) return false;
+			if (isWelded == false) return false;
+			if (IgnoreOn == false)
+			{
+				if(isOn == false && alwaysShoot == false) return false;
+			}
+
+
+			if (voltage < minVoltage && alwaysShoot == false)
+			{
+				spriteHandler.SetCatalogueIndexSprite(2);
+				return false;
+			}
+
+			//Reset sprite if power is now available
+			TogglePower(isOn);
+			return true;
+		}
+
 		public void ShootEmitter()
 		{
-			CastProjectileMessage.SendToAll(gameObject, projectilePrefab, directional.CurrentDirection.ToLocalVector3(), default);
+			ProjectileManager.InstantiateAndShoot( projectilePrefab, directional.WorldDirection,gameObject, default);
 
 			SoundManager.PlayNetworkedAtPos(sound, registerTile.WorldPositionServer);
 		}
@@ -169,17 +196,7 @@ namespace Objects.Engineering
 
 		private void TryToggleLock(HandApply interaction)
 		{
-			/* --ACCESS REWORK--
-			 *  TODO Remove the AccessRestriction check when we finish migrating!
-			 *
-			 */
-			if (accessRestrictions.CheckAccessCard(interaction.HandObject))
-			{
-				ToggleEmitter();
-				return; //we found access, skip clearance check
-			}
-
-			if (clearanceCheckable.HasClearance(interaction.Performer))
+			if (clearanceRestricted.HasClearance(interaction.Performer))
 			{
 				ToggleEmitter();
 			}
@@ -226,17 +243,17 @@ namespace Objects.Engineering
 			}
 		}
 
-		private void TogglePower(bool newIsOn)
+		public void TogglePower(bool newIsOn)
 		{
 			if (newIsOn)
 			{
 				isOn = true;
-				spriteHandler.ChangeSprite(1);
+				spriteHandler.SetCatalogueIndexSprite(1);
 			}
 			else
 			{
 				isOn = false;
-				spriteHandler.ChangeSprite(0);
+				spriteHandler.SetCatalogueIndexSprite(0);
 			}
 		}
 
@@ -315,7 +332,7 @@ namespace Objects.Engineering
 					{
 						isWrenched = false;
 						directional.LockDirectionTo(false, directional.CurrentDirection);
-						objectBehaviour.ServerSetPushable(true);
+						objectBehaviour.SetIsNotPushable(false);
 						TogglePower(false);
 					});
 			}
@@ -337,7 +354,7 @@ namespace Objects.Engineering
 					{
 						isWrenched = true;
 						directional.LockDirectionTo(true, directional.CurrentDirection);
-						objectBehaviour.ServerSetPushable(false);
+						objectBehaviour.SetIsNotPushable(true);
 					});
 			}
 		}

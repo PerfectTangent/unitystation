@@ -1,4 +1,5 @@
 ﻿using System;
+using Logs;
 using UnityEngine;
 
 public class PostProcessingStack
@@ -169,7 +170,7 @@ public class PostProcessingStack
 
 		// Adjust scale from Extended mask to Screen size mask.
 		float _yUVScale =
-			1 / ((float) iFloorOcclusionMask.renderTexture.width / iFloorOcclusionMask.renderTexture.height);
+			1 / ((float) iFloorOcclusionMask.renderTexture.width /  iFloorOcclusionMask.renderTexture.height);
 		Vector3 _adjustedDistance = iFovDistance * iOperationParameters.cameraViewportUnitsInWorldSpace *
 			iRawOcclusionMask.orthographicSize / iFloorOcclusionMask.orthographicSize;
 
@@ -177,6 +178,7 @@ public class PostProcessingStack
 			new Vector3(_adjustedDistance.x, _yUVScale, iRenderSettings.fovHorizonSmooth));
 
 		iRawOcclusionMask.renderTexture.filterMode = FilterMode.Bilinear;
+
 		PixelPerfectRT.Blit(iRawOcclusionMask, iFloorOcclusionMask, mMaterialContainer.floorFovMaterial);
 
 		//second pass to handle walls
@@ -220,7 +222,7 @@ public class PostProcessingStack
 
 		if (iBlurMaterial == null)
 		{
-			Logger.LogError($"PostProcessingStack: Unable to do a blur pass. Provided material is null.",
+			Loggy.Error($"PostProcessingStack: Unable to do a blur pass. Provided material is null.",
 				Category.Lighting);
 			return false;
 		}

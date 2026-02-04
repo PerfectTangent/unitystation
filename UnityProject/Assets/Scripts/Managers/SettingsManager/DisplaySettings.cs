@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using AdminCommands;
+using Shared.Managers;
 using UnityEngine;
 
 namespace Managers.SettingsManager
@@ -252,9 +252,9 @@ namespace Managers.SettingsManager
 				}
 			}
 		}
-		private const int DEFAULT_ZOOMLEVEL = 24;
-		private const int MIN_ZOOMLEVEL = 8;
-		private const int MAX_ZOOMLEVEL = 64;
+		private const int DEFAULT_ZOOMLEVEL = 32;
+		private const int MIN_ZOOMLEVEL = 32;
+		private const int MAX_ZOOMLEVEL = 512;
 
 		#region ChatBubbles
 
@@ -398,6 +398,9 @@ namespace Managers.SettingsManager
 
 		//TODO: Resolution options: issues #2047 #4107
 
+		public static string UISCALE_KEY = "uiscale";
+		public static Vector2 UISCALE_DEFAULT = new Vector2(2560, 1440);
+
 		public event EventHandler<DisplaySettingsChangedEventArgs> SettingsChanged;
 		protected virtual void OnSettingsChanged(DisplaySettingsChangedEventArgs e)
 		{
@@ -409,6 +412,11 @@ namespace Managers.SettingsManager
 		{
 			base.Awake();
 			IsFullScreen = Screen.fullScreen;
+			Vector2 savedScale = new Vector2(
+				PlayerPrefs.GetInt(UISCALE_KEY + "x", (int)UISCALE_DEFAULT.x),
+				PlayerPrefs.GetInt(UISCALE_KEY + "y", (int)UISCALE_DEFAULT.y)
+			);
+			UIManager.Instance.Scaler.referenceResolution = savedScale;
 			SetupPrefs();
 		}
 
@@ -556,6 +564,7 @@ namespace Managers.SettingsManager
 			if (fullScreenOn)
 			{
 				Screen.SetResolution(Screen.currentResolution.width, Screen.currentResolution.height, true);
+				Screen.fullScreenMode = FullScreenMode.FullScreenWindow;
 				yield return null;
 			}
 			else
@@ -574,6 +583,7 @@ namespace Managers.SettingsManager
 				}
 
 				Screen.SetResolution(windowWidth, windowHeight, false);
+				Screen.fullScreenMode = FullScreenMode.Windowed;
 				yield return null;
 			}
 			dsEventArgs.FullScreenChanged = true;

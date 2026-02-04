@@ -12,11 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ad263680d73c8c54ba53262044a57d04, type: 3}
   m_Name: table_glass
   m_EditorClassIdentifier: 
+  <ForeverID>k__BackingField: bd5274eeb48464753b12714bb88a6bff
   displayName: 
   description: 
   LayerType: 9
   TileType: 4
   RequiredTiles: []
+  Mass: 1
   floorTileSounds: {fileID: 0}
   CanSoundOverride: 0
   atmosPassable: 1
@@ -25,6 +27,7 @@ MonoBehaviour:
   passable: 0
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -49,11 +52,17 @@ MonoBehaviour:
     Acid: 100
     Magic: 0
     Bio: 0
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions:
   - {fileID: 11400000, guid: 60c558a8dfbf4ee4e8225a3484933424, type: 2}
   - {fileID: 11400000, guid: fc968a68963834c05a67838fe15fedec, type: 2}
   - {fileID: 11400000, guid: 3aa4d5af2288ea1449aa0d183fe484a5, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 8579127030982015588, guid: 66a5287d0bf216847a2f4fe34228a0cf,
     type: 3}

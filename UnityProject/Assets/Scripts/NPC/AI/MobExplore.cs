@@ -8,6 +8,7 @@ using NaughtyAttributes;
 using Objects.Construction;
 using AddressableReferences;
 using Chemistry;
+using SecureStuff;
 using Random = System.Random;
 
 namespace Systems.MobAIs
@@ -27,7 +28,8 @@ namespace Systems.MobAIs
 			dirtyFloor,
 			missingFloor,
 			injuredPeople,
-			players
+			players,
+			none
 		}
 
 		public float PriorityBalance = 1;
@@ -37,6 +39,7 @@ namespace Systems.MobAIs
 
 		public event Action FoodEatenEvent;
 
+		[PlayModeOnly]
 		public Target target;
 
 		[Tooltip("Indicates the time it takes for the mob to perform its main action. If the the time is 0, it means that the action is instantaneous.")]
@@ -47,10 +50,14 @@ namespace Systems.MobAIs
 		[SerializeField]
 		private bool hasFoodPrefereces = false;
 
+		public bool HasFoodPrefereces => hasFoodPrefereces;
+
 		[Tooltip("Objects in this list are considered food by this creature (even non edible stuff!)")]
 		[SerializeField]
 		[ShowIf(nameof(hasFoodPrefereces))]
 		private List<ItemTrait> foodPreferences = null;
+
+		public List<ItemTrait> FoodPreferences => foodPreferences;
 
 		// Timer that indicates if the action perform time is reached and the action can be performed.
 		private float actionPerformTimer = 0.0f;
@@ -63,11 +70,13 @@ namespace Systems.MobAIs
 
 		private readonly Random random = new Random();
 
-		private InteractableTiles interactableTiles {
-			get {
+		private InteractableTiles interactableTiles
+		{
+			get
+			{
 				if (_interactableTiles == null)
 				{
-					_interactableTiles = InteractableTiles.GetAt((Vector2Int) mobTile.LocalPositionServer, true);
+					_interactableTiles = InteractableTiles.GetAt((Vector2Int)mobTile.LocalPositionServer, true);
 				}
 
 				return _interactableTiles;
@@ -104,7 +113,14 @@ namespace Systems.MobAIs
 					else return (mobTile.Matrix.Get<FloorDecal>(checkPos, true).Any(p => p.Cleanable) || (!mobTile.Matrix.Get<FloorDecal>(checkPos, true).Any() && interactableTiles.MetaTileMap.GetTile(checkPos)?.LayerType == LayerType.Floors));
 
 				case Target.missingFloor:
-					if (IsEmagged == false) return (interactableTiles.MetaTileMap.GetTile(checkPos)?.LayerType == LayerType.Base || interactableTiles.MetaTileMap.GetTile(checkPos)?.LayerType == LayerType.Underfloor); // Checks the topmost tile if its the base or underfloor layer (below the floor)
+					// Checks the topmost tile if its the base or underfloor layer (below the floor)
+					if (IsEmagged == false)
+					{
+						return (interactableTiles.MetaTileMap.GetTile(checkPos)?.LayerType == LayerType.Base
+					                                || interactableTiles.MetaTileMap.GetTile(checkPos)?.LayerType.IsUnderFloor() != null);
+
+					}
+
 					else return interactableTiles.MetaTileMap.GetTile(checkPos)?.LayerType == LayerType.Floors;
 
 				case Target.injuredPeople:
@@ -195,7 +211,7 @@ namespace Systems.MobAIs
 				case Target.dirtyFloor:
 					var matrixInfo = MatrixManager.AtPoint(checkPos, true);
 					var worldPos = MatrixManager.LocalToWorldInt(checkPos, matrixInfo);
-					if (IsEmagged) matrixInfo.MetaDataLayer.ReagentReact(new ReagentMix(CB_REAGENT,5,283.15f),worldPos,checkPos);
+					if (IsEmagged) matrixInfo.MetaDataLayer.ReagentReact(new ReagentMix(CB_REAGENT, 5, 283.15f), worldPos, checkPos);
 					else matrixInfo.MetaDataLayer.Clean(worldPos, checkPos, false);
 					break;
 				case Target.missingFloor:
@@ -222,7 +238,7 @@ namespace Systems.MobAIs
 
 		protected void OnPerformAction()
 		{
-			actionPerformTimer += Time.deltaTime;
+			actionPerformTimer += MobController.UpdateTimeInterval;
 
 			if ((actionPerformTime == 0) || (actionPerformTimer >= actionPerformTime))
 			{

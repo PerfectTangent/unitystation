@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using Mirror;
 using Systems.Atmospherics;
@@ -14,7 +15,7 @@ public class MatrixInfo : IEquatable<MatrixInfo>
 	public Matrix Matrix;
 	public MetaTileMap MetaTileMap;
 	public MetaDataLayer MetaDataLayer;
-	public SubsystemManager SubsystemManager;
+	public MatrixSystemManager SubsystemManager;
 	public TileChangeManager TileChangeManager;
 	public ReactionManager ReactionManager;
 	public GameObject GameObject;
@@ -35,20 +36,19 @@ public class MatrixInfo : IEquatable<MatrixInfo>
 	//Warning slow
 	public BetterBounds WorldBounds => MetaTileMap.GetWorldBounds();
 
+	public BetterBounds? WorldMatrixCollisionBounds => MetaTileMap.GeWorldMatrixCollisionBounds();
+
 	public Transform ObjectParent => MetaTileMap.ObjectLayer.transform;
 
 	public Color Color => IsMovable ? Matrix.Color : Color.red;
 
-	public float Speed => IsMovable ? MatrixMove.ServerState.Speed : 0f;
+	public float Speed => 0f;
 
 	public string Name => Matrix.gameObject.name;
 
-	//todo: placeholder, should depend on solid tiles count instead (and use caching)
-	public float Mass => LocalBounds.size.sqrMagnitude/1000f;
-
 	public bool IsMovable => Matrix.IsMovable;
 
-	public Vector2Int MovementVector => ( IsMovable && MatrixMove.IsMovingServer ) ? MatrixMove.ServerState.FlyingDirection.LocalVectorInt : Vector2Int.zero;
+	public Vector2Int MovementVector =>  Matrix.MatrixMove.NetworkedMatrixMove.SynchronisedVelocity.NormalizeTo2Int();
 
 	public Vector3Int InitialOffset
 	{
@@ -59,29 +59,6 @@ public class MatrixInfo : IEquatable<MatrixInfo>
 		}
 	}
 
-	public Vector3Int Offset => GetOffset();
-
-	public Vector3Int GetOffset(MatrixState state = default(MatrixState))
-	{
-		if (IsMovable == false)
-		{
-			return InitialOffset;
-		}
-
-		if (state.Equals(default(MatrixState)))
-		{
-			state = MatrixMove.ClientState;
-		}
-
-		if (cachedPosition != state.Position)
-		{
-			//if we moved, update cached offset
-			cachedPosition = state.Position;
-			CachedOffset = initialOffset + (state.Position.RoundToInt() - MatrixMove.InitialPosition);
-		}
-
-		return CachedOffset;
-	}
 
 	public uint NetID
 	{
@@ -119,13 +96,7 @@ public class MatrixInfo : IEquatable<MatrixInfo>
 
 			string pivot = "pivot";
 			string state = "state";
-			if(IsMovable)
-			{
-				pivot = MatrixMove.Pivot.ToString();
-				state = MatrixMove.ServerState.ToString();
-			}
-
-			return $"[({Id}){objectName},offset={Offset},pivot={pivot},state={state},netId={NetID}]";
+			return $"[({Id}){objectName},pivot={pivot},state={state},netId={NetID}]";
 		}
 	}
 
@@ -161,7 +132,7 @@ public class MatrixInfo : IEquatable<MatrixInfo>
 
 		if (netId == NetId.Invalid)
 		{
-			Logger.LogWarning($"Invalid NetID for matrix {matrix.gameObject.name}!", Category.Matrix);
+			Loggy.Warning($"Invalid NetID for matrix {matrix.gameObject.name}!", Category.Matrix);
 		}
 
 		return netId;

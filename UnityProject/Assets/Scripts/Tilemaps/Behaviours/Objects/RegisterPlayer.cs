@@ -1,15 +1,20 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core.Admin.Logs;
 using UnityEngine;
 using Mirror;
 using UnityEngine.Events;
 using Random = UnityEngine.Random;
 using Systems.Teleport;
 using Messages.Server.SoundMessages;
+using Player;
+using Player.Movement;
+using Systems.Explosions;
 
 [RequireComponent(typeof(Rotatable))]
 [RequireComponent(typeof(UprightSprites))]
+[RequireComponent(typeof(LayDown))]
 [ExecuteInEditMode]
 public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IControlPlayerState
 {
@@ -21,17 +26,15 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 
 	const int HELP_CHANCE = 33; // Percent.
 
-	// tracks whether player is down or upright.
-	[SyncVar(hook = nameof(SyncIsLayingDown))]
-	private bool isLayingDown;
+	[field: SerializeField] public LayDown LayDownBehavior { get; private set; }
 
 	/// <summary>
 	/// True when the player is laying down for any reason (shown sideways)
 	/// </summary>
-	public bool IsLayingDown => isLayingDown;
+	public bool IsLayingDown => LayDownBehavior.IsLayingDown;
 
 	/// <summary>
-	/// True when the player is slipping
+	/// True when the player is slipping (or stunned)
 	/// </summary>
 	public bool IsSlippingServer { get; private set; }
 
@@ -40,12 +43,17 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 	/// <summary>
 	/// Invoked on server when slip state is change. Provides old and new value as 1st and 2nd args
 	/// </summary>
-	[NonSerialized]
-	public SlipEvent OnSlipChangeServer = new SlipEvent();
+	[NonSerialized] public SlipEvent OnSlipChangeServer = new SlipEvent();
+
+	/// <summary>
+	/// Invoked on server when slip state is change. Provides old and new value as 1st and 2nd args
+	/// </summary>
+	[NonSerialized] public LyingDownStateEvent OnLyingDownChangeEvent = new LyingDownStateEvent();
 
 	private PlayerScript playerScript;
 	public PlayerScript PlayerScript => playerScript;
 	private Rotatable playerDirectional;
+	public Rotatable PlayerDirectional => playerDirectional;
 	private UprightSprites uprightSprites;
 	[SerializeField] private Util.NetworkedLeanTween networkedLean;
 
@@ -54,10 +62,12 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 	/// correct server/client side logic based on where this is being called from.
 	/// </summary>
 	public bool IsBlocking => isServer ? IsBlockingServer : IsBlockingClient;
+
 	public bool IsBlockingClient => !playerScript.IsGhost && !IsLayingDown;
 	public bool IsBlockingServer => !playerScript.IsGhost && !IsLayingDown && !IsSlippingServer;
 	private Coroutine unstunHandle;
 
+	[SerializeField] private AlertSO stunAlert;
 
 	protected override void Awake()
 	{
@@ -66,7 +76,7 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 		playerScript = GetComponent<PlayerScript>();
 		uprightSprites = GetComponent<UprightSprites>();
 		playerDirectional = GetComponent<Rotatable>();
-		//playerDirectional.ChangeDirectionWithMatrix = false;
+		LayDownBehavior ??= GetComponent<LayDown>();
 		uprightSprites.spriteMatrixRotationBehavior = SpriteMatrixRotationBehavior.RemainUpright;
 	}
 
@@ -78,7 +88,7 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 	public override void OnStartClient()
 	{
 		base.OnStartClient();
-		ServerCheckStandingChange( isLayingDown);
+		ServerCheckStandingChange(IsLayingDown);
 	}
 
 	public void OnSpawnServer(SpawnInfo info)
@@ -96,6 +106,35 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 		return IsPassable(isServer);
 	}
 
+	private const float LayingDownTime = 0.5f;
+
+	[Command]
+	public void CmdSetRest(bool layingDown)
+	{
+		if (layingDown)
+		{
+			if(playerScript.PlayerTypeSettings.CanRest == false) return;
+
+			if (ServerCheckStandingChange(true))
+			{
+				Chat.AddExamineMsgFromServer(gameObject, "You try to lie down.");
+			}
+
+			return;
+		}
+
+		if (playerScript.playerMove.HasALeg == false)
+		{
+			Chat.AddExamineMsg(gameObject,"You try standing up stand up but you have no legs!");
+			return;
+		}
+
+		if (ServerCheckStandingChange(false, true, LayingDownTime))
+		{
+			Chat.AddExamineMsgFromServer(gameObject, "You try to stand up.");
+		}
+	}
+
 	/// <summary>
 	/// Make the player appear laying down
 	/// When down, they become passable.
@@ -111,19 +150,9 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 	/// When up, they become impassable.
 	/// </summary>
 	[Server]
-	public void ServerStandUp()
+	public void ServerStandUp(bool doBar = false, float time = 1.5f)
 	{
-		ServerCheckStandingChange(false);
-	}
-
-	/// <summary>
-	/// Make the player appear standing up.
-	/// When up, they become impassable.
-	/// </summary>
-	[Server]
-	public void ServerStandUp(bool DoBar = false, float Time = 0.5f)
-	{
-		ServerCheckStandingChange(false,DoBar, Time);
+		ServerCheckStandingChange(false, doBar, time);
 	}
 
 	/// <summary>
@@ -136,77 +165,82 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 		ServerCheckStandingChange(!isStanding);
 	}
 
-
-	public void ServerCheckStandingChange(bool LayingDown, bool DoBar = false, float Time = 0.5f)
+	public bool ServerCheckStandingChange(bool layingDown, bool doBar = false, float time = 1.5f)
 	{
-		if (this.isLayingDown != LayingDown)
+		if (IsLayingDown == layingDown) return false;
+		if (layingDown == false && ObjectPhysics.Component.IsBuckled) return false;
+
+		foreach (var status in CheckableStatuses)
 		{
-			foreach (var Status in CheckableStatuses)
+			if (status.AllowChange(layingDown) == false)
 			{
-				if (Status.AllowChange(LayingDown) == false)
+				return false;
+			}
+		}
+
+		if (doBar)
+		{
+			var bar = StandardProgressAction.Create(
+				new StandardProgressActionConfig(StandardProgressActionType.SelfHeal, false, false, true),
+				() =>
 				{
-					return;
-				}
-			}
+					bool cando = true;
+					foreach (var status in CheckableStatuses)
+					{
+						if (status.AllowChange(layingDown) == false)
+						{
+							cando = false;
+						}
+					}
 
-			if (DoBar)
-			{
-				var bar = StandardProgressAction.Create(new StandardProgressActionConfig(StandardProgressActionType.SelfHeal, false, false, true), ServerStandUp);
-				bar.ServerStartProgress(this, 1.5f,gameObject);
-			}
-			else
-			{
-				SyncIsLayingDown(isLayingDown, LayingDown);
-			}
+					if (cando)
+					{
+						SyncIsLayingDown(layingDown);
+					}
+				});
 
-		}
-	}
-
-	private void SyncIsLayingDown(bool wasDown, bool isDown)
-	{
-		this.isLayingDown = isDown;
-
-		if (CustomNetworkManager.IsHeadless == false)
-		{
-			HandleGetupAnimation(isDown == false);
-		}
-
-		if (isDown)
-		{
-			//uprightSprites.ExtraRotation = Quaternion.Euler(0, 0, -90);
-			//Change sprite layer
-			foreach (SpriteRenderer spriteRenderer in this.GetComponentsInChildren<SpriteRenderer>())
-			{
-				spriteRenderer.sortingLayerName = "Bodies";
-			}
-			playerScript.PlayerSync.SpeedServer = playerScript.playerMove.CrawlSpeed;
-			//lock current direction
-			playerDirectional.LockDirectionTo(true, playerDirectional.CurrentDirection );
+			bar.ServerStartProgress(this, time, gameObject);
 		}
 		else
 		{
-			//uprightSprites.ExtraRotation = Quaternion.identity;
-			//back to original layer
-			foreach (SpriteRenderer spriteRenderer in this.GetComponentsInChildren<SpriteRenderer>())
-			{
-				spriteRenderer.sortingLayerName = "Players";
-			}
-			playerDirectional.LockDirectionTo(false, playerDirectional.CurrentDirection );
-			playerScript.PlayerSync.SpeedServer = playerScript.playerMove.RunSpeed;
+			SyncIsLayingDown(layingDown);
+		}
+
+		return true;
+	}
+
+	public override void OnDestroy()
+	{
+		base.OnDestroy();
+		MatrixChange(Matrix, null);
+	}
+
+	public override void MatrixChange(Matrix MatrixOld, Matrix MatrixNew)
+	{
+		if (MatrixOld != null && MatrixOld.PresentPlayers.Contains(this))
+		{
+			MatrixOld.PresentPlayers.Remove(this);
+			MatrixOld.UpdatedPlayerFrame = Time.frameCount;
+			AdminLogsManager.AddNewLog(
+				gameObject,
+				$"{playerScript.playerName} has left {MatrixOld.name}",
+				LogCategory.World
+			);
+		}
+
+		if (MatrixNew != null && MatrixNew.PresentPlayers.Contains(this) == false)
+		{
+			MatrixNew.PresentPlayers.Add(this);
+			MatrixNew.UpdatedPlayerFrame = Time.frameCount;
 		}
 	}
 
-	public void HandleGetupAnimation(bool getUp)
+	private void SyncIsLayingDown(bool isDown)
 	{
-		if (getUp == false && networkedLean.Target.rotation.z > -90)
-		{
-			networkedLean.RotateGameObject(new Vector3(0, 0, -90), 0.15f);
-		}
-		else if (getUp == true && networkedLean.Target.rotation.z < 90)
-		{
-			networkedLean.RotateGameObject(new Vector3(0, 0, 0), 0.19f);
-		}
+		OnLyingDownChangeEvent?.Invoke(isDown);
+		LayDownBehavior.SyncLayDownState(LayDownBehavior.IsLayingDown, isDown);
 	}
+
 
 	/// <summary>
 	/// Try to help the player stand back up.
@@ -214,10 +248,10 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 	[Server]
 	public void ServerHelpUp()
 	{
-		if (!IsLayingDown) return;
+		if (IsLayingDown == false) return;
 
 		// Can't help a player up if they're rolling
-		if (playerScript.playerNetworkActions.IsRolling) return;
+		if (playerScript.PlayerNetworkActions.IsRolling) return;
 
 		// Check if lying down because of stun. If stunned, there is a chance helping can fail.
 		if (IsSlippingServer && Random.Range(0, 100) > HELP_CHANCE) return;
@@ -225,17 +259,14 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 		ServerRemoveStun();
 	}
 
-	bool RegisterPlayer.IControlPlayerState.AllowChange(bool rest)
+	bool IControlPlayerState.AllowChange(bool rest)
 	{
 		if (rest)
 		{
 			return true;
 		}
-		else
-		{
-			return !IsSlippingServer;
-		}
 
+		return IsSlippingServer == false;
 	}
 
 
@@ -256,21 +287,28 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 		// Don't slip while the players hunger state is Strarving
 		// Don't slip if you got no legs (HealthV2)
 		if (IsSlippingServer
-			|| !slipWhileWalking && playerScript.PlayerSync.SpeedServer <= playerScript.playerMove.WalkSpeed
-            || isLayingDown
+			|| !slipWhileWalking && playerScript.PlayerSync.CurrentTileMoveSpeed <= playerScript.playerMove.WalkSpeed
+            || IsLayingDown
 			|| playerScript.playerHealth.IsCrit
 			|| playerScript.playerHealth.IsSoftCrit
-			|| playerScript.playerHealth.IsDead
-			|| playerScript.playerHealth.HungerState == HungerState.Starving)
+			|| playerScript.playerHealth.IsDead)
 		{
 			return;
 		}
 
-		ServerStun();
+		ServerSlip();
 		AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: Random.Range(0.9f, 1.1f));
 		SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Slip, WorldPositionServer, audioSourceParameters, sourceObj: gameObject);
 		// Let go of pulled items.
-		playerScript.pushPull.ServerStopPulling();
+		playerScript.ObjectPhysics.StopPulling(false);
+	}
+
+	private void ServerSlip()
+	{
+		ServerCheckStandingChange(true);
+		OnSlipChangeServer.Invoke(IsSlippingServer, true);
+		playerScript.DynamicItemStorage.ServerDropItemsInHand();
+		playerScript.RegisterPlayer.ServerStun(1, false, false);
 	}
 
 	/// <summary>
@@ -279,28 +317,48 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 	/// </summary>
 	/// <param name="stunDuration">Time before the stun is removed.</param>
 	/// <param name="dropItem">If items in the hand slots should be dropped on stun.</param>
-	[Server]
-	public void ServerStun(float stunDuration = 4f, bool dropItem = true)
+	public void ServerStun(float stunDuration = 4f, bool dropItem = true, bool checkForArmor = true, bool StopMovement = true, Action stunImmunityFeedback = null)
 	{
+		bool CheckArmorStunImmunity()
+		{
+			bool StunImmune = true;
+
+			foreach (var bodyPart in PlayerScript.playerHealth.SurfaceBodyParts)
+			{
+				if(bodyPart.SelfArmor.StunImmunity) continue;
+				if(bodyPart.BodyPartType is not (BodyPartType.Chest or BodyPartType.Custom)) continue;
+				foreach (Armor armor in bodyPart.ClothingArmors)
+				{
+					if (armor.StunImmunity) return true;
+				}
+
+				StunImmune = false;
+			}
+			return StunImmune;
+		}
+
+		if (checkForArmor && CheckArmorStunImmunity())
+		{
+			if(stunImmunityFeedback != null) stunImmunityFeedback();
+			return;
+		}
+
 		var oldVal = IsSlippingServer;
 		IsSlippingServer = true;
 		ServerCheckStandingChange( true);
 		OnSlipChangeServer.Invoke(oldVal, IsSlippingServer);
 		if (dropItem)
 		{
-			foreach (var itemSlot in playerScript.DynamicItemStorage.GetNamedItemSlots(NamedSlot.leftHand))
-			{
-				Inventory.ServerDrop(itemSlot);
-			}
-
-			foreach (var itemSlot in playerScript.DynamicItemStorage.GetNamedItemSlots(NamedSlot.rightHand))
-			{
-				Inventory.ServerDrop(itemSlot);
-			}
+			playerScript.DynamicItemStorage.ServerDropItemsInHand();
 		}
-		playerScript.playerMove.allowInput = false;
+
+		if (StopMovement)
+		{
+			playerScript.playerMove.ServerAllowInput.RecordPosition(this, false);
+		}
 
 		this.RestartCoroutine(StunTimer(stunDuration), ref unstunHandle);
+		ServerUpdateStunStatus(true);
 	}
 	private IEnumerator StunTimer(float stunTime)
 	{
@@ -319,27 +377,43 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 		var oldVal = IsSlippingServer;
 		IsSlippingServer = false;
 
-		// Do not raise up a dead body
-		if (playerScript.playerHealth.ConsciousState == ConsciousState.CONSCIOUS)
-		{
-			ServerCheckStandingChange( false);
-		}
+
 
 		OnSlipChangeServer.Invoke(oldVal, IsSlippingServer);
 
 		if (playerScript.playerHealth.ConsciousState == ConsciousState.CONSCIOUS
 			 || playerScript.playerHealth.ConsciousState == ConsciousState.BARELY_CONSCIOUS)
 		{
-			playerScript.playerMove.allowInput = true;
+			playerScript.playerMove.ServerAllowInput.RemovePosition(this);
+		}
+
+		ServerUpdateStunStatus(false);
+
+		// Do not raise up a dead body
+		if (playerScript.playerHealth.ConsciousState == ConsciousState.CONSCIOUS)
+		{
+			ServerCheckStandingChange(false);
 		}
 	}
-	// <summary>
+
+	public void ServerUpdateStunStatus(bool isStunned)
+	{
+		if (isStunned)
+		{
+			playerScript.playerHealth.BodyAlertManager.RegisterAlert(stunAlert);
+		}
+		else
+		{
+			playerScript.playerHealth.BodyAlertManager.UnRegisterAlert(stunAlert);
+		}
+	}
+
+	/// <summary>
 	/// Performs bluespace activity (teleports randomly) on player if they have slipped on an object
-	/// with bluespace activity or are hit by an object with bluespace acivity and
+	/// with bluespace activity or are hit by an object with bluespace activity and
 	/// has Liquid Contents.
 	/// Assumes max potency if none is given.
 	/// </summary>
-	///
 	public void ServerBluespaceActivity(int potency = 100)
 	{
 		int maxRange = 11;
@@ -351,6 +425,9 @@ public class RegisterPlayer : RegisterTile, IServerSpawn, RegisterPlayer.IContro
 /// <summary>
 /// Fired when slip state changes. Provides old and new value.
 /// </summary>
-public class SlipEvent : UnityEvent<bool, bool>
-{
-}
+public class SlipEvent : UnityEvent<bool, bool> { }
+
+/// <summary>
+/// Event which fires when lying down state changes
+/// </summary>
+public class LyingDownStateEvent : UnityEvent<bool> { }

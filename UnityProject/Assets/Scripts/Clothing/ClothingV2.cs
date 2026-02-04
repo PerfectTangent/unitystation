@@ -41,20 +41,40 @@ namespace Systems.Clothing
 
 		[Tooltip("Determines if this article of clothing prevents consuming food or drink.")]
 		[SerializeField]
-		private bool disallowConsume = false;
+		public bool disallowConsume = false;
 
 		private ItemAttributesV2 myItem;
 		private Pickupable pickupable;
 
 		[NonSerialized]
 		public List<SpriteDataSO> SpriteDataSO = new List<SpriteDataSO>();
+
+		public Color Colour = Color.white;
+
 		/// <summary>
 		/// Clothing item this is currently equipped to, if there is one. Will be updated when the data is synced.
 		/// </summary>
 		private ClothingItem clothingItem;
 
 		public ClothingItem ClothingItem => clothingItem;
-		public ClothingDataV2 CurrentClothData => allClothingData[CurrentClothIndex];
+		public ClothingDataV2 CurrentClothData
+		{
+			get
+			{
+				if (CurrentClothIndex >= allClothingData.Count)
+				{
+					if (allClothingData.Count > 0)
+					{
+						return allClothingData[0];
+					}
+					else
+					{
+						return null;
+					}
+				}
+				return allClothingData[CurrentClothIndex];
+			}
+		}
 
 		/// <summary> Whether this piece of clothing obscures the identity of the wearer (head, maskwear). </summary>
 		public bool HidesIdentity => hidesIdentity;
@@ -85,7 +105,7 @@ namespace Systems.Clothing
 		{
 			foreach (ClothingDataV2 clothData in allClothingData)
 			{
-				SetUpFromClothingData(clothData);
+
 				SpriteDataSO.Add(clothData.SpriteEquipped);
 			}
 
@@ -93,18 +113,25 @@ namespace Systems.Clothing
 			{
 				CurrentClothIndex = UnityEngine.Random.Range(0, allClothingData.Count);
 			}
+
+			SetUpFromClothingData(CurrentClothData);
 		}
 
 		private void SetUpFromClothingData(ClothingDataV2 equippedData)
 		{
+			myItem.SetSprites(GenItemsSprites(equippedData));
+		}
+
+		public ItemsSprites GenItemsSprites(ClothingDataV2 equippedData)
+		{
+			if (equippedData == null) return null;
 			var SpriteSOData = new ItemsSprites();
 			SpriteSOData.Palette = new List<Color>(equippedData.Palette);
 			SpriteSOData.SpriteLeftHand = (equippedData.SpriteInHandsLeft);
 			SpriteSOData.SpriteRightHand = (equippedData.SpriteInHandsRight);
 			SpriteSOData.SpriteInventoryIcon = (equippedData.SpriteItemIcon);
 			SpriteSOData.IsPaletted = equippedData.IsPaletted;
-
-			myItem.SetSprites(SpriteSOData);
+			return SpriteSOData;
 		}
 
 		public void AssignPaletteToSprites(List<Color> palette)

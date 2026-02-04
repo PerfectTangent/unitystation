@@ -1,18 +1,15 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-using UI.Core.NetUI;
-using UI.Objects.Robotics;
+﻿using UI.Core.NetUI;
 
 namespace UI.Objects
 {
 	public class GUI_AutolatheMaterialEntry : DynamicEntry
 	{
-		private GUI_Autolathe ExoFabMasterTab => MasterTab as GUI_Autolathe;
+		private GUI_Autolathe ExoFabMasterTab => containedInTab as GUI_Autolathe;
 
 		private ItemTrait materialType;
 		private int currentAmount;
 
-		private NetLabel amountLabel;
+		private NetText_label amountLabel;
 
 		private NetInteractiveButton buttonOne;
 		private NetInteractiveButton buttonTen;
@@ -26,8 +23,9 @@ namespace UI.Objects
 			}
 			else
 			{
-				ExoFabMasterTab?.OnDispenseSheetClicked.Invoke(amount, materialType);
+				ExoFabMasterTab.OnDispenseSheetClicked.Invoke(amount, materialType);
 			}
+			ExoFabMasterTab.UpdateMaterialsDisplay();
 		}
 
 		public void ReInit(ItemTrait material, int amount)
@@ -41,12 +39,12 @@ namespace UI.Objects
 				switch (nameBeforeIndex)
 				{
 					case "MaterialName":
-						((NetUIElement<string>)element).SetValueServer(CraftingManager.MaterialSheetData[material].displayName + ":");
+						((NetUIElement<string>)element).MasterSetValue(CraftingManager.MaterialSheetData[material].displayName + ":");
 						break;
 
 					case "MaterialAmount":
-						((NetUIElement<string>)element).SetValueServer(currentAmount + " cm3");
-						amountLabel = element as NetLabel;
+						((NetUIElement<string>)element).MasterSetValue(currentAmount + " cm3");
+						amountLabel = element as NetText_label;
 						break;
 
 					case "OneSheetButton":

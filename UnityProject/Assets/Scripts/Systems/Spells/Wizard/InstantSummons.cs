@@ -1,15 +1,17 @@
 ﻿using System.Collections;
+using Core;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Spells.Wizard
 {
 	public class InstantSummons : Spell
 	{
-		private ConnectedPlayer caster;
+		private PlayerInfo caster;
 		private Pickupable markedItem;
 		private bool isSet = false;
 
-		public override bool CastSpellServer(ConnectedPlayer caster)
+		public override bool CastSpellServer(PlayerInfo caster)
 		{
 			this.caster = caster;
 
@@ -139,11 +141,11 @@ namespace Systems.Spells.Wizard
 
 		private GameObject GetRootContainer(GameObject childItem)
 		{
-			ObjectBehaviour objBehaviour = childItem.GetComponent<ObjectBehaviour>();
+			UniversalObjectPhysics objBehaviour = childItem.GetComponent<UniversalObjectPhysics>();
 			int i = 0;
-			while (i < 10 && objBehaviour != null && objBehaviour.parentContainer != null)
+			while (i < 10 && objBehaviour != null && objBehaviour.ContainedInObjectContainer != null)
 			{
-				if (objBehaviour.parentContainer.TryGetComponent<ObjectBehaviour>(out var newBehaviour))
+				if (objBehaviour.ContainedInObjectContainer.TryGetComponent<UniversalObjectPhysics>(out var newBehaviour))
 				{
 					objBehaviour = newBehaviour;
 				}
@@ -156,13 +158,9 @@ namespace Systems.Spells.Wizard
 
 		private void TeleportObjectToPosition(GameObject teleportingObject, Vector3 worldPosition)
 		{
-			if (teleportingObject.TryGetComponent<CustomNetTransform>(out var netTransform))
+			if (teleportingObject.TryGetComponent<UniversalObjectPhysics>(out var netTransform))
 			{
-				netTransform.AppearAtPositionServer(worldPosition);
-			}
-			else if (teleportingObject.TryGetComponent<PlayerSync>(out var playerSync))
-			{
-				playerSync.AppearAtPositionServer(worldPosition);
+				netTransform.AppearAtWorldPositionServer(worldPosition);
 			}
 			else
 			{

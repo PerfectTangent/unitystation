@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Messages.Client.VariableViewer;
+using SecureStuff;
 using UnityEngine;
 using TMPro;
 
@@ -58,13 +59,54 @@ namespace AdminTools.VariableViewer
 		public GUI_PageEntry PageEntryPrefab;
 		public GameObject window;
 
+		public TMP_InputField InputField;
+
+		public void Search()
+		{
+			var SearchString = InputField.text.ToLower();
+			if (SearchString.Length == 0)
+			{
+				Refresh();
+				return;
+			}
+
+			int ReadingSentences = 0;
+
+
+			foreach (var Page in PagesInBook)
+			{
+				foreach (var Sentence in Page)
+				{
+					if (Sentence.VariableName.text.ToLower().Contains(SearchString))
+					{
+						if ((MaximumPerTwoPages <= ReadingSentences) == false)
+						{
+							ReadingSentences++;
+							Sentence.gameObject.SetActive(true);
+						}
+					}
+					else
+					{
+						Sentence.gameObject.SetActive(false);
+					}
+				}
+			}
+
+		}
+
+
 		public void Start()
 		{
-			window.SetActive(false);
+			window.SetActive(true);
 		}
 		public void Open()
 		{
 			window.SetActive(true);
+			if (UIManager.Instance.LibraryUI.HierarchyLibrary.activeInHierarchy == false &&
+			    UIManager.Instance.LibraryUI.BooksOnBookshelf.activeInHierarchy == false)
+			{
+				UIManager.Instance.LibraryUI.OpenAll();
+			}
 		}
 		public void Close()
 		{
@@ -110,10 +152,14 @@ namespace AdminTools.VariableViewer
 			if ((tint + 1) <= PagesInBook.Count)
 			{
 				intCurrentlyOpen++;
-				foreach (var page in CurrentlyOpen)
+				foreach (var Page in PagesInBook)
 				{
-					page.gameObject.SetActive(false);
+					foreach (var Sentence in Page)
+					{
+						Sentence.gameObject.SetActive(false);
+					}
 				}
+
 				CurrentlyOpen = PagesInBook[intCurrentlyOpen];
 				foreach (var page in CurrentlyOpen)
 				{
@@ -138,9 +184,12 @@ namespace AdminTools.VariableViewer
 			if ((tint - 1) >= 0)
 			{
 				intCurrentlyOpen = intCurrentlyOpen - 1;
-				foreach (var page in CurrentlyOpen)
+				foreach (var Page in PagesInBook)
 				{
-					page.gameObject.SetActive(false);
+					foreach (var Sentence in Page)
+					{
+						Sentence.gameObject.SetActive(false);
+					}
 				}
 				CurrentlyOpen = PagesInBook[intCurrentlyOpen];
 				foreach (var page in CurrentlyOpen)
@@ -206,7 +255,7 @@ namespace AdminTools.VariableViewer
 			{
 				if (UIShowDebugOptions.toggle == false)
 				{
-					if (page.VVHighlight == VVHighlight.DEBUG || (page.VariableType == null && page.VVHighlight != VVHighlight.DEBUG)) continue;
+					if (page.VVHighlight == VVHighlight.DEBUG_OrUnecessary || (page.VariableType == null && page.VVHighlight != VVHighlight.DEBUG_OrUnecessary)) continue;
 				}
 
 				GUI_PageEntry PageEntry;
@@ -225,11 +274,11 @@ namespace AdminTools.VariableViewer
 				}
 
 				PageEntry.Page = page;
-				//Logger.Log(JsonConvert.SerializeObject(page));
+				//Loggy.Log(JsonConvert.SerializeObject(page));
 				if (PresentPagesCount > MaximumPerTwoPages)
 				{
 					PageEntry.gameObject.SetActive(false);
-					int PageSetNumber = (int)Math.Floor((decimal)(PresentPagesCount / MaximumPerTwoPages));
+					int PageSetNumber = (int)Math.Floor((decimal)((float)PresentPagesCount / (float)MaximumPerTwoPages));
 
 					if ((PagesInBook.Count - 1) != PageSetNumber)
 					{

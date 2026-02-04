@@ -1,10 +1,9 @@
-using System.Collections;
-using System.Collections.Generic;
 using GameRunTests;
 using NaughtyAttributes;
 using UnityEngine;
 using Newtonsoft.Json;
 using Player;
+using Systems.Character;
 
 public partial class TestAction
 {
@@ -20,28 +19,19 @@ public partial class TestAction
 		public Occupation Occupation;
 		public string SerialisedCharacterSettings;
 
-		public bool Initiate(TestRunSO TestRunSO)
+		public bool Initiate(TestRunSO testRunSO)
 		{
+			CharacterSheet characterSettings = string.IsNullOrEmpty(SerialisedCharacterSettings)
+					? new CharacterSheet()
+					: JsonConvert.DeserializeObject<CharacterSheet>(SerialisedCharacterSettings);
 
-			CharacterSettings characterSettings;
-			if (string.IsNullOrEmpty(SerialisedCharacterSettings))
-			{
-				characterSettings = new CharacterSettings();
-			}
-			else
-			{
-				characterSettings = JsonConvert.DeserializeObject<CharacterSettings>(SerialisedCharacterSettings);
-			}
-
-			var Connectedplayer = PlayerList.Instance.Get(PlayerManager.LocalPlayer);
-
-			var Request = PlayerSpawnRequest.RequestOccupation( PlayerManager.LocalViewerScript, Occupation, characterSettings,
-				Connectedplayer.UserId);
+			var playerInfo = PlayerList.Instance.Get(PlayerManager.LocalPlayerObject);
+			var spawnRequest = new PlayerSpawnRequest(playerInfo, Occupation, characterSettings);
 
 
-			PlayerSpawn.ServerSpawnPlayer(Request, PlayerManager.LocalViewerScript, Occupation, characterSettings,
-				spawnPos : PositionToSpawn.RoundToInt(), existingMind: PlayerManager.LocalPlayerScript.mind,
-				conn: Connectedplayer.Connection );
+			var Mind = PlayerSpawn.NewSpawnCharacterV2(spawnRequest.Player, spawnRequest.RequestedOccupation, spawnRequest.CharacterSettings);
+
+			Mind.Body.playerMove.AppearAtWorldPositionServer(PositionToSpawn);
 
 			return true;
 		}

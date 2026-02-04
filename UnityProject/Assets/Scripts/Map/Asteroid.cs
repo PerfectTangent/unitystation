@@ -1,13 +1,15 @@
 ﻿using System.Collections;
 using Mirror;
+using TileMap.Behaviours;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace Map
 {
-	public class Asteroid : MonoBehaviour
+	public class Asteroid : ItemMatrixSystemInit
 	{
-		private MatrixMove mm;
+
+
 
 		// TODO Find a use for these variables or delete them.
 		/*
@@ -16,16 +18,10 @@ namespace Map
 	private float distanceFromStation = 175; //Offset from station so it doesnt spawn into station
 	*/
 
-		void OnEnable()
-		{
-			if (mm == null)
-			{
-				mm = GetComponent<MatrixMove>();
-			}
-		}
 
-		private void Start()
+		public override void Start()
 		{
+			base.Start();
 			if (CustomNetworkManager.IsServer)
 			{
 				StartCoroutine(Init());
@@ -36,7 +32,7 @@ namespace Map
 		public void SpawnNearStation()
 		{
 			//Request a position from GameManager and cache the object in SpaceBodies List
-			GameManager.Instance.ServerSetSpaceBody(mm);
+			GameManager.Instance.ServerSetSpaceBody(matrixMove);
 		}
 
 		[Server] //Asigns random rotation to each asteroid at startup for variety.
@@ -44,31 +40,31 @@ namespace Map
 		{
 			int rand = Random.Range(0, 4);
 
-			switch (rand)
-			{
-				case 0:
-					mm.SteerTo(Orientation.Up);
-					break;
-				case 1:
-					mm.SteerTo(Orientation.Down);
-					break;
-				case 2:
-					mm.SteerTo(Orientation.Right);
-					break;
-				case 3:
-					mm.SteerTo(Orientation.Left);
-					break;
-			}
+			 switch (rand)
+			 {
+			 	case 0:
+				    matrixMove.NetworkedMatrixMove.TargetOrientation = OrientationEnum.Up_By0;
+			 		break;
+			 	case 1:
+				    matrixMove.NetworkedMatrixMove.TargetOrientation = OrientationEnum.Down_By180;
+			 		break;
+			 	case 2:
+				    matrixMove.NetworkedMatrixMove.TargetOrientation = OrientationEnum.Right_By270;
+			 		break;
+			 	case 3:
+				    matrixMove.NetworkedMatrixMove.TargetOrientation = OrientationEnum.Left_By90;
+			 		break;
+			 }
 		}
 
 		//Wait for MatrixMove init on the server:
 		IEnumerator Init()
 		{
-			while (mm.ServerState.Position == TransformState.HiddenPos)
-			{
-				yield return WaitFor.EndOfFrame;
-			}
+			yield return WaitFor.EndOfFrame;
 			SpawnNearStation();
+			yield return null;
+			yield return null;
+			yield return null;
 			RandomRotation();
 		}
 

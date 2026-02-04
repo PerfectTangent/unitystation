@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using NaughtyAttributes;
+
 using Systems.Explosions;
 
 namespace Systems.Spells.Wizard
@@ -27,7 +28,7 @@ namespace Systems.Spells.Wizard
 
 		private readonly List<Vector3Int> usedPositions = new List<Vector3Int>();
 
-		public override bool CastSpellServer(ConnectedPlayer caster, Vector3 clickPosition)
+		public override bool CastSpellServer(PlayerInfo caster, Vector3 clickPosition)
 		{
 			PortalSpawnInfo settings = PortalSpawnInfo.DefaultSettings();
 			settings.EntityRotate = false; // A rotated large rock doesn't look great on landing.

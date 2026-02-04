@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Core;
 using UnityEngine;
 using UnityEngine.Events;
 using Systems.Electricity;
@@ -7,10 +9,12 @@ using Systems.Electricity.Inheritance;
 using Systems.Electricity.NodeModules;
 using Systems.Explosions;
 using HealthV2;
+using Logs;
 using Random = UnityEngine.Random;
 using Objects.Electrical;
 using Objects.Engineering;
 using TileManagement;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Collision-related stuff
@@ -36,14 +40,14 @@ public partial class MatrixManager
 
 	private void InitCollisions(MatrixInfo matrixInfo)
 	{
-		if (!Application.isPlaying || !CustomNetworkManager.Instance._isServer)
+		if (!Application.isPlaying || !CustomNetworkManager.IsServer)
 		{
 			return;
 		}
 
 		if (matrixInfo!= null && matrixInfo.IsMovable)
 		{
-			matrixInfo.MatrixMove.MatrixMoveEvents.OnStartMovementServer.AddListener( () =>
+			matrixInfo.MatrixMove.NetworkedMatrixMove.OnStartMovement += ( () =>
 			{
 				if ( !movingMatrices.Contains( matrixInfo ) )
 				{
@@ -51,12 +55,12 @@ public partial class MatrixManager
 				}
 			} );
 
-			matrixInfo.MatrixMove.MatrixMoveEvents.OnStopMovementServer.AddListener( () =>
+			matrixInfo.MatrixMove.NetworkedMatrixMove.OnStopMovement += ( () =>
 			{
 				if ( movingMatrices.Contains( matrixInfo ) )
 				{
 					var participatingIntersections = trackedIntersections.FindAll( intersection => intersection.Matrix1 == matrixInfo );
-					matrixInfo.MatrixMove.MatrixMoveEvents.OnFullStopClient.AddListener( CollideBeforeStop( matrixInfo, participatingIntersections ) );
+					CollideBeforeStop( matrixInfo, participatingIntersections );
 					movingMatrices.Remove( matrixInfo );
 					trackedIntersections.RemoveAll( intersection => intersection.Matrix1 == matrixInfo );
 				}
@@ -87,17 +91,17 @@ public partial class MatrixManager
 			return;
 		}
 
-		UpdateAndPruneIntersections();
+		UpdateAndPruneCollisionIntersections();
 		TrackNewIntersections();
 
-		void UpdateAndPruneIntersections()
+		void UpdateAndPruneCollisionIntersections()
 		{
 			List<MatrixIntersection> toRemove = null;
 			List<MatrixIntersection> toUpdate = null;
 
 			foreach ( var trackedIntersection in trackedIntersections )
 			{
-				if ( trackedIntersection.Matrix1.BoundsIntersect( trackedIntersection.Matrix2, out var hotZone ) )
+				if ( trackedIntersection.Matrix1.BoundsCollisionIntersect( trackedIntersection.Matrix2, out var hotZone ) )
 				{ //refresh rect
 					if ( toUpdate == null )
 					{
@@ -140,7 +144,7 @@ public partial class MatrixManager
 		{
 			foreach ( var movingMatrix in movingMatrices )
 			{
-				var intersections = GetIntersections( movingMatrix );
+				var intersections = GetCollisionIntersections( movingMatrix );
 				if ( intersections == noIntersections )
 				{
 					continue;
@@ -161,7 +165,7 @@ public partial class MatrixManager
 
 	private static readonly MatrixIntersection[] noIntersections = new MatrixIntersection[0];
 
-	private MatrixIntersection[] GetIntersections( MatrixInfo matrix )
+	private MatrixIntersection[] GetCollisionIntersections( MatrixInfo matrix )
 	{
 		List<MatrixIntersection> intersections = null;
 		foreach ( var otherMatrix in ActiveMatrices.Values )
@@ -170,7 +174,7 @@ public partial class MatrixManager
 			{
 				continue;
 			}
-			if ( matrix.BoundsIntersect( otherMatrix, out BetterBounds hotZone ) )
+			if ( matrix.BoundsCollisionIntersect( otherMatrix, out BetterBounds hotZone ) )
 			{
 				if ( intersections == null )
 				{
@@ -190,7 +194,7 @@ public partial class MatrixManager
 
 	private void UpdateMe()
 	{
-		if (!CustomNetworkManager.Instance._isServer)
+		if (!CustomNetworkManager.IsServer)
 		{
 			return;
 		}
@@ -212,11 +216,71 @@ public partial class MatrixManager
 		}
 	}
 
+	private static void MatrixSafetyCheck(MatrixInfo Matrix1)
+	{
+		if (Matrix1.MatrixMove.NetworkedMatrixMove.Safety)
+		{
+
+			if (Matrix1.MatrixMove.NetworkedMatrixMove.TargetOrientation != OrientationEnum.Default)
+			{
+				var StartOrientation = Matrix1.MatrixMove.NetworkedMatrixMove.StartOrientation;
+				Matrix1.MatrixMove.NetworkedMatrixMove.TargetOrientation = Matrix1.MatrixMove.NetworkedMatrixMove.StartOrientation;
+				Matrix1.MatrixMove.NetworkedMatrixMove.StartOrientation = StartOrientation;
+			}
+
+
+			var addmove =  Matrix1.MatrixMove.NetworkedMatrixMove.WorldCurrentVelocity.normalized * -1;
+			Matrix1.MatrixMove.NetworkedMatrixMove.TargetTransform.position += addmove;
+
+			Matrix1.MatrixMove.NetworkedMatrixMove.WorldCurrentVelocity *= 0;
+			Matrix1.MatrixMove.NetworkedMatrixMove.MoveCoolDown = 3;
+
+
+			foreach (var Thruster in Matrix1.MatrixMove.NetworkedMatrixMove.ConnectedThrusters)
+			{
+				Thruster.SetTargetMolesUsed(0);
+			}
+			return;
+		}
+	}
+
+
+	private static void MatrixSpeedCheck(MatrixInfo Matrix1, MatrixInfo Matrix2)
+	{
+		if (Matrix2.MatrixMove.NetworkedMatrixMove.WorldCurrentVelocity.magnitude < 4
+		    && Matrix1.MatrixMove.NetworkedMatrixMove.WorldCurrentVelocity.magnitude < 4)
+		{
+			if (Matrix1.MatrixMove.NetworkedMatrixMove.DragSpinneyCoolDown > 0 == false &&
+			    Matrix2.MatrixMove.NetworkedMatrixMove.DragSpinneyCoolDown > 0 == false)
+			{
+				Matrix2.MatrixMove.NetworkedMatrixMove.WorldCurrentVelocity *= -1;
+				Matrix1.MatrixMove.NetworkedMatrixMove.WorldCurrentVelocity *= -1;
+
+				foreach (var Thruster in Matrix2.MatrixMove.NetworkedMatrixMove.ConnectedThrusters)
+				{
+					Thruster.SetTargetMolesUsed(0);
+				}
+
+				foreach (var Thruster in Matrix1.MatrixMove.NetworkedMatrixMove.ConnectedThrusters)
+				{
+					Thruster.SetTargetMolesUsed(0);
+				}
+			}
+
+		}
+
+	}
+
 	private static List<Vector3Int> collisionLocations = new List<Vector3Int>();
+
 
 	private void CheckTileCollisions( MatrixIntersection i )
 	{
 		if (i.Matrix1 == null || i.Matrix2 == null) return;
+		if (i.Matrix1.MatrixMove.NetworkedMatrixMove.IsConnectedToShuttle(i.Matrix2.MatrixMove.NetworkedMatrixMove))
+		{
+			return;
+		}
 
 		byte collisions = 0;
 		foreach ( var worldPos in i.Rect.allPositionsWithin() )
@@ -224,13 +288,15 @@ public partial class MatrixManager
 
 			Vector3Int cellPos1 = i.Matrix1.MetaTileMap.WorldToCell( worldPos );
 
-			if ( !i.Matrix1.Matrix.HasTile( cellPos1, true) )
+			var Meta1 = i.Matrix1.Matrix.MetaTileMap;
+			if ( Meta1.HasTile( cellPos1, LayerType.Base ) == false)
 			{
 				continue;
 			}
 
 			Vector3Int cellPos2 = i.Matrix2.MetaTileMap.WorldToCell( worldPos );
-			if ( !i.Matrix2.Matrix.HasTile( cellPos2, true) )
+			var Meta2 = i.Matrix2.Matrix.MetaTileMap;
+			if ( Meta2.HasTile( cellPos2, LayerType.Base ) == false)
 			{
 				continue;
 			}
@@ -247,6 +313,16 @@ public partial class MatrixManager
 				continue;
 			}
 
+
+
+			MatrixSafetyCheck(i.Matrix1);
+
+			MatrixSafetyCheck(i.Matrix2);
+
+			MatrixSpeedCheck(i.Matrix1, i.Matrix2);
+
+			i.Matrix2.MatrixMove.NetworkedMatrixMove.DragSpinneyCoolDown = 3;
+			i.Matrix1.MatrixMove.NetworkedMatrixMove.DragSpinneyCoolDown = 3;
 			collisionLocations.Add( worldPos );
 
 			//
@@ -305,21 +381,6 @@ public partial class MatrixManager
 			ApplyWireDamage( i.Matrix1, cellPos1 );
 			ApplyWireDamage( i.Matrix2, cellPos2 );
 
-			//Heat shit up
-			i.Matrix1.ReactionManager.ExposeHotspot( cellPos1, 500);
-			i.Matrix2.ReactionManager.ExposeHotspot( cellPos2, 500);
-
-			//Other
-			foreach ( var layer in layersToRemove )
-			{
-				i.Matrix1.TileChangeManager.MetaTileMap.RemoveTileWithlayer( cellPos1, layer );
-				i.Matrix2.TileChangeManager.MetaTileMap.RemoveTileWithlayer( cellPos2, layer );
-			}
-			foreach ( var layer in effectsToRemove )
-			{
-				i.Matrix1.TileChangeManager.MetaTileMap.RemoveAllOverlays( cellPos1, layer );
-				i.Matrix2.TileChangeManager.MetaTileMap.RemoveAllOverlays( cellPos2, layer );
-			}
 		}
 
 		if ( collisions > 0 )
@@ -332,7 +393,6 @@ public partial class MatrixManager
 				(byte) Mathf.Clamp(collisions*12, 16, byte.MaxValue),
 				Mathf.Clamp(collisions*8, 15, 127)
 				);
-			SlowDown( i, collisions );
 
 			if ( collisions > 6 && Mathf.Max( i.Matrix1.Speed, i.Matrix2.Speed ) > 6 )
 			{
@@ -351,7 +411,7 @@ public partial class MatrixManager
 			//TilemapDamage
 			ApplyTilemapDamage( victimMatrix, cellPos, hitEnergy, worldPos );
 
-//			//Integrity
+			//Integrity
 			ApplyIntegrityDamage( victimMatrix, cellPos, hitEnergy );
 		}
 
@@ -365,36 +425,17 @@ public partial class MatrixManager
 
 			//Integrity
 			ApplyIntegrityDamage( victimMatrix, cellPos, 9001 );
-
-			//Underfloor
-			RemoveUnderfloor(victimMatrix, cellPos);
-		}
-
-		void RemoveUnderfloor(MatrixInfo matrix, Vector3Int cellPos)
-		{
-			if (matrix == null) return;
-
-			var Node = matrix.Matrix.GetMetaDataNode(cellPos);
-			if (Node != null)
-			{
-				foreach (var electricalData in Node.ElectricalData)
-				{
-					electricalData.InData.DestroyThisPlease();
-				}
-			}
 		}
 
 		void ApplyTilemapDamage( MatrixInfo matrix, Vector3Int cellPos, float damage, Vector3Int worldPos )
 		{
-			if (matrix == null) return;
-
-			matrix.MetaTileMap.ApplyDamage( cellPos, damage, worldPos );
-			if ( damage > 9000 )
+			if ( matrix == null ) return;
+			if ( matrix.MetaTileMap.ApplyDamage( cellPos, damage, worldPos ) <= 9000 )
 			{
 				foreach ( var damageableLayer in matrix.MetaTileMap.LayersValues )
 				{
 					if (damageableLayer.LayerType == LayerType.Objects) continue;
-					matrix.TileChangeManager.MetaTileMap.RemoveTileWithlayer( cellPos, damageableLayer.LayerType);
+					matrix.TileChangeManager.MetaTileMap.RemoveTileWithlayer( cellPos, damageableLayer.LayerType, false, removeAllMulti: true);
 				}
 			}
 		}
@@ -451,12 +492,12 @@ public partial class MatrixManager
 		{
 			if (matrix == null || pushVector == Vector2Int.zero) return;
 
-			foreach ( var pushPull in matrix.Matrix.Get<PushPull>( cellPos, true ) )
+			foreach ( var pushPull in matrix.Matrix.Get<UniversalObjectPhysics>( cellPos, true ) )
 			{
 				byte pushes = (byte) Mathf.Clamp( speed / 4, 1, 4 );
 				for ( int j = 0; j < pushes; j++ )
 				{
-					pushPull.QueuePush( pushVector, speed * Random.Range( 0.8f, 1.1f ) );
+					pushPull.NewtonianPush( pushVector, speed * Random.Range( 0.8f, 1.1f ) );
 				}
 			}
 		}
@@ -471,40 +512,12 @@ public partial class MatrixManager
 		}
 	}
 
-	private void SlowDown( MatrixIntersection i, int collisions )
-	{
-		if ( i.Matrix1.IsMovable && i.Matrix1.MatrixMove.IsMovingServer )
-		{
-			InternalSlowDown( i.Matrix1 );
-		}
-		if ( i.Matrix2.IsMovable && i.Matrix2.MatrixMove.IsMovingServer )
-		{
-			InternalSlowDown( i.Matrix2 );
-		}
-
-		void InternalSlowDown( MatrixInfo info )
-		{
-			float slowdownFactor = Mathf.Clamp(
-				1f - ( Mathf.Clamp( collisions, 1, 50 ) / 100f ) + info.Mass,
-				0.1f,
-				0.95f
-				);
-			float speed = ( info.MatrixMove.ServerState.Speed * slowdownFactor ) - 0.07f;
-			if ( speed <= 1f )
-			{
-				info.MatrixMove.StopMovement();
-			} else
-			{
-				info.MatrixMove.SetSpeed( speed );
-			}
-		}
-	}
-
 	private void OnDrawGizmos()
 	{
 		if (!Application.isPlaying || !IsInitialized) return;
 		foreach ( var intersection in Instance.TrackedIntersections )
 		{
+			//Don't need to worry about nulls, since they are intersecting
 			Gizmos.color = Color.red;
 			DebugGizmoUtils.DrawRect( intersection.Matrix1.WorldBounds.Minimum, intersection.Matrix1.WorldBounds.Maximum );
 			Gizmos.color = Color.blue;

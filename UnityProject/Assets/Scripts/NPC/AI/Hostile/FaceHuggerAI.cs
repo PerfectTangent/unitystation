@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Clothing;
+using Systems.Antagonists;
 using UnityEngine;
 
 
@@ -11,6 +12,7 @@ namespace Systems.MobAIs
 		[SerializeField]
 		[Tooltip("If true, this hugger won't be counted for the cap Queens use for lying eggs.")]
 		private bool ignoreInQueenCount = false;
+		private bool processedRemovalFromQueenCount = false; //Lifecycle updates can still occur on dead creatures due to healing and the like. We only want to remove the hugger from the queen count once.
 		//private MobMeleeAction mobMeleeAction;
 		private FaceHugAction faceHugAction;
 
@@ -28,6 +30,7 @@ namespace Systems.MobAIs
 			if (ignoreInQueenCount == false)
 			{
 				XenoQueenAI.AddFacehuggerToCount();
+				processedRemovalFromQueenCount = false;
 			}
 			ResetBehaviours();
 		}
@@ -48,10 +51,13 @@ namespace Systems.MobAIs
 
 			foreach (var coll in hits)
 			{
-				if (coll.layer == playersLayer)
-				{
-					return coll;
-				}
+				if (coll.layer != playersLayer) continue;
+
+				if(coll.gameObject.TryGetComponent<PlayerScript>(out var playerScript) == false) continue;
+
+				if(playerScript.PlayerType == PlayerTypes.Alien) continue;
+
+				return coll;
 			}
 
 			return null;
@@ -62,19 +68,26 @@ namespace Systems.MobAIs
 		/// </summary>
 		protected override void HandleDeathOrUnconscious()
 		{
-			base.HandleDeathOrUnconscious();
-
-			if (ignoreInQueenCount == false)
+			if (ignoreInQueenCount == false && processedRemovalFromQueenCount == false)
 			{
 				XenoQueenAI.RemoveFacehuggerFromCount();
+				processedRemovalFromQueenCount = true;
 			}
+
+			base.HandleDeathOrUnconscious();
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			return DefaultWillInteract.Default(interaction, side)
-			       && (interaction.HandObject == null
-			           || (interaction.Intent == Intent.Help || interaction.Intent == Intent.Grab));
+			if (DefaultWillInteract.Default(interaction, side, PlayerTypes.Normal | PlayerTypes.Alien) == false) return false;
+
+			if(interaction.HandObject != null) return false;
+
+			if (interaction.Intent != Intent.Help && interaction.Intent != Intent.Grab) return false;
+
+			if (interaction.PerformerPlayerScript.TryGetComponent<AlienPlayer>(out var alien) && alien.IsLarva) return false;
+
+			return true;
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)

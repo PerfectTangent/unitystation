@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using AddressableReferences;
 using Chemistry;
 using Chemistry.Components;
+using HealthV2.Living.PolymorphicSystems;
+using Logs;
 using UnityEngine;
 
 namespace Items
@@ -52,11 +54,11 @@ namespace Items
 			}
 			else
 			{
-				Logger.LogErrorFormat("{0} prefab is missing ItemAttributes", Category.Objects, name);
+				Loggy.Error().Format("{0} prefab is missing ItemAttributes", Category.Objects, name);
 			}
 		}
 
-		public override void TryConsume(GameObject feederGO, GameObject eaterGO)
+		public override void TryConsume(GameObject feederGO, GameObject eaterGO, bool projectileFed = false)
 		{
 			var eater = eaterGO.GetComponent<PlayerScript>();
 			if (eater == null)
@@ -75,7 +77,13 @@ namespace Items
 			var feeder = feederGO.GetComponent<PlayerScript>();
 
 			// Show eater message
-			var eaterHungerState = eater.playerHealth.HungerState;
+			var sys = eater.playerHealth.GetSystem<HungerSystem>();
+			HungerState eaterHungerState = HungerState.Normal;
+
+			if (sys != null)
+			{
+				eaterHungerState = sys.CashedHungerState;
+			}
 			ConsumableTextUtils.SendGenericConsumeMessage(feeder, eater, eaterHungerState, Name, "eat");
 
 			// Check if eater can eat anything
@@ -88,7 +96,7 @@ namespace Items
 					{
 						ConsumableTextUtils.SendGenericForceFeedMessage(feeder, eater, eaterHungerState, Name, "eat");
 						Eat(eater, feeder);
-					}).ServerStartProgress(eater.registerTile, 3f, feeder.gameObject);
+					}).ServerStartProgress(eater.RegisterPlayer, 3f, feeder.gameObject);
 					return;
 				}
 
@@ -101,20 +109,22 @@ namespace Items
 			//TODO: Reimplement metabolism.
 			SoundManager.PlayNetworkedAtPos(sound, eater.WorldPos, sourceObj: eater.gameObject);
 
-			var Stomachs = eater.playerHealth.GetStomachs();
-			if (Stomachs.Count == 0)
+			var stomachs = eater.playerHealth.GetStomachs();
+			if (stomachs.Count == 0)
 			{
 				//No stomachs?!
 				return;
 			}
-			FoodContents.Divide(Stomachs.Count);
-			foreach (var Stomach in Stomachs)
+
+			FoodContents.Divide(stomachs.Count);
+
+			foreach (var stomach in stomachs)
 			{
-				Stomach.StomachContents.Add(FoodContents.CurrentReagentMix.Clone());
+				stomach.StomachContents.Add(FoodContents.CurrentReagentMix.Clone());
 			}
 
-
 			var feederSlot = feeder.DynamicItemStorage.GetActiveHandSlot();
+
 			//If food has a stack component, decrease amount by one instead of deleting the entire stack.
 			if (stackable != null)
 			{
@@ -122,7 +132,7 @@ namespace Items
 			}
 			else
 			{
-				Inventory.ServerDespawn(gameObject);
+				_ = Inventory.ServerDespawn(gameObject);
 			}
 
 			if (leavings != null)
@@ -133,7 +143,7 @@ namespace Items
 				if (!added)
 				{
 					//If stackable has leavings and they couldn't go in the same slot, they should be dropped
-					pickupable.CustomNetTransform.SetPosition(feeder.WorldPos);
+					pickupable.UniversalObjectPhysics.AppearAtWorldPositionServer(feeder.WorldPos);
 				}
 			}
 		}

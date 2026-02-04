@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Systems.Clearance;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -12,6 +11,7 @@ namespace Objects.Security
 
 		public IDCard IdCard => itemSlot.Item != null ? itemSlot.Item.GetComponent<IDCard>() : null;
 		public SecurityRecordsUpdateEvent OnConsoleUpdate = new SecurityRecordsUpdateEvent();
+		public ClearanceRestricted Restricted { get; private set; }
 
 		private void Awake()
 		{
@@ -19,6 +19,7 @@ namespace Objects.Security
 			itemStorage = GetComponent<ItemStorage>();
 			itemSlot = itemStorage.GetIndexedItemSlot(0);
 			itemSlot.OnSlotContentsChangeServer.AddListener(OnServerSlotContentsChange);
+			Restricted = GetComponent<ClearanceRestricted>();
 		}
 
 		private void OnServerSlotContentsChange()
@@ -27,7 +28,7 @@ namespace Objects.Security
 			OnConsoleUpdate.Invoke();
 		}
 
-		private ItemSlot GetBestSlot(GameObject item, ConnectedPlayer subject)
+		private ItemSlot GetBestSlot(GameObject item, PlayerInfo subject)
 		{
 			if (subject == null)
 			{
@@ -40,11 +41,11 @@ namespace Objects.Security
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side))
+			if (DefaultWillInteract.Default(interaction, side) == false)
 				return false;
 
 			//interaction only works if using an ID card on console
-			if (!Validations.HasComponent<IDCard>(interaction.HandObject))
+			if (Validations.HasComponent<IDCard>(interaction.HandObject) == false && interaction.IsAltClick == false)
 				return false;
 
 			return true;
@@ -55,8 +56,10 @@ namespace Objects.Security
 			//Eject existing id card if there is one and put new one in
 			if (itemSlot.Item != null)
 			{
-				ServerRemoveIDCard(interaction.PerformerPlayerScript.connectedPlayer);
+				ServerRemoveIDCard(interaction.PerformerPlayerScript.PlayerInfo);
 			}
+
+			if (interaction.IsAltClick) return;
 
 			Inventory.ServerTransfer(interaction.HandSlot, itemSlot);
 		}
@@ -64,7 +67,7 @@ namespace Objects.Security
 		/// <summary>
 		/// Spits out ID card from console and updates login details.
 		/// </summary>
-		public void ServerRemoveIDCard(ConnectedPlayer player)
+		public void ServerRemoveIDCard(PlayerInfo player)
 		{
 			if (!Inventory.ServerTransfer(itemSlot, GetBestSlot(itemSlot.ItemObject, player)))
 			{

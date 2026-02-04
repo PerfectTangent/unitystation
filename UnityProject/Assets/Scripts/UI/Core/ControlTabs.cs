@@ -1,12 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using Messages.Server;
+using Shared.Util;
 using Systems.Interaction;
 using Tiles;
+using Util;
 
 namespace UI
 {
@@ -29,15 +32,7 @@ namespace UI
 		private Tab[] tabsCache;
 		private Tab[] popoutTabsCache;
 
-		public static ControlTabs Instance {
-			get {
-				if (controlTabs == null)
-				{
-					controlTabs = FindObjectOfType<ControlTabs>();
-				}
-				return controlTabs;
-			}
-		}
+		public static ControlTabs Instance => FindUtils.LazyFindObject(ref controlTabs);
 
 		private bool itemListTabExists => ClientTabs.ContainsKey(ClientTabType.ItemList) && !ClientTabs[ClientTabType.ItemList].Hidden;
 
@@ -245,7 +240,7 @@ namespace UI
 		{
 			if (tab.Hidden)
 			{
-				//				Logger.LogWarning( $"Tab {tab} is hidden, no header will be provided" );
+				//				Loggy.LogWarning( $"Tab {tab} is hidden, no header will be provided" );
 				return null;
 			}
 
@@ -258,7 +253,7 @@ namespace UI
 					return header;
 				}
 			}
-			//			Logger.LogError( $"No headers found for {tab}, wtf?" );
+			//			Loggy.LogError( $"No headers found for {tab}, wtf?" );
 			return null;
 		}
 
@@ -292,13 +287,13 @@ namespace UI
 		/// This one is called when tab header is clicked on
 		public void SelectTab(int index, bool click = true)
 		{
-			//			Logger.Log( $"Selecting tab #{index}" );
+			//			Loggy.Log( $"Selecting tab #{index}" );
 			UnselectAll();
 			Tab tab = TabStorage.GetChild(index)?.GetComponent<Tab>();
 
 			if (!tab)
 			{
-				Logger.LogWarning($"No tab found with index {index}!", Category.NetUI);
+				Loggy.Warning($"No tab found with index {index}!", Category.NetUI);
 				return;
 			}
 			tab.gameObject.SetActive(true);
@@ -336,9 +331,6 @@ namespace UI
 			else
 			{
 				tab.gameObject.SetActive(true);
-				var localPos = Vector3.zero;
-				localPos.y += 20f;
-				tab.transform.localPosition = localPos;
 			}
 		}
 
@@ -452,7 +444,6 @@ namespace UI
 				GameObject tabObject = tab.gameObject;
 
 				// putting into the right place
-				tabObject.transform.localScale = Vector3.one;
 				var rect = tabObject.GetComponent<RectTransform>();
 
 				if (isPopOut == false)
@@ -549,10 +540,10 @@ namespace UI
 				if (Validations.CanApply(playerScript, tab.Provider, NetworkSide.Client, reachRange: reach) == false)
 				{
 					//Validate for AI reach
-					if (playerScript != null && playerScript.PlayerState == PlayerScript.PlayerStates.Ai)
+					if (playerScript != null && playerScript.PlayerType == PlayerTypes.Ai)
 					{
 						if (Validations.CanApply(new AiActivate(playerScript.gameObject, null,
-							tab.Provider, Intent.Help, AiActivate.ClickTypes.NormalClick), NetworkSide.Client))
+							tab.Provider, Intent.Help,playerScript.Mind ,  AiActivate.ClickTypes.NormalClick), NetworkSide.Client))
 						{
 							continue;
 						}
@@ -626,6 +617,7 @@ namespace UI
 
 		public void OpenTabWindow()
 		{
+			if (this.gameObject.activeSelf == false) this.gameObject.SetActive(true);
 			StartCoroutine(AnimTabRoll(true, true));
 		}
 

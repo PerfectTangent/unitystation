@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using AdminTools;
 using AdminCommands;
+using ClientMessage;
 using Managers;
 using Messages.Client.Admin;
 using Strings;
@@ -28,11 +29,23 @@ public class RoundManagerPage : AdminPage
 	private Toggle cargoToggle = null;
 
 	[SerializeField]
+	private Toggle randomBountyToggle = null;
+
+	[SerializeField]
 	private Dropdown alertLevelDropDown = null;
 
 	private List<string> alertLevelEnumCache = new List<string>();
 
 	[SerializeField] private GameObject bountyManagerPanel;
+
+	public static RoundManagerPage Instance;
+
+	private static AdminPageRefreshData AdminPageRefreshData;
+
+	public void Awake()
+	{
+		Instance = this;
+	}
 
 	private void Start()
 	{
@@ -46,8 +59,10 @@ public class RoundManagerPage : AdminPage
 
 	public void ChangeAwaySite()
 	{
-		AdminCommandsManager.Instance.CmdChangeAwaySite(nextAwaySiteDropDown.options[nextAwaySiteDropDown.value].text);
+		AdminCommandsManager.Instance.CmdAdminChangeAwaySite(nextAwaySiteDropDown.options[nextAwaySiteDropDown.value].text);
 	}
+
+
 
 	public void StartRoundButtonClick()
 	{
@@ -87,12 +102,13 @@ public class RoundManagerPage : AdminPage
 	{
 		base.OnPageRefresh(adminPageData);
 		lavaLandToggle.isOn = adminPageData.allowLavaLand;
-		GenerateDropDownOptionsMap(adminPageData);
-		GenerateDropDownOptionsAwaySite(adminPageData);
+		AdminPageRefreshData = adminPageData;
+		RequestMaps.Send();
+
 		GenerateDropDownOptionsAlertLevels(adminPageData);
 	}
 
-	private void GenerateDropDownOptionsMap(AdminPageRefreshData adminPageData)
+	public void GenerateDropDownOptionsMap(string[] MainStations)
 	{
 		//generate the drop down options:
 		var optionData = new List<Dropdown.OptionData>();
@@ -103,7 +119,7 @@ public class RoundManagerPage : AdminPage
 			text = "Random"
 		});
 
-		foreach (var mapName in SubSceneManager.Instance.MainStationList.MainStations)
+		foreach (var mapName in MainStations)
 		{
 			optionData.Add(new Dropdown.OptionData
 			{
@@ -115,7 +131,7 @@ public class RoundManagerPage : AdminPage
 
 		for (var i = 0; i < optionData.Count; i++)
 		{
-			if (optionData[i].text == adminPageData.nextMap)
+			if (optionData[i].text == AdminPageRefreshData.nextMap)
 			{
 				nextMapDropDown.value = i;
 				return;
@@ -123,7 +139,7 @@ public class RoundManagerPage : AdminPage
 		}
 	}
 
-	private void GenerateDropDownOptionsAwaySite(AdminPageRefreshData adminPageData)
+	public void GenerateDropDownOptionsAwaySite(string[] AwayWorlds)
 	{
 		//generate the drop down options:
 		var optionData = new List<Dropdown.OptionData>();
@@ -134,7 +150,9 @@ public class RoundManagerPage : AdminPage
 			text = "Random"
 		});
 
-		foreach (var awaySiteName in SubSceneManager.Instance.awayWorldList.AwayWorlds)
+		//TODO: Admins can only pull from the available away worlds that are defined in the current game mode.
+		//Make this look for ALL away worlds in the AssetsStreaming folder
+		foreach (var awaySiteName in AwayWorlds)
 		{
 			optionData.Add(new Dropdown.OptionData
 			{
@@ -146,7 +164,7 @@ public class RoundManagerPage : AdminPage
 
 		for (var i = 0; i < optionData.Count; i++)
 		{
-			if (optionData[i].text == adminPageData.nextAwaySite)
+			if (optionData[i].text == AdminPageRefreshData.nextAwaySite)
 			{
 				nextAwaySiteDropDown.value = i;
 				return;
@@ -187,5 +205,10 @@ public class RoundManagerPage : AdminPage
 	public void ToggleCargo()
 	{
 		AdminCommandsManager.Instance.CmdChangeCargoConnectionStatus(cargoToggle.isOn);
+	}
+
+	public void ToggleRandomBounties()
+	{
+		AdminCommandsManager.Instance.CmdToggleCargoRandomBounty(randomBountyToggle.isOn);
 	}
 }

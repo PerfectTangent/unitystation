@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using Logs;
 using UnityEngine;
 using Systems.Explosions;
 
@@ -12,16 +13,16 @@ namespace Items.Magical
 		[SerializeField]
 		private GameObject explosionPrefab = default;
 
-		public override void Punish(ConnectedPlayer player)
+		public override void Punish(PlayerInfo player)
 		{
 			GameObject explosionObject = Spawn.ServerPrefab(explosionPrefab, player.Script.WorldPos).GameObject;
 			if (explosionObject.TryGetComponent<ExplosionComponent>(out var explosion))
 			{
-				explosion.Explode(MatrixManager.AtPoint(player.Script.WorldPos, true).Matrix);
+				explosion.Explode();
 			}
 			else
 			{
-				Logger.LogError($"No explosion component found on {explosionObject}! Was the right prefab assigned?", Category.Spells);
+				Loggy.Error($"No explosion component found on {explosionObject}! Was the right prefab assigned?", Category.Spells);
 			}
 		}
 	}

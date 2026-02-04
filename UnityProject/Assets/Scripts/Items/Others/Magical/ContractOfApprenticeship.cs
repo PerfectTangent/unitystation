@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using NaughtyAttributes;
 using ScriptableObjects;
@@ -22,8 +23,8 @@ namespace Items.Magical
 		public event Action OnApprenticeSpawned;
 
 		public MagicSchool SelectedSchool { get; private set; }
-		public ConnectedPlayer BoundTo { get; private set; }
-		public ConnectedPlayer Apprentice { get; private set; }
+		public PlayerInfo BoundTo { get; private set; }
+		public PlayerInfo Apprentice { get; private set; }
 		public bool WasUsed => Apprentice != null;
 
 		private uint createdRoleKey;
@@ -46,12 +47,12 @@ namespace Items.Magical
 		{
 			if (GhostRoleManager.Instance.serverAvailableRoles.ContainsKey(createdRoleKey))
 			{
-				Logger.LogWarning("A wizard apprentice ghost role already exists.", Category.Spells);
+				Loggy.Warning("A wizard apprentice ghost role already exists.", Category.Spells);
 				return;
 			}
 			else if (WasUsed)
 			{
-				Logger.LogWarning("This contract has already been used. Cannot spawn another apprentice.", Category.Spells);
+				Loggy.Warning("This contract has already been used. Cannot spawn another apprentice.", Category.Spells);
 				return;
 			}
 
@@ -69,9 +70,9 @@ namespace Items.Magical
 			GhostRoleManager.Instance.ServerRemoveRole(createdRoleKey);
 		}
 
-		private void SpawnApprentice(ConnectedPlayer player)
+		private void SpawnApprentice(PlayerInfo player)
 		{
-			player.Script.playerNetworkActions.ServerRespawnPlayerAntag(player, "Wizard Apprentice");
+			player.Script.PlayerNetworkActions.ServerRespawnPlayerAntag(player, "Wizard Apprentice");
 
 			Apprentice = player;
 			OnApprenticeSpawned?.Invoke();
@@ -80,8 +81,8 @@ namespace Items.Magical
 			{
 				if (entry is SpellBookSpell spellEntry)
 				{
-					Spell spell = spellEntry.Spell.AddToPlayer(player.Script);
-					player.Script.mind.AddSpell(spell);
+					Spell spell = spellEntry.Spell.AddToPlayer(player.Mind);
+					player.Mind.AddSpell(spell);
 				}
 				else if (entry is SpellBookArtifact spellArtifact)
 				{

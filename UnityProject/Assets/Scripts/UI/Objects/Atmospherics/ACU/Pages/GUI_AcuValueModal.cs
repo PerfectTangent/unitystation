@@ -13,7 +13,7 @@ namespace UI.Objects.Atmospherics.Acu
 		private NetPageSwitcher modalSwitcher = default;
 
 		[SerializeField]
-		private NetLabel placeholderLabel = default;
+		private NetText_label placeholderLabel = default;
 		[SerializeField]
 		private NetTMPSubmitButton submitButton = default;
 
@@ -27,7 +27,7 @@ namespace UI.Objects.Atmospherics.Acu
 		public void Open(string value, Action<string> callback)
 		{
 			latestCaller = callback;
-			placeholderLabel.SetValueServer(value);
+			placeholderLabel.MasterSetValue(value);
 			modalSwitcher.SetActivePage(this);
 		}
 

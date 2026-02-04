@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
+using UI.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Tilemaps;
@@ -35,7 +37,18 @@ public static class MouseUtils
 	/// </summary>
 	public static Vector3 MouseToWorldPos()
 	{
-		var worldPos = Camera.main.ScreenToWorldPoint(CommonInput.mousePosition);
+		if (Manager3D.Is3D)
+		{
+			var worldPos3D = CommonInput.CashedMouseWorldPosition;
+
+			worldPos3D = worldPos3D+ (Camera.main.transform.forward  );
+			worldPos3D.z = 0;
+			return worldPos3D;
+		}
+
+
+
+		var worldPos = 	CommonInput.CashedMouseWorldPosition;
 		worldPos.z = 0;
 		return worldPos;
 	}
@@ -54,9 +67,9 @@ public static class MouseUtils
 	/// be the "root" of the gameobject this renderer lives on.</param>
 	/// <returns>the ordered game objects that were under the mouse, top first</returns>
 	public static IEnumerable<GameObject> GetOrderedObjectsAtPoint(Vector3 worldPoint, LayerMask? layerMask = null,
-		Func<GameObject, bool> gameObjectFilter = null)
+		Func<GameObject, bool> gameObjectFilter = null, bool useMappedItems = false, bool InteractWithIntangible = false)
 	{
-		var matrix = MatrixManager.AtPoint(Vector3Int.RoundToInt(worldPoint), CustomNetworkManager.Instance._isServer)
+		var matrix = MatrixManager.AtPoint(Vector3Int.RoundToInt(worldPoint), CustomNetworkManager.IsServer)
 			.Matrix;
 		if (!matrix)
 		{
@@ -84,6 +97,13 @@ public static class MouseUtils
 			.ToList());
 
 
+		if (useMappedItems || DevCameraControls.Instance.MappingItemState)
+		{
+			resultRegisterTile.AddRange(matrix.MetaDataLayer.EtherealThings
+				.Where( x => x != null && (x.transform.localPosition -  tilePosition).magnitude < 2)
+				.Select(x => x.Pickupable.UniversalObjectPhysics.registerTile));
+		}
+
 		var result = resultRegisterTile.Select(x => x.gameObject);
 		var IInteractableTiles = matrix.GetComponentInParent<InteractableTiles>().gameObject;
 		// var result = Physics2D.RaycastAll(worldPoint, Vector2.zero, 10f,
@@ -99,10 +119,15 @@ public static class MouseUtils
 			result = result.Where(gameObjectFilter);
 		}
 
+		if (InteractWithIntangible == false)
+		{
+			result = result.Where(x => x.GetUniversalObjectPhysics()?.Intangible is null or false && (useMappedItems || x.GetUniversalObjectPhysics()?.MappingIntangible is null or false));
+		}
+
 		return result
 			//check for a pixel hit
 			.Select(go => IsPixelHit(go.transform))
-			.Where(r => r != null)
+			.Where(r => r != null && (InteractWithIntangible || r.sortingLayerName != "Ghosts")) //Probably need a better system but ghosts don't have object physics
 			//order by sort layer
 			.OrderByDescending(r =>
 				SortingLayer.GetLayerValueFromID(r.GetComponentInParent<SortingGroup>().OrNull()?.sortingLayerID == null
@@ -136,10 +161,19 @@ public static class MouseUtils
 	/// be the "root" of the gameobject this renderer lives on.</param>
 	/// <returns>the ordered game objects that were under the mouse, top first</returns>
 	public static IEnumerable<GameObject> GetOrderedObjectsUnderMouse(LayerMask? layerMask = null,
-		Func<GameObject, bool> gameObjectFilter = null)
+		Func<GameObject, bool> gameObjectFilter = null, bool useMappedItems = false)
 	{
-		return GetOrderedObjectsAtPoint(MouseToWorldPos(), layerMask,
-			gameObjectFilter);
+
+		var WorldPos = MouseToWorldPos();
+
+		if (ClickOnSelfUI.SelfClick)
+		{
+			ClickOnSelfUI.SelfClick = false;
+			return new[] {PlayerManager.LocalPlayerObject};
+		}
+
+		return GetOrderedObjectsAtPoint(WorldPos, layerMask,
+			gameObjectFilter,useMappedItems);
 	}
 
 	/// <summary>
@@ -169,6 +203,12 @@ public static class MouseUtils
 		for (var i = 0; i < bySortingOrder.Length; i++)
 		{
 			SpriteRenderer spriteRenderer = bySortingOrder[i];
+
+			if (DevCameraControls.ObjecIsVisible(spriteRenderer.gameObject) == false)
+			{
+				continue;
+			}
+
 			Sprite sprite = spriteRenderer.sprite;
 
 			if (spriteRenderer.enabled && sprite && spriteRenderer.color.a > 0)
@@ -177,7 +217,7 @@ public static class MouseUtils
 
 				if (pixelColor.a > 0)
 				{
-					var mousePos = Camera.main.ScreenToWorldPoint(CommonInput.mousePosition);
+					var mousePos = CommonInput.CashedMouseWorldPosition;
 					if (recentTouches != null)
 					{
 						if (recentTouches.ContainsKey(mousePos))
@@ -208,14 +248,15 @@ public static class MouseUtils
 
 		Camera cam = Camera.main;
 
-		Vector2 mousePos = CommonInput.mousePosition;
+		Vector3 mousePos = CommonInput.mousePosition;
 
-		Vector2 viewportPos = cam.ScreenToViewportPoint(mousePos);
+		Vector3 viewportPos = cam.ScreenToViewportPoint(mousePos);
 
 		if (viewportPos.x < 0.0f || viewportPos.x > 1.0f || viewportPos.y < 0.0f || viewportPos.y > 1.0f)
 			return false; // out of viewport bounds
 		// Cast a ray from viewport point into world
 		Ray ray = cam.ViewportPointToRay(viewportPos);
+
 
 		// Check for intersection with sprite and get the color
 		return IntersectsSprite(spriteRenderer, ray, out color);
@@ -233,14 +274,16 @@ public static class MouseUtils
 		if (sprite.packed && sprite.packingMode == SpritePackingMode.Tight)
 		{
 			// Cannot use textureRect on tightly packed sprites
-			Logger.LogError("SpritePackingMode.Tight atlas packing is not supported!", Category.Sprites);
+			Loggy.Error("SpritePackingMode.Tight atlas packing is not supported!", Category.Sprites);
 			// TODO: support tightly packed sprites
 			return false;
 		}
 
 		// Craete a plane so it has the same orientation as the sprite transform
 		Plane plane =
-			new Plane(spriteRenderer.transform.forward, (Vector2) spriteRenderer.transform.position); //????????
+			new Plane(spriteRenderer.transform.forward, spriteRenderer.transform.position); //????????
+
+
 		// Intersect the ray and the plane
 		float rayIntersectDist; // the distance from the ray origin to the intersection point
 		if (!plane.Raycast(ray, out rayIntersectDist)) return false; // no intersection
@@ -255,16 +298,16 @@ public static class MouseUtils
 
 		int texPosX = (int) (sprite.textureRect.position.x + (spritePos.x * pixelsPerUnit + halfRealTexWidth));
 		int texPosY = (int) (sprite.textureRect.position.y + (spritePos.y * pixelsPerUnit + halfRealTexHeight));
-		//Logger.Log(texPosX.ToString() + "texPosX");
-		//Logger.Log(textureRect.x.ToString() + "textureRect");
-		//Logger.Log(Mathf.FloorToInt(textureRect.xMax).ToString() + "textureRect.xMax");
-		//Logger.Log(sprite.textureRectOffset.ToString());
+		//Loggy.Log(texPosX.ToString() + "texPosX");
+		//Loggy.Log(textureRect.x.ToString() + "textureRect");
+		//Loggy.Log(Mathf.FloorToInt(textureRect.xMax).ToString() + "textureRect.xMax");
+		//Loggy.Log(sprite.textureRectOffset.ToString());
 		// Check if pixel is within texture
 		if (texPosX < 0 || texPosX < textureRect.x || texPosX >= Mathf.FloorToInt(textureRect.xMax)) return false;
 		if (texPosY < 0 || texPosY < textureRect.y || texPosY >= Mathf.FloorToInt(textureRect.yMax)) return false;
 
 		// Check to make sure texture is readable and get pixel color
-		if(texture.isReadable)
+		if (texture.isReadable)
 			color = texture.GetPixel(texPosX, texPosY);
 
 		return true;

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using AddressableReferences;
+using Systems.Score;
 
 namespace Objects
 {
@@ -15,10 +16,13 @@ namespace Objects
 
 		[SerializeField] private SpriteHandler BellSpriteRenderer;
 
+		private const string BIG_BELL_SCORE_ENTRY = "bigServiceBell";
+		private const int BIG_BELL_SCORE_VALUE = 1;
+
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
-			
+
 			return interaction.Intent != Intent.Grab
 			       && interaction.Intent != Intent.Harm
 			       && interaction.TargetObject == gameObject
@@ -27,7 +31,7 @@ namespace Objects
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			SoundManager.PlayNetworkedAtPos(RingSound, interaction.TargetObject.WorldPosServer());
+			SoundManager.PlayNetworkedAtPos(RingSound, interaction.TargetObject.AssumedWorldPosServer());
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
@@ -36,7 +40,10 @@ namespace Objects
 			if (Random.value <= 0.005)
 			{
 				RingSound = BigBellRingSound;
-				BellSpriteRenderer.ChangeSpriteVariant(1);
+				BellSpriteRenderer.SetSpriteVariant(1);
+				ScoreMachine.AddNewScoreEntry(BIG_BELL_SCORE_ENTRY, "Number of Big Service Bells",
+					ScoreMachine.ScoreType.Int, ScoreCategory.StationScore, ScoreAlignment.Weird);
+				ScoreMachine.AddToScoreInt(BIG_BELL_SCORE_VALUE ,BIG_BELL_SCORE_ENTRY);
 			}
 		}
 	}

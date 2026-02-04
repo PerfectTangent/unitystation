@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using Items;
-using Managers;
+using Logs;
 using UnityEngine;
 using Mirror;
-using UnityEngine.Serialization;
+using NaughtyAttributes;
+using Systems.Clearance;
 using WebSocketSharp;
 
 /// <summary>
@@ -13,7 +13,6 @@ using WebSocketSharp;
 /// </summary>
 public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInteractable<HandActivate>, IExaminable
 {
-
 	[Tooltip("Sprite to use when the card is a normal card")]
 	[SerializeField]
 	private Sprite standardSprite = null;
@@ -26,22 +25,23 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 	[SerializeField]
 	private Sprite commandSprite = null;
 
-	[Tooltip("This is used to place ID cards via map editor and then setting their initial access type")]
-	[FormerlySerializedAs("ManuallyAddedAccess")]
-	[SerializeField]
-	private List<Access> manuallyAddedAccess = new List<Access>();
-
-	[Tooltip("For cards added via map editor and set their initial IDCardType here. This will only work" +
-	         "if there are entries in ManuallyAddedAccess list")]
-	[FormerlySerializedAs("ManuallyAssignCardType")]
-	[SerializeField]
-	private IDCardType manuallyAssignCardType = IDCardType.standard;
-
 	[Tooltip("If true, will initialize itself with the correct access list, name, job, etc...based on the" +
 	         " first player whose inventory it is added to. Used for initial loadout.")]
 	[SerializeField]
 	private bool autoInitOnPickup = false;
+
+	[Tooltip("If set, it will be assigned to the ID card on spawn. Useful for storytelling.")]
+	[SerializeField]
+	[HideIf(nameof(autoInitOnPickup))]
+	private string initialName = "";
+
+	[Tooltip("If set, it will be assigned to the ID card on spawn. Useful for storytelling.")]
+	[SerializeField]
+	[HideIf(nameof(autoInitOnPickup))]
+	private string initialJobTitle = "";
+
 	private bool initialized;
+	public BasicClearanceSource ClearanceSource { get; private set; }
 
 	public JobType JobType => jobType;
 	public Occupation Occupation => OccupationList.Instance.Get(JobType);
@@ -59,10 +59,10 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 	[SyncVar(hook = nameof(SyncName))]
 	private string registeredName;
 
-	public int[] currencies = new int[(int)CurrencyType.Total];
 
-	//The actual list of access allowed set via the server and synced to all clients
-	private readonly SyncList<int> accessSyncList = new SyncList<int>();
+
+	// FIXME: move currencies to their own component. Labor points and credits don't really have much in common and should be handled on their own components.
+	public int[] currencies = new int[(int)CurrencyType.Total];
 
 	//To switch the card sprites when the type changes
 	private SpriteRenderer spriteRenderer;
@@ -70,22 +70,34 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 
 	private ItemAttributesV2 itemAttributes;
 
+	private bool HasInitialNameOrTitle => string.IsNullOrEmpty(initialName) == false || string.IsNullOrEmpty(initialJobTitle) == false;
+
+
 	private void Awake()
 	{
 		spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 		pickupable = GetComponent<Pickupable>();
 		itemAttributes = GetComponent<ItemAttributesV2>();
+		ClearanceSource = GetComponent<BasicClearanceSource>();
 	}
 
 	public void OnSpawnServer(SpawnInfo info)
 	{
-		//This will add the access from ManuallyAddedAccess list
-		if (manuallyAddedAccess.Count > 0)
-		{
-			ServerAddAccess(manuallyAddedAccess);
-			SyncIDCardType(idCardType, manuallyAssignCardType);
-		}
 		initialized = false;
+		if (autoInitOnPickup && HasInitialNameOrTitle)
+		{
+			Loggy.Warning($"{gameObject.name} has autoInitOnPickup and initialName or initialJobTitle set. These values will be overriden when a player picks it up!", Category.Objects);
+		}
+
+		if (string.IsNullOrEmpty(initialName) == false)
+		{
+			SyncName("", initialName);
+		}
+
+		if (string.IsNullOrEmpty(initialJobTitle) == false)
+		{
+			SyncJobTitle("", initialJobTitle);
+		}
 	}
 
 	public void ServerPerformInteraction(HandActivate interaction)
@@ -97,65 +109,64 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 
 	public void OnInventoryMoveServer(InventoryMove info)
 	{
-		if (initialized || !autoInitOnPickup || info.ToPlayer == null)
+
+		if (info.MovedObject.gameObject != gameObject || initialized || !autoInitOnPickup || info.ToPlayer == null)
 			return;
 
 		//auto init if being added to a player's inventory
 		initialized = true;
 
 		//these checks protect against NRE when spawning a player who has no mind, like dummy
-		var ps = info.ToPlayer.GetComponent<PlayerScript>();
-		if (ps == null)
+		var inventory = info.ToPlayer.GetComponent<DynamicItemStorage>();
+		if (inventory == null)
 			return;
 
-		var mind = ps.mind;
-		if (mind == null)
-			return;
 
-		var occupation = mind.occupation;
+
+		var occupation = inventory.InitialisedWithOccupation;
 		if (occupation == null)
 			return;
 
-		var charSettings = ps.characterSettings;
 		jobType = occupation.JobType;
 
-		var accessToGive = GameManager.Instance.CentComm.IsLowPop
-			? occupation.AllowedLowPopAccess
-			: occupation.AllowedAccess;
+		var issuedClearance = occupation.IssuedClearance;
+		var lowPopClearance = occupation.IssuedLowPopClearance;
 
-		if (accessToGive == occupation.AllowedLowPopAccess && accessToGive.Count == 0)
-			accessToGive = occupation.AllowedAccess; //(Max) : Incase we forgot to set it up in the SO aka you're lazy like me
-
-		if (jobType == JobType.CAPTAIN)
+		switch (jobType)
 		{
-			Initialize(IDCardType.captain, jobType, accessToGive, charSettings.Name);
-		}
-		else if (jobType == JobType.HOP || jobType == JobType.HOS || jobType == JobType.CMO || jobType == JobType.RD ||
-		         jobType == JobType.CHIEF_ENGINEER)
-		{
-			Initialize(IDCardType.command, jobType, accessToGive, charSettings.Name);
-		}
-		else
-		{
-			Initialize(IDCardType.standard, jobType, accessToGive, charSettings.Name);
+			case JobType.CAPTAIN:
+				Initialize(IDCardType.captain, jobType, issuedClearance, lowPopClearance, inventory.gameObject.name);
+				break;
+			case JobType.HOP or JobType.HOS or JobType.CMO or JobType.RD or JobType.CHIEF_ENGINEER:
+				Initialize(IDCardType.command, jobType, issuedClearance, lowPopClearance, inventory.gameObject.name);
+				break;
+			default:
+				Initialize(IDCardType.standard, jobType, issuedClearance, lowPopClearance, inventory.gameObject.name);
+				break;
 		}
 	}
 
-
 	/// <summary>
-	/// Configures the ID card with the specified settings
+	/// Initialize the ID card with the specified parameters. Normally called after picking up an auto-init ID card.
 	/// </summary>
-	/// <param name="idCardType">type of card</param>
-	/// <param name="jobType">job on the card</param>
-	/// <param name="allowedAccess">what the card can access</param>
-	/// <param name="name">name listed on card</param>
-	private void Initialize(IDCardType idCardType, JobType newJobType, List<Access> allowedAccess, string name)
+	/// <param name="newIDCardType"></param>
+	/// <param name="newJobType"></param>
+	/// <param name="issuedClearance"></param>
+	/// <param name="issuedLowPopClearance"></param>
+	/// <param name="characterName"></param>
+	private void Initialize(IDCardType newIDCardType, JobType newJobType, IEnumerable<Clearance> issuedClearance, IEnumerable<Clearance> issuedLowPopClearance, string characterName)
 	{
-		//Set all the synced properties for the card
-		SyncName(registeredName, name);
+		SyncName(registeredName, characterName);
 		SyncJobType(jobType, newJobType);
-		SyncIDCardType(idCardType, idCardType);
-		ServerAddAccess(allowedAccess);
+		SyncIDCardType(newIDCardType, newIDCardType);
+		if (ClearanceSource == null)
+		{
+			Loggy.Error($"IDCard {gameObject.name} has no IClearanceSource component, cannot set clearance!", Category.Objects);
+			return;
+		}
+
+		ClearanceSource.ServerSetClearance(issuedClearance);
+		ClearanceSource.ServerSetLowPopClearance(issuedLowPopClearance);
 	}
 
 	public void SyncName(string oldName, string newName)
@@ -215,15 +226,7 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 		pickupable.RefreshUISlotImage();
 	}
 
-	/// <summary>
-	/// Checks if this id card has the indicated access.
-	/// </summary>
-	/// <param name="access"></param>
-	/// <returns></returns>
-	public bool HasAccess(Access access)
-	{
-		return accessSyncList.Contains((int) access);
-	}
+
 
 	public string GetJobTitle()
 	{
@@ -237,66 +240,12 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 	}
 
 	/// <summary>
-	/// Removes the indicated access from this IDCard
-	/// </summary>
-	[Server]
-	public void ServerRemoveAccess(Access access)
-	{
-		if (!HasAccess(access)) return;
-		accessSyncList.Remove((int)access);
-		netIdentity.isDirty = true;
-	}
-
-	/// <summary>
-	/// Adds the indicated access to this IDCard
-	/// </summary>
-	[Server]
-	public void ServerAddAccess(Access access)
-	{
-		if (HasAccess(access)) return;
-		accessSyncList.Add((int)access);
-		netIdentity.isDirty = true;
-	}
-
-	[Server]
-	public void ReplaceAccessWithLowPopVersion()
-	{
-		ServerAddAccess(Occupation.AllowedLowPopAccess);
-	}
-
-	/// <summary>
-	/// Adds the indicated access to this id card
-	/// </summary>
-	/// <param name="accessToBeAdded"></param>
-	[Server]
-	public void ServerAddAccess(IEnumerable<Access> accessToBeAdded)
-	{
-		foreach (var access in accessToBeAdded)
-		{
-			ServerAddAccess(access);
-		}
-	}
-
-	/// <summary>
-	/// Removes the indicated access from this id card
-	/// </summary>
-	/// <param name="accessToBeAdded"></param>
-	[Server]
-	public void ServerRemoveAccess(IEnumerable<Access> accessToBeRemoved)
-	{
-		foreach (var access in accessToBeRemoved)
-		{
-			ServerRemoveAccess(access);
-		}
-	}
-
-	/// <summary>
 	/// Changes the card's occupation to the new occupation, granting them
 	/// the default access and clearing any existing access if indicated.
 	/// </summary>
 	/// <param name="occupation"></param>
 	/// <param name="grantDefaultAccess">if true, grants them the
-	/// default access afforded by this occupation, if false, only changes
+	/// default clearance afforded by this occupation, if false, only changes
 	/// the occupation</param>
 	/// <param name="clear">if true, removes the existing access of this card
 	/// before granting them the occupation.</param>
@@ -307,13 +256,13 @@ public class IDCard : NetworkBehaviour, IServerInventoryMove, IServerSpawn, IInt
 
 		if (clear)
 		{
-			accessSyncList.Clear();
-			netIdentity.isDirty = true;
+			ClearanceSource.ServerClearClearance();
 		}
 
 		if (grantDefaultAccess)
 		{
-			ServerAddAccess(occupation.AllowedAccess);
+			ClearanceSource.ServerSetClearance(occupation.IssuedClearance);
+			ClearanceSource.ServerSetLowPopClearance(occupation.IssuedLowPopClearance.Any() ? occupation.IssuedLowPopClearance : occupation.IssuedClearance);
 		}
 
 		SyncJobType(jobType, occupation.JobType);

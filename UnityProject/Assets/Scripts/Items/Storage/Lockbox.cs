@@ -1,6 +1,5 @@
-﻿using System;
-using Mirror;
-using NaughtyAttributes;
+﻿using Mirror;
+using Systems.Clearance;
 using Systems.Explosions;
 using UnityEngine;
 
@@ -9,27 +8,29 @@ namespace Items.Storage
 	public class Lockbox : NetworkBehaviour, IInteractable<HandActivate>,
 		ICheckedInteractable<HandApply>, ICheckedInteractable<InventoryApply>
 	{
+		[SerializeField]
+		private SpriteDataSO lockedSprite;
+		[SerializeField]
+		private SpriteDataSO unlockedSprite;
+
 		[SyncVar] private bool isLocked = true;
 		[SyncVar] private bool isEmagged = false;
-
 		private InteractableStorage interactableStorage;
 		private SpriteHandler spriteHandler;
-
-		[SerializeField] private Access allowedAccess;
-		[SerializeField] private SpriteDataSO lockedSprite;
-		[SerializeField] private SpriteDataSO unlockedSprite;
+		private ClearanceRestricted restricted;
 
 		private void Awake()
 		{
 			interactableStorage = GetComponent<InteractableStorage>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
+			restricted = GetComponent<ClearanceRestricted>();
 		}
 
 		public void ServerPerformInteraction(HandActivate interaction)
 		{
 			if (isLocked == false)
 			{
-				interactableStorage.Interact(interaction);
+				interactableStorage.OpenInventoryInteraction(interaction);
 				return;
 			}
 			Chat.AddExamineMsg(interaction.Performer, "This seems locked.");
@@ -42,13 +43,8 @@ namespace Items.Storage
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if(interaction.UsedObject.TryGetComponent<IDCard>(out var card) == false ||
+			if(interaction.UsedObject.TryGetComponent<IClearanceSource>(out var card) == false ||
 			   interaction.UsedObject.TryGetComponent<Emag>(out var mag)) return;
-			if (card != null && card.HasAccess(allowedAccess) == false)
-			{
-				Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it refuses access from this card.");
-				return;
-			}
 
 			if (mag != null && mag.UseCharge(interaction))
 			{
@@ -58,27 +54,25 @@ namespace Items.Storage
 				SparkUtil.TrySpark(interaction.Performer);
 				return;
 			}
-			isLocked = !isLocked;
-			spriteHandler.SetSpriteSO(isLocked ? lockedSprite : unlockedSprite);
-			Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it accepts this card.");
-		}
 
-		public void ServerPerformInteraction(InventoryApply interaction)
-		{
-			if (interaction.UsedObject != null)
-			{
-				if (interaction.UsedObject.TryGetComponent<IDCard>(out var card) && card.HasAccess(allowedAccess) == false)
-				{
-					Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it refuses access from this card.");
-					return;
-				}
-				if(card != null && card.HasAccess(allowedAccess))
+			restricted.PerformWithClearance(card,
+				() =>
 				{
 					isLocked = !isLocked;
 					spriteHandler.SetSpriteSO(isLocked ? lockedSprite : unlockedSprite);
 					Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it accepts this card.");
-					return;
-				}
+				},
+				() =>
+				{
+					Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it refuses access from this card.");
+				});
+		}
+
+		public void ServerPerformInteraction(InventoryApply interaction)
+		{
+
+			if (interaction.UsedObject != null)
+			{
 				if (interaction.UsedObject.TryGetComponent<Emag>(out var mag) && mag.UseCharge(gameObject, interaction.Performer))
 				{
 					isLocked = false;
@@ -87,7 +81,25 @@ namespace Items.Storage
 					SparkUtil.TrySpark(interaction.Performer);
 					return;
 				}
+
+				if (interaction.UsedObject.TryGetComponent<IClearanceSource>(out var card) )
+				{
+					restricted.PerformWithClearance(card,
+						() =>
+						{
+							isLocked = !isLocked;
+							spriteHandler.SetSpriteSO(isLocked ? lockedSprite : unlockedSprite);
+							Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it accepts this card.");
+						},
+						() =>
+						{
+							Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} beeps as it refuses access from this card.");
+						});
+
+					return;
+				}
 			}
+
 			Chat.AddExamineMsg(interaction.Performer, "This seems locked.");
 		}
 

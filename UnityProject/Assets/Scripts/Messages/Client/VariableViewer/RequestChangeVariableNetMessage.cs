@@ -1,4 +1,6 @@
-﻿using Mirror;
+﻿using Initialisation;
+using Logs;
+using Mirror;
 
 
 namespace Messages.Client.VariableViewer
@@ -8,9 +10,12 @@ namespace Messages.Client.VariableViewer
 		public struct NetMessage : NetworkMessage
 		{
 			public string newValue;
+			public uint SentenceID;
 			public ulong PageID;
 			public bool IsNewBookshelf;
 			public bool SendToClient;
+			public bool iskey;
+			public global::VariableViewer.ListModification ListModification;
 		}
 
 		public override void Process(NetMessage msg)
@@ -20,23 +25,33 @@ namespace Messages.Client.VariableViewer
 
 		private void ValidateAdmin(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.VV_EDIT) == false) return;
 
 			global::VariableViewer.RequestChangeVariable(
-					msg.PageID, msg.newValue, msg.SendToClient, SentByPlayer.GameObject, SentByPlayer.UserId);
+					msg.PageID, msg.newValue, msg.SendToClient, SentByPlayer.GameObject, SentByPlayer.AccountId, msg.SentenceID, msg.iskey, msg.ListModification);
 
-			Logger.Log(
+			Loggy.Info(
 					$"Admin {SentByPlayer.Username} changed variable {msg.PageID} (in VV) with a new value of: {msg.newValue} ",
 					Category.Admin);
 		}
 
-		public static NetMessage Send(ulong _PageID, string _newValue, bool InSendToClient)
+		public static NetMessage Send(
+			ulong _PageID,
+			string _newValue,
+			bool InSendToClient,
+			uint SentenceID,
+			bool iskey,
+			global::VariableViewer.ListModification ListModification= global::VariableViewer.ListModification.NONE )
 		{
+
 			NetMessage msg = new NetMessage
 			{
 				PageID = _PageID,
 				newValue = _newValue,
-				SendToClient = InSendToClient
+				SendToClient = InSendToClient,
+				ListModification = ListModification,
+				SentenceID =  SentenceID,
+				iskey = iskey
 			};
 
 			Send(msg);

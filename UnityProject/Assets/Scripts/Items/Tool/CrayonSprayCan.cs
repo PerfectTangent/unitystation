@@ -191,8 +191,7 @@ namespace Items.Tool
 				return;
 			}
 
-			var graffitiAlreadyOnTile = registerItem.TileChangeManager.MetaTileMap.GetOverlayTilesByType(cellPos,
-					isWall ? LayerType.Walls : LayerType.Floors, OverlayType.Cleanable)
+			var graffitiAlreadyOnTile = registerItem.TileChangeManager.MetaTileMap.GetOverlayTilesByType(cellPos, isWall ? LayerType.Effects : LayerType.UnderObjectsEffects, OverlayType.Cleanable)
 				.Where(t => t.IsGraffiti).ToList();
 
 			foreach (var graffiti in graffitiAlreadyOnTile)
@@ -210,10 +209,8 @@ namespace Items.Tool
 						{
 							if (charges > 0 || charges == -1)
 							{
-								registerItem.TileChangeManager.MetaTileMap.RemoveOverlaysOfType(cellPos,
-									isWall ? LayerType.Walls : LayerType.Floors, OverlayType.Cleanable);
-								registerItem.TileChangeManager.MetaTileMap.AddOverlay(cellPos, tileToUse, chosenDirection,
-									chosenColour);
+								registerItem.TileChangeManager.MetaTileMap.RemoveOverlaysOfType(cellPos, isWall ? LayerType.Effects : LayerType.UnderObjectsEffects, OverlayType.Cleanable);
+								registerItem.TileChangeManager.MetaTileMap.AddOverlay(cellPos, tileToUse, chosenDirection, chosenColour);
 							}
 
 							UseAndCheckCharges(interaction);
@@ -303,7 +300,7 @@ namespace Items.Tool
 
 			if (isCan)
 			{
-				SoundManager.PlayNetworkedAtPos(spraySound, interaction.Performer.WorldPosServer(),
+				SoundManager.PlayNetworkedAtPos(spraySound, interaction.Performer.AssumedWorldPosServer(),
 					sourceObj: interaction.Performer);
 			}
 
@@ -412,7 +409,7 @@ namespace Items.Tool
 
 			capRemoved = !capRemoved;
 
-			spriteHandler.ChangeSprite(capRemoved ? 1 : 0);
+			spriteHandler.SetCatalogueIndexSprite(capRemoved ? 1 : 0);
 		}
 
 		[Client]
@@ -447,13 +444,15 @@ namespace Items.Tool
 
 		public void OnInventoryMoveServer(InventoryMove info)
 		{
+			if (this.gameObject != info.MovedObject.gameObject) return;
+
 			if (info.ToSlot == null || info.ToSlot.ItemStorage == null) return;
 
 			if (info.ToSlot.ItemStorage.ItemStorageCapacity != crayonBoxCapacity) return;
 
 			if (isCan)
 			{
-				Chat.AddExamineMsgFromServer(info.FromPlayer.OrNull()?.gameObject, "Spray cans are not crayons!");
+				Chat.AddExamineMsgFromServer(info.FromPlayer.OrNull()?.gameObject, "Spray cans are not crayons!"); //TODO We need better system for this, for example have this part of slot definition code
 				return;
 			}
 

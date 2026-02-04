@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 7988917823086198580}
     - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
       propertyPath: PresentSpriteSet
@@ -15,25 +21,31 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[0]
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
     - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[1]
+      propertyPath: 'SubCatalogue.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
     - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[2]
+      propertyPath: 'SubCatalogue.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
     - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[3]
+      propertyPath: 'SubCatalogue.Array.data[2]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
+        type: 2}
+    - target: {fileID: 90086938426635484, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[3]'
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
@@ -53,6 +65,22 @@ PrefabInstance:
       propertyPath: initialDescription
       value: A small glass and wire assembly for windoors.
       objectReference: {fileID: 0}
+    - target: {fileID: 492649207374439926, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 492649207374439926, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 7c14f499d1f637549ab676b957740686,
+        type: 2}
+    - target: {fileID: 700425905060650895, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 2511913752537302833}
     - target: {fileID: 700425905060650895, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
       propertyPath: PresentSpriteSet
@@ -61,22 +89,33 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 700425905060650895, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[0]
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
     - target: {fileID: 700425905060650895, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[1]
+      propertyPath: 'SubCatalogue.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
     - target: {fileID: 700425905060650895, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[2]
+      propertyPath: 'SubCatalogue.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
         type: 2}
+    - target: {fileID: 700425905060650895, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[2]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 7d2de9c440cedfa4a855277fac47f8d0,
+        type: 2}
+    - target: {fileID: 1706320983422357412, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: _assetId
+      value: 3168964278
+      objectReference: {fileID: 0}
     - target: {fileID: 1706320983422357412, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
       propertyPath: m_AssetId
@@ -89,7 +128,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2315748446456795164, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 5012734566442633653}
+    - target: {fileID: 2315748446456795164, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 0b004421b3459b44eb46eabbdbe1f1cc,
+        type: 2}
+    - target: {fileID: 2315748446456795164, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 0b004421b3459b44eb46eabbdbe1f1cc,
         type: 2}
@@ -107,6 +157,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 6125502474817307791, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
+      propertyPath: parentID
+      value: b52e9566ba635f944a7a656928335414
+      objectReference: {fileID: 0}
+    - target: {fileID: 6125502474817307791, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
       propertyPath: foreverID
       value: a97162b8bb7eda1498667ff8e831f837
       objectReference: {fileID: 0}
@@ -114,8 +169,13 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300000, guid: e16a55c4f111da24993ef9daa1b17613,
+      objectReference: {fileID: 21300006, guid: e16a55c4f111da24993ef9daa1b17613,
         type: 3}
+    - target: {fileID: 6995212575028010705, guid: b52e9566ba635f944a7a656928335414,
+        type: 3}
+      propertyPath: m_WasSpriteAssigned
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7090484289108851740, guid: b52e9566ba635f944a7a656928335414,
         type: 3}
       propertyPath: m_RootOrder
@@ -177,4 +237,25 @@ PrefabInstance:
       value: WindoorLeftAssembly
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b52e9566ba635f944a7a656928335414, type: 3}
+--- !u!212 &2511913752537302833 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 459137905406169173, guid: b52e9566ba635f944a7a656928335414,
+    type: 3}
+  m_PrefabInstance: {fileID: 2631002964881397604}
+  m_PrefabAsset: {fileID: 0}
+--- !u!212 &5012734566442633653 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 6995212575028010705, guid: b52e9566ba635f944a7a656928335414,
+    type: 3}
+  m_PrefabInstance: {fileID: 2631002964881397604}
+  m_PrefabAsset: {fileID: 0}
+--- !u!212 &7988917823086198580 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 5358550384649939024, guid: b52e9566ba635f944a7a656928335414,
+    type: 3}
+  m_PrefabInstance: {fileID: 2631002964881397604}
+  m_PrefabAsset: {fileID: 0}

@@ -1,7 +1,7 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using AddressableReferences;
+using HealthV2;
 
 namespace Weapons
 {
@@ -15,6 +15,9 @@ namespace Weapons
 		[SerializeField]
 		private float rechargeTime = 2.0f;
 
+		[SerializeField]
+		public SpriteHandler rechargeSpriteHandler;
+
 		public AddressableAudioSource rechargeSound;
 
 		public override void OnSpawnServer(SpawnInfo info)
@@ -22,6 +25,10 @@ namespace Weapons
 			base.OnSpawnServer(info);
 			CurrentMagazine.containedBullets[0] = projectile;
 			CurrentMagazine.ServerSetAmmoRemains(1);
+			if (rechargeSpriteHandler != null)
+			{
+				rechargeSpriteHandler.PushClear();
+			}
 		}
 
 		public override bool WillInteract(AimApply interaction, NetworkSide side)
@@ -43,21 +50,48 @@ namespace Weapons
 		private IEnumerator StartCooldown()
 		{
 			allowRecharge = false;
+
+			if (rechargeSpriteHandler != null)
+			{
+				rechargeSpriteHandler.PushTexture();
+			}
+
 			yield return WaitFor.Seconds(rechargeTime);
 			CurrentMagazine.ServerSetAmmoRemains(1);
 			CurrentMagazine.LoadProjectile(projectile, 1);
 			if (IsSuppressed)
 			{
-				if (serverHolder != null)
+				if (ServerHolder != null)
 				{
-					Chat.AddExamineMsgFromServer(serverHolder, $"The {gameObject.ExpensiveName()} silently recharges.");
+					Chat.AddExamineMsgFromServer(ServerHolder, $"The {gameObject.ExpensiveName()} silently recharges.");
 				}
 			}
 			else
 			{
-				SoundManager.PlayNetworkedAtPos(rechargeSound, gameObject.AssumedWorldPosServer(), sourceObj: serverHolder);
+				SoundManager.PlayNetworkedAtPos(rechargeSound, gameObject.AssumedWorldPosServer(), sourceObj: ServerHolder);
 			}
+
+			if (rechargeSpriteHandler != null)
+			{
+				rechargeSpriteHandler.PushClear();
+			}
+
 			allowRecharge = true;
+		}
+
+		protected override IEnumerator SuicideAction(GameObject performer)
+		{
+			var playerHealth = performer.GetComponent<PlayerHealthV2>();
+			foreach (var bodyPart in playerHealth.SurfaceBodyParts)
+			{
+				if(bodyPart.BodyPartType != BodyPartType.Head) continue;
+				playerHealth.DismemberBodyPart(bodyPart);
+				break;
+			}
+			playerHealth.Death(); //Just incase
+			string suicideMessage = $"{playerHealth.playerScript.visibleName} puts the gun to his mouth before blowing off his head completely.";
+			Chat.AddActionMsgToChat(performer, suicideMessage, suicideMessage);
+			yield return null;
 		}
 	}
 }

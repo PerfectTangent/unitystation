@@ -1,26 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Mirror;
 using ScriptableObjects;
+using Shared.Systems.ObjectConnection;
 using Systems.Interaction;
-using Systems.ObjectConnection;
-
 
 namespace Construction.Conveyors
 {
 	/// <summary>
 	/// Used for controlling conveyor belts.
 	/// </summary>
-	public class ConveyorBeltSwitch : MonoBehaviour, IServerLifecycle, IMultitoolMultiMasterSlaveable,
-			ICheckedInteractable<HandApply>, ICheckedInteractable<AiActivate>
+	public class ConveyorBeltSwitch : MonoBehaviour, IServerLifecycle, IMultitoolMasterable,
+		ICheckedInteractable<HandApply>, ICheckedInteractable<AiActivate>
 	{
-		[Tooltip("Assign the conveyor belts this switch should control.")]
-		[SerializeField]
+		[Tooltip("Assign the conveyor belts this switch should control.")] [SerializeField]
 		private List<ConveyorBelt> conveyorBelts = new List<ConveyorBelt>();
 
-		[Tooltip("Conveyor belt speed.")]
-		[SerializeField]
+
+		[Tooltip("Conveyor belt speed.")] [SerializeField]
 		private float ConveyorBeltSpeed = 0.5f;
 
 		private SpriteHandler spriteHandler;
@@ -28,6 +25,7 @@ namespace Construction.Conveyors
 		public SwitchState CurrentState { get; private set; }
 
 		private SwitchState prevMoveState;
+
 
 		#region Lifecycle
 
@@ -59,7 +57,7 @@ namespace Construction.Conveyors
 		{
 			for (int i = 0; i < conveyorBelts.Count; i++)
 			{
-				if (conveyorBelts[i] != null) conveyorBelts[i].MoveBelt();
+				if (conveyorBelts[i] != null) conveyorBelts[i].MoveBelt(ConveyorBeltSpeed);
 			}
 		}
 
@@ -67,17 +65,17 @@ namespace Construction.Conveyors
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (!Validations.IsTarget(gameObject, interaction)) return false;
 
-			return interaction.HandObject == null ||
-					Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench);
+			return (interaction.HandObject == null || interaction.IsAltClick) ||
+			       Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench);
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 			{
 				//deconsruct
 				ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -110,6 +108,7 @@ namespace Construction.Conveyors
 					{
 						SetState(SwitchState.Forward);
 					}
+
 					prevMoveState = CurrentState;
 					break;
 				case SwitchState.Forward:
@@ -135,16 +134,23 @@ namespace Construction.Conveyors
 		/// Allow these conveyor belts to be controlled by this switch.
 		/// </summary>
 		/// <param name="newConveyorBelts"> Conveyor belts to control </param>
-		public void AddConveyorBelt(List<ConveyorBelt> newConveyorBelts)
+		public void AddConveyorBelt(ConveyorBelt newConveyorBelt)
 		{
-			foreach (var conveyor in newConveyorBelts)
+			if (conveyorBelts.Contains(newConveyorBelt) == false)
 			{
-				if (!conveyorBelts.Contains(conveyor))
-				{
-					conveyorBelts.Add(conveyor);
-				}
+				conveyorBelts.Add(newConveyorBelt);
+			}
+			SetBeltInfo();
+		}
+
+		public void RemoveConveyorBelt(ConveyorBelt newConveyorBelt)
+		{
+			if (conveyorBelts.Contains(newConveyorBelt))
+			{
+				conveyorBelts.Remove(newConveyorBelt);
 			}
 
+			newConveyorBelt.SetSwitchRef(null);
 			SetBeltInfo();
 		}
 
@@ -163,15 +169,19 @@ namespace Construction.Conveyors
 		private void SetState(SwitchState newState)
 		{
 			CurrentState = newState;
-			spriteHandler.ChangeSprite((int)CurrentState);
+			spriteHandler.SetCatalogueIndexSprite((int) CurrentState);
 
 			if (CurrentState != SwitchState.Off)
 			{
-				UpdateManager.Add(UpdateMe, ConveyorBeltSpeed);
+				UpdateManager.Add(UpdateMe, 0.5f);
 			}
 			else
 			{
 				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
+				for (int i = 0; i < conveyorBelts.Count; i++)
+				{
+					conveyorBelts[i]?.MoveBelt(0);
+				}
 			}
 
 			UpdateConveyorStates();
@@ -197,19 +207,13 @@ namespace Construction.Conveyors
 
 		#region Multitool Interaction
 
-		[SerializeField]
-		private MultitoolConnectionType conType = MultitoolConnectionType.Conveyor;
+		[SerializeField] private MultitoolConnectionType conType = MultitoolConnectionType.Conveyor;
 		public MultitoolConnectionType ConType => conType;
 
-		public void SetMasters(List<IMultitoolMasterable> Imasters)
-		{
-			List<ConveyorBelt> InnewConveyorBelts = new List<ConveyorBelt>();
-			foreach (var Conveyor in Imasters)
-			{
-				InnewConveyorBelts.Add(Conveyor as ConveyorBelt);
-			}
-			AddConveyorBelt(InnewConveyorBelts);
-		}
+		[field: SerializeField] public bool MultiMaster { get; set; } = true; //TODO
+		[field: SerializeField] public int MaxDistance { get; set; } = 30;
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 
 		#endregion Multitool Interaction
 

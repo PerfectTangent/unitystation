@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using AddressableReferences;
 using Messages.Server.SoundMessages;
+using UnityEngine.Serialization;
 
 
 namespace Alien
@@ -21,7 +22,9 @@ namespace Alien
 
 		[Tooltip("The spawned egg will take a random amount of time from 60 seconds to this attribute to spawn " +
 		         "a facehugger.")]
-		[SerializeField]
+		[SerializeField, FormerlySerializedAs("incubationTime")]
+		private float initialincubationTime = 300;
+
 		private float incubationTime = 300;
 
 		[Tooltip("In what state will this egg spawn in the world.")]
@@ -48,7 +51,7 @@ namespace Alien
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
-			incubationTime = UnityEngine.Random.Range(60f, incubationTime);
+			incubationTime = UnityEngine.Random.Range(60f, initialincubationTime);
 			UpdatePhase(initialState);
 			UpdateExamineMessage();
 			registerObject.SetPassable(false, false);
@@ -66,21 +69,21 @@ namespace Alien
 			switch (currentState)
 			{
 				case EggState.Growing:
-					spriteHandler.ChangeSprite(SMALL_SPRITE);
+					spriteHandler.SetCatalogueIndexSprite(SMALL_SPRITE);
 					StopAllCoroutines();
 					StartCoroutine(GrowEgg());
 					break;
 				case EggState.Grown:
-					spriteHandler.ChangeSprite(BIG_SPRITE);
+					spriteHandler.SetCatalogueIndexSprite(BIG_SPRITE);
 					StopAllCoroutines();
 					StartCoroutine(WaitForHatchEgg());
 					break;
 				case EggState.Burst:
-					spriteHandler.ChangeSprite(HATCHED_SPRITE);
+					spriteHandler.SetCatalogueIndexSprite(HATCHED_SPRITE);
 					registerObject.SetPassable(false, true);
 					break;
 				case EggState.Squished:
-					spriteHandler.ChangeSprite(SQUISHED_SPRITE);
+					spriteHandler.SetCatalogueIndexSprite(SQUISHED_SPRITE);
 					break;
 			}
 
@@ -102,11 +105,11 @@ namespace Alien
 
 		private IEnumerator HatchEggAnimation()
 		{
-			spriteHandler.ChangeSprite(OPENING_SPRITE);
+			spriteHandler.SetCatalogueIndexSprite(OPENING_SPRITE);
 			yield return WaitFor.Seconds(OPENING_ANIM_TIME);
 			UpdatePhase(EggState.Burst);
 
-			Spawn.ServerPrefab(facehugger, gameObject.RegisterTile().WorldPositionServer);
+			Spawn.ServerPrefab(facehugger, gameObject.AssumedWorldPosServer());
 		}
 
 		private void UpdateExamineMessage()

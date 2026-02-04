@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1546171526804525473, guid: 24b9c6501c7eda64d91eb11c94bff56e,
@@ -24,7 +25,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1546171526804525473, guid: 24b9c6501c7eda64d91eb11c94bff56e,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 629c09446c529fb4fb0b6d7eed01e55f,
         type: 2}
@@ -38,6 +39,11 @@ PrefabInstance:
         type: 3}
       propertyPath: HasLoudSpeak
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3043947584277661106, guid: 24b9c6501c7eda64d91eb11c94bff56e,
+        type: 3}
+      propertyPath: _assetId
+      value: 2557416780
       objectReference: {fileID: 0}
     - target: {fileID: 3043947584277661106, guid: 24b9c6501c7eda64d91eb11c94bff56e,
         type: 3}
@@ -107,13 +113,18 @@ PrefabInstance:
     - target: {fileID: 3262832775940839268, guid: 24b9c6501c7eda64d91eb11c94bff56e,
         type: 3}
       propertyPath: initialName
-      value: syndicate headset
+      value: Syndicate headset
       objectReference: {fileID: 0}
     - target: {fileID: 3262832775940839268, guid: 24b9c6501c7eda64d91eb11c94bff56e,
         type: 3}
       propertyPath: initialDescription
-      value: A syndicate headset that can be used to hear all radio frequencies.
+      value: A Syndicate headset that can be used to hear all radio frequencies.
         Protects ears from flashbangs.
+      objectReference: {fileID: 0}
+    - target: {fileID: 8291349356684178539, guid: 24b9c6501c7eda64d91eb11c94bff56e,
+        type: 3}
+      propertyPath: parentID
+      value: 24b9c6501c7eda64d91eb11c94bff56e
       objectReference: {fileID: 0}
     - target: {fileID: 8291349356684178539, guid: 24b9c6501c7eda64d91eb11c94bff56e,
         type: 3}
@@ -126,5 +137,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 465722ece36810c4086ebeeecac00bfa,
         type: 2}
+    - target: {fileID: 9145804364720096129, guid: 24b9c6501c7eda64d91eb11c94bff56e,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 465722ece36810c4086ebeeecac00bfa,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 24b9c6501c7eda64d91eb11c94bff56e, type: 3}

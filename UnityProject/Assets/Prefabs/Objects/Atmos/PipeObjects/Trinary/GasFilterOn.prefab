@@ -5,17 +5,54 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 211561265460897072, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: _assetId
+      value: 1426775493
+      objectReference: {fileID: 0}
     - target: {fileID: 211561265460897072, guid: f04f1148822d6c949aaafb1e43e5d59b,
         type: 3}
       propertyPath: m_AssetId
       value: f26d91dbf5f5c194295e94ebc2e7678d
       objectReference: {fileID: 0}
+    - target: {fileID: 848941496079183241, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: m_Size.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 848941496079183241, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: m_Size.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 848941496079183241, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300006, guid: b0acb51e1d67bac48a3d15a157fef8bb,
+        type: 3}
+    - target: {fileID: 848941496079183241, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: m_WasSpriteAssigned
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1832514158404938653, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: variantIndex
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2642910032409510867, guid: f04f1148822d6c949aaafb1e43e5d59b,
         type: 3}
       propertyPath: CurrentDirection
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4630725396653616667, guid: f04f1148822d6c949aaafb1e43e5d59b,
+        type: 3}
+      propertyPath: parentID
+      value: f04f1148822d6c949aaafb1e43e5d59b
       objectReference: {fileID: 0}
     - target: {fileID: 4630725396653616667, guid: f04f1148822d6c949aaafb1e43e5d59b,
         type: 3}
@@ -88,4 +125,7 @@ PrefabInstance:
       value: GasFilterOn
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f04f1148822d6c949aaafb1e43e5d59b, type: 3}

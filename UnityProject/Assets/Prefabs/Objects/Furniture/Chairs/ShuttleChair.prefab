@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 26314284882573700, guid: 670ba51760414e64093966f4abfab82d,
@@ -23,6 +24,11 @@ PrefabInstance:
       propertyPath: initialDescription
       value: A comfortable, secure seat. It has a more sturdy looking buckling system,
         for smoother flights.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4021817436656805436, guid: 670ba51760414e64093966f4abfab82d,
+        type: 3}
+      propertyPath: _assetId
+      value: 3468809823
       objectReference: {fileID: 0}
     - target: {fileID: 4021817436656805436, guid: 670ba51760414e64093966f4abfab82d,
         type: 3}
@@ -99,6 +105,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 8465751665797688599, guid: 670ba51760414e64093966f4abfab82d,
         type: 3}
+      propertyPath: parentID
+      value: 670ba51760414e64093966f4abfab82d
+      objectReference: {fileID: 0}
+    - target: {fileID: 8465751665797688599, guid: 670ba51760414e64093966f4abfab82d,
+        type: 3}
       propertyPath: foreverID
       value: 67c1a2e93881ef1479a466ad4ee872eb
       objectReference: {fileID: 0}
@@ -109,4 +120,7 @@ PrefabInstance:
       objectReference: {fileID: 21300000, guid: fb1aed4804e62914cb461e8c25094c58,
         type: 3}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 670ba51760414e64093966f4abfab82d, type: 3}

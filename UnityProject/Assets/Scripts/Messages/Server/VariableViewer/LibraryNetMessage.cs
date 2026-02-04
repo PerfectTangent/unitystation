@@ -4,6 +4,7 @@ using System.Linq;
 using Mirror;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using SecureStuff;
 using UnityEngine;
 
 namespace Messages.Server.VariableViewer
@@ -22,7 +23,7 @@ namespace Messages.Server.VariableViewer
 		public override void Process(NetMessage msg)
 		{
 			//JsonConvert.DeserializeObject<VariableViewerNetworking.NetFriendlyBookShelfView>()
-			//Logger.Log(JsonConvert.SerializeObject(data));
+			//Loggy.Log(JsonConvert.SerializeObject(data));
 			// UIManager.Instance.BookshelfViewer.BookShelfView = msg.data
 			CompressedHierarchy.AddRange(JsonConvert.DeserializeObject<List<VariableViewerNetworking.NetFriendlyHierarchyBookShelf>>(msg.data));
 			Arrived++;
@@ -37,7 +38,7 @@ namespace Messages.Server.VariableViewer
 		public static NetMessage Send(Librarian.Library Library, GameObject ToWho)
 		{
 			NetMessage msg = new NetMessage();
-			var ListsOfLists = VariableViewerNetworking.ProcessLibrary(Library).Chunk(700).ToList();
+			var ListsOfLists = VariableViewerNetworking.ProcessLibrary(Library).Chunk(500).ToList();
 
 			foreach (var List in ListsOfLists)
 			{

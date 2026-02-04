@@ -9,6 +9,7 @@ public enum BodyPartType
 
 	Eyes = 7,
 	Mouth = 8,
+	Ears = 9,
 	Chest = 1,
 	[Description("Left Arm")] LeftArm = 3,
 	[Description("Left Hand")] LeftHand = 9,
@@ -61,14 +62,6 @@ public enum DamageType
 	Radiation = 6
 }
 
-public enum TraumaDamageLevel
-{
-	NONE,
-	SMALL,
-	SERIOUS,
-	CRITICAL
-}
-
 [Flags]
 public enum TraumaticDamageTypes
 {
@@ -76,5 +69,6 @@ public enum TraumaticDamageTypes
 	SLASH = 1 << 0,
 	PIERCE = 1 << 1,
 	BURN = 1 << 2,
-	BLUNT = 1 << 3
+	BLUNT = 1 << 3,
+	IRRADIATION = 1 << 4,
 }

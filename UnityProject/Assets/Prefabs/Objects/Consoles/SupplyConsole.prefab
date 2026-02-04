@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -4343989174440723700, guid: b46887a995abc224aab70e21b9e53697,
@@ -30,25 +31,25 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -1582709298849356269, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[0]
+      propertyPath: 'onSprites.Sprites.Array.data[0]'
       value: 
       objectReference: {fileID: 21300000, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
     - target: {fileID: -1582709298849356269, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[1]
+      propertyPath: 'onSprites.Sprites.Array.data[1]'
       value: 
       objectReference: {fileID: 21300002, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
     - target: {fileID: -1582709298849356269, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[2]
+      propertyPath: 'onSprites.Sprites.Array.data[2]'
       value: 
       objectReference: {fileID: 21300004, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
     - target: {fileID: -1582709298849356269, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[3]
+      propertyPath: 'onSprites.Sprites.Array.data[3]'
       value: 
       objectReference: {fileID: 21300006, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
@@ -72,7 +73,12 @@ PrefabInstance:
         type: 3}
       propertyPath: customNetTransform
       value: 
-      objectReference: {fileID: 6152867160171636170}
+      objectReference: {fileID: 0}
+    - target: {fileID: 2193914177532499227, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      propertyPath: _assetId
+      value: 4240075442
+      objectReference: {fileID: 0}
     - target: {fileID: 2193914177532499227, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
       propertyPath: m_AssetId
@@ -184,6 +190,26 @@ PrefabInstance:
       propertyPath: Color.r
       value: 0.64
       objectReference: {fileID: 0}
+    - target: {fileID: 6092885030212132519, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      propertyPath: InitialColour.b
+      value: 0.186
+      objectReference: {fileID: 0}
+    - target: {fileID: 6092885030212132519, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      propertyPath: InitialColour.g
+      value: 0.546
+      objectReference: {fileID: 0}
+    - target: {fileID: 6092885030212132519, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      propertyPath: InitialColour.r
+      value: 0.64
+      objectReference: {fileID: 0}
+    - target: {fileID: 6691892461727964720, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      propertyPath: parentID
+      value: b46887a995abc224aab70e21b9e53697
+      objectReference: {fileID: 0}
     - target: {fileID: 6691892461727964720, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
       propertyPath: foreverID
@@ -206,25 +232,25 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7329940262870924101, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[0]
+      propertyPath: 'onSprites.Sprites.Array.data[0]'
       value: 
       objectReference: {fileID: 21300000, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
     - target: {fileID: 7329940262870924101, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[1]
+      propertyPath: 'onSprites.Sprites.Array.data[1]'
       value: 
       objectReference: {fileID: 21300002, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
     - target: {fileID: 7329940262870924101, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[2]
+      propertyPath: 'onSprites.Sprites.Array.data[2]'
       value: 
       objectReference: {fileID: 21300004, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
     - target: {fileID: 7329940262870924101, guid: b46887a995abc224aab70e21b9e53697,
         type: 3}
-      propertyPath: onSprites.Sprites.Array.data[3]
+      propertyPath: 'onSprites.Sprites.Array.data[3]'
       value: 
       objectReference: {fileID: 21300006, guid: b73daaeb95716f846ac34192923f4ca6,
         type: 3}
@@ -245,20 +271,25 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 731e7e4e3deb58b48b499298e1b4fc1e,
         type: 2}
+    - target: {fileID: 8201155816690774842, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 731e7e4e3deb58b48b499298e1b4fc1e,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7759570870767460473, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2832537527261000937}
+    - targetCorrespondingSourceObject: {fileID: 7759570870767460473, guid: b46887a995abc224aab70e21b9e53697,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6830909595332144673}
   m_SourcePrefab: {fileID: 100100000, guid: b46887a995abc224aab70e21b9e53697, type: 3}
---- !u!114 &6152867160171636170 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4830997643641780091, guid: b46887a995abc224aab70e21b9e53697,
-    type: 3}
-  m_PrefabInstance: {fileID: 1614618359472984753}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9063439616851718856}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &9063439616851718856 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7759570870767460473, guid: b46887a995abc224aab70e21b9e53697,
@@ -277,17 +308,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 064528c52a5b48c7f8912a3b6914eb79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   CorrectID: 0
   Emagged: 0
   cargoGUI: {fileID: 0}
-  allowedTypes: 0000000006000000070000001600000001000000100000001d000000
   creditArrivalSound:
-    SetLoadSetting: 0
-    AssetAddress: Assets/Prefabs/Machines/TerminalAlert.prefab
+    AssetAddress: Assets/Prefabs/UI/Select.prefab
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
+  offlineMessage: The console flashes red and an "Access Denied" message appears.
+--- !u!114 &6830909595332144673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9063439616851718856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09b7e5ca3d7645bf909222e46af44b5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  requiredClearance: 120000001e00000026000000
+  type: 0

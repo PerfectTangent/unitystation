@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2754019653643912758, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
+      propertyPath: parentID
+      value: dfc0f23c4db66d144a03103586ce7619
+      objectReference: {fileID: 0}
     - target: {fileID: 2754019653643912758, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
       propertyPath: foreverID
@@ -24,19 +30,25 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2810172669535721950, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: f9fea36ea7a875547ae72f5edf560eb9,
         type: 2}
     - target: {fileID: 2810172669535721950, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
-      propertyPath: allClothingData.Array.data[1]
+      propertyPath: 'allClothingData.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 7a6fa6596991f204183d6e55a0b75426,
         type: 2}
     - target: {fileID: 3153813430929650140, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 5c0458e0e13b15644a8f14fa1248fcce,
+        type: 2}
+    - target: {fileID: 3153813430929650140, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 5c0458e0e13b15644a8f14fa1248fcce,
         type: 2}
@@ -52,6 +64,12 @@ PrefabInstance:
         out buttons that barely keep the coat closed? Oh yeah, its plasma research
         time. Has a legacy purple U stripe along the back.
       objectReference: {fileID: 0}
+    - target: {fileID: 8678186998923896121, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 5c0458e0e13b15644a8f14fa1248fcce,
+        type: 2}
     - target: {fileID: 8967636835189487879, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
       propertyPath: m_Sprite
@@ -120,8 +138,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9157702831496919023, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
+      propertyPath: _assetId
+      value: 1294688642
+      objectReference: {fileID: 0}
+    - target: {fileID: 9157702831496919023, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
       propertyPath: m_AssetId
       value: ea30069284826614f92020b96bc32f78
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dfc0f23c4db66d144a03103586ce7619, type: 3}

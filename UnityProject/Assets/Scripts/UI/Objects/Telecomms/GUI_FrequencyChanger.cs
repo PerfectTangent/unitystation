@@ -12,6 +12,7 @@ namespace UI.Objects.Telecomms
 	public class GUI_FrequencyChanger : NetTab
 	{
 		[SerializeField] private TMP_InputField freuquencyLabel;
+		[SerializeField] private TMP_InputField codeInput;
 		[SerializeField] private Slider frequencySlider;
 		[SerializeField] private Toggle radioPowerToggle;
 		[SerializeField] private Toggle broadcastModeToggle;
@@ -34,8 +35,8 @@ namespace UI.Objects.Telecomms
 			}
 
 			emittingDevice = Provider.GetComponent<SignalEmitter>();
-			frequencySlider.minValue = emittingDevice.SignalData.MinMaxFrequancy.x;
-			frequencySlider.maxValue = emittingDevice.SignalData.MinMaxFrequancy.y;
+			frequencySlider.minValue = emittingDevice.EmmitableSignalData[0].MinMaxFrequancy.x;
+			frequencySlider.maxValue = emittingDevice.EmmitableSignalData[0].MinMaxFrequancy.y;
 			UpdateFrequencyFromProvider();
 			if(emittingDevice.RequiresPower == false) radioPowerToggle.SetActive(false);
 			radioPowerToggle.isOn = emittingDevice.IsPowered;
@@ -59,6 +60,7 @@ namespace UI.Objects.Telecomms
 		private void UpdateFrequencyFromProvider()
 		{
 			freuquencyLabel.text = $"{emittingDevice.Frequency.ToString()}KHz";
+			codeInput.text = $"{emittingDevice.Passcode.ToString()}";
 		}
 
 		public void UpdateFrequencyFromInput()
@@ -68,14 +70,19 @@ namespace UI.Objects.Telecomms
 				freuquencyLabel.text = $"{emittingDevice.Frequency.ToString()}KHz";
 				return;
 			}
-			if (result.IsBetween(emittingDevice.SignalData.MinMaxFrequancy.x,
-				emittingDevice.SignalData.MinMaxFrequancy.y))
+			if (result.IsBetween(emittingDevice.EmmitableSignalData[0].MinMaxFrequancy.x,
+				emittingDevice.EmmitableSignalData[0].MinMaxFrequancy.y))
 			{
 				emittingDevice.Frequency = result;
 				freuquencyLabel.text = $"{emittingDevice.Frequency.ToString()}KHz";
 				return;
 			}
 			freuquencyLabel.text = $"{emittingDevice.Frequency.ToString()}KHz";
+		}
+
+		public void UpdateCodeFromInput()
+		{
+			emittingDevice.Passcode = int.Parse(codeInput.text);
 		}
 
 		public void ToggleDevicePower()

@@ -10,7 +10,7 @@ namespace UI.Objects.Cargo
 		private CargoOrderSO Order;
 
 		[SerializeField]
-		private NetLabel cartNameLabel;
+		private NetText_label cartNameLabel;
 
 		public void RemoveFromCart()
 		{
@@ -20,7 +20,7 @@ namespace UI.Objects.Cargo
 		public void SetValues(CargoOrderSO newOrder)
 		{
 			Order = newOrder;
-			cartNameLabel.SetValueServer($"{Order.OrderName}\n{Order.CreditCost} credits");
+			cartNameLabel.MasterSetValue($"{Order.OrderName}\n{Order.CreditCost} credits");
 		}
 	}
 }

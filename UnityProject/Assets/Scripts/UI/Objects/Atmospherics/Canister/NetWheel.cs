@@ -12,7 +12,7 @@ namespace UI.Core.NetUI
 
 		public override string Value
 		{
-			set
+			protected set
 			{
 				externalChange = true;
 				Element.RotateToValue(Convert.ToInt32(Convert.ToDouble(value)));
@@ -23,7 +23,7 @@ namespace UI.Core.NetUI
 
 		public FloatEvent ServerMethod;
 
-		public override void ExecuteServer(ConnectedPlayer subject)
+		public override void ExecuteServer(PlayerInfo subject)
 		{
 			ServerMethod.Invoke(Element.KPA);
 		}

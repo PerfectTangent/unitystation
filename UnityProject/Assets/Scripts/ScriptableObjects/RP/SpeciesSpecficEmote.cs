@@ -10,22 +10,23 @@ namespace ScriptableObjects.RP
 		[SerializeField] private List<PlayerHealthData> allowedSpecies = new List<PlayerHealthData>();
 		[SerializeField] private string wrongSpeciesText = "Your species can't do that!";
 
-		public override void Do(GameObject player)
+		public override void Do(GameObject actor)
 		{
-			if (IsSameSpecies(player) == false)
+			if (IsSameSpecies(actor) == false)
 			{
-				Chat.AddExamineMsg(player, wrongSpeciesText);
+				Chat.AddExamineMsg(actor, wrongSpeciesText);
 				return;
 			}
-			base.Do(player);
+			base.Do(actor);
 		}
 
 		public bool IsSameSpecies(GameObject mobToCheck)
 		{
 			if (mobToCheck.TryGetComponent<PlayerScript>(out var playerScript) == false) return false;
-			var race = CharacterSettings.GetRaceData(playerScript.characterSettings);
-			if (race == null || allowedSpecies.Contains(race) == false) return false;
-			return true;
+
+			if (RaceSOSingleton.TryGetRaceByName(playerScript.characterSettings.Species, out var race) == false) return false;
+
+			return allowedSpecies.Contains(race);
 		}
 	}
 }

@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1168213197804932695, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
+        type: 3}
+      propertyPath: parentID
+      value: 68ff916d2f0053c4ab145dfd70a7aa0f
+      objectReference: {fileID: 0}
     - target: {fileID: 1168213197804932695, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
       propertyPath: foreverID
@@ -29,13 +35,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1220986605490524607, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: fcb3215b30a5c5c44b39a05c4a6070fc,
         type: 2}
     - target: {fileID: 2146797987687250365, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 7c70c9f080777cd47a7f1f75b81799e7,
+        type: 2}
+    - target: {fileID: 2146797987687250365, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 7c70c9f080777cd47a7f1f75b81799e7,
         type: 2}
@@ -101,6 +113,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5267205827030400910, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
+      propertyPath: _assetId
+      value: 483256228
+      objectReference: {fileID: 0}
+    - target: {fileID: 5267205827030400910, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
+        type: 3}
       propertyPath: m_AssetId
       value: e0ad94345b4adf747bf60c3ea1de181d
       objectReference: {fileID: 0}
@@ -123,23 +140,36 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8292990573504535775, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
-      propertyPath: armoredBodyParts.Array.data[0].armor.Laser
-      value: 70
+      propertyPath: armoredBodyParts.Array.data[0].armor.PressureProtectionInKpa.y
+      value: 5000
       objectReference: {fileID: 0}
     - target: {fileID: 8292990573504535775, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
-      propertyPath: armoredBodyParts.Array.data[0].armor.Melee
-      value: 80
+      propertyPath: armoredBodyParts.Array.data[1].armor.PressureProtectionInKpa.y
+      value: 5000
       objectReference: {fileID: 0}
     - target: {fileID: 8292990573504535775, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
-      propertyPath: armoredBodyParts.Array.data[0].armor.Bullet
-      value: 70
+      propertyPath: armoredBodyParts.Array.data[2].armor.PressureProtectionInKpa.y
+      value: 5000
       objectReference: {fileID: 0}
     - target: {fileID: 8292990573504535775, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
         type: 3}
-      propertyPath: armoredBodyParts.Array.data[0].armor.Energy
-      value: 50
+      propertyPath: armoredBodyParts.Array.data[0].armor.TemperatureProtectionInK.y
+      value: 10000
+      objectReference: {fileID: 0}
+    - target: {fileID: 8292990573504535775, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
+        type: 3}
+      propertyPath: armoredBodyParts.Array.data[1].armor.TemperatureProtectionInK.y
+      value: 10000
+      objectReference: {fileID: 0}
+    - target: {fileID: 8292990573504535775, guid: 68ff916d2f0053c4ab145dfd70a7aa0f,
+        type: 3}
+      propertyPath: armoredBodyParts.Array.data[2].armor.TemperatureProtectionInK.y
+      value: 10000
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 68ff916d2f0053c4ab145dfd70a7aa0f, type: 3}

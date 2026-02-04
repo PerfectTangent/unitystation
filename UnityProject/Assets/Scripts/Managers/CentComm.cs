@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using AddressableReferences;
 using Initialisation;
+using Items.Others;
 using Map;
 using Messages.Server.SoundMessages;
 using Objects.Command;
 using Objects.Wallmounts;
+using Player.Language;
 using Strings;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -23,6 +25,10 @@ namespace Managers
 		private GameObject paperPrefab = default;
 
 		public StatusDisplayUpdateEvent OnStatusDisplayUpdate = new StatusDisplayUpdateEvent();
+		public event Action OnAlertLevelChange;
+
+		public GuidanceBuoy CentCommGuidanceBuoy;
+
 		[NonSerialized] public string CommandStatusString = string.Empty;
 		[NonSerialized] public string EscapeShuttleTimeString = string.Empty;
 
@@ -77,20 +83,26 @@ namespace Managers
 			EventManager.RemoveHandler(Event.RoundStarted, OnRoundStart);
 		}
 
+		public void Clear()
+		{
+			OnAlertLevelChange = () => { };
+			OnStatusDisplayUpdate = new StatusDisplayUpdateEvent();
+		}
+
 		private void OnRoundStart()
 		{
 			asteroidLocations.Clear();
 			ChangeAlertLevel(initialAlertLevel, false);
 			StartCoroutine(WaitToPrepareReport());
 			IsLowPop = false;
-			if(CustomNetworkManager.IsServer) StartCoroutine(LowpopCheck());
+			if(CustomNetworkManager.IsServer) LoadManager.Instance.StartCoroutine(LowpopCheck());
 		}
 
 		private IEnumerator WaitToPrepareReport()
 		{
 			yield return WaitFor.EndOfFrame; //OnStartServer starts one frame after OnRoundStart
 			//Server only:
-			if (!CustomNetworkManager.Instance._isServer)
+			if (!CustomNetworkManager.IsServer)
 			{
 				yield break;
 			}
@@ -99,30 +111,26 @@ namespace Managers
 
 			yield return WaitFor.Seconds(60f);
 
-			//Gather asteroid locations:
-			foreach (var body in gameManager.SpaceBodies)
+			if (GameManager.Instance.SpaceBodies.Count > 0)
 			{
-				if (body.TryGetComponent<Asteroid>(out _))
+				//Add in random positions
+				int randomPosCount = Random.Range(1, 5);
+				for (int i = 0; i <= randomPosCount; i++)
 				{
-					asteroidLocations.Add(body.ServerState.Position);
+					asteroidLocations.Add(GameManager.Instance.SpaceBodies.PickRandom().transform.position);
 				}
+				//Shuffle the list:
+				asteroidLocations = asteroidLocations.OrderBy(x => Random.value).ToList();
 			}
 
-			//Add in random positions
-			int randomPosCount = Random.Range(1, 5);
-			for (int i = 0; i <= randomPosCount; i++)
-			{
-				asteroidLocations.Add(gameManager.RandomPositionInSolarSystem());
-			}
 
-			//Shuffle the list:
-			asteroidLocations = asteroidLocations.OrderBy(x => Random.value).ToList();
+
 
 
 			// Checks if there will be antags this round and sets the initial update/report
 			if (GameManager.Instance.GetGameModeName(true) != "Extended")
 			{
-				lastAlertChange = GameManager.Instance.stationTime;
+				lastAlertChange = GameManager.Instance.RoundTime;
 				SendAntagUpdate();
 			}
 			else
@@ -165,21 +173,11 @@ namespace Managers
 		private IEnumerator LowpopCheck()
 		{
 			yield return WaitFor.Seconds(Application.isEditor ? 30 : gameManager.LowPopCheckTimeAfterRoundStart);
-			if(PlayerList.Instance.GetAlivePlayers().Count > gameManager.LowPopLimit) yield break;
+			if(PlayerList.PlayersOnServer > gameManager.LowPopLimit) yield break;
 			IsLowPop = true;
 			MakeAnnouncement(ChatTemplates.CentcomAnnounce,
 				"Due to the shortage of staff on the station; We have granted additional access to all crew members until further notice."
 				, UpdateSound.Announce);
-
-			var idsSpawned = FindObjectsOfType<IDCard>();
-			foreach (var card in idsSpawned)
-			{
-				if(card.Occupation == null) continue;
-				foreach (var access in card.Occupation.AllowedLowPopAccess)
-				{
-					card.ServerAddAccess(access);
-				}
-			}
 		}
 
 		/// <summary>
@@ -211,8 +209,9 @@ namespace Managers
 					UpdateSound.Alert);
 			}
 
-			lastAlertChange = gameManager.stationTime;
+			lastAlertChange = gameManager.RoundTime;
 			CurrentAlertLevel = toLevel;
+			OnAlertLevelChange?.Invoke();
 		}
 
 		/// <summary>
@@ -241,7 +240,7 @@ namespace Managers
 
 			if (loudAnnouncement)
 			{
-				Chat.AddSystemMsgToChat(string.Format(ChatTemplates.CentcomAnnounce, ChatTemplates.CommandNewReport), MatrixManager.MainStationMatrix);
+				Chat.AddSystemMsgToChat(string.Format(ChatTemplates.CentcomAnnounce, ChatTemplates.CommandNewReport), MatrixManager.MainStationMatrix, LanguageManager.Common);
 
 				AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: 1f);
 				_ = SoundManager.PlayNetworked(updateTypes[UpdateSound.Notice], audioSourceParameters);
@@ -255,7 +254,8 @@ namespace Managers
 		/// <param name="template">String that will be the header of the annoucement. We have a couple ready to use </param>
 		/// <param name="text">String that will be the message body</param>
 		/// <param name="soundType">Value from the UpdateSound enum to play as sound when announcing</param>
-		public static void MakeAnnouncement(string template, string text, UpdateSound soundType)
+		/// <param name="language">Language to announce in (null for common)</param>
+		public static void MakeAnnouncement(string template, string text, UpdateSound soundType, LanguageSO language = null)
 		{
 			if (string.IsNullOrWhiteSpace(text)) return;
 
@@ -264,7 +264,7 @@ namespace Managers
 				_ = SoundManager.PlayNetworked(updateTypes[soundType]);
 			}
 
-			Chat.AddSystemMsgToChat(string.Format(template, text), MatrixManager.MainStationMatrix);
+			Chat.AddSystemMsgToChat(string.Format(template, text), MatrixManager.MainStationMatrix, language.OrNull() ?? LanguageManager.Common);
 		}
 
 		/// <summary>
@@ -282,7 +282,7 @@ namespace Managers
 					? $"{timeSpan.Minutes} minutes and {timeSpan.Seconds} seconds"
 					: $"{timeSpan.Minutes} minutes";
 			var message = string.Format(ChatTemplates.PriorityAnnouncement, string.Format(ChatTemplates.ShuttleCallSub, timeStr, text));
-			Chat.AddSystemMsgToChat(message, MatrixManager.MainStationMatrix);
+			Chat.AddSystemMsgToChat(message, MatrixManager.MainStationMatrix, LanguageManager.Common);
 
 			_ = SoundManager.PlayNetworked(CommonSounds.Instance.ShuttleCalled);
 		}
@@ -293,7 +293,7 @@ namespace Managers
 		public static void MakeShuttleRecallAnnouncement(string text)
 		{
 			var message = string.Format(ChatTemplates.PriorityAnnouncement, string.Format(ChatTemplates.ShuttleRecallSub, text));
-			Chat.AddSystemMsgToChat(message, MatrixManager.MainStationMatrix);
+			Chat.AddSystemMsgToChat(message, MatrixManager.MainStationMatrix, LanguageManager.Common);
 
 			_ = SoundManager.PlayNetworked(CommonSounds.Instance.ShuttleRecalled);
 		}

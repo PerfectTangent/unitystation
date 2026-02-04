@@ -31,11 +31,10 @@ namespace Messages.Server
 			}
 			var objectToFollow = NetworkObject;
 
-			if (!PlayerManager.LocalPlayerScript.IsGhost)
-			{
-				Transform newTarget = objectToFollow ? objectToFollow.transform : PlayerManager.LocalPlayer.transform;
-				Camera2DFollow.followControl.target = newTarget;
-			}
+
+			Transform newTarget = objectToFollow ? objectToFollow.transform : PlayerManager.LocalPlayerObject.transform;
+			Camera2DFollow.followControl.target = newTarget;
+
 		}
 
 		public static NetMessage Send(GameObject recipient, GameObject objectToFollow)
@@ -76,7 +75,7 @@ namespace Messages.Server
 			var objectToFollow = NetworkObject;
 
 			//Only follow stuff if we are Ai object
-			if(PlayerManager.LocalPlayer.TryGetComponent<AiPlayer>(out var aiPlayer) == false) return;
+			if(PlayerManager.LocalPlayerObject.TryGetComponent<AiPlayer>(out var aiPlayer) == false) return;
 
 			//Follow new object if its not null
 			if (objectToFollow != null)

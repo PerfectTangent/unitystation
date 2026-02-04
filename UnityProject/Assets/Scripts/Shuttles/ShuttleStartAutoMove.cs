@@ -23,7 +23,7 @@ public class ShuttleStartAutoMove : MonoBehaviour
 
 	void DoAutoMove()
 	{
-		if (CustomNetworkManager.Instance._isServer)
+		if (CustomNetworkManager.IsServer)
 		{
 			var matrixMove = GetComponent<MatrixMove>();
 			if (matrixMove != null)
@@ -35,16 +35,13 @@ public class ShuttleStartAutoMove : MonoBehaviour
 
 	IEnumerator TryAutoMove(MatrixMove matrixMove)
 	{
-		while (!matrixMove.Initialized)
-		{
-			yield return WaitFor.EndOfFrame;
-		}
-
 		yield return WaitFor.Seconds(RoundStartDelay);
 
-		matrixMove.SetSpeed(SetInitialSpeed);
-		matrixMove.SafetyProtocolsOn = ShuttleSafetyEnabled;
-		matrixMove.RequiresFuel = false;
-		matrixMove.StartMovement();
+		matrixMove.NetworkedMatrixMove.Drag = 0;
+		matrixMove.NetworkedMatrixMove.DragTorque = 0;
+		matrixMove.NetworkedMatrixMove.TileAlignmentSpeed = 0;
+		matrixMove.NetworkedMatrixMove.LowSpeedDrag = 0;
+		matrixMove.NetworkedMatrixMove.SpinneyThreshold = 0;
+		matrixMove.NetworkedMatrixMove.WorldCurrentVelocity = matrixMove.NetworkedMatrixMove.ForwardsDirection * SetInitialSpeed;
 	}
 }

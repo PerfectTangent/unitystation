@@ -7,7 +7,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using System.Text;
+using Logs;
 using Newtonsoft.Json;
+using SecureStuff;
 
 public class VariableViewerNetworking : MonoBehaviour
 {
@@ -74,10 +76,7 @@ public class VariableViewerNetworking : MonoBehaviour
 
 	public class NetFriendlySentence
 	{
-
 		public uint SentenceID;
-
-		public uint PagePosition;
 
 		public string KeyVariable;
 
@@ -114,7 +113,6 @@ public class VariableViewerNetworking : MonoBehaviour
 			// !	IMPORTANT	!
 			// remember to change this method content after modyfing data structure
 			return sizeof(uint)                             // SentenceID
-				+ sizeof(uint)                              // PagePosition
 				+ sizeof(char) * KeyVariable.Length         // KeyVariable
 				+ sizeof(char) * KeyVariableType.Length     // KeyVariableType
 				+ sizeof(char) * ValueVariable.Length       // ValueVariable
@@ -131,6 +129,7 @@ public class VariableViewerNetworking : MonoBehaviour
 		public string VariableName;
 		public string Variable;
 		public string VariableType;
+		public string FullVariableType;
 		public bool CanWrite = true;
 		public VVHighlight VVHighlight = VVHighlight.None;
 
@@ -146,10 +145,10 @@ public class VariableViewerNetworking : MonoBehaviour
 			Dictionary<uint, NetFriendlySentence> DictionaryStore = new Dictionary<uint, NetFriendlySentence>();
 			if (Sentences.Length > 0)
 			{
-				//Logger.Log("YOOOOO");
+				//Loggy.Log("YOOOOO");
 				NetFriendlySentence TOPClientFriendlySentence = Sentences[0];
 				DictionaryStore[Sentences[0].SentenceID] = TOPClientFriendlySentence;
-				//Logger.LogError(JsonConvert.SerializeObject(Sentences));
+				//Loggy.LogError(JsonConvert.SerializeObject(Sentences));
 				foreach (var bob in Sentences)
 				{
 					bob.SetSentences(new List<NetFriendlySentence>());
@@ -161,7 +160,7 @@ public class VariableViewerNetworking : MonoBehaviour
 					{
 						if (DictionaryStore.ContainsKey(bob.HeldBySentenceID))
 						{
-							//Logger.LogError("added" + bob.ValueVariable);
+							//Loggy.LogError("added" + bob.ValueVariable);
 							DictionaryStore[bob.HeldBySentenceID].GetSentences().Add(bob);
 						}
 					}
@@ -171,8 +170,8 @@ public class VariableViewerNetworking : MonoBehaviour
 				TOPClientFriendlySentence
 				};
 				Sentences = _bob;
-				//Logger.Log("TT > " + JsonConvert.SerializeObject(Sentences));
-				//Logger.Log(JsonConvert.SerializeObject(Sentences[0].GetSentences()));
+				//Loggy.Log("TT > " + JsonConvert.SerializeObject(Sentences));
+				//Loggy.Log(JsonConvert.SerializeObject(Sentences[0].GetSentences()));
 			}
 		}
 
@@ -271,7 +270,7 @@ public class VariableViewerNetworking : MonoBehaviour
 		};
 
 		// get max possible packet size from current transform
-		int maxPacketSize = Mirror.Transport.activeTransport.GetMaxPacketSize(0);
+		int maxPacketSize = Mirror.Transport.active.GetMaxPacketSize(0);
 		// set currentSize start value to max TCP header size (60b)
 		int currentSize = 60;
 
@@ -285,16 +284,21 @@ public class VariableViewerNetworking : MonoBehaviour
 				Variable = VVUIElementHandler.Serialise(bob.Variable, bob.VariableType),
 				VariableName = bob.VariableName,
 				VariableType = bob.VariableType?.ToString(),
-				VVHighlight = bob.VVHighlight
+				VVHighlight = bob.VVHighlight,
+				FullVariableType = bob.AssemblyQualifiedName
 			};
 			if (bob.PInfo != null)
 			{
 				Page.CanWrite = bob.PCanWrite;
 			}
 
+			if (bob.Info != null)
+			{
+				Page.CanWrite = bob.FCanWrite;
+			}
 
 
-			if (Librarian.UEGetType(Page.VariableType) == null)
+			if (Librarian.UEGetType(Page.FullVariableType) == null)
 			{
 				Page.VariableType = bob?.VariableType?.AssemblyQualifiedName;
 			}
@@ -304,7 +308,7 @@ public class VariableViewerNetworking : MonoBehaviour
 				{
 					HeldBySentenceID = bob.Sentences.SentenceID
 				};
-				FriendlySentence.OnPageID = 8888888;
+				FriendlySentence.OnPageID = 8888888; //TODO?
 				Sentences.Add(FriendlySentence);
 				RecursiveSentencePopulate(bob.Sentences, Sentences);
 			}
@@ -316,7 +320,7 @@ public class VariableViewerNetworking : MonoBehaviour
 			// if currentSize is greater than the maxPacketSize - break loop and send message
 			if (currentSize > maxPacketSize)
 			{
-				Logger.LogError("[VariableViewerNetworking.ProcessBook] - message is to big to send in one packet", Category.VariableViewer);
+				Loggy.Error("[VariableViewerNetworking.ProcessBook] - message is to big to send in one packet", Category.VariableViewer);
 				break;
 			}
 
@@ -336,7 +340,6 @@ public class VariableViewerNetworking : MonoBehaviour
 			{
 				NetFriendlySentence FriendlySentence = new NetFriendlySentence()
 				{
-					PagePosition = _Sentence.PagePosition,
 					SentenceID = _Sentence.SentenceID,
 
 					ValueVariable = VVUIElementHandler.Serialise(_Sentence.ValueVariable, _Sentence.ValueVariableType),

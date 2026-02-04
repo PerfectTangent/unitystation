@@ -1,20 +1,61 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using Items;
+using Logs;
+using SecureStuff;
 using UnityEngine;
 
 namespace Antagonists
 {
+	[System.Serializable]
+	public class ObjectiveAttribute
+	{
+		public string name;
+		[HideInInspector]
+		public short index = -1;
+
+		public ObjectiveAttributeType type;
+		public string PlayerID { get; set; }
+		public int Number { get; set; }
+		public string ItemID { get; set; }
+		public short ItemTraitIndex { get; set; }
+	}
+
+	public enum ObjectiveAttributeType
+	{
+		ObjectiveAttributePlayer,
+		ObjectiveAttributeNumber,
+		ObjectiveAttributeItem,
+		ObjectiveAttributeItemTrait
+	}
+
 	/// <summary>
 	/// The base class ScriptableObject for all antagonist objectives
 	/// </summary>
 	public abstract class Objective : ScriptableObject
 	{
+
+		/// <summary>
+		/// Used for adding custom attributes to admin panel
+		/// </summary>
+		public List<ObjectiveAttribute> attributes = new List<ObjectiveAttribute>();
+
 		/// <summary>
 		/// The player who has this objective
 		/// </summary>
 		public Mind Owner { get; protected set; }
+
+		/// <summary>
+		/// Is that objective may be done only after round?
+		/// </summary>
+		[SerializeField]
+		protected bool isEndRoundObjective = false;
+		/// <summary>
+		/// Is that objective may be done only after round?
+		/// </summary>
+		public bool IsEndRoundObjective => isEndRoundObjective;
+
+		public string ID { get; protected set; }
 
 		/// <summary>
 		/// The name of the objective type
@@ -51,12 +92,17 @@ namespace Antagonists
 		/// </summary>
 		public bool aiCanHave;
 
+		public short GetAttributeIndex(ObjectiveAttribute attribute)
+		{
+			return (short)attributes.IndexOf(attribute);
+		}
+
 		/// <summary>
 		/// Check if this objective is possible for a player, defaults to true if not overriden
 		/// </summary>
-		public bool IsPossible(PlayerScript candidate)
+		public bool IsPossible(Mind candidate)
 		{
-			if (aiCanHave == false && candidate.PlayerState == PlayerScript.PlayerStates.Ai)
+			if (aiCanHave == false && candidate.occupation != null && candidate.occupation.JobType == JobType.AI)
 			{
 				return false;
 			}
@@ -64,9 +110,14 @@ namespace Antagonists
 			return IsPossibleInternal(candidate);
 		}
 
-		protected virtual bool IsPossibleInternal(PlayerScript candidate)
+		protected virtual bool IsPossibleInternal(Mind candidate)
 		{
 			return true;
+		}
+
+		public virtual string GetDescription()
+		{
+			return description;
 		}
 
 		/// <summary>
@@ -75,7 +126,38 @@ namespace Antagonists
 		public void DoSetup(Mind owner)
 		{
 			Owner = owner;
-			Setup();
+			ID = Guid.NewGuid().ToString();
+
+			try
+			{
+				Setup();
+			}
+			catch (Exception e)
+			{
+				Loggy.Error($"Failed to set up objectives for {this.name}" +e.ToString());
+			}
+
+		}
+
+		/// <summary>
+		/// Sets the owner of the objective and performs setup if required
+		/// </summary>
+		public void DoSetupInGame(Mind owner)
+		{
+			Owner = owner;
+			ID = Guid.NewGuid().ToString();
+
+			try
+			{
+				if (attributes.Count == 0)
+					Setup();
+				else
+					SetupInGame(); // need to handle attributes
+			}
+			catch (Exception e)
+			{
+				Loggy.Error($"Failed to set up objectives for {this.name}" +e.ToString());
+			}
 		}
 
 		/// <summary>
@@ -84,11 +166,55 @@ namespace Antagonists
 		protected abstract void Setup();
 
 		/// <summary>
+		/// Perform setup of the objective if needed
+		/// </summary>
+		protected virtual void SetupInGame()
+		{
+
+		}
+
+		public virtual void OnRoundEnd()
+		{
+
+		}
+		/// <summary>
 		/// Shows if this objective is complete or not
 		/// </summary>
 		public bool IsComplete()
 		{
 			return (Complete || CheckCompletion());
+		}
+
+		public virtual string GetStatusText(bool RichText)
+		{
+			if (RichText)
+			{
+				return IsComplete() ? "<color=green>Completed\n" : "In progress/Failed\n";
+			}
+			else
+			{
+				return IsComplete() ? "Completed" : "In progress/Failed";
+			}
+		}
+
+		public virtual string GetCompleteText(bool RichText)
+		{
+			if (RichText)
+			{
+				return this.IsComplete()
+					? "<color=green><b>Completed</b></color>"
+					: "<color=red><b>Failed</b></color>";
+			}
+			else
+			{
+				return this.IsComplete() ? "Completed\n" : "Failed\n";
+			}
+
+		}
+
+		public virtual string GetShortDescription()
+		{
+			return description;
 		}
 
 		/// <summary>
@@ -107,51 +233,68 @@ namespace Antagonists
 		/// <summary>
 		/// Checks through all the storage recursively
 		/// </summary>
-		protected bool CheckStorageFor(string name, int count)
+		protected bool CheckStorageFor(string name, int count, string ItemID)
 		{
-			if (Owner.body.DynamicItemStorage == null)
+
+			if (Owner?.GetDeepestPhysicalBody()?.GetComponent<DynamicItemStorage>() == null)
 			{
-				Logger.LogError($"Unable to find dynamic storage for {Owner.body} / {Owner.body.connectedPlayer.Username}");
+				Loggy.Error($"Unable to find dynamic storage for {Owner?.Body} / {Owner?.Body?.PlayerInfo?.Username}");
 				//If they have no storage then fail, as they can't have the item
 				return false;
 			}
 
-			return CheckStorage(Owner.body.DynamicItemStorage, default, name) >= count;
+			return CheckStorage(Owner?.GetDeepestPhysicalBody()?.GetComponent<DynamicItemStorage>(), default, name, ItemID) >= count;
 		}
 
 		/// <inheritdoc cref="CheckStorageFor(string, int)"/>
-		protected bool CheckStorageFor(Type component, int count)
+		protected bool CheckStorageFor(Type component, int count, string ItemID)
 		{
-			return CheckStorage(Owner.body.DynamicItemStorage, component, default) >= count;
+			return CheckStorage(Owner?.GetDeepestPhysicalBody()?.GetComponent<DynamicItemStorage>(), component, default, ItemID) >= count;
 		}
 
-		private int CheckStorage(DynamicItemStorage itemStorage, Type component, string name)
+		private int CheckStorage(DynamicItemStorage itemStorage, Type component, string name, string ItemID)
 		{
+			if (itemStorage == null) return 0;
 			int count = 0;
 			foreach (var slot in itemStorage.GetItemSlotTree())
 			{
-				count += CheckSlot(slot, component, name);
+				count += CheckSlot(slot, component, name, ItemID);
 			}
 			return count;
 		}
 
-		private int CheckStorage(ItemStorage itemStorage, Type component, string name)
+		private int CheckStorage(ItemStorage itemStorage, Type component, string name, string ItemID)
 		{
 			int count = 0;
 			foreach (var slot in itemStorage.GetItemSlotTree())
 			{
-				count += CheckSlot(slot, component, name);
+				count += CheckSlot(slot, component, name,ItemID);
 			}
 			return count;
 		}
 
-		private int CheckSlot(ItemSlot slot, Type component, string name)
+		private int CheckSlot(ItemSlot slot, Type component, string name, string ItemID)
 		{
 			if (slot.IsEmpty) return 0;
 
+
+			bool ItemMatches = false;
 			//Check if current Item is the one we need
-			if ((component != null && slot.ItemObject.TryGetComponent(component, out _)) ||
-					slot.ItemObject.GetComponent<ItemAttributesV2>()?.InitialName == name)
+			if (string.IsNullOrEmpty(ItemID) == false && slot.ItemObject.GetComponent<IHaveForeverID>()?.ForeverID == ItemID )
+			{
+				ItemMatches = true;
+			}
+			else if ((component != null && slot.ItemObject.TryGetComponent(component, out _)))
+			{
+				ItemMatches = true;
+			}
+			else if  (slot.ItemObject.GetComponent<ItemAttributesV2>()?.ArticleName == name)
+			{
+				ItemMatches = true;
+			}
+
+
+			if (ItemMatches)
 			{
 				//If stackable count stack
 				if (slot.ItemObject.TryGetComponent<Stackable>(out var stackable))
@@ -162,15 +305,11 @@ namespace Antagonists
 				return 1;
 			}
 
+
 			//Check to see if this item has storage, and do checks on that
 			if (slot.ItemObject.TryGetComponent<DynamicItemStorage>(out var itemStorage))
 			{
-				return CheckStorage(itemStorage, component, name);
-			}
-
-			if (slot.ItemObject.TryGetComponent<ItemStorage>(out var storage))
-			{
-				return CheckStorage(storage, component, name);
+				return CheckStorage(itemStorage, component, name, ItemID);
 			}
 
 			return 0;

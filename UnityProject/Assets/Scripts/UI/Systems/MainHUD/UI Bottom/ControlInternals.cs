@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using UnityEngine.UI;
 using Objects.Atmospherics;
@@ -60,7 +61,7 @@ namespace UI
 						mask.enabled = true;
 						break;
 					default:
-						Logger.LogError("Internals state is out of range. <1; 5>", Category.PlayerInventory);
+						Loggy.Error("Internals state is out of range. <1; 5>", Category.PlayerInventory);
 						break;
 				}
 			}
@@ -96,7 +97,7 @@ namespace UI
 		public void OxygenSelect()
 		{
 			if (CurrentState != 4 && CurrentState != 5) return;
-			if (PlayerManager.LocalPlayer == null) return;
+			if (PlayerManager.LocalPlayerObject == null) return;
 			if (PlayerManager.LocalPlayerScript.playerHealth.IsCrit) return;
 
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
@@ -118,12 +119,13 @@ namespace UI
 		public void SetupListeners()
 		{
 			UpdateState();
-			PlayerManager.LocalPlayerScript.DynamicItemStorage.OnContentsChangeClient.AddListener(InventoryChange);
+			PlayerManager.LocalPlayerObject?.GetComponent<DynamicItemStorage>()?.OnContentsChangeClient?.AddListener(InventoryChange);
 		}
 
 		public void InventoryChange()
 		{
-			if (PlayerManager.LocalPlayerScript.IsGhost) return;
+			if (PlayerManager.LocalPlayerScript == null || PlayerManager.LocalPlayerScript.IsNormal == false) return;
+
 			if (Mask == null)
 			{
 				foreach (var maskItemSlot in PlayerManager.LocalPlayerScript.DynamicItemStorage.GetNamedItemSlots(NamedSlot.mask))
@@ -149,10 +151,13 @@ namespace UI
 					{
 						if (itemSlot.ItemObject != null && itemSlot.ItemObject.TryGetComponent(out GasContainer gasContainer))
 						{
-							Tank = itemSlot.ItemObject;
-							this.gasContainer = gasContainer;
-							Doublebreak = true;
-							break;
+							if (gasContainer.IgnoreInternals == false)
+							{
+								Tank = itemSlot.ItemObject;
+								this.gasContainer = gasContainer;
+								Doublebreak = true;
+								break;
+							}
 						}
 					}
 					if (Doublebreak) break;
@@ -171,7 +176,7 @@ namespace UI
 
 			if (Tank != null)
 			{
-				if (PlayerManager.LocalPlayerScript.DynamicItemStorage.InventoryHasObject(Tank) == false)
+				if (PlayerManager.LocalPlayerScript.DynamicItemStorage.InventoryHasObject(Tank) == false || gasContainer.IgnoreInternals)
 				{
 					gasContainer = null;
 					Tank = null;
@@ -190,6 +195,9 @@ namespace UI
 
 		private void UpdateState()
 		{
+			if (PlayerManager.LocalPlayerScript?.playerHealth?.RespiratorySystem?.CurrentBreathingTubes == null) return;
+			if (PlayerManager.LocalPlayerScript.playerHealth.RespiratorySystem.CurrentBreathingTubes.Count > 0) isWearingMask = true;
+
 			// Player is wearing neither a tank nor a mask
 			if (!isWearingMask && gasContainer == null)
 			{

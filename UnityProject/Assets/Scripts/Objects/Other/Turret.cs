@@ -7,23 +7,25 @@ using Systems;
 using Systems.Construction;
 using Systems.Electricity;
 using Systems.MobAIs;
-using Systems.ObjectConnection;
 using AddressableReferences;
+using Core;
 using Messages.Server;
 using Mirror;
 using Objects.Security;
 using Objects.Wallmounts.Switches;
+using Shared.Systems.ObjectConnection;
+using Systems.Clearance;
 using UI.Core.Net;
 using UnityEngine;
 using Weapons;
 using Weapons.Projectiles;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Objects.Other
 {
 	[RequireComponent(typeof(ItemStorage))]
 	[RequireComponent(typeof(APCPoweredDevice))]
-	[RequireComponent(typeof(AccessRestrictions))]
 	public class Turret : NetworkBehaviour, ICheckedInteractable<HandApply>, IMultitoolSlaveable, IExaminable, IServerSpawn, ICanOpenNetTab
 	{
 		[SerializeField]
@@ -93,8 +95,8 @@ namespace Objects.Other
 		//No/Yes - neutralizes people who have a weapon out but are not Heads or Security staff.
 		[Tooltip("Neutralize people who have a weapon out but are not Heads or Security staff")]
 		public bool CheckWeaponAuthorisation;
-		[SerializeField]
-		private List<Access> weaponAuthorisation = new List<Access>();
+
+		[SerializeField] private ClearanceRestricted weaponAuthorisationClearance;
 
 		//Check Security Records:
 		//Yes/No - searches Security Records for criminals.
@@ -110,8 +112,8 @@ namespace Objects.Other
 		//No/Yes - self explanatory.
 		[Tooltip("Neutralize All Non-Security and Non-Command Personnel")]
 		public bool CheckUnauthorisedPersonnel;
-		[SerializeField]
-		private List<Access> authorisedAccess = new List<Access>();
+
+		[SerializeField] private ClearanceRestricted authorisedClearance;
 
 		//Neutralize All Unidentified Life Signs:
 		//Yes/No - neutralizes aliens.
@@ -151,7 +153,7 @@ namespace Objects.Other
 
 		private ItemStorage itemStorage;
 		private APCPoweredDevice apcPoweredDevice;
-		private AccessRestrictions accessRestrictions;
+		private ClearanceRestricted restricted;
 
 		//Used to debug player searching linecast
 		private LineRenderer lineRenderer;
@@ -164,6 +166,8 @@ namespace Objects.Other
 		private string bulletName;
 		private AddressableAudioSource bulletSound;
 
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+
 		#region Lifecycle
 
 		private void Awake()
@@ -172,7 +176,7 @@ namespace Objects.Other
 			itemStorage = GetComponent<ItemStorage>();
 			apcPoweredDevice = GetComponent<APCPoweredDevice>();
 			integrity = GetComponent<Integrity>();
-			accessRestrictions = GetComponent<AccessRestrictions>();
+			restricted = GetComponent<ClearanceRestricted>();
 			lineRenderer = GetComponentInChildren<LineRenderer>();
 		}
 
@@ -194,7 +198,7 @@ namespace Objects.Other
 			SetUpBullet();
 
 			//For some reason couldnt use item storage, would just stay above the turret
-			gun.GetComponent<CustomNetTransform>().DisappearFromWorldServer();
+			gun.GetComponent<UniversalObjectPhysics>().DisappearFromWorld();
 		}
 
 		private void OnEnable()
@@ -203,7 +207,7 @@ namespace Objects.Other
 
 			UpdateManager.Add(UpdateLoop, UpdateTimer);
 			integrity.OnWillDestroyServer.AddListener(OnTurretDestroy);
-			apcPoweredDevice.OnStateChangeEvent.AddListener(OnPowerStateChange);
+			apcPoweredDevice.OnStateChangeEvent += (OnPowerStateChange);
 
 			SetUpBullet();
 		}
@@ -212,7 +216,7 @@ namespace Objects.Other
 		{
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateLoop);
 			integrity.OnWillDestroyServer.RemoveListener(OnTurretDestroy);
-			apcPoweredDevice.OnStateChangeEvent.RemoveListener(OnPowerStateChange);
+			apcPoweredDevice.OnStateChangeEvent -= OnPowerStateChange;
 			apcPoweredDevice.LockApcLinking(unlocked == false);
 
 			if (connectedSwitch is TurretSwitch generalSwitch)
@@ -294,12 +298,12 @@ namespace Objects.Other
 				if (mob.TryGetComponent<PlayerScript>(out var script))
 				{
 					//Only target normal players and alive players
-					if(script.PlayerState != PlayerScript.PlayerStates.Normal || script.IsDeadOrGhost) continue;
+					if(script.IsNormal == false || script.IsDeadOrGhost) continue;
 
 					//Check if player is allowed, but only if not an Ai turret as those will shoot all targets
 					if(turretType != TurretType.Ai && ValidatePlayer(script)) continue;
 
-					worldPos = script.WorldPos;
+					worldPos = script.ObjectPhysics.OfficialPosition;
 				}
 				//Test for mob, syndicate and AI will always target mobs, otherwise only on unidentified
 				else if ((turretType != TurretType.Normal || CheckUnidentifiedLifeSigns) && mob.TryGetComponent<MobAI>(out var mobAi))
@@ -307,7 +311,7 @@ namespace Objects.Other
 					//Only target alive mobs
 					if(mobAi.IsDead) continue;
 
-					worldPos = mobAi.Cnt.ServerPosition;
+					worldPos = mobAi.ObjectPhysics.OfficialPosition;
 				}
 				else
 				{
@@ -344,15 +348,7 @@ namespace Objects.Other
 			//Neutralize All Unauthorised Personnel
 			if (CheckUnauthorisedPersonnel)
 			{
-				var allowed = false;
-				foreach (var access in authorisedAccess)
-				{
-					if (AccessRestrictions.CheckAccess(script.gameObject, access) == false) continue;
-
-					//Only need to check for one valid access
-					allowed = true;
-					break;
-				}
+				var allowed = authorisedClearance.HasClearance(script.gameObject);
 
 				//Check for failure
 				if (allowed == false) return false;
@@ -405,18 +401,10 @@ namespace Objects.Other
 					var handItem = script.Equipment.GetClothingItem(slot);
 					if (handItem == null) return true;
 
-					if (Validations.HasItemTrait(handItem.GameObjectReference, CommonTraits.Instance.Gun))
+					if (Validations.HasItemTrait(handItem.ServerGameObjectReference, CommonTraits.Instance.Gun))
 					{
 						//Only allow authorised people to have guns
-						var allowed = false;
-						foreach (var access in weaponAuthorisation)
-						{
-							if (AccessRestrictions.CheckAccess(script.gameObject, access) == false) continue;
-
-							//Only need to check for one valid access
-							allowed = true;
-							break;
-						}
+						bool allowed = weaponAuthorisationClearance.HasClearance(script.gameObject);
 
 						//Check for failure
 						if (allowed == false) return false;
@@ -432,7 +420,7 @@ namespace Objects.Other
 
 		private void ShootTarget()
 		{
-			var angleToShooter = CalculateAngle(target.WorldPosServer());
+			var angleToShooter = CalculateAngle(target.AssumedWorldPosServer());
 			rotationAngle = angleToShooter;
 
 			ShootAtDirection(angleToShooter);
@@ -450,7 +438,8 @@ namespace Objects.Other
 
 			SoundManager.PlayNetworkedAtPos(bulletSound, registerTile.WorldPosition, sourceObj: gameObject);
 
-			CastProjectileMessage.SendToAll(gameObject, bulletName, rotationToShoot, default);
+			ProjectileManager.InstantiateAndShoot(bulletName,
+				rotationToShoot, gameObject, null, BodyPartType.None);
 		}
 
 		#endregion
@@ -464,9 +453,9 @@ namespace Objects.Other
 		}
 
 		//Called when ApcPoweredDevice changes state
-		private void OnPowerStateChange(Tuple<PowerState, PowerState> newStates)
+		private void OnPowerStateChange(PowerState old,  PowerState newStates)
 		{
-			SetPower(newStates.Item2 != PowerState.Off);
+			SetPower(newStates != PowerState.Off);
 
 			//Allow for instant shoot
 			shootingTimer = shootSpeed;
@@ -495,7 +484,7 @@ namespace Objects.Other
 			//No power or off set sprite to off state
 			if (hasPower == false || newState == TurretState.Off)
 			{
-				gunSprite.ChangeSprite(0);
+				gunSprite.SetCatalogueIndexSprite(0);
 				return;
 			}
 
@@ -503,7 +492,7 @@ namespace Objects.Other
 			SetUpBullet();
 
 			//Stun or lethal
-			gunSprite.ChangeSprite(newState == TurretState.Stun ? 1 : 2);
+			gunSprite.SetCatalogueIndexSprite(newState == TurretState.Stun ? 1 : 2);
 		}
 
 		private void SetUpBullet()
@@ -546,7 +535,10 @@ namespace Objects.Other
 			else
 			{
 				bulletName = laserBullet.name;
-				bulletSound = spawnGun.GetComponent<Gun>().FiringSoundA;
+				if (spawnGun != null)
+				{
+					bulletSound = spawnGun.GetComponent<Gun>().FiringSoundA;
+				}
 			}
 
 			shootSpeedMultiplier = Mathf.Clamp(shootSpeedMultiplier, 0.1f, 10f);
@@ -612,21 +604,21 @@ namespace Objects.Other
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (!Validations.IsTarget(gameObject, interaction)) return false;
 
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Id)) return true;
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Id)) return true;
 
-			return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar);
+			return Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar);
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
 			//If Id try unlock
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Id))
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Id))
 			{
-				if (accessRestrictions.CheckAccessCard(interaction.HandObject) == false)
+				if (restricted.HasClearance(interaction.HandObject) == false)
 				{
 					Chat.AddExamineMsgFromServer(interaction.Performer, $"You need higher authorisation to unlock this {gameObject.ExpensiveName()}");
 					return;
@@ -736,7 +728,7 @@ namespace Objects.Other
 
 		public bool CanOpenNetTab(GameObject playerObject, NetTabType netTabType)
 		{
-			if (turretType != TurretType.Ai && unlocked == false && playerObject.GetComponent<PlayerScript>().PlayerState != PlayerScript.PlayerStates.Ai)
+			if (turretType != TurretType.Ai && unlocked == false && playerObject.GetComponent<PlayerScript>().PlayerType != PlayerTypes.Ai)
 			{
 				Chat.AddExamineMsgFromServer(playerObject, "Turret is locked");
 				return false;
@@ -751,11 +743,11 @@ namespace Objects.Other
 		MultitoolConnectionType IMultitoolLinkable.ConType => MultitoolConnectionType.Turret;
 		IMultitoolMasterable IMultitoolSlaveable.Master => connectedSwitch;
 		bool IMultitoolSlaveable.RequireLink => false; // TODO: set to false to ignore false positive; currently links are serialized on the switch
-		bool IMultitoolSlaveable.TrySetMaster(PositionalHandApply interaction, IMultitoolMasterable master)
+		bool IMultitoolSlaveable.TrySetMaster(GameObject performer, IMultitoolMasterable master)
 		{
 			if (unlocked == false)
 			{
-				Chat.AddExamineMsgFromServer(interaction.Performer, "You try to link the controller but the turret interface is locked!");
+				Chat.AddExamineMsgFromServer(performer, "You try to link the controller but the turret interface is locked!");
 				return false;
 			}
 

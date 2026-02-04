@@ -14,26 +14,19 @@ namespace Messages.Client.Admin
 
 		public override void Process(NetMessage msg)
 		{
-			VerifyAdminStatus(msg);
-		}
+			if (HasPermission(TAG.PLAYER_AHELP) == false) return;
 
-		private void VerifyAdminStatus(NetMessage msg)
-		{
-			if (IsFromAdmin())
-			{
-				var recipient = PlayerList.Instance.GetAllByUserID(msg.UserToBwoink);
-				foreach (var r in recipient)
-				{
-					AdminBwoinkMessage.Send(r.GameObject, SentByPlayer.UserId, $"<color=red>{msg.Message}</color>");
-					UIManager.Instance.adminChatWindows.adminPlayerChat.ServerAddChatRecord(
-							msg.Message, msg.UserToBwoink, SentByPlayer.UserId);
-				}
-			}
+			if (PlayerList.Instance.TryGetByUserID(msg.UserToBwoink, out var recipient) == false) return;
+
+
+			AdminBwoinkMessage.Send(recipient.GameObject, SentByPlayer.AccountId, $"<color=red>{SentByPlayer.Username}: {GameManager.Instance.RoundTime.ToString(@"hh\:mm\:ss") + " - " + msg.Message}</color>");
+
+			UIManager.Instance.adminChatWindows.adminPlayerChat.ServerAddChatRecord(msg.Message, recipient, SentByPlayer);
 		}
 
 		public static NetMessage Send(string userIDToBwoink, string message)
 		{
-			NetMessage msg = new NetMessage
+			NetMessage msg = new()
 			{
 				UserToBwoink = userIDToBwoink,
 				Message = message

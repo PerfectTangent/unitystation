@@ -1,4 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using Core;
+using Items;
+using Logs;
 using UnityEngine;
 using ScriptableObjects;
 using Systems.Hacking;
@@ -6,28 +10,29 @@ using Objects.Construction;
 using Machines;
 using Messages.Server;
 using Messages.Server.SoundMessages;
+using SecureStuff;
+using Systems.Construction.Parts;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Machines
 {
 	/// <summary>
 	/// Main Component for Machine deconstruction
 	/// </summary>
-	public class Machine : MonoBehaviour, ICheckedInteractable<HandApply>, IServerSpawn
+	public class Machine : MonoBehaviour, ICheckedInteractable<HandApply>
 	{
 		/// <summary>
 		/// Machine parts used to build this machine
 		/// </summary>
 		public MachineParts MachineParts;
 
-		//Not needed on all machine prefabs
-		private IDictionary<ItemTrait, int> basicPartsUsed = new Dictionary<ItemTrait, int>();
-		private IDictionary<GameObject, int> partsInFrame = new Dictionary<GameObject, int>();
+		private List<PartReference> ObjectpartsInFrame = new List<PartReference>();
+
+		public List<PartReference> getObjectpartsInFrame => ObjectpartsInFrame;
 
 		[Tooltip("Prefab of the circuit board that lives inside this computer.")] [SerializeField]
 		private GameObject machineBoardPrefab = null;
 
-		public IDictionary<ItemTrait, int> BasicPartsUsed => basicPartsUsed;
-		public IDictionary<GameObject, int> PartsInFrame => partsInFrame;
 
 		/// <summary>
 		/// Prefab of the circuit board that lives inside this computer.
@@ -59,39 +64,169 @@ namespace Objects.Machines
 
 		private HackingProcessBase HackingProcessBase;
 
+		private float? CachedMultiplier = null;
+
+		public ItemStorage PartsStorage;
+
+		[PlayModeOnly] public bool MapSpawned = false;
+
+		private IRefreshParts[] IRefreshParts;
+
+		public Battery[] Batterys;
+
+		public float CurrentBatteryCapacity
+		{
+			get
+			{
+				float capacity = 0f;
+				int count = Batterys.Length;
+				for (int i = 0; i < count; i++)
+					capacity += Batterys[i].Watts;
+
+				return capacity;
+			}
+			set
+			{
+				int count = Batterys.Length;
+				if (count == 0)
+					return;
+
+				if (value <= 0f)
+				{
+					for (int i = 0; i < count; i++)
+						Batterys[i].Watts = 0;
+					return;
+				}
+
+				// Compute max capacity
+				int maxWatts = 0;
+				for (int i = 0; i < count; i++)
+					maxWatts += Batterys[i].MaxWatts;
+
+				if (maxWatts <= 0)
+					return;
+
+				// Compute proportion of power to apply
+				float percentage = value / maxWatts;
+				if (percentage > 1f)
+					percentage = 1f;
+
+				int scaled;
+				for (int i = 0; i < count; i++)
+				{
+					scaled = Mathf.RoundToInt(Batterys[i].MaxWatts * percentage);
+					Batterys[i].Watts = scaled;
+				}
+			}
+		}
+
+		private void Awake()
+		{
+			if (PartsStorage == null)
+			{
+				Loggy.Error($"bwawaaa Missing PartsStorage for {this.gameObject.name}");
+			}
+
+			PartsStorage.ServerInventoryItemSlotSet += PartFrameTransfer;
+			HackingProcessBase = GetComponent<HackingProcessBase>();
+			if (CustomNetworkManager.IsServer == false) return;
+
+			integrity = GetComponent<Integrity>();
+			integrity.OnWillDestroyServer.AddListener(WhenDestroyed);
+
+			IRefreshParts = GetComponents<IRefreshParts>();
+		}
+
+		public void Start()
+		{
+			if (CustomNetworkManager.IsServer == false) return;
+			//So,
+			//ObjectpartsInFrame.Count == 0 Means it's not been populated from construction
+			//Means we are mapped so use machine parts ist
+			if (ObjectpartsInFrame.Count == 0)
+			{
+				MapSpawned = true;
+				if (MachineParts.OrNull()?.machineParts == null)
+				{
+					if (canNotBeDeconstructed == false)
+					{
+						Loggy.Error($"MachineParts was null on {gameObject.ExpensiveName()}");
+					}
+
+					return;
+				}
+
+				var machineBoard = Spawn.ServerPrefab(machineBoardPrefab, gameObject.AssumedWorldPosServer(),
+					gameObject.transform.parent).GameObject;
+				PartsStorage.ServerTryAdd(machineBoard);
+
+				foreach (var part in MachineParts.machineParts)
+				{
+
+					for (int i = 0; i < part.amountOfThisPart; i++)
+					{
+						var partObjs = Spawn.ServerPrefab(part.basicItem, gameObject.AssumedWorldPosServer(),
+							gameObject.transform.parent).GameObjects;
+
+						foreach (var Object in partObjs)
+						{
+							PartsStorage.ServerTryAdd(Object);
+						}
+					}
+
+				}
+			}
+			else
+			{
+				MapSpawned = false;
+			}
+
+
+			var data = PartsStorage.GetItemSlots();
+
+			var toRefresh = GetComponents<IRefreshParts>();
+			UpdateBatteries();
+			foreach (var refresh in toRefresh)
+			{
+				refresh.RefreshParts(ObjectpartsInFrame, this);
+			}
+		}
+
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (!Validations.IsTarget(gameObject, interaction)) return false;
 
 			if (HackingProcessBase != null)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar) || //Should probably network if it is open or not
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Cable) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wirecutter);
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
+				       Validations.HasItemTrait(interaction,
+					       CommonTraits.Instance.Crowbar) || //Should probably network if it is open or not
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Cable) ||
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Wirecutter);
 			}
 			else
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar);
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar);
 			}
-
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver))
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver))
 			{
-				AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: UnityEngine.Random.Range(0.8f, 1.2f));
-				SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.screwdriver, interaction.Performer.AssumedWorldPosServer(), audioSourceParameters, sourceObj: gameObject);
+				AudioSourceParameters audioSourceParameters =
+					new AudioSourceParameters(pitch: UnityEngine.Random.Range(0.8f, 1.2f));
+				SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.screwdriver,
+					interaction.Performer.AssumedWorldPosServer(), audioSourceParameters, sourceObj: gameObject);
 				//Unscrew panel
 				panelopen = !panelopen;
 				if (panelopen)
 				{
 					Chat.AddActionMsgToChat(interaction.Performer,
-						$"You unscrews the {gameObject.ExpensiveName()}'s cable panel.",
+						$"You unscrew the {gameObject.ExpensiveName()}'s cable panel.",
 						$"{interaction.Performer.ExpensiveName()} unscrews {gameObject.ExpensiveName()}'s cable panel.");
 					return;
 				}
@@ -106,8 +241,8 @@ namespace Objects.Machines
 
 			if (HackingProcessBase != null)
 			{
-				if (panelopen && (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Cable) ||
-				                  Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wirecutter)))
+				if (panelopen && (Validations.HasItemTrait(interaction, CommonTraits.Instance.Cable) ||
+				                  Validations.HasItemTrait(interaction, CommonTraits.Instance.Wirecutter)))
 				{
 					TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType.HackingPanel, TabAction.Open);
 				}
@@ -122,14 +257,14 @@ namespace Objects.Machines
 				return;
 			}
 
-			if (mustBeUnanchored && gameObject.GetComponent<PushPull>()?.IsPushable == false)
+			if (mustBeUnanchored && gameObject.GetComponent<UniversalObjectPhysics>().OrNull()?.IsNotPushable == true)
 			{
 				Chat.AddExamineMsgFromServer(interaction.Performer,
 					$"The {gameObject.ExpensiveName()} needs to be unanchored first.");
 				return;
 			}
 
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar) && panelopen)
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar) && panelopen)
 			{
 				//unsecure
 				ToolUtils.ServerUseToolWithActionMessages(interaction, secondsToScrewdrive,
@@ -139,41 +274,29 @@ namespace Objects.Machines
 					$"{interaction.Performer.ExpensiveName()} deconstructs the {gameObject.ExpensiveName()}.",
 					() => { WhenDestroyed(null); });
 			}
-
 		}
 
-		private void Awake()
+		public int NumberOfPartsForTrait(ItemTrait itemTrait)
 		{
-			HackingProcessBase = GetComponent<HackingProcessBase>();
-			if (!CustomNetworkManager.IsServer) return;
+			return ObjectpartsInFrame.Where(x => x.itemTrait == itemTrait).Sum(x => x.itemObject.NumberOf());
+		}
 
-			integrity = GetComponent<Integrity>();
-
-			integrity.OnWillDestroyServer.AddListener(WhenDestroyed);
-
-
+		public int RatingOfPartsForTrait(ItemTrait itemTrait)
+		{
+			return ObjectpartsInFrame.Where(x => x.itemTrait == itemTrait).Sum(x => x.itemObject.NumberOf() * x.tier);
 		}
 
 		public void WhenDestroyed(DestructionInfo info)
 		{
-			//drop all our contents
-			ItemStorage itemStorage = null;
-
 			// rare cases were gameObject is destroyed for some reason and then the method is called
 			if (gameObject == null) return;
 
-			itemStorage = GetComponent<ItemStorage>();
-
-			if (itemStorage != null)
-			{
-				itemStorage.ServerDropAll();
-			}
 
 			SpawnResult frameSpawn =
 				Spawn.ServerPrefab(CommonPrefabs.Instance.MachineFrame, SpawnDestination.At(gameObject));
 			if (!frameSpawn.Successful)
 			{
-				Logger.LogError($"Failed to spawn frame! Is {this} missing references in the inspector?",
+				Loggy.Error($"Failed to spawn frame! Is {this} missing references in the inspector?",
 					Category.Construction);
 				return;
 			}
@@ -191,75 +314,199 @@ namespace Objects.Machines
 			MachineParts = machineParts;
 		}
 
-		public void SetBasicPartsUsed(IDictionary<ItemTrait, int> basicPartsUsed)
+		public void SetPartsInFrame(ItemStorage InActiveGameObjectpartsInFrame) //Presume that it is all the it needs parts!!
 		{
-			this.basicPartsUsed = basicPartsUsed;
+			CachedMultiplier = null;
+
+			ObjectpartsInFrame.Clear();
+
+			PartsStorage.ServerTryTransferFrom(InActiveGameObjectpartsInFrame);
 		}
 
-		public void SetPartsInFrame(IDictionary<GameObject, int> partsInFrame)
+		public bool GetPanelOpen()
 		{
-			this.partsInFrame = partsInFrame;
-
-			if (partsInFrame == null)
-			{
-				Logger.LogError($"PartsInFrame was null on {gameObject.ExpensiveName()}");
-				return;
-			}
-
-			var toRefresh = GetComponents<IRefreshParts>();
-
-			foreach (var refresh in toRefresh)
-			{
-				refresh.RefreshParts(partsInFrame);
-			}
-		}
-
-		public void OnSpawnServer(SpawnInfo info)
-		{
-			//Only do so on mapping
-			if (partsInFrame != null && partsInFrame.Count > 0) return;
-
-			if (basicPartsUsed == null)
-			{
-				Logger.LogError($"BasicPartsUsed was null on {gameObject.ExpensiveName()}");
-				return;
-			}
-			//Means we are mapped so use machine parts ist
-			else if (basicPartsUsed.Count == 0)
-			{
-				if (MachineParts.OrNull()?.machineParts == null)
-				{
-					Logger.LogError($"MachineParts was null on {gameObject.ExpensiveName()}");
-					return;
-				}
-
-				foreach (var part in MachineParts.machineParts)
-				{
-					basicPartsUsed.Add(part.itemTrait, part.amountOfThisPart);
-				}
-			}
-
-			var toRefresh = GetComponents<IInitialParts>();
-
-			foreach (var refresh in toRefresh)
-			{
-				refresh.InitialParts(basicPartsUsed);
-			}
-		}
-
-		public bool GetPanelOpen() {
 			return panelopen;
 		}
+
+
+		//Used for if you have a bass performance Stat And you want to * it depending on how many advanced parts there are
+		//Maxes out at 4
+		public float GetPartMultiplier()
+		{
+			if (CachedMultiplier != null)
+			{
+				return CachedMultiplier.Value;
+			}
+
+			float TotalParts = 0;
+			float Alladded = 0;
+			foreach (var Objectpart in ObjectpartsInFrame)
+			{
+				var Number = Objectpart.itemObject.NumberOf();
+
+				TotalParts += Number;
+
+				Alladded += Objectpart.tier * Number;
+			}
+
+			CachedMultiplier = Alladded / TotalParts;
+			return CachedMultiplier.Value;
+		}
+
+		//Used for if you have a bass performance Stat And you want to * it depending on how many advanced parts there are
+		//Maxes out at 4
+		public float GetCertainPartMultiplier(ItemTrait ItemTrait)
+		{
+			if (ItemTrait == null)
+			{
+				Loggy.Error($" null ItemTrait Tried to be passed into GetCertainPartMultiplier for {this.name} ");
+				return 1;
+			}
+
+			float TotalParts = 0;
+			float Alladded = 0;
+			foreach (var Objectpart in ObjectpartsInFrame)
+			{
+				if (ItemTrait != Objectpart.itemTrait) continue;
+
+				var Number = Objectpart.itemObject.NumberOf();
+				TotalParts += Number;
+				Alladded += Objectpart.tier * Number;
+			}
+
+			if (TotalParts == 0)
+			{
+				Loggy.Error($"Warning {ItemTrait.name} was not present on {this.name} somehow ");
+				return 1;
+			}
+
+			return Alladded / TotalParts;
+		}
+
+
+		public bool? BatteryChangeChargedByDelta(int Delta)
+		{
+
+			if (Delta == 0) return null;
+			foreach (var batty in Batterys)
+			{
+				if (Delta > 0)
+				{
+					var SpareCapacity = batty.MaxWatts - batty.Watts;
+					if (Delta > SpareCapacity)
+					{
+						batty.Watts = batty.MaxWatts;
+						Delta -= SpareCapacity;
+					}
+					else
+					{
+						batty.Watts += Delta;
+						Delta = 0;
+						break;
+					}
+				}
+				else
+				{
+					var SpareCapacity = batty.Watts;
+					if (Mathf.Abs(Delta) > SpareCapacity)
+					{
+						batty.Watts = 0;
+						Delta += SpareCapacity;
+					}
+					else
+					{
+						batty.Watts += Delta;
+						Delta = 0;
+						break;
+					}
+				}
+
+			}
+
+			if (Mathf.Abs(Delta) > 0)
+			{
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+
+		public void PartFrameTransfer(Pickupable prevPart, Pickupable NewPart)
+		{
+			if (NewPart)
+			{
+				MachineParts.MachinePartList MachinePartList = null;
+				// For all the list of data(itemtraits, amounts needed) in machine parts
+				for (int i = 0; i < MachineParts.machineParts.Length; i++)
+				{
+					// If the interaction object has an itemtrait thats in the list, set the list machinePartsList variable as the list from the machineParts data from the circuit board.
+					if (NewPart.GetComponent<ItemAttributesV2>().HasTrait(MachineParts.machineParts[i].itemTrait))
+					{
+						MachinePartList = MachineParts.machineParts[i];
+						break;
+
+						// IF YOU WANT AN ITEM TO HAVE TWO ITEMTTRAITS WHICH CONTRIBUTE TO THE MACHINE BUILIDNG PROCESS, THIS NEEDS TO BE REFACTORED
+						// all the stuff below needs to go into its own method which gets called here, replace the break;
+					}
+				}
+
+				if (MachinePartList != null)
+				{
+					// Itemtrait currently being looked at.
+					var itemTrait = MachinePartList.itemTrait;
+
+
+					var StockTier = NewPart.GetComponent<StockTier>();
+
+					int Tier = 1;
+
+					if (StockTier != null)
+					{
+						Tier = StockTier.Tier;
+					}
+
+					ObjectpartsInFrame.Add(new PartReference()
+					{
+						itemObject = NewPart.gameObject,
+						Slot = NewPart.ItemSlot,
+						itemTrait = itemTrait,
+						tier = Tier
+					});
+				}
+			}
+			else if (prevPart)
+			{
+				ObjectpartsInFrame.RemoveAll(x => x.itemObject == prevPart.gameObject);
+			}
+			UpdateBatteries();
+			foreach (var refresh in IRefreshParts)
+			{
+				refresh.RefreshParts(ObjectpartsInFrame, this);
+			}
+		}
+
+		public void UpdateBatteries()
+		{
+			Batterys = getObjectpartsInFrame.Where(x => x.itemTrait == CommonTraits.Instance.PowerCell)
+				.Select(x => x.itemObject.GetComponentCustom<Battery>()).ToArray();
+		}
 	}
+
 
 	public interface IRefreshParts
 	{
-		void RefreshParts(IDictionary<GameObject, int> partsInFrame);
+		void RefreshParts(List<PartReference> partsInFrame, Machine Frame);
 	}
 
-	public interface IInitialParts
+
+	public class PartReference
 	{
-		//This will be called before RefreshParts when building a new machine
-		void InitialParts(IDictionary<ItemTrait, int> basicPartsUsed);
+		public ItemTrait itemTrait;
+		public ItemSlot Slot;
+		public GameObject itemObject;
+		public int tier = -1;
 	}
 }

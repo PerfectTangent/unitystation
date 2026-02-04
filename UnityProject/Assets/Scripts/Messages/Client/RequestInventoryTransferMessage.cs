@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Logs;
 using Messages.Server;
 using Mirror;
 
@@ -65,13 +66,13 @@ namespace Messages.Client
 
 		private void HandleFail(ItemSlot fromSlot, ItemSlot toSlot)
 		{
-			Logger.LogWarningFormat(
+			Loggy.Warning().Format(
 				"Possible hacking attempt (or bad clientside logic), {0} tried to transfer from slot {1} to {2} when they" +
 				" are not allowed.", Category.Exploits, SentByPlayer.GameObject.name, fromSlot, toSlot);
 
 			//roll back the client prediction
-			UpdateItemSlotMessage.Send(SentByPlayer.GameObject, fromSlot);
-			UpdateItemSlotMessage.Send(SentByPlayer.GameObject, toSlot);
+			UpdateItemNSlotMessage.Send(SentByPlayer.GameObject, fromSlot);
+			UpdateItemNSlotMessage.Send(SentByPlayer.GameObject, toSlot);
 		}
 
 		/// <summary>
@@ -98,10 +99,11 @@ namespace Messages.Client
 				ToNamedSlot = toSlot.SlotIdentifier.NamedSlot.GetValueOrDefault(NamedSlot.back)
 			};
 
+			var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
 
 			//If there's multiple ItemStorage On one game object it can find the correct one by index
 			msg.StorageIndexOnGameObjectFrom = 0;
-			foreach (var itemStorage in NetworkIdentity.spawned[fromSlot.ItemStorageNetID].GetComponents<ItemStorage>())
+			foreach (var itemStorage in spawned[fromSlot.ItemStorageNetID].GetComponents<ItemStorage>())
 			{
 				if (itemStorage == fromSlot.ItemStorage)
 				{
@@ -112,7 +114,7 @@ namespace Messages.Client
 			}
 
 			msg.StorageIndexOnGameObjectTo = 0;
-			foreach (var itemStorage in NetworkIdentity.spawned[toSlot.ItemStorageNetID].GetComponents<ItemStorage>())
+			foreach (var itemStorage in spawned[toSlot.ItemStorageNetID].GetComponents<ItemStorage>())
 			{
 				if (itemStorage == toSlot.ItemStorage)
 				{

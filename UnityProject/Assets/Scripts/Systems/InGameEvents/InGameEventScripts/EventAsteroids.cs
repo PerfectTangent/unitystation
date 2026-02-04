@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Systems.Explosions;
-using AddressableReferences;
+using Logs;
 using Managers;
 using Strings;
 
@@ -36,11 +36,22 @@ namespace InGameEvents
 		[SerializeField]
 		private int maxTimeBetweenMeteors = 10;
 
+		//Calculated from Square station roughly, Ignoring AI sat 29/05/2023
+		private int AverageStationVolume = 15000;
+
+		[SerializeField]
+		private int ProcessNPerupdate = 1;
+
+		private int Processed = 0;
+
+		[Tooltip("Explosion type")]
+		[SerializeField] private ExplosionTypes.ExplosionType explosionType = ExplosionTypes.ExplosionType.Regular;
+
 		private bool IsMatrixInvalid()
 		{
 			if (stationMatrix != null) return false;
 
-			Logger.LogError($"Unable to start \"{nameof(EventAsteroids)}\". Main station may not be initialized yet.", Category.Event);
+			Loggy.Error($"Unable to start \"{nameof(EventAsteroids)}\". Main station may not be initialized yet.", Category.Event);
 			return true;
 		}
 
@@ -64,11 +75,30 @@ namespace InGameEvents
 			base.OnEventStart();
 		}
 
+		public static float CalculateRectangleArea(Vector2 corner1, Vector2 corner2)
+		{
+			float length = Math.Abs(corner2.x - corner1.x);
+			float width = Math.Abs(corner2.x - corner1.x);
+
+			float area = length * width;
+
+			return area;
+		}
+
 		public override void OnEventStartTimed()
 		{
 			if (IsMatrixInvalid()) return;
 
 			int asteroidAmount = UnityEngine.Random.Range(minMeteorAmount, maxMeteorAmount);
+
+
+			var Volume = CalculateRectangleArea(stationMatrix.WorldBounds.min, stationMatrix.WorldBounds.max);
+
+			if (Volume == 0) return;
+
+			var hits =  Volume / AverageStationVolume;
+
+			asteroidAmount = Mathf.RoundToInt(asteroidAmount * hits);
 
 			for (var i = 1; i <= asteroidAmount; i++)
 			{
@@ -112,9 +142,18 @@ namespace InGameEvents
 
 				var strength = UnityEngine.Random.Range(minStrength * multiplier, maxStrength * multiplier);
 
-				Explosion.StartExplosion(impactCoords.Dequeue().RoundToInt(), strength);
+				Explosion.StartExplosion(impactCoords.Dequeue().RoundToInt(), strength, ExplosionTypes.NodeTypes[explosionType]);
+				Processed++;
+				if (Processed > ProcessNPerupdate)
+				{
+					Processed = 0;
+					yield return WaitFor.Seconds(UnityEngine.Random.Range(minTimeBetweenMeteors, maxTimeBetweenMeteors));
+				}
+				else
+				{
+					yield return WaitFor.Seconds(0.1f);
+				}
 
-				yield return new WaitForSeconds(UnityEngine.Random.Range(minTimeBetweenMeteors, maxTimeBetweenMeteors));
 			}
 
 			base.OnEventStartTimed();

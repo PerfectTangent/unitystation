@@ -1,17 +1,13 @@
-using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Learning
 {
 	public class ProtipListUI : MonoBehaviour
 	{
-		[SerializeField] private GameObject entryToSpawn;
+		[SerializeField] private Transform entryToSpawn;
 		[SerializeField] private Transform entryList;
-		[SerializeField] private TMP_Dropdown expierenceControlDropdown;
-
-		[SerializeField] private string wikiURL = "https://unitystation.github.io/unitystation-wiki/";
+		[SerializeField] private Transform mainPage;
 
 
 		private void Awake()
@@ -23,16 +19,21 @@ namespace Learning
 		{
 			gameObject.SetActive(false);
 		}
-
-		public void OnChangeDropDownValue()
-		{
-			ProtipManager.Instance.SetExperienceLevel((ProtipManager.ExperienceLevel) expierenceControlDropdown.value);
-		}
-
 		public void OnPressWikiButton()
 		{
 			//TODO : ADD THE WIKI IN-GAME PAGE THAT LETS YOU SEARCH ARTICLES TO OPEN LIKE SS13
-			Application.OpenURL(wikiURL);
+
+		}
+
+		public void OnPressCatalougePage()
+		{
+			HideAllPages();
+			mainPage.SetActive(true);
+		}
+
+		private void HideAllPages()
+		{
+			mainPage.SetActive(false);
 		}
 
 		private void RefreshList()
@@ -41,7 +42,7 @@ namespace Learning
 			{
 				for (int i = 0; i < entryList.childCount - 1; i++)
 				{
-					Destroy(entryList.GetChild(i));
+					Destroy(entryList.GetChild(i).gameObject);
 				}
 			}
 			foreach (var tipSO in ProtipManager.Instance.RecordedProtips)

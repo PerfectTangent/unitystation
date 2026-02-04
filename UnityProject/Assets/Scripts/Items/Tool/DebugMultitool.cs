@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using Logs;
 using UnityEngine;
 using Systems.Electricity;
 
@@ -16,7 +17,7 @@ namespace Items.Engineering
 
 		public void ServerPerformInteraction(PositionalHandApply interaction)
 		{
-			Vector3Int worldPosInt = interaction.WorldPositionTarget.To2Int().To3Int();
+			Vector3Int worldPosInt = interaction.WorldPositionTarget.RoundTo2Int().To3Int();
 			MatrixInfo matrixinfo = MatrixManager.AtPoint(worldPosInt, true);
 			var localPosInt = MatrixManager.WorldToLocalInt(worldPosInt, matrixinfo);
 			var matrix = interaction.Performer.GetComponentInParent<Matrix>();
@@ -31,7 +32,7 @@ namespace Items.Engineering
 			}
 			MetaDataNode.Pool();
 			Chat.AddExamineMsgFromServer(interaction.Performer, SB.ToString());
-			Logger.Log(SB.ToString());
+			Loggy.Info(SB.ToString());
 		}
 	}
 }

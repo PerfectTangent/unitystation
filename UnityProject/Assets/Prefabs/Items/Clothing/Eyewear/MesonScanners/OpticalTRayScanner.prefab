@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 99937107654893971, guid: 67edff078434b7d46a845a17839398cf,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: da090788a0f1c3d44bc365953e6f6f17,
         type: 3}
+    - target: {fileID: 146028621113159547, guid: 67edff078434b7d46a845a17839398cf,
+        type: 3}
+      propertyPath: _assetId
+      value: 167358632
+      objectReference: {fileID: 0}
     - target: {fileID: 146028621113159547, guid: 67edff078434b7d46a845a17839398cf,
         type: 3}
       propertyPath: m_AssetId
@@ -100,6 +106,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: a1ebae3e716e1164090db907ea0553c1,
         type: 2}
+    - target: {fileID: 6256879694011033928, guid: 67edff078434b7d46a845a17839398cf,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: a1ebae3e716e1164090db907ea0553c1,
+        type: 2}
+    - target: {fileID: 6568570691189792418, guid: 67edff078434b7d46a845a17839398cf,
+        type: 3}
+      propertyPath: parentID
+      value: 67edff078434b7d46a845a17839398cf
+      objectReference: {fileID: 0}
     - target: {fileID: 6568570691189792418, guid: 67edff078434b7d46a845a17839398cf,
         type: 3}
       propertyPath: foreverID
@@ -117,9 +134,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6624728334120714570, guid: 67edff078434b7d46a845a17839398cf,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 014afe1792104e64f9f02ca14ba8a297,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 67edff078434b7d46a845a17839398cf, type: 3}

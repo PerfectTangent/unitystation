@@ -5,12 +5,18 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 793492339016116951, guid: 288980126acf5f441841169958c31630,
         type: 3}
       propertyPath: m_Name
       value: Single High Cable Coil
+      objectReference: {fileID: 0}
+    - target: {fileID: 1317881860533816661, guid: 288980126acf5f441841169958c31630,
+        type: 3}
+      propertyPath: _assetId
+      value: 1746518854
       objectReference: {fileID: 0}
     - target: {fileID: 1317881860533816661, guid: 288980126acf5f441841169958c31630,
         type: 3}
@@ -77,6 +83,23 @@ PrefabInstance:
       propertyPath: m_Name
       value: SingleHighCableCoil
       objectReference: {fileID: 0}
+    - target: {fileID: 1527742535114383235, guid: 288980126acf5f441841169958c31630,
+        type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1527742535114383235, guid: 288980126acf5f441841169958c31630,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 6e46c3fa979e00940a50dbb3c0a4ac0c,
+        type: 2}
+    - target: {fileID: 1527742535114383235, guid: 288980126acf5f441841169958c31630,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: e39c048ec864b47a495a40f9c76af764,
+        type: 2}
     - target: {fileID: 3377645697590253390, guid: 288980126acf5f441841169958c31630,
         type: 3}
       propertyPath: initialAmount
@@ -89,14 +112,22 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3377645697590253390, guid: 288980126acf5f441841169958c31630,
         type: 3}
-      propertyPath: stacksWith.Array.data[1]
+      propertyPath: 'stacksWith.Array.data[1]'
       value: 
       objectReference: {fileID: 1431646644770877665, guid: 288980126acf5f441841169958c31630,
         type: 3}
+    - target: {fileID: 5432611008878820492, guid: 288980126acf5f441841169958c31630,
+        type: 3}
+      propertyPath: parentID
+      value: 288980126acf5f441841169958c31630
+      objectReference: {fileID: 0}
     - target: {fileID: 5432611008878820492, guid: 288980126acf5f441841169958c31630,
         type: 3}
       propertyPath: foreverID
       value: 930cb494644d9ed46b31e1ecf4222089
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 288980126acf5f441841169958c31630, type: 3}

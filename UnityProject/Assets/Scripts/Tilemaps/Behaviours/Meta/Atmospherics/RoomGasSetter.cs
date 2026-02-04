@@ -1,4 +1,5 @@
 ﻿using System;
+using Logs;
 using ScriptableObjects.Atmospherics;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace Systems.Atmospherics
 		public GasMix GasMixToSpawn => gasMixToSpawn.BaseGasMix;
 
 		private RegisterTile registerTile;
+		public RegisterTile RegisterTile => registerTile;
 
 		private void Awake()
 		{
@@ -29,7 +31,7 @@ namespace Systems.Atmospherics
 
 			if (gasMixToSpawn == null)
 			{
-				Logger.LogError($"Gas mix was null on {gameObject.ExpensiveName()}");
+				Loggy.Error($"Gas mix was null on {gameObject.ExpensiveName()}");
 				return;
 			}
 
@@ -43,19 +45,17 @@ namespace Systems.Atmospherics
 				//Use ChangeGasMix to remove old gas overlays and add new overlays
 				metaDataNode.ChangeGasMix(GasMix.NewGasMix(GasMixToSpawn));
 			}
-
-			_ = Despawn.ServerSingle(gameObject);
 		}
 
 		public void SetUp()
 		{
 			if (gasMixToSpawn == null)
 			{
-				Logger.LogError($"Gas mix was null on {gameObject.ExpensiveName()}");
+				Loggy.Error($"Gas mix was null on {gameObject.ExpensiveName()}");
 				return;
 			}
 
-			var metaDataNode = registerTile.Matrix.GetMetaDataNode(registerTile.LocalPositionServer, false);
+			var metaDataNode = registerTile.Matrix.GetMetaDataNode(transform.localPosition.RoundToInt(), false);
 
 			if (metaDataNode == null) return;
 
@@ -67,7 +67,7 @@ namespace Systems.Atmospherics
 			else
 			{
 				//Set occupied before round start, do it during the atmos init
-				registerTile.Matrix.OrNull()?.GetComponentInParent<AtmosSystem>().OrNull()?.AddToListOccupied(registerTile.LocalPositionServer, this);
+				registerTile.Matrix.OrNull()?.GetComponentInParent<AtmosSystem>().OrNull()?.AddToListOccupied(transform.localPosition.RoundToInt(), this);
 			}
 		}
 	}

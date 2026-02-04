@@ -1,5 +1,7 @@
 ﻿using System.Collections;
+using Core;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Allows a coin to be flipped by activating in-hand or throwing.
@@ -22,7 +24,7 @@ public class FlipCoin : MonoBehaviour, IExaminable, ICheckedInteractable<HandAct
 	private string tailName = "tail";
 
 	private SpriteHandler spriteHandler;
-	private CustomNetTransform netTransform;
+	private UniversalObjectPhysics universalObjectPhysics;
 
 	public bool IsUpright { get; private set; } = true;
 
@@ -31,27 +33,27 @@ public class FlipCoin : MonoBehaviour, IExaminable, ICheckedInteractable<HandAct
 	private void Awake()
 	{
 		spriteHandler = GetComponentInChildren<SpriteHandler>();
-		netTransform = GetComponent<CustomNetTransform>();
+		universalObjectPhysics = GetComponent<UniversalObjectPhysics>();
 	}
 
 	private void OnEnable()
 	{
-		netTransform.OnThrowStart.AddListener(ThrowStart);
-		netTransform.OnThrowEnd.AddListener(ThrowEnd);
+		universalObjectPhysics.OnThrowStart.AddListener(ThrowStart);
+		universalObjectPhysics.OnImpact.AddListener(ThrowEnd);
 	}
 
 	private void OnDisable()
 	{
-		netTransform.OnThrowStart.RemoveListener(ThrowStart);
-		netTransform.OnThrowEnd.RemoveListener(ThrowEnd);
+		universalObjectPhysics.OnThrowStart.RemoveListener(ThrowStart);
+		universalObjectPhysics.OnImpact.RemoveListener(ThrowEnd);
 	}
 
 	#endregion Lifecycle
 
 	private void UpdateSprite()
 	{
-		spriteHandler.ChangeSprite(SPRITE_RESTING);
-		spriteHandler.ChangeSpriteVariant(IsUpright ? SPRITE_VARIANT_RESTING_UPRIGHT : SPRITE_VARIANT_RESTING_INVERTED);
+		spriteHandler.SetCatalogueIndexSprite(SPRITE_RESTING);
+		spriteHandler.SetSpriteVariant(IsUpright ? SPRITE_VARIANT_RESTING_UPRIGHT : SPRITE_VARIANT_RESTING_INVERTED);
 	}
 
 	private string GetFaceName()
@@ -81,27 +83,34 @@ public class FlipCoin : MonoBehaviour, IExaminable, ICheckedInteractable<HandAct
 
 	#region Throwing
 
-	private void ThrowStart(ThrowInfo throwInfo)
+	private void ThrowStart(UniversalObjectPhysics throwInfo)
 	{
-		Chat.AddActionMsgToChat(throwInfo.ThrownBy, $"You throw the coin...", $"{throwInfo.ThrownBy} throws the coin...");
+		if (throwInfo.thrownBy != null)
+		{
+			Chat.AddActionMsgToChat(throwInfo?.thrownBy?.gameObject, $"You throw the coin...", $"{throwInfo.thrownBy} throws the coin...");
+		}
 	}
 
-	private void ThrowEnd(ThrowInfo throwInfo)
+	private void ThrowEnd(UniversalObjectPhysics throwInfo, Vector2 Force)
 	{
-		StartCoroutine(Flip());
+		if (Force.magnitude > 0.5f)
+		{
+			StartCoroutine(Flip());
+		}
+
 	}
 
 	private IEnumerator Flip()
 	{
 		// The flip animation sprite SO has only only one variant.
-		spriteHandler.ChangeSpriteVariant(0);
-		spriteHandler.ChangeSprite(SPRITE_FLIPPING);
+		spriteHandler.SetSpriteVariant(0);
+		spriteHandler.SetCatalogueIndexSprite(SPRITE_FLIPPING);
 		yield return WaitFor.Seconds(FLIP_TIME);
 
 		IsUpright = Random.Range(0, 2) == 0;
 		UpdateSprite();
 
-		Chat.AddLocalMsgToChat($"The coin lands a '{GetFaceName()}'.", gameObject);
+		Chat.AddActionMsgToChat(gameObject, $"The coin lands a '{GetFaceName()}'.");
 	}
 
 	#endregion Throwing

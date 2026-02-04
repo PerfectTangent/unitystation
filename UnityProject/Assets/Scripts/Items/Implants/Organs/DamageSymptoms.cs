@@ -1,21 +1,22 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using HealthV2;
 using UnityEngine;
+using UnityEngine.Serialization;
 
-
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class DamageSymptoms : BodyPartFunctionality
 	{
-		public List<SeverityAndSymptoms> severityAndSymptoms = new List<SeverityAndSymptoms>();
+		[SerializeField,FormerlySerializedAs("severityAndSymptoms")] private List<SeverityAndSymptoms> InitialseverityAndSymptoms = new List<SeverityAndSymptoms>();
+		private List<SeverityAndSymptoms> severityAndSymptoms = new List<SeverityAndSymptoms>();
 		public float TimeBetweenSymptoms;
 		private float time;
 
 		public void Awake()
 		{
-			severityAndSymptoms = severityAndSymptoms.OrderByDescending(x => x.HealthPercentageAndBelow).Reverse().ToList();
+			severityAndSymptoms = InitialseverityAndSymptoms.OrderByDescending(x => x.HealthPercentageAndBelow).Reverse().ToList();
 		}
 
 		public override void ImplantPeriodicUpdate()
@@ -43,7 +44,7 @@ namespace HealthV2
 		}
 
 		[Serializable]
-		public struct SeverityAndSymptoms
+		public class SeverityAndSymptoms
 		{
 			public float HealthPercentageAndBelow;
 			//Could expand later on

@@ -1,34 +1,36 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Explosions
 {
 	public class TestExplosionScript : MonoBehaviour
 	{
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 		private RegisterObject registerObject;
 
 		private void Awake()
 		{
-			objectBehaviour = this.GetComponent<ObjectBehaviour>();
+			objectBehaviour = this.GetComponent<UniversalObjectPhysics>();
 			registerObject = this.GetComponent<RegisterObject>();
 		}
 
 		public float Strength = 9000;
 
-		[RightClickMethod]
+		[RightClickMethod, NaughtyAttributes.Button]
 		void StartExplosion()
 		{
 			if (registerObject == null)
 			{
-				Systems.Explosions.Explosion.StartExplosion(objectBehaviour.registerTile.WorldPositionServer, Strength);
+				Systems.Explosions.Explosion.StartExplosion(objectBehaviour.registerTile.WorldPositionServer, Strength, stunNearbyPlayers : true);
 			}
 			else
 			{
 				Explosion.StartExplosion(registerObject.WorldPositionServer, Strength);
 			}
-			//Logger.Log("RequestPulse!!" + Time.time);
+			//Loggy.Log("RequestPulse!!" + Time.time);
 		}
 	}
 }

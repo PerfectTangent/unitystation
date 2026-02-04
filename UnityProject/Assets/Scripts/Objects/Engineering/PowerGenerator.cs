@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AddressableReferences;
 using UnityEngine;
 using Mirror;
+using NaughtyAttributes;
 using Systems.Electricity;
 using Systems.Electricity.NodeModules;
 using Objects.Construction;
@@ -45,12 +46,28 @@ namespace Objects.Engineering
 
 		private string runLoopGUID = "";
 
+		public float frequency = 0.01666666f;
+
+		private float RandomFloatOffset = 0;
+
+		public float VoltageFluctuationPercentage = 0.25f;
+
+		public float NormalVoltage = 760000f;
+
+		public ItemStorage itemStorage;
+
+		private ModuleSupplyingDevice ModuleSupplyingDevice;
+
+		public bool IsOn => isOn;
+
 		private enum SpriteState
 		{
 			Unsecured = 0,
 			Off = 1,
 			On = 2
 		}
+
+		public float FuelAmount => fuelAmount;
 
 		#region Lifecycle
 
@@ -60,15 +77,17 @@ namespace Objects.Engineering
 			securable = GetComponent<WrenchSecurable>();
 			baseSpriteHandler = GetComponentInChildren<SpriteHandler>();
 			electricalNodeControl = GetComponent<ElectricalNodeControl>();
-			var itemStorage = GetComponent<ItemStorage>();
+			ModuleSupplyingDevice = GetComponent<ModuleSupplyingDevice>();
 			itemSlot = itemStorage.GetIndexedItemSlot(0);
 			securable.OnAnchoredChange.AddListener(OnSecuredChanged);
+			RandomFloatOffset = RNG.GetRandomNumber(0, 10);
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
 			if (startAsOn)
 			{
+				securable.objectBehaviour.SetIsNotPushable(true);
 				fuelAmount = fuelPerSheet;
 				TryToggleOn();
 			}
@@ -91,15 +110,20 @@ namespace Objects.Engineering
 		{
 			if (securable.IsAnchored)
 			{
-				baseSpriteHandler.ChangeSprite((int)SpriteState.Off);
+				baseSpriteHandler.SetCatalogueIndexSprite((int)SpriteState.Off);
 			}
 			else
 			{
 				ToggleOff();
-				baseSpriteHandler.ChangeSprite((int)SpriteState.Unsecured);
+				baseSpriteHandler.SetCatalogueIndexSprite((int)SpriteState.Unsecured);
 			}
 
 			ElectricalManager.Instance.electricalSync.StructureChange = true;
+		}
+
+		public float GetNormalizedSin()
+		{
+			return ((Mathf.Sin((Time.time + RandomFloatOffset) * frequency * Mathf.PI * 2f) + 1f) * 0.5f) -0.5f;
 		}
 
 		private void OnSyncState(bool oldState, bool newState)
@@ -110,11 +134,11 @@ namespace Objects.Engineering
 				baseSpriteHandler.PushTexture();
 				smokeParticles.Play();
 				runLoopGUID = Guid.NewGuid().ToString();
-				SoundManager.PlayAtPositionAttached(generatorRunSfx, registerTile.WorldPosition, gameObject, runLoopGUID);
+				SoundManager.ClientPlayAtPositionAttached(generatorRunSfx, registerTile.WorldPosition, gameObject, runLoopGUID);
 			}
 			else
 			{
-				SoundManager.Stop(runLoopGUID);
+				SoundManager.ClientStop(runLoopGUID, true);
 				smokeParticles.Stop();
 				_ = SoundManager.PlayAtPosition(generatorEndSfx, registerTile.WorldPosition, gameObject);
 			}
@@ -140,11 +164,11 @@ namespace Objects.Engineering
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.TargetObject != gameObject) return false;
 			if (interaction.HandObject == null) return true;
 			if (Validations.HasAnyTrait(interaction.HandObject, fuelTypes)) return true;
-			
+
 			return false;
 		}
 
@@ -199,6 +223,10 @@ namespace Objects.Engineering
 		private void UpdateMe()
 		{
 			fuelAmount -= Time.deltaTime * fuelConsumptionRate;
+			var Voltage = NormalVoltage - (VoltageFluctuationPercentage * NormalVoltage * GetNormalizedSin());
+			ModuleSupplyingDevice.SupplyingVoltage = Voltage;
+
+			ModuleSupplyingDevice.Maxcurrent = 0.06f;
 			if (fuelAmount <= 0)
 			{
 				ConsumeSheet();
@@ -236,20 +264,31 @@ namespace Objects.Engineering
 			return false;
 		}
 
-		private void ToggleOn()
+		public void ToggleOn()
 		{
-			UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
+			UpdateManager.Add( UpdateMe, 1);
 			electricalNodeControl.TurnOnSupply();
-			baseSpriteHandler.ChangeSprite((int)SpriteState.On);
+			baseSpriteHandler.SetCatalogueIndexSprite((int)SpriteState.On);
 			isOn = true;
 		}
 
 		private void ToggleOff()
 		{
-			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
 			electricalNodeControl.TurnOffSupply();
-			baseSpriteHandler.ChangeSprite((int)SpriteState.Off);
+			baseSpriteHandler.SetCatalogueIndexSprite((int)SpriteState.Off);
 			isOn = false;
+		}
+
+		public void SetFuel(float amount)
+		{
+			fuelAmount = amount;
+		}
+
+		[Button()]
+		public void DebugAddFuel()
+		{
+			SetFuel(fuelAmount + fuelPerSheet);
 		}
 	}
 }

@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using Chemistry;
-using UnityEngine;
+﻿using System.Collections.Generic;
 using Chemistry.Components;
+using HealthV2;
+using HealthV2.Living.PolymorphicSystems.Bodypart;
+using UnityEngine;
 
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class Stomach : BodyPartFunctionality
 	{
@@ -19,10 +18,21 @@ namespace HealthV2
 
 		public bool InitialFatSpawned = false;
 
+		public ReagentCirculatedComponent _ReagentCirculatedComponent;
+		public HungerComponent HungerComponent;
+
+
+		public override void Awake()
+		{
+			base.Awake();
+			_ReagentCirculatedComponent = this.GetComponentCustom<ReagentCirculatedComponent>();
+			HungerComponent = this.GetComponentCustom<HungerComponent>();
+		}
+
 		public override void ImplantPeriodicUpdate()
 		{
 			base.ImplantPeriodicUpdate();
-
+			if (!StomachContents) return;
 			//BloodContainer
 			if (StomachContents.ReagentMixTotal > 0)
 			{
@@ -33,16 +43,16 @@ namespace HealthV2
 				}
 				var Digesting = StomachContents.TakeReagents(ToDigest);
 
-				RelatedPart.HealthMaster.CirculatorySystem.BloodPool.Add(Digesting);
+				_ReagentCirculatedComponent.AssociatedSystem.BloodPool.Add(Digesting);
 			}
 
 			if (StomachContents.SpareCapacity < 15f) //Magic number
 			{
-				RelatedPart.HungerState = HungerState.Full;
+				HungerComponent.HungerState = HungerState.Full;
 			}
 			else
 			{
-				RelatedPart.HungerState = HungerState.Normal;
+				HungerComponent.HungerState = HungerState.Normal;
 			}
 
 			bool AllFat = true;
@@ -58,7 +68,7 @@ namespace HealthV2
 
 			if (AllFat)
 			{
-				var Added = Spawn.ServerPrefab(BodyFatToInstantiate.gameObject).GameObject.GetComponent<BodyFat>();
+				var Added = Spawn.ServerPrefab(BodyFatToInstantiate.gameObject, spawnManualContents: true).GameObject.GetComponent<BodyFat>();
 				Added.SetAbsorbedAmount(0);
 				Added.RelatedStomach = this;
 				BodyFats.Add(Added);
@@ -66,20 +76,24 @@ namespace HealthV2
 			}
 		}
 
-		public override void HealthMasterSet(LivingHealthMasterBase livingHealth)
+		public override void OnAddedToBody(LivingHealthMasterBase livingHealth)
 		{
-			if (InitialFatSpawned == false)
-			{
-				var Added = Spawn.ServerPrefab(BodyFatToInstantiate.gameObject).GameObject.GetComponent<BodyFat>();
-				BodyFats.Add(Added);
-				Added.RelatedStomach = this;
-				RelatedPart.OrganStorage.ServerTryAdd(Added.gameObject);
-			}
+			AddFat();
 		}
 
-		public override void RemovedFromBody(LivingHealthMasterBase livingHealth)
+		public void AddFat()
 		{
-			base.RemovedFromBody(livingHealth);
+			if (InitialFatSpawned) return;
+			InitialFatSpawned = true;
+			var Added = Spawn.ServerPrefab(BodyFatToInstantiate.gameObject).GameObject.GetComponent<BodyFat>();
+			BodyFats.Add(Added);
+			Added.RelatedStomach = this;
+			RelatedPart.ContainedIn.OrganStorage.ServerTryAdd(Added.gameObject);
+		}
+
+		public override void OnRemovedFromBody(LivingHealthMasterBase livingHealth, GameObject source = null)
+		{
+			base.OnRemovedFromBody(livingHealth);
 			BodyFats.Clear();
 		}
 	}

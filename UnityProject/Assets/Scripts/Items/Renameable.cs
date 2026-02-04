@@ -1,8 +1,10 @@
+using Core;
 using Items;
 using Messages.Server;
 using Mirror;
 using UnityEngine;
 using WebSocketSharp;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 public class Renameable : NetworkBehaviour, ICheckedInteractable<HandActivate>, IRightClickable
 {
@@ -52,9 +54,9 @@ public class Renameable : NetworkBehaviour, ICheckedInteractable<HandActivate>, 
 
 	public bool WillInteract(HandActivate interaction, NetworkSide side)
 	{
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-		var cnt = GetComponent<CustomNetTransform>();
+		var uop = GetComponent<UniversalObjectPhysics>();
 		var ps = interaction.Performer.GetComponent<PlayerScript>();
 		var pna = interaction.Performer.GetComponent<PlayerNetworkActions>();
 
@@ -63,7 +65,7 @@ public class Renameable : NetworkBehaviour, ICheckedInteractable<HandActivate>, 
 			return true;
 		}
 
-		if (!ps.IsRegisterTileReachable(cnt.RegisterTile, side == NetworkSide.Server))
+		if (!ps.IsRegisterTileReachable(uop.registerTile, side == NetworkSide.Server))
 		{
 
 			return false;

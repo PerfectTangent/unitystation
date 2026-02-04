@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Logs;
+using UI.Core;
 using UnityEngine;
 
 [RequireComponent(typeof(SpriteRenderer))]
@@ -121,17 +121,18 @@ public class LightEmissionBehaviour : MonoBehaviour
 
 		if (iRoot == null)
 		{
-			Logger.LogError("LightEmissionBehaviour: UInitialization require valid parent.", Category.Lighting);
+			Loggy.Error("LightEmissionBehaviour: UInitialization require valid parent.", Category.Lighting);
 			return;
 		}
 
 		if (iEmissionMaterial == null)
 		{
-			Logger.LogError("LightEmissionBehaviour: UInitialization require assigned emission material.", Category.Lighting);
+			Loggy.Error("LightEmissionBehaviour: UInitialization require assigned emission material.", Category.Lighting);
 			return;
 		}
 
 		oGameObject = new GameObject("Emission Renderer");
+		oGameObject.AddComponent<MapSaverIgnoreObject>();
 		oGameObject.transform.parent = iRoot.transform;
 		oGameObject.transform.localPosition = Vector3.zero;
 		oGameObject.transform.localEulerAngles = Vector3.zero;

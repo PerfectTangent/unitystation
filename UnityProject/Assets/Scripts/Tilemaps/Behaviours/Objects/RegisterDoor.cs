@@ -2,7 +2,9 @@
 using UnityEngine;
 using Core.Editor.Attributes;
 using Doors;
+using Mirror;
 using Systems.Interaction;
+using Util;
 
 
 	[RequireComponent(typeof(Integrity))]
@@ -10,19 +12,18 @@ using Systems.Interaction;
 	[ExecuteInEditMode]
 	public class RegisterDoor : RegisterTile
 	{
-		private SubsystemManager subsystemManager;
-		private SubsystemManager SubsystemManager => subsystemManager ? subsystemManager : subsystemManager = GetComponentInParent<SubsystemManager>();
+		private MatrixSystemManager subsystemManager;
+		public MatrixSystemManager SubsystemManager => subsystemManager ? subsystemManager : subsystemManager = GetComponentInParent<MatrixSystemManager>();
 
 		private TileChangeManager tileChangeManager;
 
-		[NonSerialized]
-		public InteractableDoor InteractableDoor;
+		private CheckedComponent<Rotatable> rotatableChecked = new CheckedComponent<Rotatable>();
+		public CheckedComponent<Rotatable> RotatableChecked => rotatableChecked;
 
-		[PrefabModeOnly]
 		public bool OneDirectionRestricted;
 
-		[SerializeField]
-		private bool isClosed = true;
+		[SyncVar]
+		public bool isClosed = true;
 
 		public bool IsClosed
 		{
@@ -45,9 +46,8 @@ using Systems.Interaction;
 			base.Awake();
 			GetComponent<Integrity>().OnWillDestroyServer.AddListener(OnWillDestroyServer);
 			//Doors/airlocks aren't supposed to switch matrices
-			GetComponent<CustomNetTransform>().IsFixedMatrix = true;
 			tileChangeManager = GetComponentInParent<TileChangeManager>();
-			InteractableDoor = this.GetComponent<InteractableDoor>();
+			rotatableChecked.ResetComponent(this);
 		}
 
 		public override void OnDespawnServer(DespawnInfo info)
@@ -74,21 +74,7 @@ using Systems.Interaction;
 		{
 			if (OneDirectionRestricted)
 			{
-				// OneDirectionRestricted is hardcoded to only be from the negative y position
-				Vector3Int v = Vector3Int.RoundToInt(transform.localRotation * Vector3.down);
-
-				// Returns false if player is bumping door from the restricted direction
-				var position = isServer? LocalPositionServer : LocalPositionClient;
-				var direction = reachingFrom - position;
-
-				//Use Directional component if it exists
-				var tryGetDir = GetComponent<Rotatable>();
-				if (tryGetDir != null)
-				{
-					return CheckViaDirectional(tryGetDir, direction);
-				}
-
-				return !direction.y.Equals(v.y) || !direction.x.Equals(v.x);
+				return DirectionCheck(reachingFrom, isServer);
 			}
 
 			return true;
@@ -98,30 +84,16 @@ using Systems.Interaction;
 		{
 			if (isClosed && OneDirectionRestricted)
 			{
-
-				// OneDirectionRestricted is hardcoded to only be from the negative y position
-				Vector3Int v = Vector3Int.RoundToInt(transform.localRotation * Vector3.down);
-
-				// Returns false if player is bumping door from the restricted direction
-				var position = isServer? LocalPositionServer : LocalPositionClient;
-				var direction = leavingTo - position;
-
-				//Use Directional component if it exists
-				var tryGetDir = GetComponent<Rotatable>();
-				if (tryGetDir != null)
-				{
-					return CheckViaDirectional(tryGetDir, direction);
-				}
-
-				return !direction.y.Equals(v.y) || !direction.x.Equals(v.x);
+				return DirectionCheck(leavingTo, isServer);
 			}
 
-			return !isClosed;
+			return true; //Should be able to walk out of closed doors
 		}
 
 		bool CheckViaDirectional(Rotatable directional, Vector3Int dir)
 		{
 			var dir2Int = dir.To2Int();
+
 			switch (directional.CurrentDirection)
 			{
 				case OrientationEnum.Down_By180:
@@ -141,10 +113,14 @@ using Systems.Interaction;
 			return true;
 		}
 
-		public override bool IsPassableFromOutside( Vector3Int from, bool isServer, GameObject context = null)
+		public override bool IsPassableFromOutside(Vector3Int from, bool isServer, GameObject context = null)
 		{
-			// Entering and leaving is the same check
-			return IsPassableFromInside( from, isServer );
+			if (isClosed && OneDirectionRestricted)
+			{
+				return DirectionCheck(from, isServer);
+			}
+
+			return !isClosed;
 		}
 
 		public override bool IsPassable(bool isServer, GameObject context = null)
@@ -156,16 +132,30 @@ using Systems.Interaction;
 		{
 			if (isClosed && OneDirectionRestricted)
 			{
-				// OneDirectionRestricted is hardcoded to only be from the negative y position
-				Vector3Int v = Vector3Int.RoundToInt(transform.localRotation * Vector3.down);
-
-				// Returns false if player is bumping door from the restricted direction
-				var position = isServer? LocalPositionServer : LocalPositionClient;
-				var direction = from - position;
-				return !direction.y.Equals(v.y) || !direction.x.Equals(v.x);
+				return DirectionCheck(from, isServer);
 			}
 
 			return !isClosed;
 		}
 
+		/// <summary>
+		/// DirectionEnum only valid for objects with rotatable
+		/// </summary>
+		public bool DirectionCheck(Vector3Int from, bool isServer)
+		{
+			//Returns false if player is bumping door from the restricted direction
+			var position = isServer ? LocalPositionServer : LocalPositionClient;
+			var direction = from - position;
+
+			//Use Directional component if it exists
+			if (rotatableChecked.HasComponent)
+			{
+				return CheckViaDirectional(rotatableChecked.Component, direction);
+			}
+
+			//OneDirectionRestricted is hardcoded to only be from the negative y position
+			Vector3Int v = Vector3Int.RoundToInt(transform.localRotation * Vector3.down);
+
+			return !direction.y.Equals(v.y) || !direction.x.Equals(v.x);
+		}
 	}

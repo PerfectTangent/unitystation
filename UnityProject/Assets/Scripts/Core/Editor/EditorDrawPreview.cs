@@ -1,207 +1,390 @@
-﻿using System;
+﻿#if UNITY_EDITOR
 using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-#if UNITY_EDITOR
+using System.Reflection;
+using Logs;
 using UnityEditor;
+using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEditor;
+using System;
+using System.Diagnostics;
+using System.Reflection;
+using Object = UnityEngine.Object;
 
-[InitializeOnLoad]
-public class MyProjectViewExtentions
+
+
+[CustomEditor(typeof(SpriteDataSO), true)]
+[CanEditMultipleObjects]
+public class MyObjectEditor : Editor
 {
-	public static int FrameLoops = 3;
-
-	static MyProjectViewExtentions()
+	[InitializeOnLoad]
+	public class EditorDrawPreview
 	{
-		EditorApplication.projectWindowItemOnGUI += DrawProjectItem;
-	}
-
-	public static Dictionary<string, DatabaseEntry> Dictionaryguid = new Dictionary<string, DatabaseEntry>();
-
-	public class DatabaseEntry
-	{
-		public DatabaseEntry(SpriteDataSO _spriteDataSO,
-			Texture2D _generatedTexture2D,
-			SpriteDataSO.Frame _PresentFrame)
+		static EditorDrawPreview()
 		{
-			spriteDataSO = _spriteDataSO;
-			Textdict = new Dictionary<SpriteDataSO.Frame, Texture2D> {[_PresentFrame] = _generatedTexture2D};
-			TimeSet = DateTime.Now;
-			PresentFrame = _PresentFrame;
+			EditorApplication.projectWindowItemOnGUI -= DrawProjectItem;
+			EditorApplication.projectWindowItemOnGUI += DrawProjectItem;
 		}
-
-		public System.DateTime TimeSet;
-		public int Variant = 0;
-		public int Frame = 0;
-		public int FrameLoop = 0;
-		public SpriteDataSO spriteDataSO;
-		public SpriteDataSO.Frame PresentFrame;
-		public Dictionary<SpriteDataSO.Frame, Texture2D> Textdict;
 	}
+
+
+	private static readonly Dictionary<string, SpriteDataSO> guidToSpriteDataSO = new();
+
+	public static HashSet<string> guidIsSprite = new();
+	public static HashSet<string> guidIsProcessed = new();
 
 	private static void DrawProjectItem(string guid, Rect selectionRect)
 	{
-		var sTing = AssetDatabase.GUIDToAssetPath(guid);
-		if (sTing.Contains(".asset"))
+
+		if (TryGetSpriteData(guid, out var spriteData) == false) return;
+
+		var sprite = spriteData.CurrentSprite;
+		if (sprite == null) return;
+
+		var texture = sprite.texture;
+
+		if (texture.isReadable == false)
 		{
-			Texture2D mainTex;
-			if (Dictionaryguid.ContainsKey(guid))
+			Loggy.Error($"Sprite \"{sprite.name}\" is not read/write enabled. Please enable " +
+						  "Read/Write in the texture's import settings.", Category.Editor);
+			return;
+		}
+
+		bool canDrawPreview = false;
+		var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+		var asset = AssetDatabase.LoadMainAssetAtPath(assetPath);
+
+		var prefabStage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+		if (prefabStage != null && prefabStage.prefabContentsRoot == asset)
+		{
+			canDrawPreview = true;
+		}
+		if (Selection.activeObject == asset)
+		{
+			canDrawPreview = true;
+		}
+		if (!canDrawPreview) return;
+
+		selectionRect.height = selectionRect.width; // Exclude text description
+		var spriteRect = sprite.rect;
+		var x = spriteRect.x / texture.width;
+		var y = spriteRect.y / texture.height;
+		var width = spriteRect.width / texture.width;
+		var height = spriteRect.height / texture.height;
+		var textureRect = new Rect(x, y, width, height);
+		var iconRect = GetIconRect(sprite, selectionRect);
+
+
+
+		GUI.DrawTexture(selectionRect, BlankTexture, ScaleMode.StretchToFill, false);
+		GUI.DrawTextureWithTexCoords(iconRect, texture, textureRect);
+
+	}
+
+	/// <summary>
+	/// Tries to get the sprite data entry for a GUID. Returns false if the GUID is not of a SpriteDataSO type. In the
+	/// event that the sprite data could not be loaded, this will still return true but with an empty entry where the
+	/// sprite data is null.
+	/// </summary>
+	private static bool TryGetSpriteData(string guid, out SpriteDataEntry entry)
+	{
+		entry = null;
+		if (guidIsSprite.Contains(guid) == false)
+		{
+			if (RNG.GetRandomNumber(1, 100) > 2) return false;
+			if (guidIsProcessed.Contains(guid)) return false;
+
+			var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+			var assetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+
+			if (assetType != typeof(SpriteDataSO))
 			{
-				mainTex = GetCorrectTexture(Dictionaryguid[guid]);
-
-				if (mainTex == null)
-				{
-					Logger.LogError($"Sprite SO {sTing} has null value");
-				}
+				guidIsProcessed.Add(guid);
+				return false;
 			}
-			else
+
+			var data = AssetDatabase.LoadAssetAtPath<SpriteDataSO>(assetPath);
+
+			if (data == null)
 			{
-				var spriteDataSO = AssetDatabase.LoadAssetAtPath<SpriteDataSO>(sTing);
-
-				if (spriteDataSO == null) return;
-				if (spriteDataSO.Variance.Count <= 0 || spriteDataSO.Variance[0].Frames.Count <= 0 ||
-				    spriteDataSO.Variance[0].Frames[0].sprite == null) return;
-				TextureImporter importer =
-					AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(spriteDataSO.Variance[0].Frames[0].sprite)) as
-						TextureImporter;
-				if (importer.isReadable == false)
-				{
-					Logger.Log("hey, Texture read and write is not enabled for this Sprite " +
-					           spriteDataSO.Variance[0].Frames[0].sprite +
-					           "Please update the values on the import settings to make it Read and write", Category.Editor);
-					return;
-				}
-
-				mainTex = CopySprite(GenerateNewTexture2D(), spriteDataSO.Variance[0].Frames[0].sprite);
-				var DBin = new DatabaseEntry(spriteDataSO, mainTex, spriteDataSO.Variance[0].Frames[0]);
-				Dictionaryguid[guid] = DBin;
+				// An empty entry will be added so we don't get spammed with the same message.
+				entry = SpriteDataEntry.Empty;
+				Loggy.Warning($"Could not load {nameof(SpriteDataSO)} at \"{assetPath}\". " +
+								 "Unable to render the sprite in the asset viewer.", Category.Editor);
 			}
 
-			selectionRect.height = selectionRect.width;
-			Texture2D icon = mainTex;
-			if (icon != null)
+			if (data.SpriteDataEntry == null)
 			{
-				GUI.DrawTexture(selectionRect, icon);
+				data.SpriteDataEntry = new MyObjectEditor.SpriteDataEntry(data);
 			}
+			guidIsSprite.Add(guid);
+			guidToSpriteDataSO.Add(guid, data);
+			entry = (SpriteDataEntry) data.SpriteDataEntry;
+			return true;
+		}
+		if (guidToSpriteDataSO.TryGetValue(guid, out var dataEntry))
+		{
+			entry = (SpriteDataEntry) dataEntry.SpriteDataEntry;
+			return true;
+		}
+
+		return false;
+	}
+
+	public override Texture2D RenderStaticPreview(string assetPath, Object[] subAssets, int width, int height)
+	{
+		// Get the GUID of the target asset
+		string guid = AssetDatabase.AssetPathToGUID(assetPath);
+		guidIsSprite.Add(guid);
+
+		var so = (SpriteDataSO) target;
+		guidToSpriteDataSO[guid] = so;
+
+		if (so.SpriteDataEntry == null)
+		{
+			so.SpriteDataEntry = new MyObjectEditor.SpriteDataEntry(so);
+		}
+
+		var spriteData = (MyObjectEditor.SpriteDataEntry) so.SpriteDataEntry;
+		var sprite = spriteData.CurrentSprite;
+
+		if (sprite == null) return null;
+
+		var texture = sprite.texture;
+
+		if (texture.isReadable == false)
+		{
+			Loggy.Error($"Sprite \"{sprite.name}\" is not read/write enabled. Please enable " +
+						   "Read/Write in the texture's import settings.", Category.Editor);
+			return null;
+		}
+
+
+		Type t = GetType("UnityEditor.SpriteUtility");
+		if (t != null)
+		{
+			MethodInfo method = t.GetMethod("RenderStaticPreview",
+				new Type[] {typeof(Sprite), typeof(Color), typeof(int), typeof(int)});
+
+			if (method != null)
+
+			{
+				object ret = method.Invoke("RenderStaticPreview",
+					new object[] {sprite, Color.white, width, height});
+
+				if (ret is Texture2D)
+					return ret as Texture2D;
+			}
+		}
+
+
+		return base.RenderStaticPreview(assetPath, subAssets, width, height);
+	}
+
+
+	private static Type GetType(string TypeName)
+
+	{
+		var type = Type.GetType(TypeName);
+
+		if (type != null)
+
+			return type;
+
+
+		if (TypeName.Contains("."))
+		{
+			var assemblyName = TypeName.Substring(0, TypeName.IndexOf('.'));
+
+			var assembly = Assembly.Load(assemblyName);
+
+			if (assembly == null)
+				return null;
+
+			type = assembly.GetType(TypeName);
+
+			if (type != null)
+				return type;
+		}
+
+
+		var currentAssembly = Assembly.GetExecutingAssembly();
+
+		var referencedAssemblies = currentAssembly.GetReferencedAssemblies();
+
+		foreach (var assemblyName in referencedAssemblies)
+
+		{
+			var assembly = Assembly.Load(assemblyName);
+
+			if (assembly != null)
+
+			{
+				type = assembly.GetType(TypeName);
+
+				if (type != null)
+
+					return type;
+			}
+		}
+
+		return null;
+	}
+
+	public override bool HasPreviewGUI() => true;
+
+	// This method is called to draw a custom GUI for asset previews in the Project view.
+	public override void OnPreviewGUI(Rect r, GUIStyle background)
+	{
+		var so = (SpriteDataSO) target;
+		if (so.SpriteDataEntry == null)
+		{
+			so.SpriteDataEntry = new SpriteDataEntry(so);
+		}
+		string guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target));
+		guidIsSprite.Add(guid);
+		guidToSpriteDataSO[guid] = so;
+
+		var spriteData = (SpriteDataEntry) so.SpriteDataEntry;
+		var sprite = spriteData.CurrentSprite;
+
+		if (sprite == null) return;
+
+		var texture = sprite.texture;
+
+		if (texture.isReadable == false)
+		{
+			Loggy.Error($"Sprite \"{sprite.name}\" is not read/write enabled. Please enable " +
+						   "Read/Write in the texture's import settings.", Category.Editor);
+			return;
+		}
+
+		r.height = r.width; // Exclude text description
+		var spriteRect = sprite.rect;
+		var x = spriteRect.x / texture.width;
+		var y = spriteRect.y / texture.height;
+		var width = spriteRect.width / texture.width;
+		var height = spriteRect.height / texture.height;
+		var textureRect = new Rect(x, y, width, height);
+		var iconRect = GetIconRect(sprite, r);
+
+		GUI.DrawTexture(r, BlankTexture, ScaleMode.StretchToFill, false);
+		GUI.DrawTextureWithTexCoords(iconRect, texture, textureRect);
+	}
+
+	public class SpriteDataEntry
+	{
+		public static readonly SpriteDataEntry Empty = new(null);
+
+		private SpriteDataSO SpriteData { get; }
+
+		private int VariantIndex { get; set; }
+
+		private int FrameIndex { get; set; }
+
+		private SpriteDataSO.Frame CurrentFrame { get; set; }
+
+		private double NextUpdate { get; set; } = EditorApplication.timeSinceStartup;
+
+		public Sprite CurrentSprite
+		{
+			get
+			{
+				if (SpriteData == null) return null;
+
+				UpdateFrame();
+
+				return CurrentFrame?.sprite;
+			}
+		}
+
+		public SpriteDataEntry(SpriteDataSO spriteData) => SpriteData = spriteData;
+
+		private void UpdateFrame()
+		{
+			if (SpriteData == null || SpriteData.Variance.Count == 0) return;
+
+			var timeSinceStartup = EditorApplication.timeSinceStartup;
+
+			if (NextUpdate >= timeSinceStartup) return;
+
+			var variants = SpriteData.Variance;
+
+			if (VariantIndex >= variants.Count)
+			{
+				VariantIndex = 0;
+			}
+
+			FrameIndex++;
+			if (FrameIndex >= variants[VariantIndex].Frames.Count)
+			{
+				FrameIndex = 0;
+				VariantIndex++;
+			}
+
+			if (VariantIndex >= variants.Count)
+			{
+				VariantIndex = 0;
+			}
+
+			var frames = variants[VariantIndex].Frames;
+
+			// In the off chance the selected variant doesn't have frames, skip now and it will move to the next variant later
+			if (frames.Count == 0) return;
+
+			CurrentFrame = frames[FrameIndex];
+			var delay = CurrentFrame.secondDelay;
+			delay = delay <= 0 ? 1f : delay;
+			NextUpdate = timeSinceStartup + delay;
 		}
 	}
 
-	public static Texture2D GetCorrectTexture(DatabaseEntry Db)
+	private static Texture2D blankTexture;
+
+	/// <summary>
+	/// The basic dark grey background to use for the icons.
+	/// </summary>
+	private static Texture2D BlankTexture
 	{
-		var SO = Db.spriteDataSO;
-		var timeElapsed = ((DateTime.Now - Db.TimeSet).Milliseconds / 1000f);
-
-		if (timeElapsed >= Db.PresentFrame.secondDelay)
+		get
 		{
-			Db.Frame++;
-			Db.TimeSet = SO.Variance[Db.Variant].Frames.Count == 1 ? DateTime.Now.AddSeconds(1) : DateTime.Now;
+			if (blankTexture != null) return blankTexture;
 
-			if (Db.Frame >= SO.Variance[Db.Variant].Frames.Count)
-			{
-				Db.Frame = 0;
-				Db.FrameLoop++;
-			}
+			// Can't create assets within InitializeOnLoad static constructors which is why it's created here.
+			blankTexture = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+			blankTexture.SetPixel(0, 0, new Color32(30, 30, 30, 255));
+			blankTexture.Apply();
 
-			if (Db.FrameLoop > FrameLoops)
-			{
-				Db.FrameLoop = 0;
-				Db.Variant++;
-				if (SO.Variance.Count > Db.Variant == false)
-				{
-					Db.Variant = 0;
-				}
-			}
-
-			if (Db.Frame >= SO.Variance[Db.Variant].Frames.Count)
-			{
-				Db.Frame = 0;
-			}
-
-			Db.PresentFrame = SO.Variance[Db.Variant].Frames[Db.Frame];
-			if (Db.Textdict.ContainsKey(Db.PresentFrame) == false)
-			{
-				Db.Textdict[Db.PresentFrame] = CopySprite(GenerateNewTexture2D(), Db.PresentFrame.sprite);
-			}
+			return blankTexture;
 		}
-
-		return Db.Textdict.TryGetValue(Db.PresentFrame, out var frame) ? frame : null;
 	}
 
-	public static Texture2D GetSpriteRenderer(GameObject GameO)
-	{
-		var SRs = GameO.GetComponentsInChildren<SpriteRenderer>();
-		if (SRs.Length == 0) return null;
-		var T2D = GenerateNewTexture2D();
-		foreach (var SR in SRs)
-		{
-			if (SR.enabled && SR.sprite != null)
-			{
-				TextureImporter importer =
-					AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(SR.sprite)) as TextureImporter;
-				if (importer.isReadable == false)
-				{
-					Logger.Log("hey, Texture read and write is not enabled for this Sprite " + SR.sprite +
-					           "Please update the values on the import settings to make it Read and write", Category.Editor);
-					return T2D;
-				}
 
-				T2D = CopySprite(T2D, SR.sprite);
-			}
+	private static Rect GetIconRect(Sprite sprite, Rect selectionRect)
+	{
+		var x = selectionRect.x;
+		var y = selectionRect.y;
+		var width = selectionRect.width;
+		var height = selectionRect.height;
+		var spriteRect = sprite.rect;
+
+		// Adjust the icon rect parameters to match the aspect ratio of the sprite
+		if (spriteRect.height > spriteRect.width)
+		{
+			var ratio = spriteRect.width / spriteRect.height;
+			x += (1f - ratio) * (width * 0.5f);
+			width *= ratio;
+		}
+		else
+		{
+			var ratio = spriteRect.height / spriteRect.width;
+			y += (1f - ratio) * (height * 0.5f);
+			height *= ratio;
 		}
 
-		return T2D;
-	}
-
-	public static Texture2D GenerateNewTexture2D()
-	{
-		var mainTex = new Texture2D(32, 32, TextureFormat.ARGB32, false);
-		mainTex.filterMode = FilterMode.Point;
-		mainTex.alphaIsTransparency = true;
-		Unity.Collections.NativeArray<Color32> data = mainTex.GetRawTextureData<Color32>();
-		for (int xy = 0; xy < data.Length; xy++)
-		{
-			data[xy] = new Color32(30, 30, 30, 255);
-			//data[xy] = new Color(0.15f, 0.15f, 0.15f, 1f);
-		}
-
-		mainTex.Apply();
-		return mainTex;
-	}
-
-	public static Texture2D CopySprite(Texture2D mainTex, Sprite NewSprite)
-	{
-		int xx = 0;
-		int yy = 0;
-
-
-		for (int x = (int) NewSprite.textureRect.position.x;
-			x < (int) NewSprite.textureRect.position.x + NewSprite.rect.width;
-			x++)
-		{
-			for (int y = (int) NewSprite.textureRect.position.y;
-				y < NewSprite.textureRect.position.y + NewSprite.rect.height;
-				y++)
-			{
-				var Pix = NewSprite.texture.GetPixel(x, y);
-				if (Pix.a > 0f)
-				{
-					//Logger.Log(yy + " <XX YY> " + xx + "   " +  x + " <X Y> " + y  );
-					mainTex.SetPixel(xx, yy, Pix);
-				}
-				else
-				{
-					mainTex.SetPixel(xx, yy, new Color32(30, 30, 30, 255));
-				}
-
-				yy = yy + 1;
-			}
-
-			yy = 0;
-			xx = xx + 1;
-		}
-
-		mainTex.Apply();
-
-		return mainTex;
+		return new Rect(x, y, width, height);
 	}
 }
 #endif

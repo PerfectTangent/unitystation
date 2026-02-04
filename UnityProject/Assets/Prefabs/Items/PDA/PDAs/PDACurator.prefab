@@ -5,11 +5,12 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -3362057103415789642, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: a711c82548e398d48bb7ac3699a1e72b,
         type: 2}
@@ -23,6 +24,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_IsActive
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 204617978919461267, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
+        type: 3}
+      propertyPath: _assetId
+      value: 3523764524
       objectReference: {fileID: 0}
     - target: {fileID: 204617978919461267, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
         type: 3}
@@ -154,6 +160,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 2a56cb5958e85af4798c4a7ec9b1d541,
         type: 2}
+    - target: {fileID: 6198316859901323168, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 2a56cb5958e85af4798c4a7ec9b1d541,
+        type: 2}
+    - target: {fileID: 6627185989526917194, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
+        type: 3}
+      propertyPath: parentID
+      value: 49b38681833f4d74ba6d4ab654a5d8cf
+      objectReference: {fileID: 0}
     - target: {fileID: 6627185989526917194, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
         type: 3}
       propertyPath: foreverID
@@ -175,10 +192,19 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 0ef921a2dc7303542af7e7f12fc5fe7f,
         type: 2}
+    - target: {fileID: 8656094623363462661, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 0ef921a2dc7303542af7e7f12fc5fe7f,
+        type: 2}
     - target: {fileID: 8868935868210309097, guid: 49b38681833f4d74ba6d4ab654a5d8cf,
         type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 49b38681833f4d74ba6d4ab654a5d8cf, type: 3}

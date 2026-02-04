@@ -41,15 +41,15 @@ namespace Items.Others
 			Chat.AddExamineMsgFromServer(userPlayer, $"The {gameObject.ExpensiveName()} sends out a reinforcement request!");
 		}
 
-		private void SpawnReinforcement(ConnectedPlayer player)
+		private void SpawnReinforcement(PlayerInfo player)
 		{
-			player.Script.playerNetworkActions.ServerRespawnPlayerAntag(player, "Nuclear Operative");
+			player.Script.PlayerNetworkActions.ServerRespawnPlayerAntag(player, "Nuclear Operative");
 			Chat.AddExamineMsgFromServer(userPlayer, $"The {gameObject.ExpensiveName()} lets out a chime, reinforcement found!");
 			WasUsed = true;
 			StartCoroutine(TeleportOnSpawn(player));
 		}
 
-		private IEnumerator TeleportOnSpawn(ConnectedPlayer player)
+		private IEnumerator TeleportOnSpawn(PlayerInfo player)
 		{
 			// Waits until the player is no longer a ghost...
 			while (player.Script.IsGhost)
@@ -57,7 +57,7 @@ namespace Items.Others
 				yield return WaitFor.EndOfFrame;
 			}
 
-			player.Script.PlayerSync.SetPosition(gameObject.AssumedWorldPosServer(), true);
+			player.Script.PlayerSync.AppearAtWorldPositionServer(gameObject.AssumedWorldPosServer(), false);
 		}
 
 		public void ClearGhostRole()

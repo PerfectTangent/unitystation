@@ -94,9 +94,9 @@ namespace Objects.Kitchen
 
 		private RegisterTile registerTile;
 		private SpriteHandler spriteHandler;
-		private ItemStorage storage;
+		public ItemStorage storage;
 		private APCPoweredDevice poweredDevice;
-		private readonly Dictionary<ItemSlot, Cookable> storedCookables = new Dictionary<ItemSlot, Cookable>();
+		private readonly Dictionary<ItemSlot, ItemSlot> storedCookables = new Dictionary<ItemSlot, ItemSlot>();
 
 		[SyncVar(hook = nameof(OnSyncPlayAudioLoop))]
 		private bool playAudioLoop;
@@ -137,7 +137,6 @@ namespace Objects.Kitchen
 		{
 			registerTile = GetComponent<RegisterTile>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
-			storage = GetComponent<ItemStorage>();
 			poweredDevice = GetComponent<APCPoweredDevice>();
 
 			SetState(new MicrowaveUnpowered(this));
@@ -250,11 +249,11 @@ namespace Objects.Kitchen
 
 			if (storageSlot.ItemObject.TryGetComponent(out Cookable cookable) && cookable.CookableBy.HasFlag(CookSource.Microwave))
 			{
-				storedCookables.Add(storageSlot, cookable);
+				storedCookables.Add(storageSlot, storageSlot);
 			}
 			else
 			{
-				contaminantModifier += 0.02f;
+				contaminantModifier += 0.002f;
 			}
 
 			Chat.AddActionMsgToChat(
@@ -320,26 +319,11 @@ namespace Objects.Kitchen
 			for (int i = storedCookables.Count - 1; i >= 0; i--)
 			{
 				var slot = storedCookables.Keys.ElementAt(i);
-				var cookable = storedCookables[slot];
+				var cookable = storedCookables[slot].Item.GetComponent<Cookable>();
 
-				// True if the item's total cooking time exceeds the item's minimum cooking time.
-				if (cookable.AddCookingTime(cookTime))
-				{
-					// Swap item for its cooked version, if applicable.
-					if (cookable.CookedProduct == null) return;
 
-					_ = Despawn.ServerSingle(cookable.gameObject);
-					GameObject cookedItem = Spawn.ServerPrefab(cookable.CookedProduct).GameObject;
-					Inventory.ServerAdd(cookedItem, slot);
-					if (cookedItem.TryGetComponent(out cookable))
-					{
-						storedCookables[slot] = cookable;
-					}
-					else
-					{
-						storedCookables.Remove(slot);
-					}
-				}
+				cookable.AddCookingTime(cookTime);
+
 			}
 		}
 
@@ -354,12 +338,12 @@ namespace Objects.Kitchen
 
 		public void DirtyMicrowave()
 		{
-			spriteHandler.ChangeSpriteVariant(1);
+			spriteHandler.SetSpriteVariant(1);
 		}
 
 		public void CleanMicrowave()
 		{
-			spriteHandler.ChangeSpriteVariant(0);
+			spriteHandler.SetSpriteVariant(0);
 		}
 
 		private void OnSyncPlayAudioLoop(bool oldState, bool newState)
@@ -370,7 +354,7 @@ namespace Objects.Kitchen
 			}
 			else
 			{
-				SoundManager.Stop(runLoopGUID);
+				SoundManager.ClientStop(runLoopGUID, true);
 			}
 		}
 
@@ -395,28 +379,27 @@ namespace Objects.Kitchen
 			if (playAudioLoop)
 			{
 				runLoopGUID = Guid.NewGuid().ToString();
-				SoundManager.PlayAtPositionAttached(RunningAudio, registerTile.WorldPosition, gameObject, runLoopGUID,
-						audioSourceParameters: new AudioSourceParameters(pitch: voltageModifier));
+				SoundManager.ClientPlayAtPositionAttached(RunningAudio, registerTile.WorldPosition, gameObject, runLoopGUID,
+						audioSourceParameters: new AudioSourceParameters(pitch: voltageModifier, loops: transform));
 			}
 		}
 
 		#region IRefreshParts
 
-		public void RefreshParts(IDictionary<GameObject, int> partsInFrame)
+		public void RefreshParts(List<PartReference> partsInFrame, Machine Frame)
 		{
 			// Get the machine stock parts used in this instance and get the tier of each part.
 			// Collection is unorganized so run through the whole list.
-			foreach (GameObject part in partsInFrame.Keys)
+			foreach (var part in partsInFrame)
 			{
-				ItemAttributesV2 partAttributes = part.GetComponent<ItemAttributesV2>();
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MicroLaser))
+				if (part.itemTrait == MachinePartsItemTraits.Instance.MicroLaser)
 				{
-					laserTier = part.GetComponent<StockTier>().Tier;
+					laserTier = part.tier;
 				}
 
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MatterBin))
+				if (part.itemTrait ==  MachinePartsItemTraits.Instance.MatterBin)
 				{
-					int binTier = part.GetComponent<StockTier>().Tier;
+					int binTier = laserTier = part.tier;
 
 					// Decide ItemStorageStructure based on tier. Currently: slot size == matter bin tier.
 					storage.AcceptNewStructure(TierStorage[binTier - 1]);
@@ -468,7 +451,7 @@ namespace Objects.Kitchen
 			{
 				this.microwave = microwave;
 				StateMsgForExamine = "idle";
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.Idle);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Idle);
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, true);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, false);
 				microwave.HaltMicrowave();
@@ -507,7 +490,7 @@ namespace Objects.Kitchen
 			{
 				this.microwave = microwave;
 				StateMsgForExamine = "open";
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.Open);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Open);
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, true);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, true);
 				microwave.HaltMicrowave();
@@ -546,7 +529,7 @@ namespace Objects.Kitchen
 				StateMsgForExamine = "running";
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, true);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, true);
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.Running);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Running);
 				microwave.SetWattage(microwave.circuitWattage + microwave.ovenBulbWattage + microwave.magnetronWattage);
 			}
 
@@ -581,7 +564,7 @@ namespace Objects.Kitchen
 			{
 				this.microwave = microwave;
 				StateMsgForExamine = "unpowered";
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.Unpowered);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Unpowered);
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, false);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, false);
 				microwave.HaltMicrowave();
@@ -613,7 +596,7 @@ namespace Objects.Kitchen
 			{
 				this.microwave = microwave;
 				StateMsgForExamine = "unpowered and open";
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.UnpoweredOpen);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.UnpoweredOpen);
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, false);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, false);
 				microwave.HaltMicrowave();
@@ -648,7 +631,7 @@ namespace Objects.Kitchen
 			{
 				this.microwave = microwave;
 				StateMsgForExamine = "broken";
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.Broken);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Broken);
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, false);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, false);
 				microwave.HaltMicrowave();
@@ -674,7 +657,7 @@ namespace Objects.Kitchen
 			{
 				this.microwave = microwave;
 				StateMsgForExamine = "broken and open";
-				microwave.spriteHandler.ChangeSprite((int) SpriteState.BrokenOpen);
+				microwave.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.BrokenOpen);
 				microwave.OnSyncScreenGlow(microwave.screenGlowEnabled, false);
 				microwave.OnSyncOvenGlow(microwave.ovenGlowEnabled, false);
 				microwave.HaltMicrowave();

@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using Messages.Server;
 using AddressableReferences;
+using Logs;
 using Systems.Interaction;
 using UI;
 using Objects.Wallmounts;
@@ -32,7 +33,6 @@ public enum NetTabType
 	NullRod = 14,
 	SeedExtractor = 15,
 	Photocopier = 16,
-	ExosuitFabricator = 17,
 	Autolathe = 18,
 	HackingPanel = 19,
 	BoozeDispenser = 20,
@@ -67,7 +67,29 @@ public enum NetTabType
 	PizzaBomb = 49,
 	TechWeb = 50,
 	RDProductionMachine = 51,
-
+	PublicTerminal = 52,
+	TeleporterConsole = 53,
+	HandTeleporter = 54,
+	BlastYieldDetector = 55,
+	ArtifactAnalyzer = 56,
+	ArtifactConsole = 57,
+	DNAConsole = 58,
+	RemoteSyntheticControl = 59,
+	ResearchLaser = 60,
+	PortableScrubber = 61,
+	MedicalConsole = 62,
+	ChaplainItemShop = 63,
+	Book = 64,
+	Thruster = 65,
+	Pump = 66,
+	VolumePump = 67,
+	PassiveGate = 68,
+	PressureValve = 69,
+	TemperatureGate = 70,
+	ReflectionGolf = 71,
+	PaperHolographic = 72,
+	Flatpacker = 73,
+	PlantDNAManipulator = 74,
 	// add new entres to the bottom
 	// the enum name must match that of the prefab except the prefab has the word tab infront of the enum name
 	// i.e TabJukeBox
@@ -98,24 +120,24 @@ public class NetTab : Tab
 	public NetTabDescriptor NetTabDescriptor => new NetTabDescriptor(Provider, Type);
 
 	/// Is current tab a server tab?
-	public bool IsServer => transform.parent.name == nameof(NetworkTabManager);
+	public bool IsMasterTab => transform.parent.name == nameof(NetworkTabManager);
 
 	private ISet<NetUIElementBase> Elements => new HashSet<NetUIElementBase>(GetComponentsInChildren<NetUIElementBase>(false));
 
 	public Dictionary<string, NetUIElementBase> CachedElements { get; } = new Dictionary<string, NetUIElementBase>();
 
 	// for server
-	public HashSet<ConnectedPlayer> Peepers { get; } = new HashSet<ConnectedPlayer>();
+	public HashSet<PlayerInfo> Peepers { get; } = new HashSet<PlayerInfo>();
 
 	public bool IsUnobserved => Peepers.Count == 0;
 
-	public ElementValue[] ElementValues => CachedElements.Values.Select(element => element.ElementValue).ToArray(); //likely expensive
+	public ElementValue[] ElementValues => CachedElements.Values.Where(x => x != null).Select(element => element.ElementValue).ToArray(); //likely expensive
 
 	public NetUIElementBase this[string elementId] => CachedElements.ContainsKey(elementId) ? CachedElements[elementId] : null;
 
 	public virtual void OnEnable()
 	{
-		if (IsServer)
+		if (IsMasterTab)
 		{
 			InitElements(true);
 			InitServer();
@@ -143,14 +165,14 @@ public class NetTab : Tab
 	// for server
 	public void AddPlayer(GameObject player)
 	{
-		var newPeeper = PlayerList.Instance.Get(player);
+		var newPeeper = PlayerList.Instance.GetOnline(player);
 		Peepers.Add(newPeeper);
 		OnTabOpened.Invoke(newPeeper);
 	}
 
 	public void RemovePlayer(GameObject player)
 	{
-		var newPeeper = PlayerList.Instance.Get(player);
+		var newPeeper = PlayerList.Instance.GetOnline(player);
 		OnTabClosed.Invoke(newPeeper);
 		Peepers.Remove(newPeeper);
 	}
@@ -180,7 +202,7 @@ public class NetTab : Tab
 			if (CachedElements.ContainsKey(element.name))
 			{
 				// Someone called InitElements in Init()
-				Logger.LogError($"'{name}': rescan during '{element}' Init(), aborting initial scan", Category.NetUI);
+				Loggy.Error($"'{name}': rescan during '{element}' Init(), aborting initial scan", Category.NetUI);
 				return;
 			}
 
@@ -254,7 +276,7 @@ public class NetTab : Tab
 			}
 			else
 			{
-				Logger.LogWarning(
+				Loggy.Warning(
 					$"'{name}' wonky value import: can't find '{elementValue.Id}'.\n Expected: {string.Join("/", CachedElements.Keys)}",
 					Category.NetUI);
 			}
@@ -267,17 +289,19 @@ public class NetTab : Tab
 	/// </summary>
 	public void ValidatePeepers()
 	{
+		if(Peepers.Count == 0) return;
+
 		foreach (var peeper in Peepers.ToArray())
 		{
-			bool canApply = Validations.CanApply(peeper.Script, Provider, NetworkSide.Server);
+			bool canApply = Validations.CanApply(peeper.Script, Provider, NetworkSide.Server, reachRange: ReachRange.ExtendedServer);
 
 			if (peeper.Script == false || canApply == false)
 			{
 				//Validate for AI
-				if (peeper.Script.PlayerState == PlayerScript.PlayerStates.Ai)
+				if (peeper.Script.PlayerType == PlayerTypes.Ai)
 				{
 					if (Validations.CanApply(new AiActivate(peeper.GameObject, null,
-						Provider, Intent.Help, AiActivate.ClickTypes.NormalClick), NetworkSide.Server))
+						Provider, Intent.Help,peeper.Script.Mind , AiActivate.ClickTypes.NormalClick), NetworkSide.Server))
 					{
 						continue;
 					}
@@ -288,13 +312,27 @@ public class NetTab : Tab
 		}
 	}
 
-	public bool IsAIInteracting()
+	public bool IsAIInteracting(PlayerInfo player = null)
 	{
+		if (player != null)
+		{
+			if (player.Job == JobType.AI) //TODO Better system for determining if Remotely accessing
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
 		foreach(var peep in Peepers)
 		{
 			if (peep.Job != JobType.AI) continue;
+
 			return true;
 		}
+
 		return false;
 	}
 
@@ -303,7 +341,7 @@ public class NetTab : Tab
 		ControlTabs.CloseTab(Type, Provider);
 	}
 
-	public void ServerCloseTabFor(ConnectedPlayer player)
+	public void ServerCloseTabFor(PlayerInfo player)
 	{
 		TabUpdateMessage.Send(player.GameObject, Provider, Type, TabAction.Close);
 	}
@@ -316,7 +354,7 @@ public class NetTab : Tab
 	{
 		if (Provider == null)
 		{
-			Logger.LogWarning($"Cannot play sound for {gameObject}; provider missing.");
+			Loggy.Warning($"Cannot play sound for {gameObject}; provider missing.");
 			return;
 		}
 
@@ -339,7 +377,18 @@ public class NetTab : Tab
 			SoundManager.PlayNetworkedForPlayer(peeper.Script.gameObject, audioSource);
 		}
 	}
+
+	//Common sounds for nettabs
+	public void PlayClick()
+	{
+		PlaySound(CommonSounds.Instance.Click01);
+	}
+
+	public void PlayTap()
+	{
+		PlaySound(CommonSounds.Instance.Tap);
+	}
 }
 
 [Serializable]
-public class ConnectedPlayerEvent : UnityEvent<ConnectedPlayer> { }
+public class ConnectedPlayerEvent : UnityEvent<PlayerInfo> { }

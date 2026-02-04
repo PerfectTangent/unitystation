@@ -16,6 +16,7 @@ MonoBehaviour:
     m_keys: []
     m_values: 
   useExactAmounts: 0
+  MinimumReactionMultiple: 0
   catalysts:
     m_keys: []
     m_values: 
@@ -29,4 +30,8 @@ MonoBehaviour:
   results:
     m_keys: []
     m_values: 
-  effects: []
+  effectDict:
+    m_keys: []
+    m_values: 
+  overrideDisplayName: 
+  indexInSingleton: 514

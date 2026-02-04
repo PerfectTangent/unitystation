@@ -1,23 +1,16 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
-using UnityEngine.Serialization;
-using UI.Core.NetUI;
 using Chemistry;
+using Logs;
 using Systems.Electricity;
+using UI.Core.NetUI;
+using UnityEngine;
 
-namespace UI.Objects.Chemistry
+namespace UI.Objects.Medical
 {
 	public class GUI_ChemistryDispenser : NetTab
 	{
-		[FormerlySerializedAs("HeaterTemperature")]
-		public float HeaterTemperatureCelsius = 20;
-
-		[FormerlySerializedAs("DispensedTemperature")]
-		public float DispensedTemperatureCelsius = 30;
-
 		public int DispensedNumber = 20;
-		public bool HeaterOn = false;
 
 		public ChemistryDispenser ChemistryDispenser;
 		[SerializeField] private Reagent[] dispensableReagents = null;
@@ -44,7 +37,11 @@ namespace UI.Objects.Chemistry
 
 		private void Start()
 		{
-			((NetUIElement<string>)this["20"]).SetValueServer("1");
+			if (IsMasterTab)
+			{
+				((NetUIElement<string>)this["20"]).MasterSetValue("1");
+			}
+
 			if (Provider != null)
 			{
 				// Makes sure it connects with the dispenser properly
@@ -62,7 +59,7 @@ namespace UI.Objects.Chemistry
 
 			for (int i = 0; i < DispenseAmounts.Count; i++)
 			{
-				((NetUIElement<string>)this[DispenseAmounts[i]]).SetValueServer(DispenseAmounts[i] == Number.ToString() ? "1": "0");
+				((NetUIElement<string>)this[DispenseAmounts[i]]).MasterSetValue(DispenseAmounts[i] == Number.ToString() ? "1": "0");
 			}
 
 			UpdateAll();
@@ -104,7 +101,7 @@ namespace UI.Objects.Chemistry
 						}
 
 						ChemistryDispenser.Container.Add(new ReagentMix(reagent, OutDispensedNumber,
-							DispensedTemperatureCelsius));
+							ChemistryDispenser.DispensedTemperatureCelsius));
 					}
 				}
 			}
@@ -115,12 +112,13 @@ namespace UI.Objects.Chemistry
 		// Turns off and on the heater
 		public void ToggleHeater()
 		{
-			HeaterOn = !HeaterOn;
-			Logger.LogFormat("Heater turned {0}.", Category.Chemistry, HeaterOn ? "on" : "off");
+			ChemistryDispenser.HeaterOn = !ChemistryDispenser.HeaterOn;
+			ChemistryDispenser.UpdatePowerDraw();
+			Loggy.Info().Format("Heater turned {0}.", Category.Chemistry, ChemistryDispenser.HeaterOn ? "on" : "off");
 			UpdateAll();
 		}
 
-		public void EjectContainer(ConnectedPlayer player)
+		public void EjectContainer(PlayerInfo player)
 		{
 			if (ChemistryDispenser.Container != null)
 			{
@@ -134,32 +132,20 @@ namespace UI.Objects.Chemistry
 		{
 			if (int.TryParse(TheString, out var temp))
 			{
-				HeaterTemperatureCelsius = temp;
+				if (temp is < 0 or > 1000)
+				{
+					return;
+				}
+
+				ChemistryDispenser.HeaterTemperatureKelvin = temp;
 			}
 
 			UpdateAll();
 		}
 
-		public void HeatingUpdate()
-		{
-			if (ChemistryDispenser.Container != null)
-			{
-				if (ChemistryDispenser.ThisState == PowerState.On
-					|| ChemistryDispenser.ThisState == PowerState.LowVoltage
-					|| ChemistryDispenser.ThisState == PowerState.OverVoltage)
-				{
-					if (HeaterOn)
-					{
-						// Sets the temperature of the liquid. Could be more smooth/gradual change
-						ChemistryDispenser.Container.Temperature = HeaterTemperatureCelsius;
-					}
-				}
-			}
-		}
 
 		public void UpdateAll()
 		{
-			HeatingUpdate();
 			UpdateDisplay();
 		}
 
@@ -176,15 +162,15 @@ namespace UI.Objects.Chemistry
 						$"{char.ToUpper(reagent.Key.Name[0])}{reagent.Key.Name.Substring(1)} - {reagent.Value} U \n";
 				}
 
-				TotalAndTemperature.SetValueServer($"{ChemistryDispenser.Container.ReagentMixTotal}U @ {(ChemistryDispenser.Container.Temperature)}°C");
+				TotalAndTemperature.MasterSetValue($"{ChemistryDispenser.Container.ReagentMixTotal}U @ {(ChemistryDispenser.Container.Temperature)}°K");
 			}
 			else
 			{
 				newListOfReagents = "No reagents";
-				TotalAndTemperature.SetValueServer("No container inserted");
+				TotalAndTemperature.MasterSetValue("No container inserted");
 			}
 
-			ListOfReagents.SetValueServer(newListOfReagents);
+			ListOfReagents.MasterSetValue(newListOfReagents);
 		}
 
 		public void OnDestroy()

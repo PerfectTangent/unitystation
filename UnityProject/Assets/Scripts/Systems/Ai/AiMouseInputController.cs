@@ -47,7 +47,7 @@ namespace Systems.Ai
 					return;
 				}
 
-				//check ctrl+click for dragging
+				//check ctrl+click interactions
 				if (KeyboardInputManager.IsControlPressed())
 				{
 					CheckForInteractions(AiActivate.ClickTypes.CtrlClick);
@@ -62,7 +62,7 @@ namespace Systems.Ai
 					return;
 				}
 
-				if (KeyboardInputManager.IsAltPressed())
+				if (KeyboardInputManager.IsAltActionKeyPressed())
 				{
 					CheckForInteractions(AiActivate.ClickTypes.AltClick);
 					return;
@@ -86,7 +86,7 @@ namespace Systems.Ai
 				var behaviours = applyTarget.GetComponents<IBaseInteractable<AiActivate>>()
 					.Where(mb => mb != null && (mb as MonoBehaviour).enabled);
 
-				var aiActivate = new AiActivate(gameObject, null, applyTarget, Intent.Help, clickType);
+				var aiActivate = new AiActivate(gameObject, null, applyTarget, Intent.Help,aiPlayer.PlayerScript.Mind , clickType);
 				InteractionUtils.ClientCheckAndTrigger(behaviours, aiActivate);
 			}
 		}
@@ -102,7 +102,7 @@ namespace Systems.Ai
 
 			StartCoroutine(CoolDown());
 
-			aiPlayer.MoveCameraByKey(PlayerAction.GetMoveAction(moveActions.Direction()));
+			aiPlayer.MoveCameraByKey(moveActions.Direction());
 		}
 
 		private IEnumerator CoolDown()

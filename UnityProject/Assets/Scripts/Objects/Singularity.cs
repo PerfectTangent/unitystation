@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Core;
 using UnityEngine;
 using Mirror;
 using Light2D;
@@ -10,7 +11,10 @@ using Systems.Radiation;
 using Systems.Explosions;
 using Objects.Engineering;
 using Weapons.Projectiles.Behaviours;
+using Random = UnityEngine.Random;
 using Tiles;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
+
 
 namespace Objects
 {
@@ -21,6 +25,12 @@ namespace Objects
 		private SingularityStages currentStage = SingularityStages.Stage0;
 
 		private readonly float updateFrequency = 0.5f;
+
+		private Orientation currentFacing = Orientation.Up;
+		private const float directionThreshold = 93.5f;
+		//Chance in % that the singulo will stay its current course each move action.
+		//With this value, the singularity will move in a straight line for 10tiles 50% of the time.
+		//I thought that was a good compromise between moving in straight lines and still changing direction at random.
 
 		public SingularityStages CurrentStage
 		{
@@ -33,7 +43,7 @@ namespace Objects
 				currentStage = value;
 
 				UpdateVectors();
-				spriteHandler.ChangeSprite((int)currentStage);
+				spriteHandler.SetCatalogueIndexSprite((int)currentStage);
 			}
 		}
 
@@ -42,8 +52,6 @@ namespace Objects
 
 		[SyncVar(hook = nameof(SyncDynamicScale))]
 		private Vector3 dynamicScale = Vector3.one;
-
-		private float maxScaleMultiplier;
 
 		[SerializeField]
 		private SingularityStages startingStage = SingularityStages.Stage0;
@@ -89,8 +97,10 @@ namespace Objects
 		private Transform lightTransform;
 		private RegisterTile registerTile;
 		private SpriteHandler spriteHandler;
-		private CustomNetTransform customNetTransform;
+		private UniversalObjectPhysics ObjectPhysics;
 		private int objectId;
+
+		private BoxCollider2D boxCollider2D;
 
 		private Material WarpEffectFrontMat;
 		private Material WarpEffectBackMat;
@@ -102,6 +112,13 @@ namespace Objects
 
 		private HashSet<GameObject> pushRecently = new HashSet<GameObject>();
 		private int pushTimer;
+
+		public bool DEBUGpointLock = false;
+		public bool DEBUGPushBlock = false;
+		public bool DEBUGDestroyBlock = false;
+		public bool DEBUGMoveBlock = false;
+		public bool DEBUGExplosionBlock = false;
+		public bool DEBUGRadiationBlock = false;
 
 		private readonly List<Vector3Int> adjacentCoords = new List<Vector3Int>
 		{
@@ -126,14 +143,15 @@ namespace Objects
 		private void Awake()
 		{
 			registerTile = GetComponent<RegisterTile>();
-			customNetTransform = GetComponent<CustomNetTransform>();
+			ObjectPhysics = GetComponent<UniversalObjectPhysics>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
+			boxCollider2D = GetComponent<BoxCollider2D>();
+
 			lightTransform = light.transform;
 			objectId = GetInstanceID();
 
 			WarpEffectFrontMat = WarpEffectFront.GetComponent<MeshRenderer>().materials[0];
 			WarpEffectBackMat = WarpEffectBack.GetComponent<MeshRenderer>().materials[0];
-
 		}
 
 		private void Start()
@@ -141,6 +159,7 @@ namespace Objects
 			if (CustomNetworkManager.IsServer == false) return;
 
 			CurrentStage = startingStage;
+			currentFacing = currentFacing.Rotate(Random.Range(1, 4)); //Random direction on start
 		}
 
 		private void OnEnable()
@@ -169,7 +188,7 @@ namespace Objects
 			}
 
 			gameObject.transform.LeanScale(newScale, updateFrequency);
-			
+
 		}
 
 		private void SyncCurrentStage(SingularityStages oldStage, SingularityStages newStage)
@@ -185,7 +204,7 @@ namespace Objects
 		/// </summary>
 		private void SingularityUpdate()
 		{
-			if(!CustomNetworkManager.IsServer) return;
+			if(CustomNetworkManager.IsServer == false) return;
 
 			pushTimer++;
 
@@ -207,14 +226,14 @@ namespace Objects
 
 			if (singularityPoints <= 0 && zeroPointDeath)
 			{
-				Chat.AddLocalMsgToChat("The singularity implodes", gameObject);
+				Chat.AddActionMsgToChat(gameObject, "The singularity implodes!");
 				RadiationManager.Instance.RequestPulse( registerTile.WorldPositionServer, maxRadiation, objectId);
 				_ = Despawn.ServerSingle(gameObject);
 				return;
 			}
 
 			//Points decrease by 4 every 0.5 seconds, unless locked by PA at setting 0
-			if (pointLock == false)
+			if (pointLock == false && DEBUGpointLock == false)
 			{
 				ChangePoints(-pointLossRate);
 			}
@@ -232,18 +251,24 @@ namespace Objects
 			// will sync to clients
 			dynamicScale = GetDynamicScale();
 
+			ColliderScale();
+
 			//Radiation Pulse
 			var radStrength = Mathf.Max(((float) CurrentStage + 1) / 6 * maxRadiation, 0);
 
-			RadiationManager.Instance.RequestPulse(registerTile.WorldPositionServer, radStrength, objectId);
-
-			if(DMMath.Prob(5))
+			if (DEBUGRadiationBlock == false)
 			{
-				int EMPStrength = UnityEngine.Random.Range((int)CurrentStage * 100, (int)CurrentStage * 100 + 300);
-				Vector3Int EMPPosition = registerTile.WorldPositionServer;
-				EMPPosition.x += UnityEngine.Random.Range(-3 - (int)CurrentStage, 3 + (int)CurrentStage);
-				EMPPosition.y += UnityEngine.Random.Range(-3 - (int)CurrentStage, 3 + (int)CurrentStage);
-				Explosion.StartExplosion(EMPPosition, EMPStrength, true);
+				RadiationManager.Instance.RequestPulse(registerTile.WorldPositionServer, radStrength, objectId);
+			}
+
+
+			if(DMMath.Prob(5) && DEBUGExplosionBlock == false)
+			{
+				int empStrength = Random.Range((int)CurrentStage * 100, (int)CurrentStage * 100 + 300);
+				Vector3Int empPosition = registerTile.WorldPositionServer;
+				empPosition.x += Random.Range(-3 - (int)CurrentStage, 3 + (int)CurrentStage);
+				empPosition.y += Random.Range(-3 - (int)CurrentStage, 3 + (int)CurrentStage);
+				Explosion.StartExplosion(empPosition, empStrength, new ExplosionEmpNode(empPosition));
 			}
 		}
 
@@ -251,6 +276,7 @@ namespace Objects
 
 		private void PushPullObjects()
 		{
+			if (DEBUGPushBlock) return;
 			int distance;
 
 			switch (currentStage)
@@ -282,7 +308,7 @@ namespace Objects
 			{
 				if (DMMath.Prob(50)) continue;
 
-				var objects = MatrixManager.GetAt<PushPull>(tile, true);
+				var objects = MatrixManager.GetAt<UniversalObjectPhysics>(tile, true);
 
 				foreach (var objectToMove in objects)
 				{
@@ -306,26 +332,16 @@ namespace Objects
 			}
 		}
 
-		private void ThrowItem(PushPull item, Vector3 throwVector)
+		private void ThrowItem(UniversalObjectPhysics item, Vector3 throwVector)
 		{
 			Vector3 vector = item.transform.rotation * throwVector;
-			var spin = RandomUtils.RandomSpin();
-			ThrowInfo throwInfo = new ThrowInfo
-			{
-				ThrownBy = gameObject,
-				Aim = BodyPartType.Chest,
-				OriginWorldPos = transform.position,
-				WorldTrajectory = vector,
-				SpinMode = spin
-			};
-
-			CustomNetTransform itemTransform = item.GetComponent<CustomNetTransform>();
+			UniversalObjectPhysics itemTransform = item.GetComponent<UniversalObjectPhysics>();
 			if (itemTransform == null) return;
-			itemTransform.Throw(throwInfo);
+			itemTransform.NewtonianPush(vector,1, 0,0,(BodyPartType) Random.Range(0, 13),  gameObject, 1 );
 			pushRecently.Add(item.gameObject);
 		}
 
-		private void PushObject(PushPull objectToPush, Vector3 pushVector)
+		private void PushObject(UniversalObjectPhysics objectToPush, Vector3 pushVector)
 		{
 			if (CurrentStage == SingularityStages.Stage5 || CurrentStage == SingularityStages.Stage4)
 			{
@@ -338,15 +354,14 @@ namespace Objects
 						$"{objectToPush.gameObject.ExpensiveName()} is knocked down by the singularity");
 				}
 			}
-			else if (objectToPush.IsPushable == false)
+			else if (objectToPush.IsNotPushable)
 			{
 				//Dont push anchored objects unless stage 5 or 4
 				return;
 			}
 
 			//Force Push Twice
-			objectToPush.QueuePush(pushVector.NormalizeTo2Int(), forcePush: true);
-			objectToPush.QueuePush(pushVector.NormalizeTo2Int(), forcePush: true);
+			objectToPush.NewtonianNewtonPush(pushVector.NormalizeTo2Int(), 10);
 		}
 
 		#endregion
@@ -355,6 +370,8 @@ namespace Objects
 
 		private void DestroyObjectsAndTiles()
 		{
+			if (DEBUGDestroyBlock) return;
+
 			int radius;
 
 			switch (currentStage)
@@ -406,41 +423,45 @@ namespace Objects
 				{
 					if(objectToMove.gameObject == gameObject) continue;
 
+					//Check for player
 					if (objectToMove.ObjectType == ObjectType.Player && objectToMove.TryGetComponent<PlayerHealthV2>(out var health) && health != null)
 					{
-						if (health.RegisterPlayer.PlayerScript != null &&
-							health.RegisterPlayer.PlayerScript.mind != null &&
-							health.RegisterPlayer.PlayerScript.mind.occupation != null &&
-							health.RegisterPlayer.PlayerScript.mind.occupation == OccupationList.Instance.Get(JobType.CLOWN))
+						if (health.RegisterPlayer.PlayerScript.Mind?.occupation == OccupationList.Instance.Get(JobType.CLOWN))
 						{
-							health.Gib();
+							health.OnGib();
 							ChangePoints(DMMath.Prob(50) ? -1000 : 1000);
 							return;
 						}
 
-						health.Gib();
+						health.OnGib();
 						ChangePoints(100);
+						return;
 					}
-					else if (objectToMove.TryGetComponent<Integrity>(out var integrity) && integrity != null)
+
+					//Check for objects
+					if (objectToMove.TryGetComponent<Integrity>(out var integrity) && integrity != null)
 					{
+						//Check for field gens and only damage at high level
+						if (objectToMove.TryGetComponent<FieldGenerator>(out var fieldGenerator)
+						    && fieldGenerator != null)
+						{
+							if (CurrentStage != SingularityStages.Stage4 && CurrentStage != SingularityStages.Stage5 &&
+							    fieldGenerator.Energy != 0)
+							{
+								//Stages below 4 can only damage field generators if they have no energy
+								return;
+							}
+						}
+
+						//See if it's a supermatter, uh oh....
 						if (objectToMove.TryGetComponent<SuperMatter>(out var superMatter) && superMatter != null)
 						{
 							//End of the world
 							eatenSuperMatter = true;
 							ChangePoints(3250);
 							_ = Despawn.ServerSingle(objectToMove.gameObject);
-							Chat.AddLocalMsgToChat("<color=red>The singularity expands rapidly, uh oh...</color>", gameObject);
+							Chat.AddActionMsgToChat(gameObject, "<color=red>The singularity expands rapidly, uh oh...</color>");
 							return;
-						}
-
-						if (objectToMove.TryGetComponent<FieldGenerator>(out var fieldGenerator)
-							&& fieldGenerator != null)
-						{
-							if (CurrentStage != SingularityStages.Stage4 && CurrentStage != SingularityStages.Stage5 && fieldGenerator.Energy != 0)
-							{
-								//Stages below 4 can only damage field generators if they have no energy
-								return;
-							}
 						}
 
 						integrity.ApplyDamage(damage, AttackType.Melee, DamageType.Brute, true);
@@ -483,7 +504,7 @@ namespace Objects
 					SavedPipes.AddRange(node.PipeData);
 					foreach (var pipe in SavedPipes)
 					{
-						pipe.pipeData.DestroyThis();
+						pipe.pipeData.Remove();
 						ChangePoints(5);
 					}
 				}
@@ -496,11 +517,10 @@ namespace Objects
 
 		private void TryMove()
 		{
+			if (DEBUGMoveBlock) return;
 			int radius = GetRadius(CurrentStage);
 
-			//Get random coordinate adjacent to current
-			var adjacentCoord = adjacentCoords.GetRandom();
-			var coord = adjacentCoord + registerTile.WorldPositionServer;
+			var coord = currentFacing.LocalVectorInt.To3Int() + registerTile.WorldPositionServer;
 
 			bool noObstructions = true;
 
@@ -512,17 +532,18 @@ namespace Objects
 					if (MatrixManager.IsPassableAtAllMatricesOneTile(squareCoord, true, false, new List<LayerType>{LayerType.Objects}) == false)
 					{
 						noObstructions = false;
+						break;
 					}
 				}
 			}
 
 			//If could not fit, damage coords around ourself if stage big enough
-			if (!noObstructions)
+			if (noObstructions == false)
 			{
 				if (CurrentStage != SingularityStages.Stage5 && CurrentStage != SingularityStages.Stage4)
 				{
 					//Hit in front, to give a bump effect so smaller singularity doesnt get stuck in walls
-					HitLineInFront(radius, adjacentCoord);
+					HitLineInFront(radius, currentFacing.LocalVectorInt.To3Int());
 					return;
 				}
 
@@ -534,8 +555,9 @@ namespace Objects
 				return;
 			}
 
+			if (Random.Range(0, 101) >= directionThreshold) currentFacing = currentFacing.Rotate(Random.Range(1, 4)); //Random new angle excluding current angle.
 			//Move
-			customNetTransform.SetPosition(coord);
+			ObjectPhysics.AppearAtWorldPositionServer(coord, true);
 		}
 
 		/// <summary>
@@ -635,18 +657,18 @@ namespace Objects
 					if (MatrixManager.IsPassableAtAllMatricesOneTile(squareCoord, true, false) == false)
 					{
 						noObstructions = false;
+						break;
 					}
 				}
 			}
 
 			if (noObstructions)
 			{
-				Chat.AddLocalMsgToChat($"The singularity fluctuates and {(newStage < CurrentStage ? "decreases" : "increases")} in size", gameObject);
+				Chat.AddActionMsgToChat(gameObject, $"The singularity fluctuates and {(newStage < CurrentStage ? "decreases" : "increases")} in size!");
 				CurrentStage = newStage;
 				UpdateVectors();
 				dynamicScale = Vector3.zero; // keyed value: don't tween; set it to 1x scale immediately
 			}
-
 		}
 		/// <summary>
 		/// Sets the warp effects in accordance with the correct sprite
@@ -658,7 +680,7 @@ namespace Objects
 
 			switch (stage)
 			{
-				case SingularityStages.Stage0: 
+				case SingularityStages.Stage0:
 					scaledRadius = Mathf.Clamp(0.08f * gameObject.transform.localScale.x, 0.08f,0.15f);
 					scaledEffect = 7f;
 					break;
@@ -695,7 +717,6 @@ namespace Objects
 		private void UpdateVectors()
 		{
 			int stage = (int)CurrentStage + 1;
-			maxScaleMultiplier = ((float)((stage * 2) + 1) / ((stage * 2) - 1)) - 1;
 			lightVector = new Vector3(5 * stage, 5 * stage, 0);
 		}
 
@@ -727,17 +748,35 @@ namespace Objects
 		{
 			if(data.DamageData.AttackType != AttackType.Rad) return;
 
-			if (data.DamageData.Damage >= 20f)
+			if (data.DamageData.Damage >= 19f)
 			{
 				// PA at any setting will prevent point loss
 				pointLock = true;
 				lockTimer = 20;
 			}
-			if (data.DamageData.Damage > 20f)
+
+			if (data.DamageData.Damage > 21f)
 			{
 				// PA at setting greater than 0 will do 20 damage
 				ChangePoints((int)data.DamageData.Damage);
 			}
+		}
+
+		#endregion
+
+		#region Collider
+
+		private void ColliderScale()
+		{
+			var size = 1;
+
+			if (currentStage != SingularityStages.Stage0)
+			{
+				size = 3;
+			}
+
+			var scale = dynamicScale.x * size;
+			boxCollider2D.size = new Vector2(scale, scale);
 		}
 
 		#endregion
@@ -750,13 +789,15 @@ namespace Objects
 		private Vector3 GetDynamicScale()
 		{
 			int stageNum = (int)CurrentStage;
-			int stageMin = stagePointsBounds[stageNum].Item1;
-			int stageMax = stagePointsBounds[stageNum].Item2;
-			float scale = 1 + ((float) (singularityPoints - stageMin) / (stageMax - stageMin) * maxScaleMultiplier);
+
 			// possible to go below 1 on stage 0 as we define min scale for this stage as 150 points, not 0 (we spawn with 150)
-			scale = Math.Max(scale, 0.5f);
+			int currentPoints = Math.Max(singularityPoints, stagePointsBounds[stageNum].Item1);
+			int stageMax = stagePointsBounds[stageNum].Item2;
+
+			float scale = (currentPoints / (float)stageMax);
+
 			// possible to be scaled further than the size of the next stage -> points exceeds next stage but can't grow (obstructions)
-			scale = Math.Min(scale, maxScaleMultiplier + 1);
+			scale = Math.Min(scale, 1);
 
 			return new Vector3(scale, scale, 1);
 		}

@@ -5,8 +5,24 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2374489609720019985, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      propertyPath: minimumFireDamageForStack
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2915024616253055958, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      propertyPath: Resistances.Flammable
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2917128564446547862, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      propertyPath: _assetId
+      value: 1060945791
+      objectReference: {fileID: 0}
     - target: {fileID: 2917128564446547862, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
       propertyPath: m_AssetId
@@ -16,7 +32,7 @@ PrefabInstance:
         type: 3}
       propertyPath: customNetTransform
       value: 
-      objectReference: {fileID: 4701119655093568946}
+      objectReference: {fileID: 0}
     - target: {fileID: 2917169708539712446, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
       propertyPath: CurrentsortingGroup
@@ -55,17 +71,17 @@ PrefabInstance:
     - target: {fileID: 3025309822768713558, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3025309822768713558, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3025309822768713558, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3025309822768713558, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
@@ -90,6 +106,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 3387296074795883840, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
+      propertyPath: exportCost
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 3387296074795883840, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
       propertyPath: initialSize
       value: 3
       objectReference: {fileID: 0}
@@ -105,7 +126,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3387296074795883840, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
-      propertyPath: initialTraits.Array.data[0]
+      propertyPath: 'initialTraits.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: df3f1a389c0f2428690a13b95cf1f9f9,
         type: 2}
@@ -121,16 +142,63 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8166491247120154191, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
+      propertyPath: parentID
+      value: 6b5f74a79e023479cb5b30a2879621da
+      objectReference: {fileID: 0}
+    - target: {fileID: 8166491247120154191, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
       propertyPath: foreverID
       value: de234d793cfd842599c9c8726207f217
       objectReference: {fileID: 0}
+    - target: {fileID: 8982871833932450213, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 4781100657663286078}
     - target: {fileID: 8982871833932450213, guid: 6b5f74a79e023479cb5b30a2879621da,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: b7d4c78abb2c03c4aa66078ed7bcbe9c,
         type: 2}
+    - target: {fileID: 8982871833932450213, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: b7d4c78abb2c03c4aa66078ed7bcbe9c,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 241252857582927713}
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1200700073424461999}
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2299321045887744718}
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2460845081740100905}
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8215174308799955191}
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5602431664328066451}
+    - targetCorrespondingSourceObject: {fileID: 3021789324208599586, guid: 6b5f74a79e023479cb5b30a2879621da,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8895234934154204769}
   m_SourcePrefab: {fileID: 100100000, guid: 6b5f74a79e023479cb5b30a2879621da, type: 3}
 --- !u!210 &1449145570125458988 stripped
 SortingGroup:
@@ -159,6 +227,7 @@ MonoBehaviour:
   shadow: {fileID: 0}
   draggerMustBeAdjacent: 1
   allowDragWhileSoftCrit: 1
+  allowedToMouseDrag: 1
 --- !u!114 &1200700073424461999
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -171,11 +240,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72c43885acb654c59b452e7069cb64f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
   denyStorageOfStorageItems: 0
+  itemStorage: {fileID: 0}
   canClickPickup: 0
+  showUIAction: 1
   canQuickEmpty: 0
   TopLevelAlt: 1
+  NoInteractionIfInventoryFull: 0
   actionData: {fileID: 0}
+  DoNotShowInventoryOnUI: 0
 --- !u!114 &2299321045887744718
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -194,11 +270,14 @@ MonoBehaviour:
     type: 2}
   itemStoragePopulator: {fileID: 0}
   forceSpawnContents: 0
+  ManuallySpawnContent: 0
   dropItemsOnDespawn: 0
   UesAddlistPopulater: 0
   Populater:
     SlotContents: []
     DeprecatedContents: []
+  SetSlotItemNotRemovableOnStartUp: 0
+  initialignoreRoundstartGrabObjects: 0
   ashPrefab: {fileID: 0}
 --- !u!114 &2460845081740100905
 MonoBehaviour:
@@ -264,6 +343,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   slot: 6
+  CompatibleSlots: 
   armoredBodyParts:
   - armoringBodyPartType: 1
     armor:
@@ -277,7 +357,11 @@ MonoBehaviour:
       Acid: 0
       Magic: 0
       Bio: 0
+      Anomaly: 0
       DismembermentProtectionChance: 0
+      StunImmunity: 0
+      TemperatureProtectionInK: {x: 268.15, y: 313.15}
+      PressureProtectionInKpa: {x: 30, y: 300}
   - armoringBodyPartType: 3
     armor:
       Melee: 0
@@ -290,7 +374,11 @@ MonoBehaviour:
       Acid: 0
       Magic: 0
       Bio: 0
+      Anomaly: 0
       DismembermentProtectionChance: 0
+      StunImmunity: 0
+      TemperatureProtectionInK: {x: 268.15, y: 313.15}
+      PressureProtectionInKpa: {x: 30, y: 300}
   - armoringBodyPartType: 2
     armor:
       Melee: 0
@@ -303,7 +391,11 @@ MonoBehaviour:
       Acid: 0
       Magic: 0
       Bio: 0
+      Anomaly: 0
       DismembermentProtectionChance: 0
+      StunImmunity: 0
+      TemperatureProtectionInK: {x: 268.15, y: 313.15}
+      PressureProtectionInKpa: {x: 30, y: 300}
   - armoringBodyPartType: 5
     armor:
       Melee: 0
@@ -316,7 +408,11 @@ MonoBehaviour:
       Acid: 0
       Magic: 0
       Bio: 0
+      Anomaly: 0
       DismembermentProtectionChance: 0
+      StunImmunity: 0
+      TemperatureProtectionInK: {x: 268.15, y: 313.15}
+      PressureProtectionInKpa: {x: 30, y: 300}
   - armoringBodyPartType: 4
     armor:
       Melee: 0
@@ -329,7 +425,11 @@ MonoBehaviour:
       Acid: 0
       Magic: 0
       Bio: 0
+      Anomaly: 0
       DismembermentProtectionChance: 0
+      StunImmunity: 0
+      TemperatureProtectionInK: {x: 268.15, y: 313.15}
+      PressureProtectionInKpa: {x: 30, y: 300}
   - armoringBodyPartType: 6
     armor:
       Melee: 0
@@ -342,16 +442,78 @@ MonoBehaviour:
       Acid: 0
       Magic: 0
       Bio: 0
+      Anomaly: 0
       DismembermentProtectionChance: 0
---- !u!114 &4701119655093568946 stripped
+      StunImmunity: 0
+      TemperatureProtectionInK: {x: 268.15, y: 313.15}
+      PressureProtectionInKpa: {x: 30, y: 300}
+--- !u!114 &5602431664328066451
 MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2916681237181358066, guid: 6b5f74a79e023479cb5b30a2879621da,
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4658995992363608162}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 355b2c1107094194be51e99ea3440467, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
+  <Mode>k__BackingField: 2
+  pickupable: {fileID: 4700664035997484828}
+  itemStorage: {fileID: 0}
+--- !u!114 &8895234934154204769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4658995992363608162}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c2172f034464a4b8382d375cd7d70ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  <ActionData>k__BackingField:
+    m_keys:
+    - ID: suit_sensor_switch
+      DisplayName: Switch Suit Sensors Mode
+      Description: '- OFF: No one will know anything about you \n - VITALS: people
+        will track your health state only \n - LOCATION: Allow others to track your
+        location only \n - FULL: Track your location and health state.'
+      TriggerType: 0
+      Type: 0
+      AnimatedIconCatalogue:
+      - {fileID: 11400000, guid: 0a664cf7f957f974cbef76047f8181b0, type: 2}
+      CooldownTime: 0
+      CanUseWhileGhosting: 0
+      HasCustomCursor: 0
+      OffsetType: 0
+      CursorOffset: {x: 0, y: 0}
+      CursorTexture: {fileID: 0}
+      TrackingObject: {fileID: 0}
+    m_values:
+    - target: {fileID: 5602431664328066451}
+      methodName: SwitchMode
+      parameterType: 
+--- !u!114 &4700664035997484828 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2917070610764782940, guid: 6b5f74a79e023479cb5b30a2879621da,
     type: 3}
   m_PrefabInstance: {fileID: 7586200644617787968}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4658995992363608162}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
+  m_Script: {fileID: 11500000, guid: 4e1ce0dbeeeb473dae66fb3610953c99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!212 &4781100657663286078 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 3107053823204540798, guid: 6b5f74a79e023479cb5b30a2879621da,
+    type: 3}
+  m_PrefabInstance: {fileID: 7586200644617787968}
+  m_PrefabAsset: {fileID: 0}

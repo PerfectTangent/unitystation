@@ -1,8 +1,12 @@
 ﻿using System;
-using System.IO;
 using System.Text;
 using System.Threading;
+using SecureStuff;
+using Initialisation;
+using Mirror;
 using Mirror.RemoteCalls;
+using Newtonsoft.Json;
+using Shared.Managers;
 using Debug = UnityEngine.Debug;
 
 namespace Managers
@@ -10,7 +14,6 @@ namespace Managers
 	public class InfiniteLoopTracker : SingletonManager<InfiniteLoopTracker>
 	{
 		private Thread thread;
-		private StreamWriter streamWriter;
 
 		private int frameNumber;
 
@@ -21,13 +24,15 @@ namespace Managers
         //checkpoints for game messages
         public static bool gameMessageProcessing;
         public static string lastGameMessage;
+        public static NetworkMessage NetNetworkMessage;
 
-        private void Start()
+        public override void Start()
         {
+	        base.Start();
 	        thread = new Thread (OverwatchMainThread);
 	        thread.Start();
-	        Directory.CreateDirectory("Logs");
-	        streamWriter = File.AppendText("Logs/InfiniteLoopTracker.txt");
+	        AccessFile.Delete("InfiniteLoopTracker.txt",FolderType.Logs);
+	        AccessFile.AppendAllText("InfiniteLoopTracker.txt", "", FolderType.Logs);
         }
 
         private void OnEnable()
@@ -37,12 +42,11 @@ namespace Managers
 
         private void OnDisable()
         {
-	        if (streamWriter != null)
+	        if (thread != null)
 	        {
-		        streamWriter.Close();
 		        thread.Abort();
+		        UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 	        }
-	        UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
         }
 
         private void UpdateMe()
@@ -84,9 +88,46 @@ namespace Managers
 	        //update manager checkpoints
 	        if (UpdateManager.Instance.MidInvokeCalls)
 	        {
-		        var className = UpdateManager.Instance.LastInvokedAction.Method.ReflectedType.ToString();
-		        var methodName = UpdateManager.Instance.LastInvokedAction.Method.Name;
-		        stringBuilder.AppendLine($" - UpdateManager invoke - class: {className} - method: {methodName}");
+		        if (LoadManager.Instance.IsExecuting)
+		        {
+			        if (LoadManager.Instance.IsExecutingGeneric)
+			        {
+				        var className = (LoadManager.Instance.LastInvokedAction.Target as Action).Method.ReflectedType.ToString();
+				        var methodName = (LoadManager.Instance.LastInvokedAction.Target as Action).Method.Name;
+				        stringBuilder.AppendLine($" - LoadManager invoke - class: {className} - method: {methodName}");
+			        }
+			        else
+			        {
+				        var className = LoadManager.Instance.LastInvokedAction.Method.ReflectedType.ToString();
+				        var methodName = LoadManager.Instance.LastInvokedAction.Method.Name;
+				        stringBuilder.AppendLine($" - LoadManager invoke - class: {className} - method: {methodName}");
+			        }
+		        }
+		        else
+		        {
+			        var className = UpdateManager.Instance.LastInvokedAction.Method.ReflectedType.ToString();
+			        var methodName = UpdateManager.Instance.LastInvokedAction.Method.Name;
+			        stringBuilder.AppendLine($" - UpdateManager invoke - class: {className} - method: {methodName}");
+		        }
+
+
+	        }
+
+	        //Something within load manager
+	        if (LoadManager.Instance.IsExecuting)
+	        {
+		        if (LoadManager.Instance.IsExecutingGeneric)
+		        {
+			        var className = (LoadManager.Instance.LastInvokedAction.Target as Action).Method.ReflectedType.ToString();
+			        var methodName = (LoadManager.Instance.LastInvokedAction.Target as Action).Method.Name;
+			        stringBuilder.AppendLine($" - LoadManager invoke - class: {className} - method: {methodName}");
+		        }
+		        else
+		        {
+			        var className = LoadManager.Instance.LastInvokedAction.Method.ReflectedType.ToString();
+			        var methodName = LoadManager.Instance.LastInvokedAction.Method.Name;
+			        stringBuilder.AppendLine($" - LoadManager invoke - class: {className} - method: {methodName}");
+		        }
 	        }
 
 	        //cmd and rcp checkpoints
@@ -100,7 +141,15 @@ namespace Managers
 	        //game message checkpoints
 	        if (gameMessageProcessing)
 	        {
-		        stringBuilder.AppendLine($" - GameMessage - class: {lastGameMessage}");
+		        try
+		        {
+			        stringBuilder.AppendLine($" - GameMessage - class: {lastGameMessage} data : {JsonConvert.SerializeObject(NetNetworkMessage, new JsonSerializerSettings() {ReferenceLoopHandling = ReferenceLoopHandling.Ignore})}");
+
+		        }
+		        catch (Exception e)
+		        {
+			        stringBuilder.AppendLine($" - GameMessage - class: {lastGameMessage} data : Error {e}");
+		        }
 	        }
 
 	        Log(stringBuilder.ToString());
@@ -109,8 +158,7 @@ namespace Managers
         private void Log(string aText)
         {
 	        Debug.LogError(aText); //in case of case positives we make a normal log
-            streamWriter.WriteLine(aText);
-            streamWriter.Flush();
+	        AccessFile.AppendAllText("InfiniteLoopTracker.txt", aText, FolderType.Logs);
         }
 	}
 }

@@ -1,7 +1,8 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
+using Systems.Clearance;
 using UnityEngine;
 using UI.Core.NetUI;
 
@@ -22,15 +23,22 @@ namespace UI.Objects.Command
 		[SerializeField]
 		private NetPage mainPage = null;
 		[SerializeField]
-		private NetLabel targetCardName = null;
+		private NetText_label targetCardName = null;
 		[SerializeField]
-		private NetLabel accessCardName = null;
+		private NetText_label accessCardName = null;
 		[SerializeField]
-		private NetLabel loginCardName = null;
+		private NetText_label loginCardName = null;
+
+
+
+		[SerializeField]
+		private NetFilledInputField TargetName = null;
+		[SerializeField]
+		private NetFilledInputField TargetJobRole = null;
 
 		//cached mapping from access to its corresponding entry for fast lookup
-		private Dictionary<Access, GUI_IDConsoleEntry> accessToEntry = new Dictionary<Access, GUI_IDConsoleEntry>();
-		private Dictionary<Occupation, GUI_IDConsoleEntry> occupationToEntry = new Dictionary<Occupation, GUI_IDConsoleEntry>();
+		private Dictionary<GUI_IDConsoleEntry, Clearance> accessToEntry = new Dictionary<GUI_IDConsoleEntry, Clearance>();
+		private Dictionary<GUI_IDConsoleEntry, Occupation> occupationToEntry = new Dictionary<GUI_IDConsoleEntry, Occupation>();
 
 		/// <summary>
 		/// Card currently targeted for security modifications. Null if none inserted
@@ -45,11 +53,11 @@ namespace UI.Objects.Command
 			{
 				if (entry.IsAccess)
 				{
-					accessToEntry.Add(entry.Access, entry);
+					accessToEntry.Add(entry, entry.Clearance);
 				}
 				else
 				{
-					occupationToEntry.Add(entry.Occupation, entry);
+					occupationToEntry.Add(entry, entry.Occupation);
 				}
 			}
 			mainPage.SetActive(false);
@@ -58,7 +66,7 @@ namespace UI.Objects.Command
 		public override void OnEnable()
 		{
 			base.OnEnable();
-			if (CustomNetworkManager.Instance._isServer)
+			if (CustomNetworkManager.IsServer)
 			{
 				StartCoroutine(ServerWaitForProvider());
 			}
@@ -100,7 +108,12 @@ namespace UI.Objects.Command
 		/// </summary>
 		private void ServerRefreshEntries()
 		{
-			foreach (var entry in accessToEntry.Values.Concat(occupationToEntry.Values))
+			foreach (var entry in accessToEntry.Keys)
+			{
+				entry.ServerRefreshFromTargetCard();
+			}
+
+			foreach (var entry in occupationToEntry.Keys)
 			{
 				entry.ServerRefreshFromTargetCard();
 			}
@@ -108,7 +121,7 @@ namespace UI.Objects.Command
 
 		private void ServerUpdateLoginCardName()
 		{
-			loginCardName.SetValueServer(console.AccessCard != null ?
+			loginCardName.MasterSetValue(console.AccessCard != null ?
 				$"{console.AccessCard.RegisteredName}, {console.AccessCard.GetJobTitle()}" : "********");
 		}
 
@@ -126,23 +139,40 @@ namespace UI.Objects.Command
 
 			if (!valToSet.Equals(accessCardName.Value))
 			{
-				accessCardName.SetValueServer(valToSet);
+				accessCardName.MasterSetValue(valToSet);
 			}
 
 
+			string TName = "-";
+			string JName = "-";
+			valToSet = "-";
 			if (console.TargetCard != null)
 			{
-				valToSet = $"{console.TargetCard.RegisteredName}, {console.TargetCard.GetJobTitle()}";
-			}
-			else
-			{
-				valToSet = "-";
+				TName = console.TargetCard.RegisteredName;
+				JName = console.TargetCard.GetJobTitle();
+				valToSet = $"{TName}, {JName}";
 			}
 
-			if (!valToSet.Equals(targetCardName.Value))
+
+
+			if (valToSet.Equals(targetCardName.Value) == false)
 			{
-				targetCardName.SetValueServer(valToSet);
+				targetCardName.MasterSetValue(valToSet);
 			}
+
+
+
+			if (JName.Equals(TargetJobRole.Value) == false)
+			{
+				TargetJobRole.MasterSetValue(JName);
+			}
+
+
+			if (TName.Equals(TargetName.Value) == false)
+			{
+				TargetName.MasterSetValue(TName);
+			}
+
 		}
 
 		public void ServerChangeName(string newName)
@@ -151,12 +181,10 @@ namespace UI.Objects.Command
 			{
 				console.TargetCard.ServerSetRegisteredName(newName);
 				ServerRefreshCardNames();
-			}
-			else
-			{
-				Chat.AddExamineMsgToClient($"Name cannot exceed 32 characters!");
 				return;
 			}
+
+			Chat.AddExamineMsgToClient($"Name cannot exceed 32 characters!");
 		}
 
 		public void ServerChangeJobTitle(string newJobTitle)
@@ -178,16 +206,41 @@ namespace UI.Objects.Command
 		/// </summary>
 		/// <param name="accessToModify"></param>
 		/// <param name="grant">if true, grants access, otherwise removes it</param>
-		public void ServerModifyAccess(Access accessToModify, bool grant)
+		public void ServerModifyAccess(Clearance accessToModify, bool grant)
 		{
-			var alreadyHasAccess = console.TargetCard.HasAccess(accessToModify);
-			if (!grant && alreadyHasAccess)
+			var idClearance = console.TargetCard.ClearanceSource;
+			if (idClearance == null)
 			{
-				console.TargetCard.ServerRemoveAccess(accessToModify);
+				Loggy.Error($"ID card {gameObject.name} has no BasicClearanceSource component!", Category.Objects);
+				return;
 			}
-			else if (grant && !alreadyHasAccess)
+
+			var alreadyHasClearance = ((IClearanceSource)idClearance).GetCurrentClearance.Contains(accessToModify);
+
+			switch (grant)
 			{
-				console.TargetCard.ServerAddAccess(accessToModify);
+				case false when alreadyHasClearance:
+				{
+					if (GameManager.Instance.CentComm.IsLowPop)
+					{
+						idClearance.ServerRemoveLowPopClearance(accessToModify);
+						return;
+					}
+
+					idClearance.ServerRemoveClearance(accessToModify);
+					break;
+				}
+				case true when alreadyHasClearance == false:
+				{
+					if (GameManager.Instance.CentComm.IsLowPop)
+					{
+						idClearance.ServerAddLowPopClearance(accessToModify);
+						return;
+					}
+
+					idClearance.ServerAddClearance(accessToModify);
+					break;
+				}
 			}
 		}
 
@@ -201,7 +254,7 @@ namespace UI.Objects.Command
 			}
 		}
 
-		public void ServerRemoveTargetCard(ConnectedPlayer player)
+		public void ServerRemoveTargetCard(PlayerInfo player)
 		{
 			if (console.TargetCard == null)
 			{
@@ -211,9 +264,9 @@ namespace UI.Objects.Command
 			pageSwitcher.SetActivePage(usercardPage);
 		}
 
-		public void ServerRemoveAccessCard(ConnectedPlayer player)
+		public void ServerRemoveAccessCard(PlayerInfo player)
 		{
-			if (console.AccessCard == null || IsAIInteracting() == false)
+			if (console.AccessCard == null)
 			{
 				return;
 			}
@@ -224,8 +277,8 @@ namespace UI.Objects.Command
 
 		public void ServerLogin()
 		{
-			if (console.AccessCard != null &&
-				console.AccessCard.HasAccess(Access.change_ids) || IsAIInteracting() == true)
+			var idClearance = console.AccessCard.OrNull()?.GetComponent<IClearanceSource>();
+			if (idClearance != null && console.Restricted.HasClearance(idClearance) || IsAIInteracting())
 			{
 				console.LoggedIn = true;
 				pageSwitcher.SetActivePage(usercardPage);
@@ -233,7 +286,7 @@ namespace UI.Objects.Command
 			}
 		}
 
-		public void ServerLogOut(ConnectedPlayer player)
+		public void ServerLogOut(PlayerInfo player)
 		{
 			ServerRemoveTargetCard(player);
 			console.LoggedIn = false;

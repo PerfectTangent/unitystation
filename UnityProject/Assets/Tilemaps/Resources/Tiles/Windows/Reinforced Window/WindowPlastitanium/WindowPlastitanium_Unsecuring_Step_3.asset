@@ -12,11 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ad263680d73c8c54ba53262044a57d04, type: 3}
   m_Name: WindowPlastitanium_Unsecuring_Step_3
   m_EditorClassIdentifier: 
+  <ForeverID>k__BackingField: d5112f96035316f4095fcb1196d7e4b4
   displayName: plastitanium window
   description: 
   LayerType: 1
   TileType: 2
   RequiredTiles: []
+  Mass: 1
   floorTileSounds: {fileID: 0}
   CanSoundOverride: 0
   atmosPassable: 0
@@ -25,6 +27,7 @@ MonoBehaviour:
   passable: 0
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 0
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -49,10 +52,17 @@ MonoBehaviour:
     Acid: 100
     Magic: 0
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions:
   - {fileID: 11400000, guid: 005f9054d7ecdad4dbc2743967956019, type: 2}
   - {fileID: 11400000, guid: 4635ca63f127a4b1cb58c7ff9de5695a, type: 2}
+  - {fileID: 11400000, guid: 73b6e68b53987b14ba279e88a021fb21, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 0}
   spawnAmountOnDeconstruct: 0

@@ -141,6 +141,9 @@ namespace Tiles
 		/// </summary>
 		public List<TileInteraction> TileInteractions => tileInteractions;
 
+		[field: SerializeField] public List<TileInteraction> OnTileStartMining { get; private set; } = new List<TileInteraction>();
+		[field: SerializeField] public List<TileInteraction> OnTileFinishMining { get; private set; } = new List<TileInteraction>();
+
 		[Tooltip(
 			"Tile step interactions which can occur on this tile. They will be checked in the order they appear in this list (top to bottom).")]
 		[SerializeField]
@@ -200,13 +203,6 @@ namespace Tiles
 		[SerializeField]
 		public List<AddressableAudioSource> SoundOnDestroy = new List<AddressableAudioSource>();
 
-		public override void RefreshTile(Vector3Int position, ITilemap tilemap)
-		{
-			foreach (Vector3Int p in new BoundsInt(-1, -1, 0, 3, 3, 1).allPositionsWithin)
-			{
-				tilemap.RefreshTile(position + p);
-			}
-		}
 
 		/// <summary>
 		/// Checks if the tile is Passable by the ColliderType

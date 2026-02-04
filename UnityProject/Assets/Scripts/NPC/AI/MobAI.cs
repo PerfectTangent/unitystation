@@ -10,7 +10,7 @@ namespace Systems.MobAIs
 	[RequireComponent(typeof(MobFollow))]
 	[RequireComponent(typeof(MobExplore))]
 	[RequireComponent(typeof(MobFlee))]
-	public class MobAI : MonoBehaviour, IServerLifecycle
+	public class MobAI : MobObjective, IServerLifecycle
 	{
 		public string mobName;
 
@@ -20,10 +20,7 @@ namespace Systems.MobAIs
 		protected MobExplore mobExplore;
 		protected MobFlee mobFlee;
 		[NonSerialized] public LivingHealthBehaviour health;
-		protected Rotatable rotatable;
 		protected MobSprite mobSprite;
-		protected CustomNetTransform cnt;
-		public CustomNetTransform Cnt => cnt;
 
 		public RegisterObject registerObject;
 		protected UprightSprites uprightSprites;
@@ -56,14 +53,14 @@ namespace Systems.MobAIs
 
 		protected virtual void Awake()
 		{
+			base.Awake();
+
 			simpleAnimal = GetComponent<SimpleAnimal>();
 			mobFollow = GetComponent<MobFollow>();
 			mobExplore = GetComponent<MobExplore>();
 			mobFlee = GetComponent<MobFlee>();
 			health = GetComponent<LivingHealthBehaviour>();
-			rotatable = GetComponent<Rotatable>();
 			mobSprite = GetComponent<MobSprite>();
-			cnt = GetComponent<CustomNetTransform>();
 			registerObject = GetComponent<RegisterObject>();
 			uprightSprites = GetComponent<UprightSprites>();
 		}
@@ -77,8 +74,6 @@ namespace Systems.MobAIs
 				simpleAnimal.SetDeadState(false);
 			}
 
-			UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
-			UpdateManager.Add(PeriodicUpdate, 1f);
 			health.applyDamageEvent += AttackReceivedCoolDown;
 			isServer = true;
 
@@ -92,11 +87,6 @@ namespace Systems.MobAIs
 			ResetBehaviours();
 		}
 
-		public void OnDisable()
-		{
-			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
-			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, PeriodicUpdate);
-		}
 
 		/// <summary>
 		/// Called after the mob is spawned, before the AI comes online
@@ -112,11 +102,13 @@ namespace Systems.MobAIs
 
 		#endregion
 
-		/// <summary>
-		/// Server only update loop. Make sure to call base.UpdateMe() if overriding
-		/// </summary>
-		protected virtual void UpdateMe()
+
+		public override void ContemplatePriority()
 		{
+			if (damageAttempts >= maxDamageAttempts)
+			{
+				damageAttempts = 0;
+			}
 			if (MonitorKnockedDown())
 			{
 				return;
@@ -127,13 +119,6 @@ namespace Systems.MobAIs
 			MonitorFleeingTime();
 		}
 
-		protected void PeriodicUpdate()
-		{
-			if (damageAttempts >= maxDamageAttempts)
-			{
-				damageAttempts = 0;
-			}
-		}
 
 		/// <summary>
 		/// Updates the mob to fall down or stand up where appropriate
@@ -190,7 +175,7 @@ namespace Systems.MobAIs
 		{
 			if (mobFollow.Priority < 25 && followTimeMax > 0)
 			{
-				followingTime += Time.deltaTime;
+				followingTime += MobController.UpdateTimeInterval;
 				if (followingTime > followTimeMax)
 				{
 					StopFollowing();
@@ -202,7 +187,7 @@ namespace Systems.MobAIs
 		{
 			if (mobExplore.Priority < 25 && exploreTimeMax > 0)
 			{
-				exploringTime += Time.deltaTime;
+				exploringTime += MobController.UpdateTimeInterval;
 				if (exploringTime > exploreTimeMax)
 				{
 					StopExploring();
@@ -214,7 +199,7 @@ namespace Systems.MobAIs
 		{
 			if (mobFlee.activated && fleeTimeMax > 0)
 			{
-				fleeingTime += Time.deltaTime;
+				fleeingTime += MobController.UpdateTimeInterval;
 				if (fleeingTime > fleeTimeMax)
 				{
 					StopFleeing();
@@ -273,8 +258,12 @@ namespace Systems.MobAIs
 		/// <summary>
 		/// Begins exploring for the target
 		/// </summary>
-		protected void BeginExploring(MobExplore.Target target = MobExplore.Target.food, float exploreDuration = -1f)
+		protected void BeginExploring(MobExplore.Target target = MobExplore.Target.none, float exploreDuration = -1f)
 		{
+			if (target == MobExplore.Target.none)
+            {
+				target = mobExplore.target; //so we don't interfere with existing target in MobExplore if it's set
+            }
 			ResetBehaviours();
 			mobExplore.BeginExploring(target);
 			exploreTimeMax = exploreDuration;
@@ -325,26 +314,6 @@ namespace Systems.MobAIs
 		/// </summary>
 		protected Vector2Int GetNudgeDirFromInt(int dir)
 		{
-			//Apply offset to the nudge dir if this mob is on a rotated matrix
-			if (uprightSprites != null)
-			{
-				if (uprightSprites.ExtraRotation.eulerAngles != Vector3.zero)
-				{
-					var a = (uprightSprites.ExtraRotation.eulerAngles.z * -1f) / 45f;
-					var b = dir + (int)a;
-					if (b < -7)
-					{
-						b += 7;
-					}
-					else if (b > 7)
-					{
-						b -= 7;
-					}
-
-					dir = b;
-				}
-			}
-
 			Vector2Int nudgeDir = Vector2Int.zero;
 			switch (dir)
 			{
@@ -385,8 +354,8 @@ namespace Systems.MobAIs
 		{
 			if (dir != Vector2Int.zero)
 			{
-				cnt.Push(dir, context: gameObject);
-				rotatable.SetFaceDirectionLocalVictor(dir);
+				objectPhysics.TryTilePush(dir, null);
+				rotatable.SetFaceDirectionLocalVector(dir);
 			}
 		}
 
@@ -439,7 +408,7 @@ namespace Systems.MobAIs
 		{
 			// face performer
 			var dir = (performer.transform.position - transform.position).normalized;
-			rotatable.SetFaceDirectionLocalVictor(dir.To2Int());
+			rotatable.SetFaceDirectionLocalVector(dir.RoundTo2Int());
 			PettedEvent?.Invoke();
 		}
 

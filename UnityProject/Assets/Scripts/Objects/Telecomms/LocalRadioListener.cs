@@ -11,25 +11,15 @@ namespace Objects.Telecomms
 		{
 			string chatMessage = chat.message;
 			string chatSpeaker = chat.speaker;
-			bool isEncrypted;
-			if (EncryptionData != null)
-			{
-				chatMessage = EncryptionUtils.Encrypt(chatMessage, EncryptionData.EncryptionSecret);
-				chatSpeaker = EncryptionUtils.Encrypt(chatSpeaker, EncryptionData.EncryptionSecret);
-				isEncrypted = true;
-			}
-			else
-			{
-				isEncrypted = false;
-			}
+			int code = passCode;
+
 			RadioMessage msg = new RadioMessage
 			{
 				Sender = chatSpeaker,
 				Message = chatMessage,
-				IsEncrypted = isEncrypted,
-				OriginalSenderName = chat.speaker
+				Code = code
 			};
-			TrySendSignal(msg);
+			TrySendSignal(null, msg);
 		}
 
 		protected override bool SendSignalLogic()
@@ -39,7 +29,7 @@ namespace Objects.Telecomms
 
 		public override void SignalFailed()
 		{
-			Chat.AddLocalMsgToChat("ksshhhk!", gameObject);
+			Chat.AddActionMsgToChat(gameObject, "ksshhhk!");
 		}
 
 		public bool WillInfluenceChat()

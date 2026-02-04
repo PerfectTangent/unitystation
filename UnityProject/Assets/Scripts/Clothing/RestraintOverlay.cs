@@ -1,8 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using HealthV2;
+using Logs;
 using UnityEngine;
 using UI.Action;
+using UI.Core.Action;
 
 namespace UI.Items
 {
@@ -11,11 +13,13 @@ namespace UI.Items
 	/// </summary>
 	public class RestraintOverlay : ClothingItem, IActionGUI
 	{
-		// TODO Different colored overlays for different restraints
-		[SerializeField]
-		private List<Sprite> handCuffOverlays = new List<Sprite>();
 
-		[SerializeField] private SpriteRenderer spriteRend = null;
+		// TODO Different colored overlays for different restraints
+
+		[SerializeField]
+		private SpriteDataSO handCuffOverlay;
+
+
 		private IEnumerator uncuffCoroutine;
 		private Vector3Int positionCache;
 
@@ -26,44 +30,55 @@ namespace UI.Items
 
 		public override void SetReference(GameObject Item)
 		{
-			GameObjectReference = Item;
+			ServerGameObjectReference = Item;
 			if (Item == null)
 			{
-				spriteRend.sprite = null;
+				spriteHandler.Empty();
 			}
 			else
 			{
-				spriteRend.sprite = handCuffOverlays[referenceOffset];
+				spriteHandler.SetSpriteSO(handCuffOverlay);
 			}
-			DetermineAlertUI();
-		}
 
-		public override void UpdateSprite()
-		{
-			if (GameObjectReference != null)
+			if (CustomNetworkManager.IsServer)
 			{
-				spriteRend.sprite = handCuffOverlays[referenceOffset];
+				if(thisPlayerScript == null || thisPlayerScript.Mind == null) return;
+				UIActionManager.ToggleServer( gameObject ,this, ServerGameObjectReference != null);
 			}
 		}
 
-		private void DetermineAlertUI()
+		public override void UpdateSprite(bool Network = false)
 		{
-			if (thisPlayerScript != PlayerManager.PlayerScript) return;
+			spriteHandler.SetSpriteVariant(referenceOffset, Network);
 
-			UIActionManager.ToggleLocal(this, GameObjectReference != null);
 		}
+
 
 		public void ServerBeginUnCuffAttempt()
 		{
 			if (uncuffCoroutine != null)
 				StopCoroutine(uncuffCoroutine);
 
-			float resistTime = GameObjectReference.GetComponent<Restraint>().ResistTime;
-			positionCache = thisPlayerScript.registerTile.LocalPositionServer;
+			float resistTime = 0;
+
+			if (ServerGameObjectReference == null)
+			{
+				Loggy.Error($"{thisPlayerScript.playerName} cuffed but no GameObjectReference to the cuffs, so uncuffing time set to 30");
+
+				//Default to 30 seconds
+				resistTime = 30;
+			}
+			else
+			{
+				resistTime = ServerGameObjectReference.GetComponent<Restraint>().ResistTime;
+			}
+
+
+			positionCache = thisPlayerScript.RegisterPlayer.LocalPositionServer;
 			if (!CanUncuff()) return;
 
-			var bar = StandardProgressAction.Create(new StandardProgressActionConfig(StandardProgressActionType.Unbuckle, false, false, true), TryUncuff);
-			bar.ServerStartProgress(thisPlayerScript.registerTile, resistTime, thisPlayerScript.gameObject);
+			var bar = StandardProgressAction.Create(new StandardProgressActionConfig(StandardProgressActionType.Uncuff, false, false, true, false, true), TryUncuff);
+			bar.ServerStartProgress(thisPlayerScript.RegisterPlayer, resistTime, thisPlayerScript.gameObject);
 			Chat.AddActionMsgToChat(
 				thisPlayerScript.gameObject,
 				$"You are attempting to remove the cuffs. This takes up to {resistTime:0} seconds",
@@ -87,8 +102,8 @@ namespace UI.Items
 			if (playerHealth == null ||
 				playerHealth.ConsciousState == ConsciousState.DEAD ||
 				playerHealth.ConsciousState == ConsciousState.UNCONSCIOUS ||
-				thisPlayerScript.registerTile.IsSlippingServer ||
-				positionCache != thisPlayerScript.registerTile.LocalPositionServer)
+				thisPlayerScript.RegisterPlayer.IsSlippingServer ||
+				positionCache != thisPlayerScript.RegisterPlayer.LocalPositionServer)
 			{
 				return false;
 			}
@@ -98,7 +113,7 @@ namespace UI.Items
 
 		public void CallActionClient()
 		{
-			PlayerManager.PlayerScript.playerNetworkActions.CmdTryUncuff();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdTryUncuff();
 		}
 	}
 }

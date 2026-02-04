@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1692934809875326062, guid: 5fcee48b872371642b368699b3180681,
@@ -13,12 +14,23 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 806e653e3a19ecd4cad0eb53ff4ca15a,
         type: 2}
+    - target: {fileID: 1692934809875326062, guid: 5fcee48b872371642b368699b3180681,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 806e653e3a19ecd4cad0eb53ff4ca15a,
+        type: 2}
     - target: {fileID: 1893102291525422188, guid: 5fcee48b872371642b368699b3180681,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 956ed0e4b87ebc945979a56c15817878,
         type: 2}
+    - target: {fileID: 1910130900168479620, guid: 5fcee48b872371642b368699b3180681,
+        type: 3}
+      propertyPath: parentID
+      value: 502f496beb9v34b9a9c9786he845ed7e
+      objectReference: {fileID: 0}
     - target: {fileID: 1910130900168479620, guid: 5fcee48b872371642b368699b3180681,
         type: 3}
       propertyPath: foreverID
@@ -92,6 +104,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4876458944305799773, guid: 5fcee48b872371642b368699b3180681,
         type: 3}
+      propertyPath: _assetId
+      value: 2491432303
+      objectReference: {fileID: 0}
+    - target: {fileID: 4876458944305799773, guid: 5fcee48b872371642b368699b3180681,
+        type: 3}
       propertyPath: m_AssetId
       value: ad6a6ff1bc1300440931fd4d84df5374
       objectReference: {fileID: 0}
@@ -111,4 +128,7 @@ PrefabInstance:
       value: Hugs-The-Feet lizard skin boots
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5fcee48b872371642b368699b3180681, type: 3}

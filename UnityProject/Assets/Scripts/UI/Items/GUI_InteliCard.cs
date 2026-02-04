@@ -7,10 +7,10 @@ namespace UI.Items
 	public class GUI_InteliCard : NetTab
 	{
 		[SerializeField]
-		private NetLabel labelLaws = null;
+		private NetText_label labelLaws = null;
 
 		[SerializeField]
-		private NetLabel labelPurgeButton = null;
+		private NetText_label labelPurgeButton = null;
 
 		[SerializeField]
 		private NetSlider allowRemoteActionsSlider = null;
@@ -24,22 +24,22 @@ namespace UI.Items
 		private AiVessel aiVessel;
 		private AiVessel AiVessel => aiVessel ??= Provider.GetComponent<AiVessel>();
 
-		public void OnTabOpenedHandler(ConnectedPlayer connectedPlayer)
+		public void OnTabOpenedHandler(PlayerInfo connectedPlayer)
 		{
-			allowRemoteActionsSlider.SetValueServer(AiVessel.AllowRemoteAction ? (1 * 100).ToString() : "0");
-			allowRadioSlider.SetValueServer(AiVessel.AllowRadio ? (1 * 100).ToString() : "0");
+			allowRemoteActionsSlider.MasterSetValue(AiVessel.AllowRemoteAction ? (1 * 100).ToString() : "0");
+			allowRadioSlider.MasterSetValue(AiVessel.AllowRadio ? (1 * 100).ToString() : "0");
 
 			if (AiVessel.LinkedPlayer == null)
 			{
-				labelLaws.Value = "This intelicard holds no Ai";
-				integritySlider.Value = "0";
-				labelPurgeButton.Value = "No Ai to Purge";
+				labelLaws.MasterSetValue("This intelicard holds no Ai");
+				integritySlider.MasterSetValue( "0");
+				labelPurgeButton.MasterSetValue( "No Ai to Purge"); ;
 				return;
 			}
 
-			labelPurgeButton.Value = AiVessel.LinkedPlayer.IsPurging ? "Stop Purging" : "Start Purging";
-			labelLaws.Value = AiVessel.LinkedPlayer.GetLawsString();
-			integritySlider.Value = AiVessel.LinkedPlayer.Integrity.ToString();
+			labelPurgeButton.MasterSetValue(AiVessel.LinkedPlayer.IsPurging ? "Stop Purging" : "Start Purging");
+			labelLaws.MasterSetValue(AiVessel.LinkedPlayer.GetLawsString());
+			integritySlider.MasterSetValue(AiVessel.LinkedPlayer.Integrity.ToString());
 		}
 
 		public void OnRemoveActionChange()

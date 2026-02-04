@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3465284675447965665, guid: 423cab216aa4e354f8159742cc80d10a,
@@ -85,6 +86,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3994276298403714359, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
+      propertyPath: _assetId
+      value: 1818096887
+      objectReference: {fileID: 0}
+    - target: {fileID: 3994276298403714359, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
       propertyPath: m_AssetId
       value: e020e755a38f8e94aa8c9401873c7d03
       objectReference: {fileID: 0}
@@ -94,6 +100,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: ab7453fbd0a10a0428c385822c33fbf1,
         type: 2}
+    - target: {fileID: 7186812133261251332, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: ab7453fbd0a10a0428c385822c33fbf1,
+        type: 2}
+    - target: {fileID: 7944360039044097262, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
+      propertyPath: parentID
+      value: 423cab216aa4e354f8159742cc80d10a
+      objectReference: {fileID: 0}
     - target: {fileID: 7944360039044097262, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
       propertyPath: foreverID
@@ -111,9 +128,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7964486416432102150, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 883947860852e504aab6695d0008d16c,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 423cab216aa4e354f8159742cc80d10a, type: 3}

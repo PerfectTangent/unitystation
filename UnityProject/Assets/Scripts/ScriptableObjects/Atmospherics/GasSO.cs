@@ -7,8 +7,12 @@ using UnityEngine;
 namespace ScriptableObjects.Atmospherics
 {
 	[CreateAssetMenu(fileName = "GasSO", menuName = "ScriptableObjects/Atmos/GasSO")]
-	public class GasSO : ScriptableObject
+	public class GasSO : SOTracker
 	{
+		public override SpriteDataSO Sprite => PreviewSprite;
+
+		public SpriteDataSO PreviewSprite;
+
 		//This is how many Joules are needed to raise 1 mole of the gas 1 degree Kelvin: J/K/mol
 		public float MolarHeatCapacity = 20;
 
@@ -49,6 +53,7 @@ namespace ScriptableObjects.Atmospherics
 
 		public static implicit operator int(GasSO gas)
 		{
+			if (gas == null) return -1;
 			return gas.Index;
 		}
 
@@ -56,5 +61,6 @@ namespace ScriptableObjects.Atmospherics
 		{
 			Index = newIndex;
 		}
+
 	}
 }

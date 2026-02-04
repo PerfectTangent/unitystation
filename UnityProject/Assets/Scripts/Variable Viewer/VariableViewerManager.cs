@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Initialisation;
+using SecureStuff;
 using UnityEngine;
 
 public class VariableViewerManager : MonoBehaviour, IInitialise
@@ -9,11 +10,27 @@ public class VariableViewerManager : MonoBehaviour, IInitialise
 
 	public InitialisationSystems Subsystem => InitialisationSystems.VariableViewerManager;
 
+	public static bool TestLoad = false;
+	public static bool INITEDED = false;
 	void IInitialise.Initialise()
 	{
-		VVUIElementHandler.ReSet();
-		VVUIElementHandler.VariableViewerManager = this;
-		VVUIElementHandler.Initialise(AvailableElementsToInitialise);
+		if (TestLoad == false)
+		{
+			VVUIElementHandler.ReSet();
+			VVUIElementHandler.VariableViewerManager = this;
+			VVUIElementHandler.Initialise(AvailableElementsToInitialise);
+		}
+		else
+		{
+			if (INITEDED == false)
+			{
+				VVUIElementHandler.ReSet();
+				VVUIElementHandler.VariableViewerManager = this;
+				VVUIElementHandler.Initialise(AvailableElementsToInitialise);
+				INITEDED = true;
+			}
+		}
+
 	}
 
 	void OnEnable()

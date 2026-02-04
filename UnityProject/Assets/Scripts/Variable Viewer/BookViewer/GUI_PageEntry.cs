@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Messages.Client.VariableViewer;
+using SecureStuff;
 
 
 namespace AdminTools.VariableViewer
@@ -54,7 +55,7 @@ namespace AdminTools.VariableViewer
 					case VVHighlight.VariableChangeUpdate:
 						TypeImage.color = Color.yellow;
 						break;
-					case VVHighlight.DEBUG:
+					case VVHighlight.DEBUG_OrUnecessary:
 						TypeImage.color = Color.red;
 						break;
 				}
@@ -82,7 +83,7 @@ namespace AdminTools.VariableViewer
 
 		public void InvokeMethod()
 		{
-			RequestInvokeFunction.Send(_Page.ID);
+			RequestInvokeFunction.Send(_Page.ID, UISendToClientToggle.toggle);
 		}
 	}
 }

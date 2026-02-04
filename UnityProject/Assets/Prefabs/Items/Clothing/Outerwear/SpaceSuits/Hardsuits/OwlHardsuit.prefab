@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 493121677726252, guid: eec487290ececeb4db71bab916465099, type: 3}
@@ -16,6 +17,21 @@ PrefabInstance:
       value: A dual-mode advanced hardsuit designed for any crime-fighting situation.
         It is in travel mode.
       objectReference: {fileID: 0}
+    - target: {fileID: 493121677726252, guid: eec487290ececeb4db71bab916465099, type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 3e6f011ee7a228c4da4dee72ac9193d2,
+        type: 2}
+    - target: {fileID: 493121677726252, guid: eec487290ececeb4db71bab916465099, type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 1914016561fc0054e80c1788760fa631,
+        type: 2}
+    - target: {fileID: 493121677726252, guid: eec487290ececeb4db71bab916465099, type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 1356c2f093289ad48b1450b47edf022a,
+        type: 2}
     - target: {fileID: 296585930201255442, guid: eec487290ececeb4db71bab916465099,
         type: 3}
       propertyPath: m_Sprite
@@ -84,6 +100,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 538302552490197242, guid: eec487290ececeb4db71bab916465099,
         type: 3}
+      propertyPath: _assetId
+      value: 194926712
+      objectReference: {fileID: 0}
+    - target: {fileID: 538302552490197242, guid: eec487290ececeb4db71bab916465099,
+        type: 3}
       propertyPath: m_AssetId
       value: c29a8b03e5340244287ff6c26749b609
       objectReference: {fileID: 0}
@@ -93,6 +114,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 1356c2f093289ad48b1450b47edf022a,
         type: 2}
+    - target: {fileID: 6028708010380084937, guid: eec487290ececeb4db71bab916465099,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 1356c2f093289ad48b1450b47edf022a,
+        type: 2}
+    - target: {fileID: 6797870474082185507, guid: eec487290ececeb4db71bab916465099,
+        type: 3}
+      propertyPath: parentID
+      value: eec487290ececeb4db71bab916465099
+      objectReference: {fileID: 0}
     - target: {fileID: 6797870474082185507, guid: eec487290ececeb4db71bab916465099,
         type: 3}
       propertyPath: foreverID
@@ -115,15 +147,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6814333548009041611, guid: eec487290ececeb4db71bab916465099,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 0dd9576e76324544891d447a129cfa18,
         type: 2}
     - target: {fileID: 6814333548009041611, guid: eec487290ececeb4db71bab916465099,
         type: 3}
-      propertyPath: allClothingData.Array.data[1]
+      propertyPath: 'allClothingData.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 8e52a8782ccb2c44e8ed96986ed43fa8,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eec487290ececeb4db71bab916465099, type: 3}

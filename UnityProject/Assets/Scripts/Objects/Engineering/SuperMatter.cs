@@ -1,23 +1,32 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Systems.Atmospherics;
 using Systems.ElectricalArcs;
 using Systems.Explosions;
 using Systems.Radiation;
 using AddressableReferences;
+using AdminTools;
 using Core.Lighting;
 using HealthV2;
 using Light2D;
-using Messages.Server;
 using Mirror;
 using ScriptableObjects.Atmospherics;
-using ScriptableObjects.Gun;
+using Systems.Score;
 using UnityEngine;
 using Weapons.Projectiles;
 using Weapons.Projectiles.Behaviours;
 using Random = UnityEngine.Random;
+using Communications;
+using Core.Admin.Logs;
+using Objects.Machines.ServerMachines.Communications;
+using ScriptableObjects.Communications;
+using Systems.Communications;
+using InGameEvents;
+using Items;
+
 
 namespace Objects.Engineering
 {
@@ -25,7 +34,7 @@ namespace Objects.Engineering
 	/// Supermatter script, controls supermatter effects
 	/// Script originated from Tg DM code, which has been modified for UnityStation
 	/// </summary>
-	public class SuperMatter : NetworkBehaviour, IOnHitDetect, IExaminable, IBumpableObject, ICheckedInteractable<HandApply>
+	public class SuperMatter : SignalEmitter, IOnHitDetect, IExaminable, IBumpableObject, ICheckedInteractable<HandApply>, IChatInfluencer
 	{
 		#region lightSpriteDefines
 
@@ -92,6 +101,9 @@ namespace Objects.Engineering
 
 		[SerializeField]
 		private GameObject singularity = null;
+
+		[SerializeField] private int scoreForReleasingSingularity = -500;
+		private const string LOOSE_SCORE = "gooseisloose";
 
 		[SerializeField]
 		private GameObject energyBall = null;
@@ -264,6 +276,7 @@ namespace Objects.Engineering
 		private bool isDelam;
 
 		[SerializeField] private int explosionStrength = 55000;
+		[SerializeField] private SignalDataSO radioSO;
 
 		#region LifeCycle
 
@@ -325,7 +338,7 @@ namespace Objects.Engineering
 		private void OnDisable()
 		{
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, SuperMatterUpdate);
-			SoundManager.Stop(loopingSoundGuid);
+			SoundManager.ClientStop(loopingSoundGuid, true);
 		}
 
 		[Client]
@@ -334,7 +347,7 @@ namespace Objects.Engineering
 			if (newVar)
 			{
 				//Delam state
-				SoundManager.Stop(loopingSoundGuid);
+				SoundManager.ClientStop(loopingSoundGuid, true);
 				loopingSoundGuid = Guid.NewGuid().ToString();
 				_ = SoundManager.PlayAtPosition(delamLoopSound, registerTile.WorldPositionServer, gameObject, loopingSoundGuid);
 
@@ -344,7 +357,7 @@ namespace Objects.Engineering
 			else
 			{
 				//Normal state
-				SoundManager.Stop(loopingSoundGuid);
+				SoundManager.ClientStop(loopingSoundGuid, true);
 				loopingSoundGuid = Guid.NewGuid().ToString();
 				_ = SoundManager.PlayAtPosition(normalLoopSound, registerTile.WorldPositionServer, gameObject, loopingSoundGuid);
 
@@ -379,7 +392,7 @@ namespace Objects.Engineering
 			var gasNode = registerTile.Matrix.GetMetaDataNode(registerTile.LocalPositionServer, false);
 			if(gasNode == null) return;
 
-			var gasMix = gasNode.GasMix;
+			var gasMix = gasNode.GasMixLocal;
 
 			GasMix.TransferGas(removeMix, gasMix, 0.15f * gasMix.Moles);
 
@@ -540,13 +553,13 @@ namespace Objects.Engineering
 				if (gasmixPowerRatio > 0.8)
 				{
 					//with a perfect gas mix, make the power more based on heat
-					mainSprite.ChangeSprite(1);
+					mainSprite.SetCatalogueIndexSprite(1);
 				}
 				else
 				{
 					//in normal mode, power is less effected by heat
 					tempFactor = 30;
-					mainSprite.ChangeSprite(0);
+					mainSprite.SetCatalogueIndexSprite(0);
 				}
 
 				//if there is more pluox and n2 then anything else, we receive no power increase from heat
@@ -583,11 +596,11 @@ namespace Objects.Engineering
 
 				//Calculate how much gas to release
 				//Varies based on power and gas content
-				removeMix.AddGas(Gas.Plasma, Mathf.Max((deviceEnergy * dynamicHeatModifier) / PlasmaReleaseModifier, 0));
+				removeMix.AddGasWithTemperature(Gas.Plasma, Mathf.Max((deviceEnergy * dynamicHeatModifier) / PlasmaReleaseModifier, 0), removeMix.Temperature);
 
 				//Varies based on power, gas content, and heat
-				removeMix.AddGas(Gas.Oxygen, Mathf.Max(((deviceEnergy + removeMix.Temperature * dynamicHeatModifier) - 273.15f) / OxygenReleaseModifier,
-						0));
+				removeMix.AddGasWithTemperature(Gas.Oxygen, Mathf.Max(((deviceEnergy + removeMix.Temperature * dynamicHeatModifier) - 273.15f) / OxygenReleaseModifier,
+						0), removeMix.Temperature);
 
 				//Return gas to tile
 				GasMix.TransferGas(gasMix, removeMix, removeMix.Moles);
@@ -736,7 +749,8 @@ namespace Objects.Engineering
 
 		private void FireNuclearParticle()
 		{
-			CastProjectileMessage.SendToAll(gameObject, nuclearParticlePrefab, VectorExtensions.DegreeToVector2(Random.Range(0, 361)), default);
+			ProjectileManager.InstantiateAndShoot(nuclearParticlePrefab,
+				VectorExtensions.DegreeToVector2(Random.Range(0, 361)), gameObject, null, BodyPartType.None);
 		}
 
 		#endregion
@@ -813,7 +827,7 @@ namespace Objects.Engineering
 			finalCountdown = true;
 
 			//Turn on shield overlay
-			overlaySpriteHandler.ChangeSprite(0);
+			overlaySpriteHandler.SetCatalogueIndexSprite(0);
 
 			AddMessageToChat($"{emergencyAlertText} The supermatter has reached critical integrity failure. Emergency causality destabilization field has been activated.", true);
 
@@ -864,6 +878,9 @@ namespace Objects.Engineering
 				SendMessageToAllPlayers("<color=red>A horrible screeching fills your ears, and a wave of dread washes over you...</color>");
 				Spawn.ServerPrefab(singularity, registerTile.WorldPosition, transform.parent);
 
+				ScoreMachine.AddNewScoreEntry(LOOSE_SCORE, "Singularity created", ScoreMachine.ScoreType.Int, ScoreCategory.StationScore);
+				ScoreMachine.AddToScoreInt(scoreForReleasingSingularity, LOOSE_SCORE);
+
 				//Dont explode if singularity is spawned
 				return;
 			}
@@ -876,7 +893,7 @@ namespace Objects.Engineering
 
 			RadiationManager.Instance.RequestPulse( registerTile.LocalPositionServer, detonationRads, GetInstanceID());
 
-			Explosion.StartExplosion(registerTile.WorldPositionServer, explosionStrength);
+			Explosion.StartExplosion(registerTile.WorldPositionServer, explosionStrength, stunNearbyPlayers: true);
 
 			_ = Despawn.ServerSingle(gameObject);
 		}
@@ -1056,12 +1073,39 @@ namespace Objects.Engineering
 
 		private void AddMessageToChat(string message, bool sendToCommon = false)
 		{
-			Chat.AddCommMsgByMachineToChat(gameObject, message, ChatChannel.Engineering, Loudness.SCREAMING,  broadcasterName: "Supermatter Warning System: ");
+			ChatEvent chatEvent = new ChatEvent();
+			chatEvent.message = message;
+			chatEvent.speaker = "Supermatter Warning System: ";
+			chatEvent.VoiceLevel = Loudness.SCREAMING;
+			chatEvent.position = registerTile.WorldPositionServer;
+			chatEvent.originator = gameObject;
 
-			if (sendToCommon)
-			{
-				Chat.AddCommMsgByMachineToChat(gameObject, message, ChatChannel.Common, Loudness.SCREAMING, broadcasterName: "Supermatter Warning System: ");
-			}
+			chatEvent.channels = ChatChannel.Engineering;
+			if (sendToCommon) chatEvent.channels |= ChatChannel.Common;
+
+			InfluenceChat(chatEvent);
+
+		}
+
+		protected override bool SendSignalLogic()
+		{
+			return true;
+		}
+
+		public override void SignalFailed() { }
+
+		public bool WillInfluenceChat()
+		{
+			return true;
+		}
+
+		public ChatEvent InfluenceChat(ChatEvent chatToManipulate)
+		{
+			CommsServer.RadioMessageData msg = new CommsServer.RadioMessageData();
+
+			msg.ChatEvent = chatToManipulate;
+			TrySendSignal(radioSO, msg);
+			return chatToManipulate;
 		}
 
 		private void SendMessageToAllPlayers(string message)
@@ -1096,35 +1140,35 @@ namespace Objects.Engineering
 		}
 
 		//Called when bumped by players or collided with by flying items
-		public void OnBump(GameObject bumpedBy)
+		public void OnBump(GameObject bumpedBy, GameObject client)
 		{
-			if(isHugBox) return;
+			if (isServer == false || isHugBox) return;
 
 			if (bumpedBy.TryGetComponent<PlayerHealthV2>(out var playerHealth))
 			{
 				//Players, you big idiot
-				var job = bumpedBy.GetComponent<PlayerScript>().mind?.occupation;
+				var job = bumpedBy.GetComponent<PlayerScript>().Mind?.occupation;
 
 				Chat.AddActionMsgToChat(bumpedBy,
 					$"You slam into the {gameObject.ExpensiveName()} as your ears are filled with unearthly ringing. Your last thought is 'Oh, fuck.'",
 					$"The {(job != null ? job.JobType.JobString() : "person")} slams into the {gameObject.ExpensiveName()} inducing a resonance... {bumpedBy.ExpensiveName()} body starts to glow and burst into flames before flashing into dust!");
 
-				playerHealth.Gib();
+				playerHealth.OnGib();
 				matterPower += 100;
 			}
 			else if (bumpedBy.TryGetComponent<LivingHealthMasterBase>(out var health))
 			{
 				//Npcs
-				Chat.AddLocalMsgToChat(
-					$"The {bumpedBy.ExpensiveName()} slams into the {gameObject.ExpensiveName()} inducing a resonance... its body starts to glow and burst into flames before flashing into dust!",
-					bumpedBy);
+				Chat.AddActionMsgToChat(bumpedBy, $"The {bumpedBy.ExpensiveName()} slams into the {gameObject.ExpensiveName()} inducing a resonance... " +
+													"its body starts to glow and burst into flames before flashing into dust!");
 
-				health.ApplyDamageAll(gameObject, 1000, AttackType.Internal, DamageType.Brute);
+				health.OnGib();
 			}
-			else if(bumpedBy.TryGetComponent<Integrity>(out var integrity))
+			else if (bumpedBy.TryGetComponent<Integrity>(out var integrity))
 			{
 				//Items flying
-				Chat.AddLocalMsgToChat($"The {bumpedBy.ExpensiveName()} smacks into the {gameObject.ExpensiveName()} and rapidly flashes to ash", bumpedBy);
+				Chat.AddActionMsgToChat(bumpedBy, $"The {bumpedBy.ExpensiveName()} smacks into the {gameObject.ExpensiveName()} and rapidly flashes to ash!");
+				LogBumpForAdmin(bumpedBy);
 
 				integrity.ApplyDamage(1000, AttackType.Rad, DamageType.Brute, true, ignoreArmor: true);
 			}
@@ -1132,6 +1176,15 @@ namespace Objects.Engineering
 			matterPower += 150;
 			RadiationManager.Instance.RequestPulse( registerTile.WorldPositionServer, 200, GetInstanceID());
 			SoundManager.PlayNetworkedAtPos(lightningSound, registerTile.WorldPositionServer, sourceObj: gameObject);
+		}
+
+		private void LogBumpForAdmin(GameObject thrownObject)
+		{
+			if (thrownObject.TryGetComponent<LastTouch>(out var touch) == false || touch.LastTouchedBy == null) return;
+			AdminLogsManager.AddNewLog(touch.LastTouchedBy.GameObject,
+				$"A {thrownObject.ExpensiveName()} was thrown at a super-matter " +
+				$"and was last touched by {touch.LastTouchedBy.Script.playerName} ({touch.LastTouchedBy.Username}).",
+				LogCategory.Interaction, Severity.IMMEDIATE_ATTENTION);
 		}
 
 		#endregion
@@ -1169,7 +1222,7 @@ namespace Objects.Engineering
 					$"You reach out and touch {gameObject.ExpensiveName()}. Everything starts burning and all you can hear is ringing. Your last thought is 'That was not a wise decision'",
 					$"{interaction.Performer.ExpensiveName()} reaches out and touches {gameObject.ExpensiveName()}, inducing a resonance... {interaction.Performer.ExpensiveName()} body starts to glow and burst into flames before flashing into dust!");
 
-				interaction.Performer.GetComponent<PlayerHealthV2>().Gib();
+				interaction.Performer.GetComponent<PlayerHealthV2>().OnGib();
 				matterPower += 200;
 				return;
 			}
@@ -1184,7 +1237,7 @@ namespace Objects.Engineering
 					$"{interaction.Performer.ExpensiveName()} scrapes off a shard from the {gameObject.ExpensiveName()}.",
 					() =>
 					{
-						Spawn.ServerPrefab(superMatterShard, interaction.Performer.WorldPosServer(),
+						Spawn.ServerPrefab(superMatterShard, interaction.Performer.AssumedWorldPosServer(),
 							interaction.Performer.transform.parent);
 						matterPower += 800;
 
@@ -1236,7 +1289,7 @@ namespace Objects.Engineering
 
 			if (node == null) return SuperMatterStatus.Error;
 
-			var gas = node.GasMix;
+			var gas = node.GasMixLocal;
 
 			var integrityPercentage = GetIntegrityPercentage();
 

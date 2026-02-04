@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Shared.Editor;
 using TileManagement;
 using UnityEditor;
 using UnityEngine;
@@ -25,15 +26,14 @@ public class MetaTileMapView : BasicView
 
 	public override void DrawContent()
 	{
-		for (int i = 0; i < localChecks.Count; i++)
-		{
-			Check<MetaTileMap> check = localChecks[i];
-			check.Active = GUILayout.Toggle(check.Active, check.Label);
-		}
+		DrawToggles(localChecks);
+		DrawToggles(globalChecks);
+	}
 
-		for (int i = 0; i < globalChecks.Count; i++)
+	private static void DrawToggles<S>(List<Check<S>> checks)
+	{
+		foreach (var check in checks)
 		{
-			Check<MatrixManager> check = globalChecks[i];
 			check.Active = GUILayout.Toggle(check.Active, check.Label);
 		}
 	}
@@ -68,7 +68,7 @@ public class MetaTileMapView : BasicView
 
 		public override void DrawGizmo(MetaTileMap source, Vector3Int position)
 		{
-			if (source.HasObject(position, CustomNetworkManager.Instance._isServer))
+			if (source.HasObject(position, CustomNetworkManager.IsServer))
 			{
 				GizmoUtils.DrawCube(position, Color.magenta);
 			}
@@ -116,14 +116,6 @@ public class MetaTileMapView : BasicView
 	private class StickyClientCheck : Check<MatrixManager>
 	{
 		public override string Label { get; } = "Sticky";
-
-		public override void DrawGizmo(MatrixManager source, Vector3Int position)
-		{
-			if (!MatrixManager.IsNonStickyAt(position, false))
-			{
-				GizmoUtils.DrawCube(position, Color.yellow, false);
-			}
-		}
 	}
 
 	private class ShowLocalPositionsCheck : Check<MetaTileMap>

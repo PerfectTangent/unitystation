@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1465115208436918518, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
+        type: 3}
+      propertyPath: parentID
+      value: bc2878fc1e4346c41bf6bc3b53b91f6a
+      objectReference: {fileID: 0}
     - target: {fileID: 1465115208436918518, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
         type: 3}
       propertyPath: foreverID
@@ -557,7 +563,7 @@ PrefabInstance:
     - target: {fileID: 2300265576470810490, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
         type: 3}
       propertyPath: InitialVendorContent.Array.data[10].ItemName
-      value: Noir Suitskirt
+      value: Noir Suit Coat
       objectReference: {fileID: 0}
     - target: {fileID: 2300265576470810490, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
         type: 3}
@@ -721,6 +727,26 @@ PrefabInstance:
       propertyPath: Color.r
       value: 0.8313726
       objectReference: {fileID: 0}
+    - target: {fileID: 6229150752284204976, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
+        type: 3}
+      propertyPath: InitialColour.b
+      value: 0.7411765
+      objectReference: {fileID: 0}
+    - target: {fileID: 6229150752284204976, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
+        type: 3}
+      propertyPath: InitialColour.g
+      value: 0.8000001
+      objectReference: {fileID: 0}
+    - target: {fileID: 6229150752284204976, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
+        type: 3}
+      propertyPath: InitialColour.r
+      value: 0.8313726
+      objectReference: {fileID: 0}
+    - target: {fileID: 6267070499382879197, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
+        type: 3}
+      propertyPath: _assetId
+      value: 3398781402
+      objectReference: {fileID: 0}
     - target: {fileID: 6267070499382879197, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
         type: 3}
       propertyPath: m_AssetId
@@ -738,6 +764,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 39b1a138676dafb49ab10c5932419be2,
         type: 2}
+    - target: {fileID: 7022302039327439973, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 39b1a138676dafb49ab10c5932419be2,
+        type: 2}
     - target: {fileID: 7388633693335655483, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
         type: 3}
       propertyPath: requiredClearance.Array.size
@@ -745,8 +777,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7388633693335655483, guid: bc2878fc1e4346c41bf6bc3b53b91f6a,
         type: 3}
-      propertyPath: requiredClearance.Array.data[0]
+      propertyPath: 'requiredClearance.Array.data[0]'
       value: 4
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bc2878fc1e4346c41bf6bc3b53b91f6a, type: 3}

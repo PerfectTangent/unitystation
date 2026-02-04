@@ -12,8 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce108c02d022d1940bc023ceca025d81, type: 3}
   m_Name: LootLightTubeBroken
   m_EditorClassIdentifier: 
+  foreverID: 7fed0dc1aa4592e46a65c6e972157ca9
   pool:
-  - prefab: {fileID: 5680136605834777345, guid: c3e6805b264a935428b0de415ea57943,
+  - prefab: {fileID: 4766721875690198130, guid: 24b56977c4055b64cb1f133b59595e60,
+      type: 3}
+    maxAmount: 1
+    probability: 15
+  - prefab: {fileID: 4433336198165141055, guid: 827dad187b7a6e449b5b73aa0e691a38,
       type: 3}
     maxAmount: 3
     probability: 25
@@ -21,7 +26,4 @@ MonoBehaviour:
       type: 3}
     maxAmount: 2
     probability: 50
-  - prefab: {fileID: 4766721875690198130, guid: 24b56977c4055b64cb1f133b59595e60,
-      type: 3}
-    maxAmount: 1
-    probability: 15
+  RequiredTrait: {fileID: 0}

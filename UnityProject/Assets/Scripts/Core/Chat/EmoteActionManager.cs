@@ -1,20 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
+using Messages.Client;
 using ScriptableObjects.RP;
+using Shared.Managers;
+using UI.Core;
 using UnityEngine;
 
 namespace Core.Chat
 {
-	public class EmoteActionManager : Managers.SingletonManager<EmoteActionManager>
+	public class EmoteActionManager : SingletonManager<EmoteActionManager>
 	{
 		[SerializeField] private EmoteListSO emoteList;
 		public EmoteListSO EmoteList => emoteList;
 
-		public static bool HasEmote(string emote, EmoteActionManager instance)
+
+		public void CheckForInputForEmoteWindow()
+		{
+			if (PlayerManager.LocalPlayerObject == null) return;
+			DisplayEmoteWindow();
+		}
+
+		public static void DisplayEmoteWindow()
+		{
+			var choices = new List<DynamicUIChoiceEntryData>();
+			foreach (var emote in Instance.emoteList.Emotes)
+			{
+				var newChoice = new DynamicUIChoiceEntryData();
+				newChoice.Text = emote.EmoteName;
+				newChoice.Icon = emote.EmoteIcon;
+				// Emotes can only be ran server side, so we have to invoke a command on the server.
+				newChoice.ChoiceAction = () => RequestEmote.Send(emote.EmoteName);
+				choices.Add(newChoice);
+			}
+			DynamicChoiceUI.ClientDisplayChoicesNotNetworked("Emotes", "Choose an emote you'd like to perform.", choices, true);
+		}
+
+		public static bool HasEmote(string emote)
 		{
 			string[] emoteArray = emote.Split(' ');
 
-			foreach (var e in instance.emoteList.Emotes)
+			foreach (var e in Instance.emoteList.Emotes)
 			{
 				if(emoteArray[0].Equals(e.EmoteName, StringComparison.CurrentCultureIgnoreCase))
 				{
@@ -24,9 +49,10 @@ namespace Core.Chat
 			return false;
 		}
 
-		public static void DoEmote(string emote, GameObject player, EmoteActionManager instance)
+		public static void DoEmote(string emote, GameObject player)
 		{
-			foreach (var e in instance.emoteList.Emotes)
+			if (player == null) return;
+			foreach (var e in Instance.emoteList.Emotes)
 			{
 				if(emote.Equals(e.EmoteName, StringComparison.CurrentCultureIgnoreCase))
 				{
@@ -38,11 +64,8 @@ namespace Core.Chat
 
 		public static void DoEmote(EmoteSO emoteSo, GameObject player)
 		{
-			foreach (var emote in Instance.emoteList.Emotes)
-			{
-				if(emote != emoteSo) continue;
-				emote.Do(player);
-			}
+			if (emoteSo == null) return;
+			emoteSo.Do(player);
 		}
 	}
 }

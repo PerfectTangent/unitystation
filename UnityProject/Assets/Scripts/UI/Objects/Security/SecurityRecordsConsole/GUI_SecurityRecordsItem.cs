@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using UI.Core.NetUI;
 using Objects.Security;
@@ -14,15 +15,15 @@ namespace UI.Objects.Security
 		private GUI_SecurityRecords securityRecordsTab;
 		private SecurityRecord securityRecord;
 		[SerializeField]
-		private NetLabel recordNameText = null;
+		private NetText_label recordNameText = null;
 		[SerializeField]
-		private NetLabel recordIdText = null;
+		private NetText_label recordIdText = null;
 		[SerializeField]
-		private NetLabel recordRankText = null;
+		private NetText_label recordRankText = null;
 		[SerializeField]
-		private NetLabel recordFingerprintsText = null;
+		private NetText_label recordFingerprintsText = null;
 		[SerializeField]
-		private NetLabel recordStatusText = null;
+		private NetText_label recordStatusText = null;
 		[SerializeField]
 		private NetColorChanger recordBgColor = null;
 
@@ -30,17 +31,17 @@ namespace UI.Objects.Security
 		{
 			if (record == null)
 			{
-				Logger.Log("SecurityRecordItem: no record found, not doing init", Category.Machines);
+				Loggy.Info("SecurityRecordItem: no record found, not doing init", Category.Machines);
 				return;
 			}
 			securityRecord = record;
 			securityRecordsTab = recordsTab;
-			recordNameText.SetValueServer(record.EntryName);
-			recordIdText.SetValueServer(record.ID);
-			recordRankText.SetValueServer(record.Rank);
-			recordFingerprintsText.SetValueServer(record.Fingerprints);
-			recordStatusText.SetValueServer(record.Status.ToString());
-			recordBgColor.SetValueServer(GetStatusColor(record.Status));
+			recordNameText.MasterSetValue(record.EntryName);
+			recordIdText.MasterSetValue(record.ID);
+			recordRankText.MasterSetValue(record.Rank);
+			recordFingerprintsText.MasterSetValue(record.Fingerprints);
+			recordStatusText.MasterSetValue(record.Status.ToString());
+			recordBgColor.MasterSetValue(GetStatusColor(record.Status));
 		}
 
 		private Color GetStatusColor(SecurityStatus status)

@@ -9,6 +9,7 @@ using Mirror;
 using ScriptableObjects.TimedGameEvents;
 using UnityEngine;
 using UnityEngine.PlayerLoop;
+using UnityEngine.Serialization;
 
 namespace Objects.Other
 {
@@ -22,6 +23,11 @@ namespace Objects.Other
 		private bool hasClicked = false;
 
 		private List<string> giftedPlayers = new List<string>();
+
+		[FormerlySerializedAs("canPickUpGifts")]
+		public bool InitialCanPickUpGifts;
+
+		[SyncVar]
 		private bool canPickUpGifts;
 
 		private SpriteHandler spriteHandler;
@@ -33,6 +39,8 @@ namespace Objects.Other
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
+			canPickUpGifts = InitialCanPickUpGifts;
+
 			if (TimedEventsManager.Instance.ActiveEvents.Contains(eventData))
 			{
 				canPickUpGifts = true;
@@ -57,14 +65,14 @@ namespace Objects.Other
 
 			if (DMMath.Prob(10))
 			{
-				_ = SoundManager.PlayNetworkedAtPosAsync(ambientReminder, gameObject.WorldPosServer());
+				_ = SoundManager.PlayNetworkedAtPosAsync(ambientReminder, gameObject.AssumedWorldPosServer());
 			}
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			if (canPickUpGifts == false) return false;
-			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (DefaultWillInteract.Default(interaction, side, AllowTelekinesis: false) == false) return false;
 			if (interaction.HandSlot.IsOccupied) return false;
 
 			if (hasClicked)
@@ -77,13 +85,13 @@ namespace Objects.Other
 				return false;
 			}
 
-			if (side == NetworkSide.Client && interaction.IsHighlight == false)
+			if (isServer == false && interaction.IsHighlight == false) //So it doesn't trigger the hasClicked = true; On hosted build
 			{
 				hasClicked = true;
 			}
 			else
 			{
-				if(giftedPlayers.Contains(interaction.PerformerPlayerScript.connectedPlayer.UserId)) return false;
+				if(giftedPlayers.Contains(interaction.PerformerPlayerScript.PlayerInfo.AccountId)) return false;
 			}
 
 			return true;
@@ -97,7 +105,7 @@ namespace Objects.Other
 			Chat.AddActionMsgToChat(interaction.Performer,
 				$"You pick up a gift with your name on it.",
 				$"{interaction.PerformerPlayerScript.visibleName} picks up a gift with {interaction.PerformerPlayerScript.characterSettings.TheirPronoun(interaction.PerformerPlayerScript)} name on it.");
-			giftedPlayers.Add(interaction.PerformerPlayerScript.connectedPlayer.UserId);
+			giftedPlayers.Add(interaction.PerformerPlayerScript.PlayerInfo.AccountId);
 		}
 	}
 }

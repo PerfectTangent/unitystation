@@ -15,6 +15,16 @@ namespace Antagonists
 		[SerializeField]
 		private string antagName = "New Antag";
 
+		[Tooltip("The team of the antagonist type")]
+		[SerializeField]
+		private TeamData team = null;
+		public TeamData Team => team;
+
+		[Tooltip("Is team will be added to antag when antag is initiated")]
+		[SerializeField]
+		private bool addTeamAtInit;
+		public bool AddTeamAtInit => addTeamAtInit;
+
 		[Tooltip("The antag jobType")]
 		[SerializeField]
 		private JobType antagJobType = default;
@@ -109,25 +119,51 @@ namespace Antagonists
 		/// </summary>
 		public bool ShowInPreferences => showInPreferences;
 
+		[Tooltip("Randomizes this antag's character when it is a ghost role")]
+		[SerializeField]
+		private bool randomizeCharacterForGhostRole = false;
+		/// <summary>
+		/// Randomizes this antags character when it is a ghost role
+		/// </summary>
+		public bool RandomizeCharacterForGhostRole => randomizeCharacterForGhostRole;
+
+		[Tooltip("Changes the occupation of a player if they get this antag as a ghost role, only matters if they don't already have a job type")]
+		[SerializeField]
+		private Occupation ghostRoleOccupation = null;
+		/// <summary>
+		/// changes the occupation for a player if they get this antag as a ghost role, only matters if they don't already have an Antag Occupation
+		/// </summary>
+		public Occupation GhostRoleOccupation => ghostRoleOccupation;
+
+		[field: SerializeField] public List<Objective> BlackListedObjectives { get; set; } = new List<Objective>();
+		[field: SerializeField] public List<Objective> AlwaysStartWithObjectives { get; set; } = new List<Objective>();
+
 		/// <summary>
 		/// Server only. Spawn the joined viewer as the indicated antag, includes creating their player object
 		/// and transferring them to it.
 		/// </summary>
 		/// <param name="spawnRequest">player's requested spawn</param>
 		/// <returns>gameobject of the spawned antag that he player is now in control of</returns>
-		public virtual GameObject ServerSpawn(PlayerSpawnRequest spawnRequest)
+		public virtual Mind ServerSpawn(PlayerSpawnRequest spawnRequest)
 		{
 			// spawn them normally but override the player-requested occupation with the antagonist occupation
-			return PlayerSpawn.ServerSpawnPlayer(spawnRequest, spawnRequest.JoinedViewer, AntagOccupation, spawnRequest.CharacterSettings, false);
+			var ChosenOccupation = AntagOccupation;
+			if (ChosenOccupation == null)
+			{
+				ChosenOccupation = spawnRequest.RequestedOccupation;
+			}
+
+			return PlayerSpawn.NewSpawnCharacterV2(spawnRequest.Player, ChosenOccupation, spawnRequest.CharacterSettings);
 		}
 
 		/// <summary>
 		/// Called just after spawning or respawning.
 		/// </summary>
-		public abstract void AfterSpawn(ConnectedPlayer player);
+		public abstract void AfterSpawn( Mind SpawnMind);
 
 		public void AddObjective(Objective objective)
 		{
+			if ( BlackListedObjectives.Contains(objective) ) return;
 			numberOfObjectives++;
 			coreObjectives.Add(objective);
 		}

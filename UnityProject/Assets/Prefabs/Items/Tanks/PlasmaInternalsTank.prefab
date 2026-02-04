@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2374380983259834516, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: _assetId
+      value: 1521196763
+      objectReference: {fileID: 0}
     - target: {fileID: 2374380983259834516, guid: 48d3c058a9e5a42418875499b82cc5e3,
         type: 3}
       propertyPath: m_AssetId
@@ -90,6 +96,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
         type: 3}
+      propertyPath: exportCost
+      value: 250
+      objectReference: {fileID: 0}
+    - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: exportName
+      value: plasma internals tank
+      objectReference: {fileID: 0}
+    - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
       propertyPath: initialName
       value: plasma internals tank
       objectReference: {fileID: 0}
@@ -112,6 +128,30 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 3588da14e1cf29c4cae8052f9a1144b3,
         type: 2}
+    - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: ff5c89c569c875d4ba08bbec519c7623,
+        type: 2}
+    - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: be999ed4ac6f8d84eb62f0b4bd661d7a,
+        type: 2}
+    - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 3588da14e1cf29c4cae8052f9a1144b3,
+        type: 2}
+    - target: {fileID: 2849320339179502146, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: ff5c89c569c875d4ba08bbec519c7623,
+        type: 2}
     - target: {fileID: 7575452727574476451, guid: 48d3c058a9e5a42418875499b82cc5e3,
         type: 3}
       propertyPath: MaximumMoles
@@ -124,7 +164,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7575452727574476451, guid: 48d3c058a9e5a42418875499b82cc5e3,
         type: 3}
-      propertyPath: Gases.Array.data[0]
+      propertyPath: 'Gases.Array.data[0]'
       value: 87.3464
       objectReference: {fileID: 0}
     - target: {fileID: 7575452727574476451, guid: 48d3c058a9e5a42418875499b82cc5e3,
@@ -138,18 +178,42 @@ PrefabInstance:
       propertyPath: StoredGasMix.GasData.GasesArray.Array.data[0].GasType
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 7575452727574476451, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: StoredInitialGasMix.GasData.GasesArray.Array.data[0].GasSO
+      value: 
+      objectReference: {fileID: 11400000, guid: 2d3c38fe76e3df249ade18fd6fdac274,
+        type: 2}
     - target: {fileID: 8368062230162943655, guid: 48d3c058a9e5a42418875499b82cc5e3,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: ff5c89c569c875d4ba08bbec519c7623,
         type: 2}
+    - target: {fileID: 8368062230162943655, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: ff5c89c569c875d4ba08bbec519c7623,
+        type: 2}
+    - target: {fileID: 8781441551662356813, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      propertyPath: parentID
+      value: 48d3c058a9e5a42418875499b82cc5e3
+      objectReference: {fileID: 0}
     - target: {fileID: 8781441551662356813, guid: 48d3c058a9e5a42418875499b82cc5e3,
         type: 3}
       propertyPath: foreverID
       value: 38587331617a9c747832658ce8bee272
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2406975489804277024, guid: 48d3c058a9e5a42418875499b82cc5e3,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3121306673738229344}
   m_SourcePrefab: {fileID: 100100000, guid: 48d3c058a9e5a42418875499b82cc5e3, type: 3}
 --- !u!1 &5460881431871714422 stripped
 GameObject:
@@ -169,6 +233,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e15827970984ba78808f03bc3f01586, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   allClothingData:
@@ -179,3 +244,4 @@ MonoBehaviour:
   hidesSlots: 0
   hideClothingFlags: 0
   disallowConsume: 0
+  Colour: {r: 1, g: 1, b: 1, a: 1}

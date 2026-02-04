@@ -7,7 +7,7 @@ namespace UI.Objects.Security
 	public class GUI_TurretController : NetTab
 	{
 		[SerializeField]
-		private NetLabel powerSetting = null;
+		private NetText_label powerSetting = null;
 
 		[SerializeField]
 		private NetSlider onOffSwitch = null;
@@ -18,23 +18,23 @@ namespace UI.Objects.Security
 		private TurretSwitch turretSwitch;
 		private TurretSwitch TurretSwitch => turretSwitch ??= Provider.GetComponent<TurretSwitch>();
 
-		public void OnTabOpenedHandler(ConnectedPlayer connectedPlayer)
+		public void OnTabOpenedHandler(PlayerInfo connectedPlayer)
 		{
 			ChangeStatus();
 
-			onOffSwitch.Value = TurretSwitch.IsOn ? (1 * 100).ToString() : "0";
-			stunLethalSwitch.Value = TurretSwitch.IsStun ? "0" : (1 * 100).ToString();
+			onOffSwitch.MasterSetValue(TurretSwitch.IsOn ? (1 * 100).ToString() : "0");
+			stunLethalSwitch.MasterSetValue(TurretSwitch.IsStun ? "0" : (1 * 100).ToString());
 		}
 
 		private void ChangeStatus()
 		{
 			if (TurretSwitch.HasPower == false)
 			{
-				powerSetting.Value = "No Power";
+				powerSetting.MasterSetValue("No Power");
 			}
 			else
 			{
-				powerSetting.Value = TurretSwitch.IsOn ? TurretSwitch.IsStun ? "Stun" : "Lethal" : "Off";
+				powerSetting.MasterSetValue(TurretSwitch.IsOn ? TurretSwitch.IsStun ? "Stun" : "Lethal" : "Off");
 			}
 		}
 

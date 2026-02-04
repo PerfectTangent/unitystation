@@ -8,11 +8,13 @@ namespace Core.Networking
 	public class CustomInterestManagement : InterestManagement
 	{
 		// TODO: this is a placeholder to be used for
-		// scene observer rebuilding when we start to prevent connections
-		// from observing scenes that they are not apart of
+		//  network bubbling
+
 
 		public override bool OnCheckObserver(NetworkIdentity identity, NetworkConnectionToClient conn)
 		{
+			return true;
+			/*/  When we had scenes idea to bubble the scene itself, Not needed now
 			if (NetworkServer.observerSceneList.ContainsKey(conn) &&
 				NetworkServer.observerSceneList[conn].Contains(identity.gameObject.scene))
 			{
@@ -20,24 +22,29 @@ namespace Core.Networking
 			}
 
 			return SceneManager.GetActiveScene() == identity.gameObject.scene;
+				/*/
 		}
 
-		public override void OnRebuildObservers(NetworkIdentity identity, HashSet<NetworkConnectionToClient> observers, bool initialize)
+		public override void OnRebuildObservers(NetworkIdentity identity, HashSet<NetworkConnectionToClient> newObservers)
 		{
 			foreach (var obs in NetworkServer.observerSceneList)
 			{
 				if (obs.Key == null) continue;
+				newObservers.Add(obs.Key);
+				continue;
+					/*/ When we had scenes idea to bubble the scene itself, Not needed now
 				if (identity.gameObject.scene == SceneManager.GetActiveScene())
 				{
-					observers.Add(obs.Key);
+					newObservers.Add(obs.Key);
 				}
 				else
 				{
 					if (obs.Value.Contains(identity.gameObject.scene))
 					{
-						observers.Add(obs.Key);
+						newObservers.Add(obs.Key);
 					}
 				}
+					/*/
 			}
 		}
 

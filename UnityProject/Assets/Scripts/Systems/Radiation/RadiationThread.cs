@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 using Core.Threading;
+using Logs;
 using Tiles;
 
 namespace Systems.Radiation
@@ -69,7 +70,7 @@ namespace Systems.Radiation
 			CircleArea.Clear();
 
 			StopWatchlog.Stop();
-			Logger.Log("StopWatchlog ElapsedMilliseconds time " + StopWatchlog.ElapsedMilliseconds, Category.Radiation);
+			Loggy.Info("StopWatchlog ElapsedMilliseconds time " + StopWatchlog.ElapsedMilliseconds, Category.Radiation);
 		}
 
 
@@ -136,7 +137,8 @@ namespace Systems.Radiation
 				{
 					foreach (var Layer in Matrix.MetaTileMap.Layers)
 					{
-						if (Layer.Key == LayerType.Underfloor) continue;
+						if (Layer.Key.IsMultilayer()) continue;
+
 						var basicTile = Matrix.MetaTileMap.GetTile(Local, Layer.Key) as BasicTile;
 						if (basicTile != null)
 						{
@@ -163,9 +165,5 @@ namespace Systems.Radiation
 				}
 			}
 		}
-
-
-
-
 	}
 }

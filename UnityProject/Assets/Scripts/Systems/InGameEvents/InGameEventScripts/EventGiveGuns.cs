@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using Managers;
 using UnityEngine;
 using ScriptableObjects;
@@ -26,29 +27,29 @@ namespace InGameEvents
 		{
 			if (gunList == null || gunList.GameObjectPrefabs.Length == 0)
 			{
-				Logger.LogError($"No guns in gun list! Cannot spawn guns for {nameof(EventGiveGuns)}.", Category.Event);
+				Loggy.Error($"No guns in gun list! Cannot spawn guns for {nameof(EventGiveGuns)}.", Category.Event);
 				return;
 			}
 
-			foreach (ConnectedPlayer player in PlayerList.Instance.InGamePlayers)
+			foreach (PlayerInfo player in PlayerList.Instance.InGamePlayers)
 			{
-				if (player.Script.IsDeadOrGhost) continue;
+				if (player.Script.IsDeadOrGhost || player.Script.IsNormal == false) continue;
 
-				HandlePlayer(player);
+				HandlePlayer(player.Mind);
 			}
 		}
 
-		protected virtual void HandlePlayer(ConnectedPlayer player)
+		protected virtual void HandlePlayer(Mind player)
 		{
 			GiveGunToPlayer(player);
 		}
 
-		protected void GiveGunToPlayer(ConnectedPlayer player)
+		protected void GiveGunToPlayer(Mind player)
 		{
 			GameObject gun = Spawn.ServerPrefab(gunList.GetRandom(),
-						player.Script.WorldPos, player.Script.transform.parent, player.Script.transform.rotation).GameObject;
+						player.Body.WorldPos, player.Body.transform.parent, player.Body.transform.rotation).GameObject;
 
-			ItemSlot slot = player.Script.DynamicItemStorage.GetBestHandOrSlotFor(gun);
+			ItemSlot slot = player.Body.DynamicItemStorage.GetBestHandOrSlotFor(gun);
 			if (slot != null && slot.IsEmpty)
 			{
 				Inventory.ServerAdd(gun, slot);

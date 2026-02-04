@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce108c02d022d1940bc023ceca025d81, type: 3}
   m_Name: UncommonConstructionNCrafting
   m_EditorClassIdentifier: 
+  foreverID: 72844034ce74aad48abcaa010da1372e
   pool:
   - prefab: {fileID: 2583424188908862090, guid: e95a1fa76d625d348b07406df101d4c0,
       type: 3}
@@ -19,9 +20,10 @@ MonoBehaviour:
     probability: 100
   - prefab: {fileID: 2663802320431471963, guid: 9ae38f6aa43b5cd4ba608cd31b462b24,
       type: 3}
-    maxAmount: 50
+    maxAmount: 25
     probability: 100
   - prefab: {fileID: 5331286249588652700, guid: 29ecbf5a1d918574cbcf5853927e0944,
       type: 3}
     maxAmount: 10
     probability: 100
+  RequiredTrait: {fileID: 0}

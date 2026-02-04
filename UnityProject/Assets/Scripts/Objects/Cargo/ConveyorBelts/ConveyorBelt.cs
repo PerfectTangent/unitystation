@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
 using Mirror;
 using ScriptableObjects;
-using Systems.ObjectConnection;
+using SecureStuff;
+using Shared.Systems.ObjectConnection;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -12,7 +15,7 @@ namespace Construction.Conveyors
 {
 	[SelectionBase]
 	[ExecuteInEditMode]
-	public class ConveyorBelt : MonoBehaviour, ICheckedInteractable<HandApply>, IMultitoolMasterable
+	public class ConveyorBelt : MonoBehaviour, ICheckedInteractable<HandApply>, IMultitoolSlaveable
 	{
 		private readonly Vector2Int[] searchDirs =
 		{
@@ -22,22 +25,29 @@ namespace Construction.Conveyors
 
 		[Tooltip("Set this conveyor belt's initial direction.")]
 		[SerializeField]
-		private ConveyorDirection CurrentDirection = default;
+		public ConveyorDirection CurrentDirection = default;
 
 		[Tooltip("Set this conveyor belt's initial status.")]
 		[SerializeField]
-		private ConveyorStatus CurrentStatus = default;
+		public ConveyorStatus CurrentStatus = default;
 
 		[SerializeField] private SpriteHandler spriteHandler = null;
 		private RegisterTile registerTile;
 
-		private Vector3 position;
+		private Vector3 PushDirectionPosition;
 		private Matrix Matrix => registerTile.Matrix;
 
 		public ConveyorBeltSwitch AssignedSwitch { get; private set; }
 
-		private Queue<PlayerSync> playerCache = new Queue<PlayerSync>();
-		private Queue<CustomNetTransform> cntCache = new Queue<CustomNetTransform>();
+		private Queue<UniversalObjectPhysics> objectPhyicsCache = new Queue<UniversalObjectPhysics>();
+
+		private Matrix _lastUpdateMatrix;
+		private Vector3Int _lastLocalUpdatePosition;
+		private float _LastSpeed = 0;
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
+
+		private List<UniversalObjectPhysics> GCfreeList = new List<UniversalObjectPhysics>();
 
 		#region Lifecycle
 
@@ -50,7 +60,10 @@ namespace Construction.Conveyors
 		{
 			if (Application.isPlaying) return;
 #if UNITY_EDITOR
-			EditorApplication.delayCall += RefreshSprites;
+			if (Selection.activeGameObject != this.gameObject) return;
+#endif
+#if UNITY_EDITOR
+			EditorRefreshSprites();
 #endif
 
 		}
@@ -60,11 +73,12 @@ namespace Construction.Conveyors
 		#region Belt Operation
 
 		[Server]
-		public void MoveBelt()
+		public void MoveBelt(float ConveyorBeltSpeed)
 		{
 			DetectItems();
-			MoveEntities();
+			MoveEntities(ConveyorBeltSpeed);
 		}
+
 
 		private void DetectItems()
 		{
@@ -72,45 +86,32 @@ namespace Construction.Conveyors
 
 			GetPositionOffset();
 			if (!Matrix.IsPassableAtOneMatrix(registerTile.LocalPositionServer,
-				Vector3Int.RoundToInt(registerTile.LocalPositionServer + position), true)) return;
-
-			foreach (var player in Matrix.Get<PlayerSync>(registerTile.LocalPositionServer, ObjectType.Player, true))
+				Vector3Int.RoundToInt(registerTile.LocalPositionServer + PushDirectionPosition), true)) return;
+			GCfreeList.Clear();
+			foreach (var item in Matrix.GetNoGC(registerTile.LocalPositionServer, true, GCfreeList))
 			{
-				playerCache.Enqueue(player);
-			}
-
-			foreach (var item in Matrix.Get<CustomNetTransform>(registerTile.LocalPositionServer, true))
-			{
-				if (item.gameObject == gameObject || item.PushPull == null || !item.PushPull.IsPushable) continue;
-
-				cntCache.Enqueue(item);
+				if (item.gameObject == gameObject || item.IsNotPushable || item.Intangible || item.IsMoving)  continue;
+				objectPhyicsCache.Enqueue(item);
 			}
 		}
 
-		private void MoveEntities()
+		private void MoveEntities(float ConveyorBeltSpeed)
 		{
-			while (playerCache.Count > 0)
+			while (objectPhyicsCache.Count > 0)
 			{
-				TransportPlayer(playerCache.Dequeue());
-			}
-
-			while (cntCache.Count > 0)
-			{
-				Transport(cntCache.Dequeue());
+				Transport(objectPhyicsCache.Dequeue(), ConveyorBeltSpeed);
 			}
 		}
+
 
 		[Server]
-		private void TransportPlayer(PlayerSync player)
+		private void Transport(UniversalObjectPhysics item, float ConveyorBeltSpeed)
 		{
-			//push player to the next tile
-			player?.Push(position.To2Int());
-		}
+			if (item == null) return;
+			if (item.NewtonianMovement.magnitude > ConveyorBeltSpeed) return;
+			item.Pushing.Clear();
 
-		[Server]
-		private void Transport(CustomNetTransform item)
-		{
-			item?.Push(position.To2Int());
+			item.TryTilePush(PushDirectionPosition.RoundTo2Int(), null , ConveyorBeltSpeed);
 		}
 
 		#endregion Belt Operation
@@ -129,7 +130,7 @@ namespace Construction.Conveyors
 				{
 					if (conveyorBelt.AssignedSwitch != null)
 					{
-						conveyorBelt.AssignedSwitch.AddConveyorBelt(new List<ConveyorBelt> { this });
+						conveyorBelt.AssignedSwitch.AddConveyorBelt(this);
 						conveyorBelt.SetState(conveyorBelt.CurrentStatus);
 						break;
 					}
@@ -150,6 +151,11 @@ namespace Construction.Conveyors
 		[Server]
 		public void UpdateState()
 		{
+			if (AssignedSwitch == null)
+			{
+				SetState(ConveyorStatus.Off);
+				return;
+			}
 			switch (AssignedSwitch.CurrentState)
 			{
 				case ConveyorBeltSwitch.SwitchState.Off:
@@ -173,14 +179,26 @@ namespace Construction.Conveyors
 			RefreshSprites();
 		}
 
-		private void RefreshSprites()
+		private void EditorRefreshSprites()
 		{
 			if (Application.isPlaying) return;
 			if (this == null) return;
-			spriteHandler.ChangeSprite((int)CurrentStatus);
+#if UNITY_EDITOR
+			if (Selection.activeGameObject != this.gameObject) return;
+#endif
+			spriteHandler.SetCatalogueIndexSprite((int)CurrentStatus);
 			var variant = (int)CurrentDirection;
 
-			spriteHandler.ChangeSpriteVariant(variant);
+			spriteHandler.SetSpriteVariant(variant);
+		}
+
+		private void RefreshSprites()
+		{
+			if (this == null) return;
+			spriteHandler.SetCatalogueIndexSprite((int)CurrentStatus);
+			var variant = (int)CurrentDirection;
+
+			spriteHandler.SetSpriteVariant(variant);
 		}
 
 		private void GetPositionOffset()
@@ -188,13 +206,13 @@ namespace Construction.Conveyors
 			switch (CurrentStatus)
 			{
 				case ConveyorStatus.Forward:
-					position = ConveyorDirections.directionsForward[CurrentDirection];
+					PushDirectionPosition = ConveyorDirections.directionsForward[CurrentDirection];
 					break;
 				case ConveyorStatus.Backward:
-					position = ConveyorDirections.directionsBackward[CurrentDirection];
+					PushDirectionPosition = ConveyorDirections.directionsBackward[CurrentDirection];
 					break;
 				default:
-					position = Vector3.up;
+					PushDirectionPosition = Vector3.up;
 					break;
 			}
 		}
@@ -226,18 +244,18 @@ namespace Construction.Conveyors
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (!Validations.IsTarget(gameObject, interaction)) return false;
 
 			// Deconstruct (crowbar) and change direction (screwdriver)
-			return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar) ||
-					Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver);
+			return Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar) ||
+					Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver);
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 			{
 				//deconsruct
 				ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -248,7 +266,7 @@ namespace Construction.Conveyors
 					DeconstructBelt);
 			}
 
-			else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver)) //change direction
+			else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver)) //change direction
 			{
 				ToolUtils.ServerUseToolWithActionMessages(interaction, 1f,
 					"You start redirecting the conveyor belt...",
@@ -265,6 +283,7 @@ namespace Construction.Conveyors
 			_ = Despawn.ServerSingle(gameObject);
 		}
 
+		[VVNote(VVHighlight.SafeToModify100)]
 		private void ChangeDirection()
 		{
 			int count = (int)CurrentDirection + 1;
@@ -276,7 +295,7 @@ namespace Construction.Conveyors
 
 			CurrentDirection = (ConveyorDirection)count;
 
-			spriteHandler.ChangeSpriteVariant(count);
+			spriteHandler.SetSpriteVariant(count);
 		}
 
 		#endregion Interaction
@@ -284,8 +303,29 @@ namespace Construction.Conveyors
 		#region Multitool Interaction
 
 		public MultitoolConnectionType ConType => MultitoolConnectionType.Conveyor;
-		public bool MultiMaster => true;
-		int IMultitoolMasterable.MaxDistance => int.MaxValue;
+
+		public IMultitoolMasterable Master { get; set; }
+
+		[field: SerializeField] public bool RequireLink { get; set; } = true;
+
+		public bool TrySetMaster(GameObject performer, IMultitoolMasterable Inmaster)
+		{
+			var SwitchOLd = (Master as ConveyorBeltSwitch);
+			SwitchOLd?.RemoveConveyorBelt(this);
+
+			Master = Inmaster;
+
+
+			var SwitchNew = (Master as ConveyorBeltSwitch);
+			SwitchNew.AddConveyorBelt(this);
+			return true;
+		}
+
+		public void SetMasterEditor(IMultitoolMasterable master)
+		{
+			TrySetMaster(null, master);
+		}
+
 
 		#endregion Multitool Interaction
 	}

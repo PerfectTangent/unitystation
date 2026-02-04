@@ -6,6 +6,8 @@ using UnityEngine.Serialization;
 using NaughtyAttributes;
 using Systems.Storage;
 using Items;
+using Logs;
+using Systems;
 
 /// <summary>
 /// Allows an object to store items.
@@ -17,7 +19,8 @@ using Items;
 /// Note that items stored in an ItemStorage can themselves have ItemStorage (for example, storing a backpack
 /// in a player's inventory)!
 /// </summary>
-public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove, IClientInventoryMove
+public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove, IClientInventoryMove,
+	IUniversalInventoryAPI
 {
 	[SerializeField]
 	[FormerlySerializedAs("ItemStorageStructure")]
@@ -46,17 +49,23 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	         " invoke Populate to manually / dynamically populate this storage using a supplied populator." +
 	         " This will only run server side.")]
 	private ItemStoragePopulator itemStoragePopulator = null;
+
 	public ItemStoragePopulator ItemStoragePopulator => itemStoragePopulator;
 
 	[Tooltip("Force spawn contents at round start rather than first open")]
 	public bool forceSpawnContents;
 
+	public bool ManuallySpawnContent = false;
+
 	private bool contentsSpawned;
 	public bool ContentsSpawned => contentsSpawned;
+
 	/// <summary>
 	/// Cached for quick lookup of what slots are actually available in this storage.
 	/// </summary>
 	private HashSet<SlotIdentifier> definedSlots;
+
+	public HashSet<SlotIdentifier> DefinedSlots => new(definedSlots);
 
 	//note this will be null if this is not a player's own top-level inventory
 	private PlayerNetworkActions playerNetworkActions;
@@ -70,7 +79,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	//It can be null, or it can be a pickupable.(Health V2)
 	public event Action<Pickupable, Pickupable> ServerInventoryItemSlotSet;
 
-	[SerializeField] private bool dropItemsOnDespawn;
+	[SerializeField] private bool dropItemsOnDespawn = true;
 
 	public bool UesAddlistPopulater = false;
 
@@ -81,19 +90,35 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	public RegisterPlayer Player => player;
 	private RegisterPlayer player;
 
+	public bool SetSlotItemNotRemovableOnStartUp = false;
+
+	public int IndexOnObject => Array.IndexOf(GetComponents<ItemStorage>(), this);
+
 	public void SetRegisterPlayer(RegisterPlayer registerPlayer)
 	{
 		player = registerPlayer;
 	}
 
+	[SerializeField, FormerlySerializedAs("ignoreRoundstartGrabObjects")]
+	private bool initialignoreRoundstartGrabObjects = false;
+
+	private bool ignoreRoundstartGrabObjects = false;
 
 	[SerializeField] private GameObject ashPrefab;
 	public GameObject AshPrefab => ashPrefab;
 
 	private void Awake()
 	{
+		ignoreRoundstartGrabObjects = initialignoreRoundstartGrabObjects;
 		playerNetworkActions = GetComponent<PlayerNetworkActions>();
 		CacheDefinedSlots();
+		if (SetSlotItemNotRemovableOnStartUp)
+		{
+			foreach (var slot in GetItemSlots())
+			{
+				slot.ItemNotRemovable = true;
+			}
+		}
 	}
 
 	public void OnSpawnServer(SpawnInfo info)
@@ -102,7 +127,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 
 		if (forceSpawnContents)
 		{
-			TrySpawnContents();
+			TrySpawnContents(info);
 		}
 
 		//if this is a player's inventory, make them an observer of all slots
@@ -112,16 +137,21 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		}
 	}
 
-	public void TrySpawnContents()
+	public void TrySpawnContents(SpawnInfo info = null)
 	{
-		if(contentsSpawned || spawnInfo == null) return;
+		if (contentsSpawned || spawnInfo == null) return;
 		contentsSpawned = true;
 
-		ServerPopulate(itemStoragePopulator, PopulationContext.AfterSpawn(spawnInfo));
-		if (UesAddlistPopulater)
+		if (ManuallySpawnContent == false || info?.SpawnManualContents == true)
 		{
-			ServerPopulate(Populater, PopulationContext.AfterSpawn(spawnInfo));
+			ServerPopulate(itemStoragePopulator, PopulationContext.AfterSpawn(spawnInfo), info);
+			if (UesAddlistPopulater)
+			{
+				ServerPopulate(Populater, PopulationContext.AfterSpawn(spawnInfo), info);
+			}
 		}
+
+		ignoreRoundstartGrabObjects = false;
 	}
 
 	public void OnDespawnServer(DespawnInfo info)
@@ -147,29 +177,69 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		return ServerTryAdd(spawned.GameObject);
 	}
 
+
+
+	//True equals successful false equals unsuccessful
+	public bool ServerTryTransferFrom(ItemStorage inStorage)
+	{
+
+		bool Overall = true;
+
+		foreach (var Slot in inStorage.GetItemSlots())
+		{
+			if (Slot.Item == null) continue;
+			if (ServerTryAdd(Slot.Item.gameObject) == false)
+			{
+				Overall = false;
+			}
+		}
+
+		return Overall;
+	}
+
 	//True equals successful false equals unsuccessful
 	public bool ServerTryAdd(GameObject inGameObject)
 	{
-		var item = inGameObject.GetComponent<ItemAttributesV2>();
+		var item = inGameObject.GetComponentCustom<ItemAttributesV2>();
 		if (item == null) return false;
 		var slot = GetBestSlotFor(inGameObject);
 		if (slot == null) return false;
 
-		return Inventory.ServerAdd(inGameObject, slot);
+		var CurrentlyInSlot = inGameObject.GetComponentCustom<Pickupable>().ItemSlot;
+
+		if (CurrentlyInSlot == null)
+		{
+			return Inventory.ServerAdd(inGameObject, slot);
+		}
+		else
+		{
+			return Inventory.ServerTransfer(CurrentlyInSlot, slot);
+		}
 	}
 
 	public bool ServerTransferGameObjectToItemSlot(GameObject outGameObject, ItemSlot Slot)
 	{
-		var item = outGameObject.GetComponent<ItemAttributesV2>();
+		var item = outGameObject.GetComponentCustom<ItemAttributesV2>();
 		if (item == null) return false;
 		var slot = GetSlotFromItem(outGameObject);
 		if (slot == null) return false;
 		return Inventory.ServerTransfer(slot, Slot);
 	}
 
+	public ItemSlot GetFirstOccupiedSlot()
+	{
+		foreach (var itemSlot in GetItemSlots())
+		{
+			if (itemSlot.Item == null) continue;
+			return itemSlot;
+		}
+
+		return null;
+	}
+
 	public ItemSlot GetSlotFromItem(GameObject gameObject)
 	{
-		foreach (var itemSlot in  GetItemSlots())
+		foreach (var itemSlot in GetItemSlots())
 		{
 			if (itemSlot.Item == null) continue;
 			if (itemSlot.Item.gameObject == gameObject)
@@ -177,6 +247,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 				return itemSlot;
 			}
 		}
+
 		return null;
 	}
 
@@ -197,58 +268,34 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		ItemSlot slot = GetBestSlotFor(inSlot.gameObject.GetComponent<Pickupable>());
 		if (slot == null) return false;
 
-		return Inventory.ServerTransfer(inSlot.gameObject.GetComponent<Pickupable>().ItemSlot, slot, ReplacementStrategy.Cancel);
+		return Inventory.ServerTransfer(inSlot.gameObject.GetComponent<Pickupable>().ItemSlot, slot,
+			ReplacementStrategy.Cancel);
 	}
 
-	public bool ServerTryRemove(GameObject InGameObject, bool Destroy = false, Vector3? DroppedAtWorldPositionOrThrowVector = null,
+	public bool ServerTryRemove(GameObject InGameObject, bool Destroy = false,
+		Vector3? DroppedAtWorldPositionOrThrowVector = null,
 		bool Throw = false)
 	{
-		ItemAttributesV2 item = InGameObject.GetComponent<ItemAttributesV2>();
-		if (item == null) return false;
-		IEnumerable<ItemSlot> slots = GetItemSlots();
-		HealthV2.BodyPart mobHealth = InGameObject.GetComponent<HealthV2.BodyPart>();
+		var slots = GetItemSlots();
 		foreach (var slot in slots)
 		{
-			if (slot.Item.OrNull()?.gameObject == InGameObject)
+			if (slot.Item.OrNull()?.gameObject != InGameObject) continue;
+			if (Destroy)
 			{
-				if(mobHealth != null)
-				{
-					if(mobHealth.CurrentBurnDamageLevel == TraumaDamageLevel.CRITICAL)
-					{
-						_ = Spawn.ServerPrefab(ashPrefab, mobHealth.HealthMaster.gameObject.RegisterTile().WorldPosition);
-						_ = Despawn.ServerSingle(slot.Item.gameObject);
-						return true;
-					}
-				}
-				if (Destroy)
-				{
-					return Inventory.ServerDespawn(slot);
-				}
-				else
-				{
-					if (Throw)
-					{
-						if (DroppedAtWorldPositionOrThrowVector != null)
-						{
-							return Inventory.ServerThrow(slot, DroppedAtWorldPositionOrThrowVector.GetValueOrDefault());
-						}
-						else
-						{
-							return Inventory.ServerThrow(slot, Vector2.zero);
-						}
-					}
-					else
-					{
-						if (DroppedAtWorldPositionOrThrowVector != null)
-						{
-							return Inventory.ServerDrop(slot, DroppedAtWorldPositionOrThrowVector.GetValueOrDefault());
-						}
-						else
-						{
-							return Inventory.ServerDrop(slot);
-						}
-					}
-				}
+				return Inventory.ServerDespawn(slot);
+			}
+
+			if (Throw)
+			{
+				return DroppedAtWorldPositionOrThrowVector != null
+					? Inventory.ServerThrow(slot, DroppedAtWorldPositionOrThrowVector.GetValueOrDefault())
+					: Inventory.ServerThrow(slot, Vector2.zero);
+			}
+			else
+			{
+				return DroppedAtWorldPositionOrThrowVector != null
+					? Inventory.ServerDrop(slot, DroppedAtWorldPositionOrThrowVector.GetValueOrDefault())
+					: Inventory.ServerDrop(slot);
 			}
 		}
 
@@ -259,6 +306,27 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	{
 		var fromRootPlayer = info.FromRootPlayer;
 		var toRootPlayer = info.ToRootPlayer;
+
+		var Slots = GetItemSlots();
+		foreach (var Slot in Slots)
+		{
+			if (Slot.Item != null)
+			{
+				var Moves = Slot.Item.GetComponents<IServerInventoryMove>();
+				foreach (var Move in Moves)
+				{
+					try
+					{
+						Move.OnInventoryMoveServer(info);
+					}
+					catch (Exception e)
+					{
+						Loggy.Error(e.ToString());
+					}
+				}
+			}
+		}
+
 		//no need to do anything, hasn't moved into player inventory
 		if (fromRootPlayer == toRootPlayer) return;
 
@@ -267,11 +335,13 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		//When it leaves ownership of another player, the previous owner no longer observes each slot in the slot tree.
 		if (fromRootPlayer != null)
 		{
+			SetRegisterPlayer(null);
 			ServerRemoveObserverPlayer(info.FromRootPlayer.gameObject);
 		}
 
 		if (toRootPlayer != null)
 		{
+			SetRegisterPlayer(info.ToRootPlayer);
 			ServerAddObserverPlayer(info.ToRootPlayer.gameObject);
 		}
 	}
@@ -300,26 +370,46 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	{
 		try
 		{
-			ItemStorage storage = this;
-			var pickupable = storage.GetComponent<Pickupable>();
-			while (pickupable != null && pickupable.ItemSlot != null)
+			ItemStorage storage = GetRootStorage();
+			if (storage.player != null)
 			{
-				storage = pickupable.ItemSlot.ItemStorage;
-				pickupable = storage.GetComponent<Pickupable>();
-				if (pickupable == null)
-				{
-					if (storage.player != null)
-					{
-						return storage.player.gameObject;
-					}
-				}
+				return storage.player.gameObject;
 			}
 
 			return storage.gameObject;
 		}
 		catch (NullReferenceException exception)
 		{
-			Logger.LogError($"Caught NRE in ItemStorage: {exception.Message} \n {exception.StackTrace}", Category.Inventory);
+			Loggy.Error($"Caught NRE in ItemStorage: {exception.Message} \n {exception.StackTrace}",
+				Category.Inventory);
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Gets the top-level ItemStorage containing this storage. I.e. if this
+	/// is a crate inside a backpack will return the crate ItemStorage. If this is not in anything
+	/// will simply return this
+	/// </summary>
+	/// <returns></returns>
+	public ItemStorage GetRootStorage()
+	{
+		try
+		{
+			ItemStorage storage = this;
+			var pickupable = storage.GetComponent<Pickupable>();
+			while (pickupable != null && pickupable.ItemSlot != null)
+			{
+				storage = pickupable.ItemSlot.ItemStorage;
+				pickupable = storage.GetComponent<Pickupable>();
+			}
+
+			return storage;
+		}
+		catch (NullReferenceException exception)
+		{
+			Loggy.Error($"Caught NRE in ItemStorage: {exception.Message} \n {exception.StackTrace}",
+				Category.Inventory);
 			return null;
 		}
 	}
@@ -349,7 +439,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	{
 		if (itemStorageStructure == null)
 		{
-			Logger.LogErrorFormat(
+			Loggy.Error().Format(
 				"{0} has ItemStorage but no defined ItemStorageStructure. Item storage will not work." +
 				" Please define an ItemStorageStructure for this prefab.", Category.Inventory, name);
 			return;
@@ -393,12 +483,12 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	/// </summary>
 	/// <param name="populator"></param>
 	/// <param name="context">context of the population</param>
-	public void ServerPopulate(IItemStoragePopulator populator, PopulationContext context)
+	public void ServerPopulate(IItemStoragePopulator populator, PopulationContext context, SpawnInfo info)
 	{
 		if (populator == null) return;
 		if (!CustomNetworkManager.IsServer) return;
 		if (!context.SpawnInfo.SpawnItems) return;
-		populator.PopulateItemStorage(this, context);
+		populator.PopulateItemStorage(this, context, info);
 	}
 
 	/// <summary>
@@ -410,6 +500,12 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	public IEnumerable<ItemSlot> GetItemSlots()
 	{
 		return definedSlots.Select(GetItemSlot);
+	}
+
+	public List<T> GetItemsWithComponent<T>() where T : Component
+	{
+		var slots = GetItemSlots().Where(slot => slot.Item != null && slot.ItemObject.HasComponent<T>()).ToList();
+		return slots.Select(slot => slot.ItemObject.GetComponent<T>()).ToList();
 	}
 
 	/// <summary>
@@ -432,6 +528,20 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		return ItemSlot.GetIndexed(this, slotIndex);
 	}
 
+	public ItemSlot GetNextEmptySlot()
+	{
+		var slots = GetItemSlots();
+		foreach (var slot in slots)
+		{
+			if (slot.Item == null)
+			{
+				return slot;
+			}
+		}
+
+		return null;
+	}
+
 	/// <summary>
 	/// Server-side only. Destroys all items in inventory.
 	/// </summary>
@@ -444,6 +554,29 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 				_ = Despawn.ServerSingle(slot.Item.gameObject);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Server-side only. Despawns this container and all items in its inventory. Repeats this method on any nested containers.
+	/// Should only be used on containers that drop their items on despawn and can not be changed otherwise.
+	/// </summary>
+	public void ServerDespawnOppressive()
+	{
+		foreach (var slot in GetItemSlots())
+		{
+			if (slot.Item != null)
+			{
+				if (slot.Item.TryGetComponent<ItemStorage>(out var subStorage) == true)
+				{
+					subStorage.ServerDespawnOppressive();
+					continue;
+				}
+
+				_ = Despawn.ServerSingle(slot.Item.gameObject);
+			}
+		}
+
+		_ = Despawn.ServerSingle(this.gameObject);
 	}
 
 	/// <summary>
@@ -461,9 +594,9 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		return GetItemSlots().SelectMany(SlotSubtree);
 	}
 
-	private IEnumerable<ItemSlot> SlotSubtree(ItemSlot slot)
+	public static IEnumerable<ItemSlot> SlotSubtree(ItemSlot slot)
 	{
-		if (slot.Item == null)
+		if (slot?.Item == null)
 		{
 			return new[] {slot};
 		}
@@ -477,13 +610,46 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 
 		var ToReturn = ListThis.ToArray().Concat(new[] {slot});
 		return ToReturn;
-
 	}
+
+	//TODO Could be more optimised
+	public IEnumerable<ItemStorage> GetItemStorageTree()
+	{
+		//not sure if this blows the heap up since it's recursive selectmany, but it's trivial to convert
+		//to BFS / DFS if needed.
+		var ItemStorages = new List<ItemStorage>() {this};
+		ItemStorages.AddRange(ItemStorageTree(this));
+		return ItemStorages;
+	}
+
+	public static List<ItemStorage> ItemStorageTree(ItemStorage ItemStorage)
+	{
+		List<ItemStorage> ItemStorages = new List<ItemStorage>();
+		foreach (var slot in ItemStorage.GetItemSlots())
+		{
+			if (slot.Item == null) continue;
+			var itemStorage = slot.Item.GetComponents<ItemStorage>();
+			if (itemStorage == null) continue;
+			foreach (var itemStorages in itemStorage)
+			{
+				ItemStorages.AddRange(itemStorages.GetItemStorageTree());
+			}
+		}
+
+		return ItemStorages;
+	}
+
 
 	public IEnumerable<ItemSlot> GetIndexedSlots()
 	{
 		return GetItemSlots()
 			.Where(its => its.SlotIdentifier.SlotIdentifierType == SlotIdentifierType.Indexed);
+	}
+
+	public IEnumerable<ItemSlot> GetNamedItemSlots()
+	{
+		return GetItemSlots()
+			.Where(its => its.SlotIdentifier.SlotIdentifierType == SlotIdentifierType.Named);
 	}
 
 	/// <summary>
@@ -494,6 +660,16 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	{
 		return GetIndexedSlots().FirstOrDefault(its => its.Item == null);
 	}
+
+	/// <summary>
+	/// Gets the next free indexed slot. Null if none.
+	/// </summary>
+	/// <returns></returns>
+	public ItemSlot GetNextFreeNamedSlot()
+	{
+		return GetNamedItemSlots().FirstOrDefault(its => its.Item == null);
+	}
+
 
 	/// <summary>
 	/// Returns the best slot (according to BestSlotForTrait) that is capable of holding
@@ -519,7 +695,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	public ItemSlot GetBestSlotFor(GameObject toCheck)
 	{
 		if (toCheck == null) return null;
-		return GetBestSlotFor(toCheck.GetComponent<Pickupable>());
+		return GetBestSlotFor(toCheck.GetComponentCustom<Pickupable>());
 	}
 
 	/// <summary>
@@ -531,6 +707,38 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 		return GetIndexedSlots().LastOrDefault(ids => ids.Item != null);
 	}
 
+	/// <summary>
+	/// Gets the highest indexed slot that is currently occupied. Null if none are occupied
+	/// </summary>
+	/// <returns></returns>
+	public List<ItemSlot> GetOccupiedSlots()
+	{
+		var result = new List<ItemSlot>();
+		foreach (var slot in GetItemSlots())
+		{
+			if (slot.IsOccupied) result.Add(slot);
+		}
+
+		return result;
+	}
+
+
+	/// <summary>
+	/// Returns if any slot is occupied
+	/// </summary>
+	/// <returns></returns>
+	public bool HasAnyOccupied()
+	{
+		foreach (var slot in GetItemSlots())
+		{
+			if (slot.IsOccupied)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	/// <summary>
 	/// Server only (can be called client side but has no effect).
@@ -548,7 +756,7 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 
 		serverObserverPlayers.Add(observerPlayer);
 
-		var slots = topLevelOnly ? GetItemSlots(): GetItemSlotTree();
+		var slots = topLevelOnly ? GetItemSlots() : GetItemSlotTree();
 
 		foreach (var slot in slots)
 		{
@@ -562,17 +770,28 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	/// This observer will not longer receive updates as they happen to this slot.
 	/// </summary>
 	/// <param name="observerPlayer"></param>
-	public void ServerRemoveObserverPlayer(GameObject observerPlayer)
+	public void ServerRemoveObserverPlayer(GameObject observerPlayer, bool topLevelOnly = false )
 	{
 		if (!CustomNetworkManager.IsServer) return;
 		if (observerPlayer == null) return;
 		if (this == null)
 		{
-			Logger.LogError(" Try to remove observer when storage was destroyed  ", Category.Inventory);
 			return;
 		}
+
+		IEnumerable<ItemSlot> Slots = null;
+
+		if (topLevelOnly)
+		{
+			Slots = GetItemSlots();
+		}
+		else
+		{
+			Slots = GetItemSlotTree();
+
+		}
 		serverObserverPlayers.Remove(observerPlayer);
-		foreach (var slot in GetItemSlotTree())
+		foreach (var slot in Slots)
 		{
 			slot.ServerRemoveObserverPlayer(observerPlayer);
 		}
@@ -609,11 +828,44 @@ public class ItemStorage : MonoBehaviour, IServerLifecycle, IServerInventoryMove
 	/// <summary>
 	/// Drops all items in all slots.
 	/// </summary>
-	public void ServerDropAll(Vector2? worldTargetVector = null)
+	public void ServerDropAll(Vector2? worldDeltaTargetVector = null)
 	{
+		TrySpawnContents();
 		foreach (var itemSlot in GetItemSlots())
 		{
-			Inventory.ServerDrop(itemSlot, worldTargetVector);
+			Inventory.ServerDrop(itemSlot, worldDeltaTargetVector);
 		}
+	}
+
+	/// <summary>
+	/// Drops all items in all slots.
+	/// </summary>
+	public void ServerDropAllAtWorld(Vector3? DropAtWorld = null)
+	{
+		Vector2? worldDeltaTargetVector = null;
+		if (DropAtWorld != null)
+		{
+			worldDeltaTargetVector = DropAtWorld - gameObject.AssumedWorldPosServer();
+		}
+
+		ServerDropAll(worldDeltaTargetVector);
+	}
+
+	public void GrabObjects(List<GameObject> target, Action onGrab = null)
+	{
+		if (ignoreRoundstartGrabObjects) return;
+		foreach (var item in target)
+		{
+			if (item == null) continue;
+			ServerTryAdd(item);
+		}
+
+		onGrab?.Invoke();
+	}
+
+	public void DropObjects(Action onDrop = null)
+	{
+		ServerDropAll();
+		onDrop?.Invoke();
 	}
 }

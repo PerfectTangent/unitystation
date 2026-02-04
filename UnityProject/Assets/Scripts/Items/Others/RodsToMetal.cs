@@ -15,7 +15,7 @@ public class RodsToMetal : NetworkBehaviour, ICheckedInteractable<HandApply>
 
 	public bool WillInteract(HandApply interaction, NetworkSide side)
 	{
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 		// Only active welder will transform rods.
 		return Validations.HasUsedActiveWelder(interaction);
@@ -35,7 +35,7 @@ public class RodsToMetal : NetworkBehaviour, ICheckedInteractable<HandApply>
 		Stackable stack = gameObject.GetComponent<Stackable>();
 		if (stack.Amount >= minimumRods)
 		{
-			Spawn.ServerPrefab(CommonPrefabs.Instance.Metal, interaction.Performer.WorldPosServer(), count: metalSpawnCount);
+			Spawn.ServerPrefab(CommonPrefabs.Instance.Metal, interaction.Performer.AssumedWorldPosServer(), count: metalSpawnCount);
 			stack.ServerConsume(minimumRods);
 		}
 	}

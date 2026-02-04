@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using UnityEngine;
 using UI.Core.NetUI;
 using Objects.Engineering;
+using Objects.Engineering.Reactor;
 
 namespace UI.Objects.Engineering
 {
@@ -13,17 +15,29 @@ namespace UI.Objects.Engineering
 
 		public GUI_ReactorLayout GUIReactorLayout = new GUI_ReactorLayout();
 		public GUI_ReactorAnnunciator GUIReactorAnnunciator = new GUI_ReactorAnnunciator();
+
 		[SerializeField] private NetSliderDial ReactorCoreTemperature = null;
 		[SerializeField] private NetSliderDial CorePressure = null;
 		[SerializeField] private NetSliderDial CoreWaterLevel = null;
 
 		[SerializeField] private NetSliderDial CoreFluxLevel = null;
-		[SerializeField] private NetSliderDial CoreKValue = null;
-		[SerializeField] private NetSliderDial CoreKValue0_1 = null;
+		[SerializeField] private NetSliderDial CoreKValue1_00 = null;
+		[SerializeField] private NetSliderDial CoreKValue0_10 = null;
 		[SerializeField] private NetSliderDial CoreKValue0_01 = null;
-		[SerializeField] private NetLabel RodDepth = null;
-		private decimal PreviousRADlevel = 0;
-		public decimal PercentageChange = 0;
+		[SerializeField] private NetText_label RodDepth = null;
+
+		private decimal previousRadlevel = 0;
+		private decimal percentageChange = 0;
+		private float MainSetControl = 1;
+		private float SecondarySetControl = 1;
+
+		private const decimal HIGH_PRESSURE_THRESHOLD = 60000;
+		private const decimal HIGH_PRESSURE_THRESHOLD_SCRAM = 20000;
+		private const float HIGH_PRESSURE_DELTA_THRESHOLD = 2500;
+
+		private const int MAX_NEUTRON_FLUX_POWER = 12;
+
+		#region Lifecycle
 
 		private void Start()
 		{
@@ -32,80 +46,95 @@ namespace UI.Objects.Engineering
 				ReactorControlConsole = Provider.GetComponentInChildren<ReactorControlConsole>();
 			}
 
-			GUIReactorLayout.GUI_ReactorControler = this;
-			GUIReactorAnnunciator.GUIReactorControler = this;
+			GUIReactorLayout.GUI_ReactorController = this;
+			GUIReactorAnnunciator.GUI_ReactorController = this;
 			GUIReactorLayout.Start();
+
+			RefreshGui();
 		}
 
 		public override void OnEnable()
 		{
 			base.OnEnable();
-			if (CustomNetworkManager.Instance._isServer == false) return;
-			UpdateManager.Add(Refresh, 1);
+			if (CustomNetworkManager.IsServer == false) return;
+			UpdateManager.Add(RefreshGui, 1);
 		}
 
 		private void OnDisable()
 		{
-			if (CustomNetworkManager.Instance._isServer == false) return;
-			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, Refresh);
+			if (CustomNetworkManager.IsServer == false) return;
+			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, RefreshGui);
 		}
 
-		public void Refresh()
+		#endregion
+
+		public void RefreshGui()
 		{
-			if (ReactorControlConsole != null && ReactorControlConsole.ReactorChambers != null)
-			{
-				float temp = ReactorControlConsole.ReactorChambers.Temperature;
-				float tempSliderPercent = Mathf.Clamp(Mathf.Round((temp / 1200) * 100), 0, 1200);
-				ReactorCoreTemperature.SetValueServer(tempSliderPercent.ToString());
+			if (IsMasterTab == false) return;
+			if (ReactorControlConsole == null || ReactorControlConsole.ReactorChambers == null) return;
 
-				CorePressure.SetValueServer(Math
-					.Round((ReactorControlConsole.ReactorChambers.CurrentPressure /
-							ReactorControlConsole.ReactorChambers.MaxPressure) * 100).ToString());
+			RefreshCoreSliders();
+			RefreshKSliders();
 
-				CoreWaterLevel.SetValueServer((Math.Round((ReactorControlConsole.ReactorChambers.ReactorPipe.pipeData
-					.mixAndVolume.Total.x
-					 / 240) * 100)).ToString());
+			previousRadlevel = ReactorControlConsole.ReactorChambers.PresentNeutrons; //To determine K value sliders
 
-				if (PreviousRADlevel != 0 && ReactorControlConsole.ReactorChambers.PresentNeutrons != 0)
-				{
-					PercentageChange =
-						((ReactorControlConsole.ReactorChambers.PresentNeutrons / PreviousRADlevel) * 100);
+			RodDepth.MasterSetValue($"{ReactorControlConsole.ReactorChambers.ControlRodDepthPercentage * 100}%");
 
-					PercentageChange = PercentageChange - 100;
-					var ValuePercentageChange = Mathf.Clamp((float)(50 + (PercentageChange * 5)), 0, 100);
-					var ValuePercentageChange0_1 = Mathf.Clamp((float)(50 + (PercentageChange * 50)), 0, 100);
-					var ValuePercentageChange0_01 = Mathf.Clamp((float)(50 + (PercentageChange * 500)), 0, 100);
-					CoreKValue.SetValueServer(Math.Round(ValuePercentageChange).ToString());
-					CoreKValue0_1.SetValueServer(Math.Round(ValuePercentageChange0_1).ToString());
-					CoreKValue0_01.SetValueServer(Math.Round(ValuePercentageChange0_01).ToString());
-				}
+			CoreFluxLevel.MasterSetValue(GetNeutronFluxSliderValue((float)previousRadlevel).ToString());
 
-
-				PreviousRADlevel = ReactorControlConsole.ReactorChambers.PresentNeutrons;
-				RodDepth.SetValueServer((ReactorControlConsole.ReactorChambers.ControlRodDepthPercentage * 100).ToString() + "%");
-				float Value = SetLogScale((float)PreviousRADlevel);
-				CoreFluxLevel.SetValueServer((Math.Round(Value).ToString()));
-				GUIReactorLayout.Refresh();
-				GUIReactorAnnunciator.Refresh();
-			}
+			GUIReactorLayout.Refresh();
+			GUIReactorAnnunciator.Refresh();
 		}
 
-		public float SetLogScale(float INNum)
+		private void RefreshCoreSliders()
 		{
-			if (INNum == 0) return 0;
+			float temp = ReactorControlConsole.ReactorChambers.Temperature;
+			float tempSliderPercent = Mathf.Clamp(Mathf.Round(temp / ReactorGraphiteChamber.MAX_CORE_TEMPERATURE * 100), 0, 100);
 
-			int Power = (int)Math.Floor(Math.Log10(INNum));
-			return (100f / 12f) * Mathf.Clamp(Power, 0, 100) + ((100f / 12f) * (INNum / (Mathf.Pow(10, Power + 1))));
+			ReactorCoreTemperature.MasterSetValue(tempSliderPercent.ToString());
+
+			decimal pressure = ReactorControlConsole.ReactorChambers.CurrentPressure;
+			float pressureSliderPercent = (float)Math.Clamp(Math.Round(pressure / ReactorGraphiteChamber.MAX_CORE_PRESSURE * 100), 0, 100);
+
+			CorePressure.MasterSetValue(pressureSliderPercent.ToString());
+
+			float waterLevel = ReactorControlConsole.ReactorChambers.ReactorPipe.pipeData.mixAndVolume.Total.x;
+			float waterLevelSliderPercent = Mathf.Clamp(Mathf.Round(waterLevel / ReactorGraphiteChamber.MAX_WATER_LEVEL * 100), 0, 100);
+
+			CoreWaterLevel.MasterSetValue(waterLevelSliderPercent.ToString());
 		}
 
-		private float MainSetControl = 1;
+		private void RefreshKSliders()
+		{
+			if (previousRadlevel == 0 || ReactorControlConsole.ReactorChambers.PresentNeutrons == 0) return;
+
+			percentageChange = ReactorControlConsole.ReactorChambers.PresentNeutrons / previousRadlevel * 100;
+			percentageChange = percentageChange - 100;
+			var ValuePercentageChange1_00 = Mathf.Clamp((float) (50 + (percentageChange * 5)), 0, 100);
+			var ValuePercentageChange0_10 = Mathf.Clamp((float) (50 + (percentageChange * 50)), 0, 100);
+			var ValuePercentageChange0_01 = Mathf.Clamp((float) (50 + (percentageChange * 500)), 0, 100);
+
+			CoreKValue1_00.MasterSetValue(Math.Round(ValuePercentageChange1_00).ToString());
+			CoreKValue0_10.MasterSetValue(Math.Round(ValuePercentageChange0_10).ToString());
+			CoreKValue0_01.MasterSetValue(Math.Round(ValuePercentageChange0_01).ToString());
+		}
+
+		public float GetNeutronFluxSliderValue(float neutronFlux)
+		{
+			if (neutronFlux < float.Epsilon && neutronFlux > -float.Epsilon) return 0;
+
+			float power = Mathf.Log10(neutronFlux);
+			float percent = Mathf.Clamp(Mathf.Clamp(power, 0, 100) / MAX_NEUTRON_FLUX_POWER * 100, 0, 100);
+
+			return Mathf.Round(percent);
+		}
+
 		public void MainSetControlDepth(float Depth)
 		{
 			MainSetControl = Depth;
 			SetControlDepth();
 		}
 
-		private float SecondarySetControl = 1;
 		public void SecondarySetControlDepth(float Depth)
 		{
 			SecondarySetControl = Depth;
@@ -118,40 +147,41 @@ namespace UI.Objects.Engineering
 		/// <param name="speedMultiplier"></param>
 		public void SetControlDepth()
 		{
-			//Logger.Log("YO " + Depth);
-			ReactorControlConsole.SuchControllRodDepth(MainSetControl + (SecondarySetControl / 100));
+			//Loggy.Log("YO " + Depth);
+			ReactorControlConsole.SuchControlRodDepth(MainSetControl + (SecondarySetControl / 100));
 		}
 
 		[Serializable]
 		public class GUI_ReactorLayout
 		{
-			public GUI_ReactorController GUI_ReactorControler;
+			public GUI_ReactorController GUI_ReactorController;
 
-			public List<NetColorChanger> RodChamber = new List<NetColorChanger>();
+			[SerializeField]
+			private List<NetColorChanger> rodChamber = new List<NetColorChanger>();
 
 			public void Start()
 			{
 				for (int i = 0; i < 16; i++)
 				{
-					RodChamber.Add(GUI_ReactorControler["ReactorSlot (" + i + ")"] as NetColorChanger);
+					rodChamber.Add(GUI_ReactorController["ReactorSlot (" + i + ")"] as NetColorChanger);
 				}
 			}
 
 			public void Refresh()
 			{
-				for (int i = 0; i < GUI_ReactorControler.ReactorControlConsole.ReactorChambers.ReactorRods.Length; i++)
+				for (int i = 0; i < GUI_ReactorController.ReactorControlConsole.ReactorChambers.ReactorRods.Length; i++)
 				{
-					if (GUI_ReactorControler.ReactorControlConsole.ReactorChambers.ReactorRods[i] != null)
+					if (GUI_ReactorController.ReactorControlConsole.ReactorChambers.ReactorRods[i] != null)
 					{
-						var TheType = GUI_ReactorControler.ReactorControlConsole.ReactorChambers.ReactorRods[i]
+						var TheType = GUI_ReactorController.ReactorControlConsole.ReactorChambers.ReactorRods[i]
 							.GetUIColour();
 
 
-						RodChamber[i].SetValueServer(TheType);
+						rodChamber[i].MasterSetValue(TheType);
 					}
 					else
 					{
-						RodChamber[i].SetValueServer(Color.gray);
+						rodChamber[i].MasterSetValue(Color.gray);
 					}
 				}
 			}
@@ -160,115 +190,144 @@ namespace UI.Objects.Engineering
 		[Serializable]
 		public class GUI_ReactorAnnunciator
 		{
-			public GUI_ReactorController GUIReactorControler = null;
+			public GUI_ReactorController GUI_ReactorController = null;
 
-			public NetFlasher HighTemperature;
-			public NetFlasher HighTemperatureDelta;
-			public NetFlasher LowTemperature;
-			public NetFlasher HighNeutronFlux;
-			public NetFlasher HighNeutronFluxDelta;
-			public NetFlasher LowNeutronFlux;
-			public NetFlasher PositiveKValue;
-			public NetFlasher LowKValue;
-			public NetFlasher LowWaterLevel;
+			[SerializeField] private NetFlasher highTemperature;
+			[SerializeField] private NetFlasher highTemperatureDelta;
+			[SerializeField] private NetFlasher lowTemperature;
+			[SerializeField] private NetFlasher highNeutronFlux;
+			[SerializeField] private NetFlasher highNeutronFluxDelta;
+			[SerializeField] private NetFlasher lowNeutronFlux;
+			[SerializeField] private NetFlasher positiveKValue;
+			[SerializeField] private NetFlasher lowKValue;
+			[SerializeField] private NetFlasher lowWaterLevel;
 
-			public NetFlasher HighWaterLevel;
-			public NetFlasher HighCorePressure;
-			public NetFlasher HighPressureDelta;
-			public NetFlasher LowControlRodDepth;
-			public NetFlasher HighControlRodDepth;
+			[SerializeField] private NetFlasher highWaterLevel;
+			[SerializeField] private NetFlasher highCorePressure;
+			[SerializeField] private NetFlasher highPressureDelta;
+			[SerializeField] private NetFlasher lowControlRodDepth;
+			[SerializeField] private NetFlasher highControlRodDepth;
 
-			public NetFlasher CoreMeltdown;
+			[SerializeField] private NetFlasher coreMeltdown;
 
-			public NetFlasher Clown;
-			public NetFlasher HighDegradationOfFuel;
-			public NetFlasher CorePipeBurst;
+			[SerializeField] private NetFlasher clown;
+			[SerializeField] private NetFlasher highDegradationOfFuel;
+			[SerializeField] private NetFlasher corePipeBurst;
+
+
+			private float last_Pressure = 0;
+			private float last_Temperature = 200;
+
+			private decimal last_HighNeutronFluxDelta = 0;
+			private readonly decimal highNeutronFluxDelta_Delta = 0;
+
+			private LayerMask? hitMask;
 
 			public void Refresh()
 			{
-				Temperature();
-				NeutronFlux();
-				KValues();
-				WaterLevel();
-				Pressure();
-				RobDepth();
+				hitMask ??= LayerMask.GetMask("Players");
 
-				var Chamber = GUIReactorControler.ReactorControlConsole.ReactorChambers;
-				CoreMeltdown.SetState(Chamber.MeltedDown);
-				HighDegradationOfFuel.SetState(
-					Chamber.ReactorFuelRods.Any(x => (x.PresentAtomsfuel / x.PresentAtoms) < 0.65m));
+				var chamber = GUI_ReactorController.ReactorControlConsole.ReactorChambers;
 
-				CorePipeBurst.SetState(
-					Chamber.PoppedPipes);
+				SetTemperatureWarnings(chamber);
+				SetNeutronFluxWarnings(chamber);
+				SetKValueWarnings();
+				SetWaterLevelWarnings(chamber);
+				SetCorePressureWarnings(chamber);
+				SetRobDepthWarnings(chamber);
+
+				clown.SetState(FindClown(chamber));
+
+				coreMeltdown.SetState(chamber.MeltedDown);
+				highDegradationOfFuel.SetState(chamber.ReactorFuelRods.Any(x => (x.PresentAtomsfuel / x.PresentAtoms) < 0.65m));
+				corePipeBurst.SetState(chamber.PoppedPipes);
 			}
 
-			public float Last_Temperature = 200;
-			public float Temperature_Delta = 0;
-
-			public void Temperature()
+			private bool FindClown(ReactorGraphiteChamber chamber)
 			{
-				var Chamber = GUIReactorControler.ReactorControlConsole.ReactorChambers;
-
-				HighTemperature.SetState(
-					(Chamber.RodMeltingTemperatureK - 200) < Chamber.ReactorPipe.pipeData.mixAndVolume.Temperature);
-
-				Temperature_Delta = Math.Abs(Chamber.ReactorPipe.pipeData.mixAndVolume.Temperature - Last_Temperature);
-
-				HighTemperatureDelta.SetState(Temperature_Delta > 10);
-
-				LowTemperature.SetState(Chamber.ReactorPipe.pipeData.mixAndVolume.Temperature < 373.15f);
-
-				Last_Temperature = Chamber.ReactorPipe.pipeData.mixAndVolume.Temperature;
+				var players = Physics2D.OverlapCircleAll(chamber.transform.position, 10, hitMask.Value);
+				foreach (var player in players)
+				{
+					if (player.gameObject.OrNull()?.GetComponent<PlayerScript>().OrNull()?.Mind.OrNull()?.occupation
+							.OrNull()?.JobType == JobType.CLOWN)
+					{
+						return true;
+					}
+				}
+				return false;
 			}
 
-			public decimal Last_HighNeutronFluxDelta = 0;
-			public decimal HighNeutronFluxDelta_Delta = 0;
-
-			public void NeutronFlux()
+			private void SetTemperatureWarnings(ReactorGraphiteChamber chamber)
 			{
-				var Chamber = GUIReactorControler.ReactorControlConsole.ReactorChambers;
-				HighNeutronFlux.SetState(Chamber.PresentNeutrons > (Chamber.NeutronSingularity - 1000000));
-				Last_HighNeutronFluxDelta = Math.Abs(Chamber.PresentNeutrons - Last_HighNeutronFluxDelta);
-				HighNeutronFluxDelta.SetState(HighNeutronFluxDelta_Delta > 100000);
-				LowNeutronFlux.SetState(Chamber.PresentNeutrons < 200);
-				Last_HighNeutronFluxDelta = Chamber.PresentNeutrons;
+				bool TEMPToohigh = (chamber.RodMeltingTemperatureK - 200) <
+				                   chamber.ReactorPipe.pipeData.mixAndVolume.Temperature;
+				highTemperature.SetState(TEMPToohigh);
 
+				if (TEMPToohigh)
+				{
+					GUI_ReactorController.ReactorControlConsole.AnnounceSCRAM();
+					GUI_ReactorController.ReactorControlConsole.SuchControlRodDepth(1);
+				}
+
+
+				float temperature_Delta = Math.Abs(chamber.ReactorPipe.pipeData.mixAndVolume.Temperature - last_Temperature);
+
+				highTemperatureDelta.SetState(temperature_Delta > 25);
+
+				lowTemperature.SetState(chamber.ReactorPipe.pipeData.mixAndVolume.Temperature < 373.15f);
+
+				last_Temperature = chamber.ReactorPipe.pipeData.mixAndVolume.Temperature;
 			}
 
-			public void KValues()
+			private void SetNeutronFluxWarnings(ReactorGraphiteChamber chamber)
 			{
-				PositiveKValue.SetState(GUIReactorControler.PercentageChange > 2);
-				LowKValue.SetState(GUIReactorControler.PercentageChange < -2);
+				highNeutronFlux.SetState(chamber.PresentNeutrons > (ReactorGraphiteChamber.NEUTRON_SINGULARITY - 1000000));
+				highNeutronFluxDelta.SetState(highNeutronFluxDelta_Delta > 100000);
+				lowNeutronFlux.SetState(chamber.PresentNeutrons < 200);
+
+				last_HighNeutronFluxDelta = Math.Abs(chamber.PresentNeutrons - last_HighNeutronFluxDelta);
+				last_HighNeutronFluxDelta = chamber.PresentNeutrons;
 			}
 
-			public void WaterLevel()
+			private void SetKValueWarnings()
 			{
-				var Chamber = GUIReactorControler.ReactorControlConsole.ReactorChambers;
-				LowWaterLevel.SetState(Chamber.ReactorPipe.pipeData.mixAndVolume.Total.x < 25);
-				HighWaterLevel.SetState(Chamber.ReactorPipe.pipeData.mixAndVolume.Total.x > 190);
+				positiveKValue.SetState(GUI_ReactorController.percentageChange > 2);
+				lowKValue.SetState(GUI_ReactorController.percentageChange < -2);
 			}
 
-			public float Last_Pressure = 0;
-			public float Pressure_Delta = 0;
-
-			public void Pressure()
+			private void SetWaterLevelWarnings(ReactorGraphiteChamber chamber)
 			{
-				var Chamber = GUIReactorControler.ReactorControlConsole.ReactorChambers;
-				float Pressure = Chamber.ReactorPipe.pipeData.mixAndVolume.Temperature *
-								 Chamber.ReactorPipe.pipeData.mixAndVolume.Total.x;
-
-				HighCorePressure.SetState(Pressure > (float)(Chamber.MaxPressure - 10000));
-
-				Pressure_Delta = Math.Abs(Pressure - Last_Pressure);
-				HighPressureDelta.SetState(Pressure_Delta > 100);
-				Last_Pressure = Pressure;
+				lowWaterLevel.SetState(chamber.ReactorPipe.pipeData.mixAndVolume.Total.x < 25);
+				highWaterLevel.SetState(chamber.ReactorPipe.pipeData.mixAndVolume.Total.x > 190);
 			}
 
-			public void RobDepth()
+			private void SetCorePressureWarnings(ReactorGraphiteChamber chamber)
 			{
-				var Chamber = GUIReactorControler.ReactorControlConsole.ReactorChambers;
-				LowControlRodDepth.SetState(Chamber.ControlRodDepthPercentage < 0.1f);
-				HighControlRodDepth.SetState(Chamber.ControlRodDepthPercentage > 0.80f);
+				float pressure = (float)chamber.CurrentPressure;
+
+				bool PressureTooHigh = pressure > (float) (ReactorGraphiteChamber.MAX_CORE_PRESSURE - HIGH_PRESSURE_THRESHOLD);
+
+				bool PressureTooooHigh = pressure > (float) (ReactorGraphiteChamber.MAX_CORE_PRESSURE - HIGH_PRESSURE_THRESHOLD_SCRAM);
+
+				highCorePressure.SetState(PressureTooHigh);
+
+				if (PressureTooooHigh)
+				{
+					GUI_ReactorController.ReactorControlConsole.AnnounceSCRAM();
+					GUI_ReactorController.ReactorControlConsole.SuchControlRodDepth(1);
+				}
+
+
+
+				float pressure_Delta = Math.Abs(pressure - last_Pressure);
+				highPressureDelta.SetState(pressure_Delta > HIGH_PRESSURE_DELTA_THRESHOLD);
+				last_Pressure = pressure;
+			}
+
+			public void SetRobDepthWarnings(ReactorGraphiteChamber chamber)
+			{
+				lowControlRodDepth.SetState(chamber.ControlRodDepthPercentage < 0.20f);
+				highControlRodDepth.SetState(chamber.ControlRodDepthPercentage > 0.90f);
 			}
 		}
 	}

@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Linq;
+using HealthV2.Living.Surgery;
 using Items;
 using UnityEngine;
 
@@ -13,20 +13,55 @@ namespace HealthV2
 
 
 		public override void FinnishSurgeryProcedure(BodyPart OnBodyPart, HandApply interaction,
-			Dissectible.PresentProcedure PresentProcedure)
+			PresentProcedure presentProcedure)
 		{
-			base.FinnishSurgeryProcedure(OnBodyPart, interaction, PresentProcedure);
+			base.FinnishSurgeryProcedure(OnBodyPart, interaction, presentProcedure);
 
-			if (interaction.HandSlot.Item != null && interaction.HandSlot.Item.GetComponent<ItemAttributesV2>().HasTrait(RequiredImplantTrait))
+			var itemApp = interaction?.HandSlot?.Item.OrNull()?.GetComponent<ItemAttributesV2>();
+
+			ItemSlot ToTakeFrom = null;
+			if (interaction?.HandSlot?.Item != null )
+			{
+				if (itemApp.OrNull()?.HasTrait(RequiredImplantTrait) == true)
+				{
+					ToTakeFrom = interaction.HandSlot;
+				}
+
+				if (itemApp.OrNull()?.HasTrait(CommonTraits.Instance.ItemBag) == true)
+				{
+					var Slot = interaction?.HandSlot?.Item.GetComponent<ItemStorage>().GetItemSlots().First(); //It has baggy it should have item storage
+					if (Slot.Item != null)
+					{
+						itemApp = Slot.Item.OrNull()?.GetComponent<ItemAttributesV2>();
+						if (itemApp.OrNull()?.HasTrait(RequiredImplantTrait) == true)
+						{
+							ToTakeFrom = Slot;
+						}
+					}
+				}
+			}
+
+			if (ToTakeFrom != null)
 			{
 				if (OnBodyPart != null)
 				{
-					OnBodyPart.OrganStorage.ServerTryTransferFrom(interaction.HandSlot);
+					OnBodyPart.OrganStorage.ServerTryTransferFrom(ToTakeFrom);
 				}
 				else
 				{
-					PresentProcedure.ISon.GetComponent<LivingHealthMasterBase>().BodyPartStorage.ServerTryTransferFrom(interaction.HandSlot);
-					PresentProcedure.ISon.currentlyOn = null;
+					var health = presentProcedure.isOn.GetComponent<LivingHealthMasterBase>();
+
+					if (itemApp.HasTrait(CommonTraits.Instance.CoreBodyPart))
+					{
+						if (health.HasCoreBodyPart()) return;
+						health.BodyPartStorage.ServerTryTransferFrom(ToTakeFrom);
+						presentProcedure.isOn.currentlyOn = null;
+					}
+					else
+					{
+						health.BodyPartStorage.ServerTryTransferFrom(ToTakeFrom);
+						presentProcedure.isOn.currentlyOn = null;
+					}
 				}
 			}
 		}

@@ -47,17 +47,6 @@ namespace Items.Storage
 			set => detonateByTimer = value;
 			get => detonateByTimer;
 		}
-		public float TimeToDetonate
-		{
-			set => timeToDetonate = (int)value;
-			get => timeToDetonate;
-		}
-
-		public bool IsArmed
-		{
-			set => isArmed = value;
-			get => isArmed;
-		}
 
 		private void Start()
 		{
@@ -74,8 +63,8 @@ namespace Items.Storage
 			if (isOpen) pizzaSprites.SetSpriteSO(spritePizzaBoxBombActive);
 			if (writtenNote != "")
 			{
-				Chat.AddLocalMsgToChat($"<color=red>An explosive can be seen ticking from the {gameObject.ExpensiveName()} " +
-				                       $"and below it is a note that reads '{writtenNote}'!</color>", gameObject);
+				Chat.AddActionMsgToChat(gameObject, $"<color=red>An explosive can be seen ticking from the {gameObject.ExpensiveName()} " +
+													$"and below it is a note that reads '{writtenNote}'!</color>");
 			}
 			if (PizzaGui != null) PizzaGui.StartCoroutine(PizzaGui.UpdateTimer());
 			yield return WaitFor.Seconds(timeToDetonate);
@@ -89,7 +78,7 @@ namespace Items.Storage
 			var sprite = pizza.ItemObject.GetComponentInChildren<SpriteHandler>();
 			if (sprite != null)
 			{
-				pizzaSprites.SetSprite(sprite.CurrentSprite);
+				pizzaSprites.SetSpriteNonNetworked(sprite.CurrentSprite);
 			}
 		}
 
@@ -99,13 +88,13 @@ namespace Items.Storage
 			pizzaSprites.SetActive(true);
 			if(writtenNote != "") writingSprites.SetActive(true);
 			UpdatePizzaSprites();
-			
+
 			if (isArmed && detonateByTimer == false)
 			{
 				Detonate();
 				return;
 			}
-			
+
 			if (isArmed && detonateByTimer)
 			{
 				StartCoroutine(Countdown());
@@ -146,7 +135,7 @@ namespace Items.Storage
 
 		protected override void Detonate()
 		{
-			Chat.AddLocalMsgToChat("<color=red>The pizza bomb violently explodes!</color>", gameObject);
+			Chat.AddCombatMsgToChat(gameObject, "<size=+6>The pizza bomb violently explodes!</size>", "<size=+6>The pizza bomb violently explodes!</size>");
 			base.Detonate();
 		}
 
@@ -230,8 +219,10 @@ namespace Items.Storage
 			Detonate();
 		}
 
-		public void OnSpawnServer(SpawnInfo info)
+		public override void OnSpawnServer(SpawnInfo info)
 		{
+			base.OnSpawnServer(info);
+
 			IsArmed = isBomb && isArmedOnSpawn;
 		}
 

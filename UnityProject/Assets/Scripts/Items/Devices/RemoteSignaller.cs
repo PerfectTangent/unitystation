@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using Communications;
-using UnityEngine;
+﻿using Communications;
 using Messages.Server;
 using Objects;
 
@@ -19,7 +15,7 @@ namespace Items.Devices
 
 		protected override bool SendSignalLogic()
 		{
-			if(signalData == null) return false;
+			if(emmitableSignalData.Count == 0) return false;
 			return true;
 		}
 
@@ -41,6 +37,8 @@ namespace Items.Devices
 		{
 			SendSignalLogic();
 		}
+
+
 	}
 
 }

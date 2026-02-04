@@ -7,10 +7,10 @@ namespace UI.Objects.Engineering
 	public class GUI_ParticleAccelerator : NetTab
 	{
 		[SerializeField]
-		private NetLabel powerSetting = null;
+		private NetText_label powerSetting = null;
 
 		[SerializeField]
-		private NetLabel powerUse = null;
+		private NetText_label powerUse = null;
 
 		[SerializeField]
 		private NetSlider OnOffSwitch = null;
@@ -19,11 +19,11 @@ namespace UI.Objects.Engineering
 		private ParticleAcceleratorControl ParticleAccelerator =>
 				particleAccelerator ??= Provider.GetComponent<ParticleAcceleratorControl>();
 
-		public void OnTabOpenedHandler(ConnectedPlayer connectedPlayer)
+		public void OnTabOpenedHandler(PlayerInfo connectedPlayer)
 		{
-			powerSetting.Value = ParticleAccelerator.Status;
-			powerUse.Value = ParticleAccelerator.PowerUsage + " volts";
-			OnOffSwitch.Value = ((int)(ParticleAccelerator.CurrentState - 3) * 100).ToString();
+			powerSetting.MasterSetValue (ParticleAccelerator.Status);
+			powerUse.MasterSetValue ( ParticleAccelerator.PowerUsage + " volts");
+			OnOffSwitch.MasterSetValue ( ((int)(ParticleAccelerator.CurrentState - 3) * 100).ToString());
 		}
 
 		public void ClosePanel()
@@ -34,15 +34,15 @@ namespace UI.Objects.Engineering
 		public void PowerChange()
 		{
 			ParticleAccelerator.ChangePower((ParticleAcceleratorState)(int.Parse(OnOffSwitch.Value) / 100 + 3));
-			powerSetting.Value = ParticleAccelerator.Status;
-			powerUse.Value = ParticleAccelerator.PowerUsage + " volts";
+			powerSetting.MasterSetValue(ParticleAccelerator.Status);
+			powerUse.MasterSetValue(ParticleAccelerator.PowerUsage + " volts");
 		}
 
 		public void SetUp()
 		{
 			ParticleAccelerator.ConnectToParts();
-			powerSetting.Value = ParticleAccelerator.Status;
-			powerUse.Value = ParticleAccelerator.PowerUsage + " volts";
+			powerSetting.MasterSetValue(ParticleAccelerator.Status);
+			powerUse.MasterSetValue( ParticleAccelerator.PowerUsage + " volts");
 		}
 	}
 }

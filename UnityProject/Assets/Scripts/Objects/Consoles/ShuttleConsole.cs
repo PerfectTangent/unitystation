@@ -1,9 +1,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using AddressableReferences;
+using AdminTools;
+using Core.Admin.Logs;
+using Logs;
+using Managers;
 using Messages.Server;
+using Messages.Server.AdminTools;
 using Mirror;
+using SecureStuff;
 using UI.Objects.Shuttles;
 using UnityEngine;
 using UnityEngine.Events;
@@ -15,8 +22,12 @@ namespace Objects.Shuttles
 	/// </summary>
 	public class ShuttleConsole : NetworkBehaviour, ICheckedInteractable<HandApply>, IServerSpawn
 	{
-		public MatrixMove ShuttleMatrixMove;
-		private RegisterTile registerTile;
+		//TODO Swapping matrix
+
+		[PlayModeOnly] public MatrixMove ShuttleMatrixMove;
+
+
+		[NonSerialized] public RegisterTile registerTile;
 		private HasNetworkTab hasNetworkTab;
 
 		[SerializeField] private AddressableAudioSource radarDetectionSound;
@@ -24,10 +35,38 @@ namespace Objects.Shuttles
 
 		public ShuttleConsoleState shuttleConsoleState;
 
+		public Rotatable Rotatable;
+
+		public bool EngineOn;
+		public bool EngineSupport;
+
 		private void Awake()
 		{
-			registerTile = GetComponent<RegisterTile>();
 			hasNetworkTab = GetComponent<HasNetworkTab>();
+		}
+
+		private void Start()
+		{
+			registerTile = GetComponent<RegisterTile>();
+			Rotatable = this.GetComponentCustom<Rotatable>();
+			ShuttleMatrixMove = GetComponentInParent<MatrixMove>();
+
+			if (ShuttleMatrixMove.NetworkedMatrixMove.ShuttleConsuls.Contains(this) == false)
+			{
+				ShuttleMatrixMove.NetworkedMatrixMove.ShuttleConsuls.Add(this);
+			}
+		}
+
+		public void OnDisable()
+		{
+			ShuttleMatrixMove?.NetworkedMatrixMove?.ShuttleConsuls?.Remove(this);
+		}
+
+		public void OnEnable()
+		{
+			ShuttleMatrixMove = GetComponentInParent<MatrixMove>();
+			if (ShuttleMatrixMove  == null) return;
+			ShuttleMatrixMove.NetworkedMatrixMove.ShuttleConsuls.Add(this);
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
@@ -39,16 +78,18 @@ namespace Objects.Shuttles
 				ShuttleMatrixMove = MatrixManager.Get(registerTile.Matrix).MatrixMove;
 				if (ShuttleMatrixMove == null)
 				{
-					Logger.Log($"{this} is not on a movable matrix, so won't function.", Category.Shuttles);
+					Loggy.Info($"{this} is not on a movable matrix, so won't function.", Category.Shuttles);
 					hasNetworkTab.enabled = false;
 					return;
 				}
 				else
 				{
-					Logger.Log($"No MatrixMove reference set to {this}, found {ShuttleMatrixMove} automatically", Category.Shuttles);
+					Loggy.Info($"No MatrixMove reference set to {this}, found {ShuttleMatrixMove} automatically",
+						Category.Shuttles);
 				}
 			}
-			if (ShuttleMatrixMove.IsNotPilotable)
+
+			if (ShuttleMatrixMove.NetworkedMatrixMove.IsNotPilotable)
 			{
 				hasNetworkTab.enabled = false;
 			}
@@ -60,15 +101,15 @@ namespace Objects.Shuttles
 
 		public void PlayRadarDetectionSound()
 		{
-			_ = SoundManager.PlayNetworkedAtPosAsync(radarDetectionSound, gameObject.WorldPosServer(),
+			_ = SoundManager.PlayNetworkedAtPosAsync(radarDetectionSound, gameObject.AssumedWorldPosServer(),
 				default, default, default, default, gameObject);
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			//can only be interacted with an emag (normal click behavior is in HasNetTab)
-			if (!Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Emag)) return false;
+			if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Emag) == false) return false;
 			return true;
 		}
 
@@ -78,6 +119,7 @@ namespace Objects.Shuttles
 			if (shuttleConsoleState == ShuttleConsoleState.Normal)
 			{
 				shuttleConsoleState = ShuttleConsoleState.Emagged;
+				ServerLogEmagEvent(interaction);
 			}
 			else if (shuttleConsoleState == ShuttleConsoleState.Emagged)
 			{
@@ -87,11 +129,30 @@ namespace Objects.Shuttles
 			{
 				shuttleConsoleState = ShuttleConsoleState.Normal;
 			}
+
 			if (GUItab)
 			{
 				GUItab.OnStateChange(shuttleConsoleState);
 			}
 		}
+
+		private void ServerLogEmagEvent(HandApply prep)
+		{
+			AdminLogsManager.AddNewLog(prep.Performer,
+				$"{prep.PerformerPlayerScript.playerName} emmaged {gameObject}.", LogCategory.Interaction, Severity.SUSPICOUS);
+		}
+
+
+
+		[Command(requiresAuthority = false)]
+		public void CmdMove(Orientation GlobalMoveDirection, NetworkConnectionToClient sender = null)
+		{
+			if (sender == null) return;
+			if (Validations.CanApply(PlayerList.Instance.Get(sender).Script, this.gameObject, NetworkSide.Server, false, ReachRange.Standard) == false) return;
+			if (EngineOn == false) return;
+			registerTile.Matrix.MatrixMove.NetworkedMatrixMove.RcsMove(GlobalMoveDirection);
+		}
+
 
 		/// <summary>
 		/// Connects or disconnects a player from a shuttle rcs
@@ -102,23 +163,18 @@ namespace Objects.Shuttles
 
 			if (newState)
 			{
-				playerScript.RcsMode = true;
-				playerScript.RcsMatrixMove = matrixMove;
-				matrixMove.playerControllingRcs = playerScript;
-				matrixMove.rcsModeActive = true;
+				PlayerManager.ShuttleConsole = this;
+				matrixMove.NetworkedMatrixMove.playerControllingRcs = playerScript;
+				matrixMove.NetworkedMatrixMove.RCSModeActive = true;
 			}
 			else
 			{
-				if (playerScript)
-				{
-					playerScript.RcsMode = false;
-					playerScript.RcsMatrixMove = null;
-				}
-				matrixMove.playerControllingRcs = null;
-				matrixMove.rcsModeActive = false;
+				PlayerManager.ShuttleConsole = null;
+				matrixMove.NetworkedMatrixMove.playerControllingRcs = null;
+				matrixMove.NetworkedMatrixMove.RCSModeActive = false;
 			}
 
-			matrixMove.CacheRcs();
+			//matrixMove.CacheRcs();
 
 			if (isServer)
 			{
@@ -127,10 +183,10 @@ namespace Objects.Shuttles
 					GUItab.SetRcsLight(newState);
 				}
 
-				if(playerScript && playerScript != PlayerManager.LocalPlayerScript)
+				if (playerScript && playerScript != PlayerManager.LocalPlayerScript)
 				{
-					ShuttleRcsMessage.SendTo(this, newState, playerScript.connectedPlayer);
-					playerScript.PlayerSync.RollbackPosition();
+					ShuttleRcsMessage.SendTo(this, newState, playerScript.PlayerInfo);
+					playerScript.PlayerSync.ResetLocationOnClients();
 				}
 			}
 		}

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using Player;
 
 namespace Managers
@@ -17,11 +18,11 @@ namespace Managers
 		/// <summary>
 		/// Players who haven't been allocated a job yet
 		/// </summary>
-		private List<ConnectedPlayer> playersLeft;
+		private List<PlayerInfo> playersLeft;
 		/// <summary>
 		/// Players who missed out on their job preference
 		/// </summary>
-		private List<ConnectedPlayer> missedOutPlayers;
+		private List<PlayerInfo> missedOutPlayers;
 
 		private Dictionary<Occupation, int> occupationCount = new Dictionary<Occupation, int>();
 
@@ -30,11 +31,11 @@ namespace Managers
 		/// </summary>
 		/// <param name="players">The players to assign jobs to</param>
 		/// <returns>A list of JoinedViewers with the JobTypes assigned to them</returns>
-		public List<PlayerSpawnRequest> DetermineJobs(IEnumerable<ConnectedPlayer> players)
+		public List<PlayerSpawnRequest> DetermineJobs(IEnumerable<PlayerInfo> players)
 		{
 			// Reset all player lists
 			playersLeft = players.ToList();
-			missedOutPlayers = new List<ConnectedPlayer>();
+			missedOutPlayers = new List<PlayerInfo>();
 			determinedPlayers = new List<PlayerSpawnRequest>();
 
 			// Find all head jobs and normal jobs
@@ -79,9 +80,11 @@ namespace Managers
 		/// <param name="priority">The priority to check for</param>
 		/// <param name="playerPool">The available players to choose from</param>
 		private void ChoosePlayers(IEnumerable<Occupation> occupations, Priority priority,
-			IReadOnlyCollection<ConnectedPlayer> playerPool)
+			IReadOnlyCollection<PlayerInfo> playerPool)
 		{
-			foreach (var occupation in occupations)
+			var shuffledoccupations = occupations.ToList().Shuffle();
+
+			foreach (var occupation in shuffledoccupations)
 			{
 				occupationCount.TryGetValue(occupation, out int filledSlots);
 				int slotsLeft = occupation.Limit - filledSlots;
@@ -94,7 +97,7 @@ namespace Managers
 					continue;
 				}
 
-				List<ConnectedPlayer> chosen;
+				List<PlayerInfo> chosen;
 				if (candidates.Count > slotsLeft)
 				{
 					// More candidates than job slots, choose people randomly to fill all slots
@@ -127,13 +130,13 @@ namespace Managers
 		/// <param name="priority">The priority level to check</param>
 		/// <param name="candidates">A list of candidates if any were found</param>
 		/// <returns>Returns true if candidates were found, and false if not.</returns>
-		private bool TryGetCandidates(ref IReadOnlyCollection<ConnectedPlayer> playerPool, Occupation occupation,
-			Priority priority, out List<ConnectedPlayer> candidates)
+		private bool TryGetCandidates(ref IReadOnlyCollection<PlayerInfo> playerPool, Occupation occupation,
+			Priority priority, out List<PlayerInfo> candidates)
 		{
 			// Find any players that selected the job with the specified priority
 			candidates = playerPool.Where(player =>
-				player.CharacterSettings.JobPreferences.ContainsKey(occupation.JobType) &&
-				player.CharacterSettings.JobPreferences[occupation.JobType] == priority && PlayerList.Instance.FindPlayerJobBanEntry(player, occupation.JobType, false) == null).ToList();
+				player.RequestedCharacterSettings.JobPreferences.ContainsKey(occupation.JobType) &&
+				player.RequestedCharacterSettings.JobPreferences[occupation.JobType] == priority && PlayerList.Instance.FindPlayerJobBanEntry(player, occupation.JobType, false) == null).ToList();
 
 			return candidates.Any();
 		}
@@ -143,11 +146,10 @@ namespace Managers
 		/// </summary>
 		/// <param name="players">Players to allocate jobs to</param>
 		/// <param name="job">The job to allocate</param>
-		private void AllocateJobs(IReadOnlyCollection<ConnectedPlayer> players, Occupation job)
+		private void AllocateJobs(IReadOnlyCollection<PlayerInfo> players, Occupation job)
 		{
 			// Update determined players and players left
-			determinedPlayers.AddRange(players.Select(player =>
-				PlayerSpawnRequest.RequestOccupation(player.ViewerScript, job, player.CharacterSettings, player.UserId)));
+			determinedPlayers.AddRange(players.Select(player => new PlayerSpawnRequest(player, job, player.RequestedCharacterSettings)));
 			playersLeft.RemoveAll(players.Contains);
 			missedOutPlayers.RemoveAll(players.Contains);
 
@@ -163,7 +165,7 @@ namespace Managers
 		{
 			if (playersLeft.Any())
 			{
-				Logger.LogFormat("These people were not allocated a job, assigning them to {0}: {1}", Category.Jobs,
+				Loggy.Info().Format("These people were not allocated a job, assigning them to {0}: {1}", Category.Jobs,
 					DefaultJob.DisplayName, string.Join("\n", playersLeft));
 
 				// Update determined players and players left
@@ -172,7 +174,7 @@ namespace Managers
 
 			if (missedOutPlayers.Any() || playersLeft.Any())
 			{
-				Logger.LogError("There are still unallocated players, something has gone wrong in the JobAllocator!",
+				Loggy.Error("There are still unallocated players, something has gone wrong in the JobAllocator!",
 					Category.Jobs);
 			}
 		}

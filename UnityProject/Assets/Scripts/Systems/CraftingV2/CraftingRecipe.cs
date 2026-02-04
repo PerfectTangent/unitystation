@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Systems.CraftingV2.ResultHandlers;
 using Chemistry.Components;
 using Items;
+using Logs;
 using NaughtyAttributes;
 using UnityEngine;
 
@@ -153,20 +154,21 @@ namespace Systems.CraftingV2
 		public CraftingStatus CanBeCrafted(
 			List<CraftingIngredient> possibleIngredients,
 			List<ItemAttributesV2> possibleTools,
-			List<ReagentContainer> reagentContainers
+			List<ReagentContainer> reagentContainers,
+			ref string ReasonString
 		)
 		{
-			if (CheckPossibleIngredients(possibleIngredients) == false)
+			if (CheckPossibleIngredients(possibleIngredients, ref ReasonString) == false)
 			{
 				return CraftingStatus.NotEnoughIngredients;
 			}
 
-			if (CheckPossibleTools(possibleTools) == false)
+			if (CheckPossibleTools(possibleTools, ref ReasonString) == false)
 			{
 				return CraftingStatus.NotEnoughTools;
 			}
 
-			if (CheckPossibleReagents(reagentContainers) == false)
+			if (CheckPossibleReagents(reagentContainers, ref ReasonString) == false)
 			{
 				return CraftingStatus.NotEnoughReagents;
 			}
@@ -189,15 +191,16 @@ namespace Systems.CraftingV2
 		public CraftingStatus CanBeCrafted(
 			List<CraftingIngredient> possibleIngredients,
 			List<ItemAttributesV2> possibleTools,
-			List<KeyValuePair<int, float>> reagents
+			List<KeyValuePair<int, float>> reagents,
+			ref string ReasonString
 		)
 		{
-			if (CheckPossibleIngredients(possibleIngredients) == false)
+			if (CheckPossibleIngredients(possibleIngredients, ref ReasonString) == false)
 			{
 				return CraftingStatus.NotEnoughIngredients;
 			}
 
-			if (CheckPossibleTools(possibleTools) == false)
+			if (CheckPossibleTools(possibleTools, ref ReasonString) == false)
 			{
 				return CraftingStatus.NotEnoughTools;
 			}
@@ -212,15 +215,16 @@ namespace Systems.CraftingV2
 
 		public CraftingStatus CanBeCraftedIgnoringReagents(
 			List<CraftingIngredient> possibleIngredients,
-			List<ItemAttributesV2> possibleTools
+			List<ItemAttributesV2> possibleTools,
+			ref string Reason
 		)
 		{
-			if (CheckPossibleIngredients(possibleIngredients) == false)
+			if (CheckPossibleIngredients(possibleIngredients, ref Reason) == false)
 			{
 				return CraftingStatus.NotEnoughIngredients;
 			}
 
-			if (CheckPossibleTools(possibleTools) == false)
+			if (CheckPossibleTools(possibleTools, ref Reason) == false)
 			{
 				return CraftingStatus.NotEnoughTools;
 			}
@@ -233,7 +237,7 @@ namespace Systems.CraftingV2
 		/// </summary>
 		/// <param name="reagentContainers">The reagent containers that might be used for crafting.</param>
 		/// <returns>True if there are enough reagents for crafting, false otherwise.</returns>
-		public bool CheckPossibleReagents(List<ReagentContainer> reagentContainers)
+		public bool CheckPossibleReagents(List<ReagentContainer> reagentContainers, ref string ReasonString)
 		{
 			foreach (RecipeIngredientReagent requiredReagent in requiredReagents)
 			{
@@ -245,6 +249,7 @@ namespace Systems.CraftingV2
 
 				if (foundAmount < requiredReagent.RequiredAmount)
 				{
+					ReasonString += $", Not enough of {requiredReagent.RequiredReagent.Name} Amount found {foundAmount} ";
 					return false;
 				}
 			}
@@ -286,7 +291,7 @@ namespace Systems.CraftingV2
 		/// </summary>
 		/// <param name="possibleTools">Tools that might be used for crafting.</param>
 		/// <returns>True if there are enough tools for crafting, false otherwise.</returns>
-		public bool CheckPossibleTools(List<ItemAttributesV2> possibleTools)
+		public bool CheckPossibleTools(List<ItemAttributesV2> possibleTools, ref string ReasonString)
 		{
 			foreach (ItemTrait itemTrait in requiredToolTraits)
 			{
@@ -300,6 +305,7 @@ namespace Systems.CraftingV2
 
 				if (foundRequiredToolTrait == false)
 				{
+					ReasonString += $", was unable to find tool {itemTrait.name}";
 					return false;
 				}
 			}
@@ -312,7 +318,7 @@ namespace Systems.CraftingV2
 		/// </summary>
 		/// <param name="possibleIngredients">Ingredients that might be used for crafting.</param>
 		/// <returns>True if there are enough ingredients for crafting, false otherwise.</returns>
-		public bool CheckPossibleIngredients(List<CraftingIngredient> possibleIngredients)
+		public bool CheckPossibleIngredients(List<CraftingIngredient> possibleIngredients, ref string Reason)
 		{
 			for (int reqIngIndex = 0; reqIngIndex < RequiredIngredients.Count; reqIngIndex++)
 			{
@@ -361,6 +367,7 @@ namespace Systems.CraftingV2
 				// did we looked through all the possibleIngredients, but did not find enough necessary ones?
 				if (countedAmount != RequiredIngredients[reqIngIndex].RequiredAmount)
 				{
+					Reason += $" Wasn't able to find enough of {RequiredIngredients[reqIngIndex].RequiredItem.name} ";
 					// yes, so crafting according to the recipe is impossible
 					return false;
 				}
@@ -383,7 +390,8 @@ namespace Systems.CraftingV2
 			List<ReagentContainer> reagentContainers
 		)
 		{
-			if (CanBeCrafted(possibleIngredients, possibleTools, reagentContainers) != CraftingStatus.AllGood)
+			var ReasonString = "";
+			if (CanBeCrafted(possibleIngredients, possibleTools, reagentContainers, ref ReasonString) != CraftingStatus.AllGood)
 			{
 				return;
 			}
@@ -405,8 +413,11 @@ namespace Systems.CraftingV2
 			List<ReagentContainer> reagentContainers
 		)
 		{
-			UseReagents(possibleIngredients);
-			CompleteCrafting(crafterPlayerScript, UseIngredients(possibleIngredients));
+
+			UseReagents(reagentContainers);
+			var UsedIngredients = UseIngredients(possibleIngredients, out var PosOfoneIngredients);
+
+			CompleteCrafting(crafterPlayerScript, UsedIngredients, PosOfoneIngredients);
 		}
 
 		/// <summary>
@@ -414,8 +425,9 @@ namespace Systems.CraftingV2
 		/// </summary>
 		/// <param name="possibleIngredients">The ingredients that might be used for crafting.</param>
 		/// <returns>Used ingredients.</returns>
-		private List<CraftingIngredient> UseIngredients(List<CraftingIngredient> possibleIngredients)
+		private List<CraftingIngredient> UseIngredients(List<CraftingIngredient> possibleIngredients, out  Vector3 PosOfoneIngredients)
 		{
+			PosOfoneIngredients = TransformState.HiddenPos;
 			List<CraftingIngredient> usedIngredients = new List<CraftingIngredient>();
 			for (int reqIngIndex = 0; reqIngIndex < RequiredIngredients.Count; reqIngIndex++)
 			{
@@ -437,6 +449,13 @@ namespace Systems.CraftingV2
 						}
 
 						// okay, this is what we're looking for. We use this ingredient
+						if (possibleIngredient.gameObject.GetUniversalObjectPhysics().registerTile
+							    .LocalPositionServer != TransformState.HiddenPos)
+						{
+							PosOfoneIngredients = possibleIngredient.gameObject.AssumedWorldPosServer();
+						}
+
+
 						usedIngredientsCounter = UseIngredient(reqIngIndex, possibleIngredient, usedIngredientsCounter);
 						usedIngredients.Add(possibleIngredient);
 						break;
@@ -458,12 +477,13 @@ namespace Systems.CraftingV2
 		/// <param name="possibleReagentContainers">
 		/// 	The possible reagent containers whose content(reagents) might be used for crafting.
 		/// </param>
-		private void UseReagents(List<CraftingIngredient> possibleReagentContainers)
+		private void UseReagents(List<ReagentContainer> possibleReagentContainers)
 		{
 			foreach (RecipeIngredientReagent requiredReagent in RequiredReagents)
 			{
+				if (requiredReagent.Catalyst) continue;
 				float amountUsed = 0;
-				foreach (CraftingIngredient possibleIngredient in possibleReagentContainers)
+				foreach (var possibleIngredient in possibleReagentContainers)
 				{
 					if (possibleIngredient.gameObject.TryGetComponent(out ReagentContainer reagentContainer))
 					{
@@ -520,7 +540,7 @@ namespace Systems.CraftingV2
 		/// <param name="usedIngredients">
 		/// 	The ingredients that were used to fulfil the requirements for the recipe.
 		/// </param>
-		private void CompleteCrafting(PlayerScript crafterPlayerScript, List<CraftingIngredient> usedIngredients)
+		private void CompleteCrafting(PlayerScript crafterPlayerScript, List<CraftingIngredient> usedIngredients, Vector3 PosOfoneIngredients)
 		{
 			List<GameObject> spawnedResult = new List<GameObject>();
 			foreach (GameObject resultedGameObject in Result)
@@ -528,7 +548,7 @@ namespace Systems.CraftingV2
 				spawnedResult.Add(
 					Spawn.ServerPrefab(
 						resultedGameObject,
-						crafterPlayerScript.PlayerSync.ClientPosition
+						crafterPlayerScript.PlayerSync.registerTile.WorldPosition
 					).GameObject
 				);
 			}
@@ -538,9 +558,21 @@ namespace Systems.CraftingV2
 				resultHandler.OnCraftingCompleted(spawnedResult, usedIngredients);
 			}
 
-			if (spawnedResult.Count == 1)
+			if (usedIngredients.Count == 1 && PosOfoneIngredients != TransformState.HiddenPos)
+				//NOTE Local position is used for  TransformState.HiddenPos so, World won't match,
+				//so UseIngredients Uses HiddenPosTo indicate that it is hidden /invalid
 			{
-				Inventory.ServerAdd(spawnedResult[0], crafterPlayerScript.DynamicItemStorage.GetBestHand());
+				foreach (var spawnedResultOne in spawnedResult)
+				{
+					spawnedResultOne.gameObject.GetUniversalObjectPhysics().AppearAtWorldPositionServer(PosOfoneIngredients);
+				}
+			}
+			else
+			{
+				if (spawnedResult.Count == 1)
+				{
+					Inventory.ServerAdd(spawnedResult[0], crafterPlayerScript.DynamicItemStorage.GetBestHand());
+				}
 			}
 		}
 	}

@@ -9,8 +9,8 @@ namespace UI.Objects.Cargo
 	{
 		private CargoOrderSO Order;
 
-		[SerializeField] private NetLabel supplyNameLabel;
-		[SerializeField] private NetLabel priceLabel;
+		[SerializeField] private NetText_label supplyNameLabel;
+		[SerializeField] private NetText_label priceLabel;
 
 		public void AddToCart()
 		{
@@ -20,8 +20,8 @@ namespace UI.Objects.Cargo
 		public void SetValues(CargoOrderSO newOrder)
 		{
 			Order = newOrder;
-			supplyNameLabel.SetValueServer(Order.OrderName);
-			priceLabel.SetValueServer($"{Order.CreditCost} credits");
+			supplyNameLabel.MasterSetValue(Order.OrderName);
+			priceLabel.MasterSetValue($"{Order.CreditCost} credits");
 		}
 	}
 }

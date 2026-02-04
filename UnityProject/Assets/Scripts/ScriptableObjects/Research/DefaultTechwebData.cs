@@ -1,9 +1,8 @@
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using Systems.Research;
-using NaughtyAttributes;
 using System.IO;
+using SecureStuff;
+using UnityEngine;
+using NaughtyAttributes;
 using Newtonsoft.Json;
 using Systems.Research.Data;
 
@@ -18,23 +17,19 @@ namespace ScriptableObjects.Research
 		public void GenerateDefaultData()
 		{
 
-			string jsonData = JsonConvert.SerializeObject(technologies);
-			string path = $"{Application.persistentDataPath}/GameData/Research/";
-			string fileName = "TechwebData.json";
+			string jsonData = JsonConvert.SerializeObject(technologies, Formatting.Indented);
+			string path = "TechWeb";
+
+
 			Debug.Log(jsonData);
 
-			if (Directory.Exists($"{path}") == false)
+			path = Path.Combine("TechWeb", "TechwebData.json");
+
+			if (AccessFile.Exists($"{path}"))
 			{
-				Debug.Log($"{path} not found, making one..");
-				Directory.CreateDirectory(path);
+				AccessFile.Delete(path);
 			}
-			if (File.Exists($"{path}{fileName}"))
-			{
-				File.Delete(path + fileName);
-				File.WriteAllText(path + fileName, jsonData);
-				return;
-			}
-			File.WriteAllText(path + fileName, jsonData);
+			AccessFile.Save(path, jsonData);
 		}
 	}
 

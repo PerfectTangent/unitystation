@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce108c02d022d1940bc023ceca025d81, type: 3}
   m_Name: RandomMedkit
   m_EditorClassIdentifier: 
+  foreverID: a912af3dd90757440885dcd523a224c4
   pool:
   - prefab: {fileID: 8635195139948178778, guid: d0eb5dacbdcd4844e8c76aabde50434f,
       type: 3}
@@ -29,7 +30,19 @@ MonoBehaviour:
       type: 3}
     maxAmount: 1
     probability: 100
+  - prefab: {fileID: 6060374965114659617, guid: 9d8b7ed1a7bd0de45bb195837b8aac15,
+      type: 3}
+    maxAmount: 1
+    probability: 100
+  - prefab: {fileID: 560770769265506077, guid: eb1040cb96c8fc544a215ded005c5f97, type: 3}
+    maxAmount: 1
+    probability: 100
+  - prefab: {fileID: 6778839128216047476, guid: db761f60f2550524aa144c64850b1f68,
+      type: 3}
+    maxAmount: 1
+    probability: 100
   - prefab: {fileID: 2312385827515413346, guid: 2503b951103b1d74788a02c37a3220f7,
       type: 3}
     maxAmount: 1
     probability: 100
+  RequiredTrait: {fileID: 0}

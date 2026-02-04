@@ -10,9 +10,9 @@ namespace Systems.Explosions
 		/// (USE ONLY FOR SINGLE ONE OF USE, NOT LOOPING)
 		/// (See lightsource for alternative)
 		/// </summary>
-		public static void TrySpark(GameObject originator, float chanceToSpark = 100, bool expose = true)
+		public static void TrySpark(GameObject originator, float chanceToSpark = 100, bool expose = true, bool IsInGameItemSuppressedLog = true)
 		{
-			InternalSpark(originator, originator.AssumedWorldPosServer(), chanceToSpark, expose);
+			InternalSpark(originator, originator.AssumedWorldPosServer(IsInGameItemSuppressedLog), chanceToSpark, expose);
 		}
 
 		/// <summary>
@@ -41,7 +41,7 @@ namespace Systems.Explosions
 			{
 				//Try start fire if possible
 				var reactionManager = MatrixManager.AtPoint(worldPos.RoundToInt(), true).ReactionManager;
-				reactionManager.ExposeHotspotWorldPosition(worldPos.To2Int(), 1000);
+				reactionManager.ExposeHotspotWorldPosition(worldPos.RoundTo2Int(), 1000);
 			}
 
 			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Sparks, worldPos,

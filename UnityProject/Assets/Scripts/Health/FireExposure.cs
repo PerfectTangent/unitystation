@@ -1,4 +1,5 @@
 
+using Logs;
 using UnityEngine;
 using Systems.Atmospherics;
 
@@ -99,11 +100,11 @@ public class FireExposure
 	{
 		if (!hotspotNode.HasHotspot)
 		{
-			Logger.LogErrorFormat("MetaDataNode at local position {0} has no hotspot, so no fire exposure" +
-			                      " will occur. This is likely a coding error.", Category.Atmos, hotspotNode.Position);
+			Loggy.Error().Format("MetaDataNode at local position {0} has no hotspot, so no fire exposure" +
+			                      " will occur. This is likely a coding error.", Category.Atmos, hotspotNode.LocalPosition);
 			return;
 		}
-		Update(hotspotNode.GasMix.Temperature, hotspotNode.Position, atLocalPosition, atWorldPosition, hotspotWorldPosition);
+		Update(hotspotNode.GasMixLocal.Temperature, hotspotNode.LocalPosition, atLocalPosition, atWorldPosition, hotspotWorldPosition);
 	}
 
 	/// <summary>
@@ -119,10 +120,10 @@ public class FireExposure
 	{
 		if (!hotspotNode.HasHotspot)
 		{
-			Logger.LogErrorFormat("MetaDataNode at local position {0} has no hotspot, so no fire exposure" +
-			                      " will occur. This is likely a coding error.", Category.Atmos, hotspotNode.Position);
+			Loggy.Error().Format("MetaDataNode at local position {0} has no hotspot, so no fire exposure" +
+			                      " will occur. This is likely a coding error.", Category.Atmos, hotspotNode.LocalPosition);
 			return null;
 		}
-		return new FireExposure(hotspotNode.GasMix.Temperature, hotspotNode.Position, atLocalPosition, atWorldPosition, hotspotWorldPosition);
+		return new FireExposure(hotspotNode.GasMixLocal.Temperature, hotspotNode.LocalPosition, atLocalPosition, atWorldPosition, hotspotWorldPosition);
 	}
 }

@@ -1,9 +1,13 @@
 ﻿
+	using System;
+
 	/// <summary>
 	///     Used to set access restrictions on ID cards and doors
 	/// </summary>
+	[Obsolete]
 	public enum Access
 	{
+		basic_public_Access = 0,
 		ai_upload = 1,
 
 		//all_personal_lockers = 2,

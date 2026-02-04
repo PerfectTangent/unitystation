@@ -7,13 +7,13 @@ namespace UI.Objects
 	public class GUI_Jukebox : NetTab
 	{
 		[SerializeField]
-		private NetLabel labelSong = null;
+		private NetText_label labelSong = null;
 
 		[SerializeField]
-		private NetLabel labelArtist = null;
+		private NetText_label labelArtist = null;
 
 		[SerializeField]
-		private NetLabel labelTrack = null;
+		private NetText_label labelTrack = null;
 
 		[SerializeField]
 		private NetPrefabImage prefabImagePlayStop = null;
@@ -24,12 +24,12 @@ namespace UI.Objects
 		private Jukebox jukebox;
 		private Jukebox Jukebox => jukebox ??= Provider.GetComponent<Jukebox>();
 
-		public void OnTabOpenedHandler(ConnectedPlayer connectedPlayer)
+		public void OnTabOpenedHandler(PlayerInfo connectedPlayer)
 		{
-			labelTrack.Value = Jukebox.TrackPosition;
-			labelSong.Value = Jukebox.SongName;
-			labelArtist.Value = Jukebox.Artist;
-			prefabImagePlayStop.Value = Jukebox.PlayStopButtonPrefabImage;
+			labelTrack.MasterSetValue(Jukebox.TrackPosition);
+			labelSong.MasterSetValue(Jukebox.SongName) ;
+			labelArtist.MasterSetValue(Jukebox.Artist);
+			prefabImagePlayStop.MasterSetValue(Jukebox.PlayStopButtonPrefabImage);
 		}
 
 		public void PlayOrStop()

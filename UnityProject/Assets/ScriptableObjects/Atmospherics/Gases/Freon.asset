@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed39dc88e7534c645afa762455e39ec2, type: 3}
   m_Name: Freon
   m_EditorClassIdentifier: 
+  foreverID: Freon
+  PreviewSprite: {fileID: 11400000, guid: 90264ca2bbab0b943a89a745b5643326, type: 2}
   MolarHeatCapacity: 300
   MolarMass: 44.01
   Name: Freon
@@ -21,4 +23,4 @@ MonoBehaviour:
   Colour: {r: 0, g: 0, b: 0, a: 0}
   FusionPower: -5
   AssociatedReagent: {fileID: 11400000, guid: 7d08aa803e71c5b48adc15ec90d475fe, type: 2}
-  ExportPrice: 15
+  ExportPrice: 1

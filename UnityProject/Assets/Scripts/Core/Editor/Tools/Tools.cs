@@ -1,17 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using Logs;
 using Systems.CraftingV2;
 using Systems.Electricity;
 using Objects.Lighting;
 using Mirror;
 using Objects.Atmospherics;
 using Objects.Wallmounts;
+using Shared.Util;
+using Systems.Spawns;
+using TileManagement;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Tilemaps;
 using Util;
 using Object = UnityEngine.Object;
 
@@ -37,7 +43,8 @@ namespace Core.Editor.Tools
 				EditorUtility.SetDirty(directional.gameObject);
 				directional.Refresh();
 			}
-			Logger.Log($"Refreshed {rotatables.Length} rotatables", Category.Editor);
+
+			Loggy.Info($"Refreshed {rotatables.Length} rotatables", Category.Editor);
 		}
 
 		[MenuItem("Mapping/Set all sceneids to 0")]
@@ -51,7 +58,7 @@ namespace Core.Editor.Tools
 				EditorUtility.SetDirty(allNets[i]);
 			}
 
-			Logger.Log($"Set {allNets.Length} scene ids", Category.Editor);
+			Loggy.Info($"Set {allNets.Length} scene ids", Category.Editor);
 		}
 
 		[MenuItem("Mapping/Monopipe Link Checker")]
@@ -59,7 +66,7 @@ namespace Core.Editor.Tools
 		{
 			if (Application.isPlaying == false)
 			{
-				Logger.LogError($"This can only be run in playmode", Category.Editor);
+				Loggy.Error($"This can only be run in playmode", Category.Editor);
 				return;
 			}
 
@@ -95,8 +102,102 @@ namespace Core.Editor.Tools
 				}
 			}
 
-			Logger.LogError(stringBuilder.ToString(), Category.Editor);
+			Loggy.Error(stringBuilder.ToString(), Category.Editor);
 		}
+
+
+		// Name of the child object to find and copy
+		private const string ChildToFind = "Effects";
+		private const string NewName = "UnderPlayerEffects";
+		private const LayerType NewLayerType = LayerType.UnderObjectsEffects; // Assuming this is a tag or layer name you use
+
+
+		[MenuItem("Mapping/add Underfloor effect layer")]
+		private static void addUnderfloorEffectLayer()
+		{
+			// Find all objects with the MetaTileMap component in the scene
+			MetaTileMap[] metaTileMaps = FindObjectsOfType<MetaTileMap>();
+
+			foreach (MetaTileMap metaTileMap in metaTileMaps)
+			{
+				Transform effectsChild = metaTileMap.transform.Find(ChildToFind);
+				if (effectsChild != null)
+				{
+					// Create a copy of the 'Effects' child
+					GameObject playerEffectsCopy = Instantiate(effectsChild.gameObject);
+
+					// Set the new name
+					playerEffectsCopy.name = NewName;
+
+					// Set the new layer type - assuming you have a 'LayerScript' or similar
+					Layer layerScript = playerEffectsCopy.GetComponent<Layer>();
+					if (layerScript != null)
+					{
+						layerScript.LayerType =  (NewLayerType);
+					}
+					else
+					{
+						Debug.LogWarning("LayerScript not found on the copied object: " + playerEffectsCopy.name);
+					}
+
+					// Reparent the new object under the MetaTileMap's parent
+					playerEffectsCopy.transform.SetParent(metaTileMap.transform);
+					playerEffectsCopy.transform.SetSiblingIndex(metaTileMap.transform.Find("Floors").GetSiblingIndex());
+					playerEffectsCopy.transform.localPosition = Vector3.zero;
+					playerEffectsCopy.transform.localScale = Vector3.one;
+					playerEffectsCopy.GetComponent<TilemapRenderer>().sortingLayerName = "Blood";
+					playerEffectsCopy.GetComponent<TilemapRenderer>().sortingOrder = -10;
+					Debug.Log("Copied and modified Effects object for: " + metaTileMap.name);
+				}
+				else
+				{
+					Debug.LogWarning("No child named 'Effects' found for: " + metaTileMap.name);
+				}
+			}
+			EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+		}
+
+		[MenuItem("Mapping/Convert old Spawn points to new")]
+		private static void SpawnPointUpdate()
+		{
+			var OnePoints = Object.FindObjectsByType<SpawnPoint>(FindObjectsSortMode.None);
+
+			// The name of the prefab you want to find
+			string prefabName = "PlayerSpawnPoint";
+
+			// Search for the prefab in the project
+			string[] guids = AssetDatabase.FindAssets("t:Prefab " + prefabName);
+			// Get the path of the first prefab found
+			string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+
+			// Load the prefab at the given path
+			GameObject Touse = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+
+			foreach (var OnePoint in OnePoints)
+			{
+				var Sh = OnePoint.GetComponentInChildren<SpriteHandler>();
+				if (Sh == null)
+				{
+					var Parent = OnePoint.transform.parent;
+					if (Parent.name.Contains("SpawnPoints"))
+					{
+						Parent = Parent.parent;
+					}
+
+					var New = (GameObject) UnityEditor.PrefabUtility.InstantiatePrefab(Touse, Parent);
+
+					New.transform.position = OnePoint.transform.position;
+					New.transform.rotation = Quaternion.identity;
+					var newps = New.GetComponent<SpawnPoint>();
+					newps.Category = OnePoint.Category;
+					newps.priority = OnePoint.priority;
+					newps.type = OnePoint.type;
+					DestroyImmediate(OnePoint.gameObject);
+				}
+			}
+		}
+
 
 		[MenuItem("Networking/Find all network identities without visibility component (Scene Check)")]
 		private static void FindNetWithoutVis()
@@ -143,7 +244,7 @@ namespace Core.Editor.Tools
 			{
 				var net = allNets[i].GetComponent<NetworkIdentity>();
 
-				if (net.assetId == Guid.Empty)
+				if (net.assetId == 0)
 				{
 					Debug.Log($"{allNets[i].name} has empty asset id");
 				}
@@ -152,10 +253,47 @@ namespace Core.Editor.Tools
 			Debug.Log($"{allNets.Count} net components found in prefabs");
 		}
 
+		[MenuItem("Mapping/RemmoveMissingTag")]
+		private static void RemoveNames()
+		{
+			string patternToRemove = "(Missing Prefab with guid:";
+
+			// Iterate through all root game objects in the current scene
+			foreach (GameObject root in SceneManager.GetActiveScene().GetRootGameObjects())
+			{
+				// Recursively clean the names of all child objects
+				CleanObjectName(root, patternToRemove);
+			}
+
+			// Save the scene after making changes
+			EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+		}
+
+		private static void CleanObjectName(GameObject obj, string patternToRemove)
+		{
+			if (obj.name.Contains(patternToRemove))
+			{
+				int startIndex = obj.name.IndexOf(patternToRemove);
+				int endIndex = obj.name.IndexOf(')', startIndex);
+				if (endIndex > startIndex)
+				{
+					// Remove the pattern from the name
+					obj.name = obj.name.Remove(startIndex, endIndex - startIndex + 1).Trim();
+				}
+			}
+
+			// Iterate through all child objects and clean their names as well
+			foreach (Transform child in obj.transform)
+			{
+				CleanObjectName(child.gameObject, patternToRemove);
+			}
+		}
+
+
 		[MenuItem("Mapping/Save all scenes")]
 		private static void SaveAllScenes()
 		{
-			var scenesGUIDs = AssetDatabase.FindAssets("t:Scene",new string[] {"Assets/Scenes"});
+			var scenesGUIDs = AssetDatabase.FindAssets("t:Scene", new string[] {"Assets/Scenes"});
 			var scenesPaths = scenesGUIDs.Select(AssetDatabase.GUIDToAssetPath);
 
 			foreach (var scene in scenesPaths)
@@ -184,11 +322,11 @@ namespace Core.Editor.Tools
 			{
 				var apcPowered = allNets[i];
 
-				if(apcPowered.IsSelfPowered) continue;
+				if (apcPowered.IsSelfPowered) continue;
 
-				if(apcPowered.RelatedAPC == null) continue;
+				if (apcPowered.RelatedAPC == null) continue;
 
-				if(apcPowered.RelatedAPC.ConnectedDevices.Contains(apcPowered)) continue;
+				if (apcPowered.RelatedAPC.ConnectedDevices.Contains(apcPowered)) continue;
 
 				EditorUtility.SetDirty(apcPowered.RelatedAPC);
 
@@ -248,6 +386,7 @@ namespace Core.Editor.Tools
 					result.Add(obj);
 				}
 			}
+
 			return result;
 		}
 
@@ -377,7 +516,7 @@ namespace Core.Editor.Tools
 
 				if (melees == null || melees.Length <= 1) continue;
 
-				Logger.LogFormat("Removing duplicate Meleeables from {0}", Category.Editor, rootPrefabGO.name);
+				Loggy.Info().Format("Removing duplicate Meleeables from {0}", Category.Editor, rootPrefabGO.name);
 
 				//remove excess
 				for (int i = 1; i < melees.Length; i++)
@@ -413,46 +552,98 @@ namespace Core.Editor.Tools
 			int count = 0;
 			foreach (GameObject gameObject in SceneManager.GetActiveScene().GetRootGameObjects())
 			{
-				foreach (var cnt in gameObject.GetComponentsInChildren<CustomNetTransform>())
+				foreach (var objectPhysics in gameObject.GetComponentsInChildren<Physics.UniversalObjectPhysics>())
 				{
-					if (cnt.SnapToGridOnStart == false) continue;
+					if (objectPhysics.SnapToGridOnStart == false) continue;
 
-					var initialPosition = cnt.transform.position;
-					cnt.transform.position = cnt.transform.position.RoundToInt();
-					if (cnt.transform.position != initialPosition)
+					var initialPosition = objectPhysics.transform.position;
+					objectPhysics.transform.position = objectPhysics.transform.position.RoundToInt();
+					if (objectPhysics.transform.position != initialPosition)
 					{
 						count++;
 					}
 				}
 			}
 
-			Logger.Log($"Centered {count} objects!");
+			Loggy.Info($"Centered {count} objects!");
 		}
+
+		public static List<GameObject> LoadAllPrefabsOfType(string path)
+		{
+			if (path != "")
+			{
+				if (path.EndsWith("/"))
+				{
+					path = path.TrimEnd('/');
+				}
+			}
+
+			DirectoryInfo dirInfo = new DirectoryInfo(path);
+			FileInfo[] fileInf = dirInfo.GetFiles("*.prefab", SearchOption.AllDirectories);
+
+			//loop through directory loading the game object and checking if it has the component you want
+			List<GameObject> prefabComponents = new List<GameObject>();
+			foreach (FileInfo fileInfo in fileInf)
+			{
+				string fullPath = fileInfo.FullName.Replace(@"\", "/");
+				string assetPath = "Assets" + fullPath.Replace(Application.dataPath, "");
+				GameObject prefab = AssetDatabase.LoadAssetAtPath(assetPath, typeof(GameObject)) as GameObject;
+
+				if (prefab != null)
+				{
+					prefabComponents.Add(prefab);
+				}
+			}
+
+			return prefabComponents;
+		}
+
 
 		[MenuItem("Tools/Remove Missing Scripts")]
 		/// Courtesy of <see cref="https://answers.unity.com/questions/15225/how-do-i-remove-null-components-ie-missingmono-scr.html?childToView=1614734#answer-1614734"/>
 		private static void RemoveMissingScripts()
 		{
-			int compCount = 0;
 			int goCount = 0;
 
-			foreach (var o in AssetDatabase.FindAssets("t:Prefab")
-				.Select(guid => AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid))))
+			foreach (var o in LoadAllPrefabsOfType("Assets"))
 			{
-				if (o is GameObject go)
+				bool Missing = false;
+				//Get all components on the GameObject, then loop through them
+				Component[] components = o.GetComponents<Component>();
+				for (int i = 0; i < components.Length; i++)
 				{
-					int count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(go);
-					if (count > 0)
+					Component currentComponent = components[i];
+
+					//If the component is null, that means it's a missing script!
+					if (currentComponent == null)
 					{
-						// Edit: use undo record object, since undo destroy wont work with missing
-						Undo.RegisterCompleteObjectUndo(go, "Remove missing scripts");
-						GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
-						compCount += count;
-						goCount++;
+						Missing = true;
+						//Loggy.LogError(o.name);
 					}
 				}
+
+				if (Missing)
+				{
+					Undo.RegisterCompleteObjectUndo(o, "Remove missing scripts");
+					o.AddComponent<Physics.UniversalObjectPhysics>();
+					GameObjectUtility.RemoveMonoBehavioursWithMissingScript(o);
+					EditorUtility.SetDirty(o);
+					goCount++;
+				}
+				// int count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(o);
+				// if (count > 0)
+				// {
+				// 	// Edit: use undo record object, since undo destroy wont work with missing
+				// 	// Undo.RegisterCompleteObjectUndo(go, "Remove missing scripts");
+				// 	// GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
+				// 	Loggy.LogError(o.name);
+				// 	compCount += count;
+				// 	goCount++;
+				// }
 			}
-			Debug.Log($"Found and removed {compCount} missing scripts from {goCount} GameObjects");
+
+			AssetDatabase.SaveAssets();
+			Debug.Log($"Found and removed missing scripts from {goCount} GameObjects");
 		}
 
 		[MenuItem("Tools/Crafting/FixCraftingCrossLinks")]
@@ -488,6 +679,34 @@ namespace Core.Editor.Tools
 			}
 		}
 
+		[MenuItem("Tools/Crafting/ClearAllCraftingCrossLinks!")]
+		private static void ClearAllCraftingCrossLinks()
+		{
+			string[] recipeGuids = AssetDatabase.FindAssets("t:CraftingRecipe");
+
+			if (recipeGuids.Length == 0)
+			{
+				return;
+			}
+
+			foreach (string recipeGuid in recipeGuids)
+			{
+				CraftingRecipe recipe = AssetDatabase.LoadAssetAtPath<CraftingRecipe>(
+					AssetDatabase.GUIDToAssetPath(recipeGuid)
+				);
+				for (int i = 0; i < recipe.RequiredIngredients.Count; i++)
+				{
+					recipe.RequiredIngredients[i].RequiredItem.GetComponent<CraftingIngredient>().RelatedRecipes.Clear();
+					PrefabUtility.SavePrefabAsset(recipe.RequiredIngredients[i].RequiredItem);
+				}
+				for (int i = 0; i < recipe.Result.Count; i++)
+				{
+					recipe.Result[i].GetComponent<CraftingIngredient>()?.RelatedRecipes?.Clear();
+					PrefabUtility.SavePrefabAsset(recipe.Result[i]);
+				}
+			}
+		}
+
 		/// <summary>
 		/// 	Checks and fixes cross links of the ingredient-object and all its heirs recursively.
 		/// </summary>
@@ -515,7 +734,7 @@ namespace Core.Editor.Tools
 				foundRecipe = true;
 				if (relatedRecipe.IngredientIndex != indexInRecipe)
 				{
-					Logger.Log(
+					Loggy.Info(
 						$"A crafting ingredient ({requiredIngredient}) had a wrong related recipe index, " +
 						"but was fixed automatically. " +
 						$"Expected {indexInRecipe}, but found: {relatedRecipe.IngredientIndex}."
@@ -523,12 +742,13 @@ namespace Core.Editor.Tools
 					relatedRecipe.IngredientIndex = indexInRecipe;
 					PrefabUtility.SavePrefabAsset(requiredIngredient);
 				}
+
 				break;
 			}
 
 			if (foundRecipe == false)
 			{
-				Logger.Log(
+				Loggy.Info(
 					$"A crafting ingredient ({requiredIngredient}) didn't have a link to a recipe " +
 					$"({checkingRecipe}) in its RelatedRecipes list, since the recipe requires this " +
 					"ingredient (prefab), any of it's heirs (prefab variants) " +
@@ -545,7 +765,17 @@ namespace Core.Editor.Tools
 
 			foreach (GameObject child in parentsAndChilds[requiredIngredient])
 			{
+				if (child.GetComponent<CraftingIngredient>() != null)
+				{
+					var inggredient = child.GetComponent<CraftingIngredient>();
+					if (inggredient.InheritParentsRecipes == false)
+					{
+						continue;
+					}
+				}
+
 				CheckAndFixCraftingCrossLinks(checkingRecipe, indexInRecipe, child, parentsAndChilds);
+
 			}
 		}
 	}

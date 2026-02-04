@@ -3,11 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Initialisation;
-using Managers;
-using Messages.Server;
+using Logs;
+using Shared.Managers;
 using Tiles;
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using Debug = UnityEngine.Debug;
 
 public static class TilePaths
 {
@@ -23,7 +23,9 @@ public static class TilePaths
 		{TileType.WindowDamaged, "Tiles/WindowDamage"},
 		{TileType.Effects, "Tiles/Effects"},
 		{TileType.UnderFloor, "Tiles/UnderFloors"},
-		{TileType.ElectricalCable, "Tiles/Electrical"}
+		{TileType.Electrical, "Tiles/Electrical"},
+		{TileType.Pipe, "Tiles/Pipes"},
+		{TileType.Disposals, "Tiles/Disposals"}
 	};
 
 	public static string Get(TileType type)
@@ -48,9 +50,16 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 	public static int TilesLoaded => Instance.tilesLoaded;
 
 	private Dictionary<TileType, Dictionary<string, LayerTile>> tiles = new Dictionary<TileType, Dictionary<string, LayerTile>>();
+
+	public Dictionary<TileType, Dictionary<string, LayerTile>> Tiles => tiles;
+
+	public  Dictionary<string, LayerTile> AllTiles = new  Dictionary<string, LayerTile>();
+
 	private bool initialized;
 
 	[SerializeField] private List<TilePathEntry> layerTileCollections = new List<TilePathEntry>();
+
+	[field:SerializeField] public AnimatedTile ErrorTile { get; private set; }
 
 	public InitialisationSystems Subsystem => InitialisationSystems.TileManager;
 
@@ -59,10 +68,15 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 #if UNITY_EDITOR
 		CacheAllAssets();
 #endif
-		if (!GameData.IsInGame)
+		if (GameData.IsInGame == false)
 		{
 			if (!Instance.initialized) StartCoroutine(LoadAllTiles(true));
 		}
+	}
+
+	public int DeepCleanupTiles()
+	{
+		return 0;
 	}
 
 	public override void Awake()
@@ -78,7 +92,7 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 	[ContextMenu("Cache All Assets")]
 	public bool CacheAllAssets()
 	{
-		layerTileCollections.Clear();
+		layerTileCollections = new List<TilePathEntry>();
 		foreach (TileType tileType in Enum.GetValues(typeof(TileType)))
 		{
 			string path = TilePaths.Get(tileType);
@@ -97,7 +111,7 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 		return true;
 	}
 
-	private IEnumerator LoadAllTiles(bool staggeredload = false)
+	public IEnumerator LoadAllTiles(bool staggeredload = false)
 	{
 		initialized = true;
 		tilesToLoad = 0;
@@ -117,6 +131,12 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 
 			foreach (var t in type.layerTiles)
 			{
+				if (AllTiles.ContainsKey(t.name) && AllTiles[t.name]  != t)
+				{
+					Loggy.Error("Duplicate names for " + t.name);
+				}
+
+				AllTiles[t.name] = t;
 				tilesLoaded++;
 				if (t.TileType == type.tileType)
 				{
@@ -147,8 +167,18 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 				}
 			}
 		}
+	}
 
+	public static LayerTile GetTile( string key)
+	{
+		if (Instance.AllTiles.TryGetValue(key, out var tl))
+		{
+			return tl;
+		}
 
+		Loggy.Error( $"Could not find layerTile in dictionary with key: {key}");
+
+		return null;
 	}
 
 	public static LayerTile GetTile(TileType tileType, string key)
@@ -160,10 +190,23 @@ public class TileManager : SingletonManager<TileManager>, IInitialise
 			return layerTile;
 		}
 
+		if (Instance.AllTiles.TryGetValue(key, out layerTile))
+		{
+			return layerTile;
+		}
+
 		Debug.LogError(tiles == null
 			? $"Could not find {tileType} dictionary"
 			: $"Could not find layerTile in {tileType} dictionary with key: {key}");
 
 		return null;
+	}
+
+	public void Cleanup_between_rounds()
+	{
+#if UNITY_EDITOR
+		return;
+#endif
+		layerTileCollections = new List<TilePathEntry>();
 	}
 }

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1149402479745122159, guid: d05e6959c655a704783a7df68cd10435,
@@ -21,22 +22,33 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 1666505115895660852, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[0]
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: bae856632891643429b6b852dc05e1e8,
         type: 2}
     - target: {fileID: 1666505115895660852, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[1]
+      propertyPath: 'SubCatalogue.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: bae856632891643429b6b852dc05e1e8,
+        type: 2}
+    - target: {fileID: 1666505115895660852, guid: d05e6959c655a704783a7df68cd10435,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: a53497d0b78777b449dde714f9f04ff5,
         type: 2}
     - target: {fileID: 1666505115895660852, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[2]
+      propertyPath: 'SubCatalogue.Array.data[2]'
       value: 
       objectReference: {fileID: 11400000, guid: 02e61e0cfc6b5ba4092b6bb805ffd9e4,
         type: 2}
+    - target: {fileID: 1935487091443775198, guid: d05e6959c655a704783a7df68cd10435,
+        type: 3}
+      propertyPath: parentID
+      value: d05e6959c655a704783a7df68cd10435
+      objectReference: {fileID: 0}
     - target: {fileID: 1935487091443775198, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
       propertyPath: foreverID
@@ -110,13 +122,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4896177219586066183, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
+      propertyPath: _assetId
+      value: 2398617603
+      objectReference: {fileID: 0}
+    - target: {fileID: 4896177219586066183, guid: d05e6959c655a704783a7df68cd10435,
+        type: 3}
       propertyPath: m_AssetId
       value: c64084b1907ae104f865326930718ec0
       objectReference: {fileID: 0}
     - target: {fileID: 4939067879421793745, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
       propertyPath: initialName
-      value: Torch
+      value: torch
       objectReference: {fileID: 0}
     - target: {fileID: 4939067879421793745, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
@@ -128,13 +145,16 @@ PrefabInstance:
         type: 3}
       propertyPath: itemSprites.SpriteLeftHand
       value: 
-      objectReference: {fileID: 11400000, guid: 53add0961736b714a9050735f048c95e,
+      objectReference: {fileID: 11400000, guid: 290d275b8000e664da2a6f952ee19231,
         type: 2}
     - target: {fileID: 4939067879421793745, guid: d05e6959c655a704783a7df68cd10435,
         type: 3}
       propertyPath: itemSprites.SpriteRightHand
       value: 
-      objectReference: {fileID: 11400000, guid: d73e20ec36ea92e4794d2f6e744f3465,
+      objectReference: {fileID: 11400000, guid: 448c9f91cc815d94c8d5181c27d1f468,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d05e6959c655a704783a7df68cd10435, type: 3}

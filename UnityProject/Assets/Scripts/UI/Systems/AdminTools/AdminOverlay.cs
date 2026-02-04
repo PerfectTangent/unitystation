@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using AdminCommands;
 using DatabaseAPI;
+using Logs;
 using Messages.Server.AdminTools;
 using Mirror;
 using UnityEngine;
@@ -47,18 +49,10 @@ namespace AdminTools
 			Init();
 		}
 
-		private void OnEnable()
+		public void Clear()
 		{
-			SceneManager.activeSceneChanged += OnSceneChange;
-		}
+			Debug.Log("removed " + CleanupUtil.RidDictionaryOfDeadElements(serverInfos, (u, k) => k != null) + " dead elements from AdminOverlay.serverInfos");
 
-		private void OnDisable()
-		{
-			SceneManager.activeSceneChanged -= OnSceneChange;
-		}
-
-		void OnSceneChange(Scene oldScene, Scene newScene)
-		{
 			foreach (Transform t in transform)
 			{
 				var panel = t.GetComponent<AdminOverlayPanel>();
@@ -68,6 +62,7 @@ namespace AdminTools
 				}
 			}
 		}
+
 
 		void Init()
 		{
@@ -139,7 +134,8 @@ namespace AdminTools
 		{
 			if (!Instance.IsOn) return;
 
-			var obj = NetworkIdentity.spawned[entry.netId];
+			var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
+			var obj = spawned[entry.netId];
 			var panel = Instance.GetPanelFromPool();
 			panel.SetAdminOverlayPanel(entry.infos, Instance, obj.transform, entry.offset);
 		}
@@ -168,7 +164,7 @@ namespace AdminTools
 			});
 		}
 
-		public static void RequestFullUpdate(ConnectedPlayer admin)
+		public static void RequestFullUpdate(PlayerInfo admin)
 		{
 			AdminInfoUpdateMessage.SendFullUpdate(admin.GameObject, Instance.serverInfos);
 		}
@@ -181,13 +177,13 @@ namespace AdminTools
 			{
 				if (PlayerManager.LocalPlayerScript == null)
 				{
-					Logger.LogError("Cannot activate Admin Overlay with PlayerManager.LocalPlayerScript being null", Category.Admin);
+					Loggy.Error("Cannot activate Admin Overlay with PlayerManager.LocalPlayerScript being null", Category.Admin);
 					IsOn = false;
 					overlayToggleButton.image.color = unSelectedColor;
 				}
 				else
 				{
-					PlayerManager.LocalPlayerScript.playerNetworkActions.CmdGetAdminOverlayFullUpdate();
+					AdminCommandsManager.Instance.CmdGetAdminOverlayFullUpdate();
 					overlayToggleButton.image.color = selectedColor;
 				}
 			}

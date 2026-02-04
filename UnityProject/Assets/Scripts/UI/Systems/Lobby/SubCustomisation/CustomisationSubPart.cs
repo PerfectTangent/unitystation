@@ -1,9 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
+using Logs;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using Systems.Character;
 
 namespace UI.CharacterCreator
 {
@@ -53,9 +53,9 @@ namespace UI.CharacterCreator
 			Dropdown.onValueChanged.AddListener(ItemChange);
 		}
 
-		public CharacterSettings.CustomisationClass Serialise()
+		public CharacterSheet.CustomisationClass Serialise()
 		{
-			var newcurrentSetting = new CharacterSettings.CustomisationClass();
+			var newcurrentSetting = new CharacterSheet.CustomisationClass();
 			// if (thisCustomisations.CanColour)
 			// {
 			newcurrentSetting.Colour = "#" + ColorUtility.ToHtmlStringRGB(color);
@@ -77,7 +77,7 @@ namespace UI.CharacterCreator
 			Refresh();
 		}
 
-		public void SetDropdownValue(CharacterSettings.CustomisationClass currentSetting)
+		public void SetDropdownValue(CharacterSheet.CustomisationClass currentSetting)
 		{
 			// Find the index of the setting in the dropdown list which matches the currentSetting
 			int settingIndex = Dropdown.options.FindIndex(option => option.text == currentSetting.SelectedName);
@@ -89,7 +89,7 @@ namespace UI.CharacterCreator
 			}
 			else
 			{
-				Logger.LogWarning($"Unable to find index of {currentSetting}! Using default", Category.Character);
+				Loggy.Warning($"Unable to find index of {currentSetting}! Using default", Category.Character);
 				Dropdown.value = 0;
 			}
 
@@ -138,7 +138,7 @@ namespace UI.CharacterCreator
 
 		public void SetRotation(int newValue)
 		{
-			RelatedSpriteRenderer.ChangeSpriteVariant(newValue);
+			RelatedSpriteRenderer.SetSpriteVariant(newValue);
 		}
 
 		public void ItemChange(int newValue)

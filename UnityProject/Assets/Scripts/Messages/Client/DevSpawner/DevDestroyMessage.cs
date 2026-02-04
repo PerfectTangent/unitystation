@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using Core.Admin.Logs;
+using Logs;
+using UnityEngine;
 using Mirror;
 
 
@@ -27,11 +29,11 @@ namespace Messages.Client.DevSpawner
 
 		private void ValidateAdmin(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.MAP_DESTROY) == false) return;
 
 			if (msg.ToDestroy.Equals(NetId.Invalid))
 			{
-				Logger.LogWarning("Attempted to destroy an object with invalid netID, destroy will not occur.", Category.Admin);
+				Loggy.Warning("Attempted to destroy an object with invalid netID, destroy will not occur.", Category.Admin);
 			}
 			else
 			{
@@ -39,9 +41,16 @@ namespace Messages.Client.DevSpawner
 
 				if (NetworkObject == null) return;
 
-				Vector2Int worldPos = NetworkObject.transform.position.To2Int();
-				UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(
-					$"{SentByPlayer.Username} destroyed a {NetworkObject} at {worldPos}", SentByPlayer.UserId);
+				Vector2Int worldPos = NetworkObject.transform.position.RoundTo2Int();
+				if (NetworkObject.TryGetComponent<PlayerScript>(out var victim))
+				{
+					victim.playerHealth.OnGib();
+					AdminLogsManager.AddNewLog(SentByPlayer.GameObject,
+						$"{SentByPlayer.Username} gibbed {victim.playerName} at {worldPos} using the dev destroyer tool.", LogCategory.Admin);
+					return;
+				}
+				AdminLogsManager.AddNewLog(SentByPlayer.GameObject,
+					$"{SentByPlayer.Username} destroyed a {NetworkObject} at {worldPos}", LogCategory.Admin);
 				_ = Despawn.ServerSingle(NetworkObject);
 			}
 		}

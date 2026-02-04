@@ -14,14 +14,14 @@ namespace UI.Bureaucracy
 		private Photocopier Photocopier { get; set; }
 		private RegisterObject registerObject;
 
-		private readonly NetLabel _statusLabel = null;
-		private NetLabel StatusLabel => _statusLabel ? _statusLabel : this["StatusLabel"] as NetLabel;
+		private readonly NetText_label _statusLabel = null;
+		private NetText_label StatusLabel => _statusLabel ? _statusLabel : this["StatusLabel"] as NetText_label;
 
-		private readonly NetLabel _scannerLabel = null;
-		private NetLabel ScannerLabel => _scannerLabel ? _scannerLabel : this["ScannerLabel"] as NetLabel;
+		private readonly NetText_label _scannerLabel = null;
+		private NetText_label ScannerLabel => _scannerLabel ? _scannerLabel : this["ScannerLabel"] as NetText_label;
 
-		private readonly NetLabel _trayLabel = null;
-		private NetLabel TrayLabel => _trayLabel ? _trayLabel : this["TrayLabel"] as NetLabel;
+		private readonly NetText_label _trayLabel = null;
+		private NetText_label TrayLabel => _trayLabel ? _trayLabel : this["TrayLabel"] as NetText_label;
 
 		public void Start()
 		{
@@ -52,23 +52,23 @@ namespace UI.Bureaucracy
 		{
 			if (Photocopier.TrayOpen)
 			{
-				StatusLabel.SetValueServer("TRAY OPEN");
+				StatusLabel.MasterSetValue("TRAY OPEN");
 			}
 			else if (Photocopier.ScannerOpen)
 			{
-				StatusLabel.SetValueServer("SCANNER OPEN");
+				StatusLabel.MasterSetValue("SCANNER OPEN");
 			}
 			else if (Photocopier.TrayCount == 0)
 			{
-				StatusLabel.SetValueServer("TRAY EMPTY");
+				StatusLabel.MasterSetValue("TRAY EMPTY");
 			}
-			else if (Photocopier.ScannedTextNull)
+			else if (Photocopier.hasScanned)
 			{
-				StatusLabel.SetValueServer("DOCUMENT NOT SCANNED");
+				StatusLabel.MasterSetValue("COPIER READY");
 			}
 			else
 			{
-				StatusLabel.SetValueServer("COPIER READY");
+				StatusLabel.MasterSetValue("DOCUMENT NOT SCANNED");
 			}
 		}
 
@@ -76,15 +76,15 @@ namespace UI.Bureaucracy
 		{
 			if (Photocopier.ScannerOpen)
 			{
-				ScannerLabel.SetValueServer("ERR: SCANNER OPEN");
+				ScannerLabel.MasterSetValue("ERR: SCANNER OPEN");
 			}
-			else if (!Photocopier.ScannedTextNull)
+			else if (Photocopier.hasScanned)
 			{
-				ScannerLabel.SetValueServer("DOCUMENT SCANNED");
+				ScannerLabel.MasterSetValue("DOCUMENT SCANNED");
 			}
-			else if (Photocopier.ScannedTextNull)
+			else if (Photocopier.hasScanned == false)
 			{
-				ScannerLabel.SetValueServer("DOCUMENT NOT SCANNED");
+				ScannerLabel.MasterSetValue("DOCUMENT NOT SCANNED");
 			}
 		}
 
@@ -92,43 +92,55 @@ namespace UI.Bureaucracy
 		{
 			if (Photocopier.TrayOpen)
 			{
-				TrayLabel.SetValueServer("ERR: TRAY OPEN");
+				TrayLabel.MasterSetValue("ERR: TRAY OPEN");
 			}
 			else
 			{
-				TrayLabel.SetValueServer($"PAGES IN TRAY: {Photocopier.TrayCount}/{Photocopier.TrayCapacity}");
+				TrayLabel.MasterSetValue($"PAGES IN TRAY: {Photocopier.TrayCount}/{Photocopier.TrayCapacity}");
 			}
 		}
 
 		public void OpenTray()
 		{
-			if (!Photocopier.TrayOpen)
+			if (!Photocopier.TrayOpen && this.Photocopier.photocopierState == Photocopier.PhotocopierState.Idle)
 			{
 				SoundManager.PlayNetworkedAtPos(Beep, registerObject.WorldPosition);
 				Photocopier.ToggleTray();
+			}
+			else if (this.Photocopier.photocopierState == Photocopier.PhotocopierState.TrayOpen)
+			{
+				TrayLabel.MasterSetValue("ERR: CLOSE SCANNER");
 			}
 		}
 
 		public void OpenScanner()
 		{
-			if (!Photocopier.ScannerOpen)
+			if (!Photocopier.ScannerOpen && this.Photocopier.photocopierState == Photocopier.PhotocopierState.Idle)
 			{
 				SoundManager.PlayNetworkedAtPos(Beep, registerObject.WorldPosition);
 				Photocopier.ToggleScannerLid();
+			}
+			else if(this.Photocopier.photocopierState == Photocopier.PhotocopierState.TrayOpen)
+			{
+				ScannerLabel.MasterSetValue("ERR: CLOSE TRAY");
 			}
 		}
 
 		public void Print()
 		{
-			if (Photocopier.InkCartadge == null)
+			if (Photocopier.TonerCartadge == null)
 			{
-				StatusLabel.SetValueServer("NO INK");
+				StatusLabel.MasterSetValue("NO INK");
 				return;
 			}
 			if (Photocopier.CanPrint())
 			{
 				SoundManager.PlayNetworkedAtPos(Beep, registerObject.WorldPosition);
 				Photocopier.Print();
+			}
+			else
+			{
+				Chat.AddActionMsgToChat(registerObject.gameObject, "The Printer makes a beeping error.");
 			}
 		}
 

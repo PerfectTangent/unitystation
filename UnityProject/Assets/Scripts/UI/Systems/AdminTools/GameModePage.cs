@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using AdminCommands;
@@ -16,6 +17,38 @@ namespace AdminTools
 		[SerializeField]
 		private Toggle isSecretToggle = null;
 
+		[SerializeField]
+		private Toggle isVoiceChat = null;
+
+		private bool SettingTheInitialState = false;
+
+		public override void OnEnable()
+		{
+			base.OnEnable();
+			isVoiceChat.isOn = VoiceChatManager.Instance.Enabled;
+			VoiceChatManager.Instance.OnEnabledChange += UpdateisVoiceChat;
+		}
+		public void OnDisable()
+		{
+			VoiceChatManager.Instance.OnEnabledChange -= UpdateisVoiceChat;
+
+		}
+
+
+
+		public void UpdateisVoiceChat()
+		{
+			SettingTheInitialState = true;
+			isVoiceChat.isOn = VoiceChatManager.Instance.Enabled;
+			SettingTheInitialState = false;
+		}
+
+		public void OnVoiceChatChange()
+		{
+			if (SettingTheInitialState) return;
+			AdminRequestTurnOnVoiceChat.Send(isVoiceChat.isOn);
+		}
+
 		//Next GM change via drop down box
 		public void OnNextChange()
 		{
@@ -31,8 +64,15 @@ namespace AdminTools
 
 		void SendEditRequest()
 		{
-			RequestGameModeUpdate.Send(currentData.nextGameMode, currentData.isSecret);
+			AdminCommandsManager.Instance.CmdChangeGameMode(currentData.nextGameMode, currentData.isSecret);
 		}
+
+
+		public void Send3DRequest()
+		{
+			AdminCommandsManager.Instance.CmdMake3D();
+		}
+
 
 		public override void OnPageRefresh(AdminPageRefreshData adminPageData)
 		{

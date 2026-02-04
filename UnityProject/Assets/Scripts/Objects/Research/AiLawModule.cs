@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Objects.Research
 {
-	public class AiLawModule : NetworkBehaviour, IExaminable, IClientInteractable<HandActivate>, IDynamicInput
+	public class AiLawModule : NetworkBehaviour, IExaminable, IClientInteractable<HandActivate>, IDynamicInput, ICheckedInteractable<HandApply>
 	{
 		[SerializeField]
 		private AiLawSet lawSet = null;
@@ -133,12 +133,12 @@ namespace Objects.Research
 
 		private void OnClientInput(string input)
 		{
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdFilledDynamicInput(gameObject, input);
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdFilledDynamicInput(gameObject, input);
 		}
 
 		public void OnInputFilled(string input, PlayerScript player)
 		{
-			if (player.Equipment.ItemStorage.GetActiveHandSlot()?.Item.gameObject != gameObject)
+			if (player.DynamicItemStorage.GetActiveHandSlot()?.Item.gameObject != gameObject)
 			{
 				Chat.AddExamineMsgFromServer(gameObject, $"{gameObject.ExpensiveName()} must be in your hands to use");
 				return;
@@ -147,6 +147,53 @@ namespace Objects.Research
 			ServerSetCustomLaw(input);
 
 			Chat.AddExamineMsgFromServer(gameObject, $"Law Module Change To:\n {CustomLaw}");
+		}
+
+		public bool WillInteract(HandApply interaction, NetworkSide side)
+		{
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			// can only be applied to LHB
+			return Validations.HasComponent<BrainLaws>(interaction.TargetObject);
+		}
+
+		public void ServerPerformInteraction(HandApply interaction)
+		{
+			var brainLaws = interaction.TargetObject.GetComponent<BrainLaws>();
+
+			if (AiModuleType == AiModuleType.Purge || AiModuleType == AiModuleType.Reset)
+			{
+				var isPurge = AiModuleType == AiModuleType.Purge;
+				brainLaws.ResetLaws(isPurge);
+				Chat.AddActionMsgToChat(interaction.Performer, $"You {(isPurge ? "purge" : "reset")} all of {gameObject.ExpensiveName()}'s laws",
+					$"{interaction.Performer.ExpensiveName()} {(isPurge ? "purges" : "resets")} all of {gameObject.ExpensiveName()}'s laws");
+				return;
+			}
+
+
+			var lawFromModule = GetLawsFromModule(interaction.PerformerPlayerScript);
+			if (lawFromModule.Count == 0)
+			{
+				Chat.AddExamineMsgFromServer(interaction.Performer, "No laws to upload");
+				return;
+			}
+
+			//If we are only adding core laws then we must mean to remove old core laws
+			//This means we are assuming that the law set must only have core laws if it is to replace the old laws fully
+			var notOnlyCoreLaws = false;
+
+			foreach (var law in lawFromModule)
+			{
+				if (law.Key != AiPlayer.LawOrder.Core)
+				{
+					notOnlyCoreLaws = true;
+					break;
+				}
+			}
+
+			brainLaws.SetLaws(lawFromModule, true, notOnlyCoreLaws);
+
+			Chat.AddActionMsgToChat(interaction.Performer, $"You change {gameObject.ExpensiveName()} laws",
+				$"{interaction.Performer.ExpensiveName()} changes {gameObject.ExpensiveName()} laws");
 		}
 	}
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿﻿using System;
+using Core;
 using System.Collections;
 using Audio.Managers;
 using UnityEngine;
@@ -8,21 +9,23 @@ using AddressableReferences;
 using Antagonists;
 using HealthV2;
 using Managers;
+using Systems.Score;
 using UI.Chat_UI;
 using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Command
 {
 	/// <summary>
 	/// Main component for nuke.
 	/// </summary>
-	public class Nuke : NetworkBehaviour, ICheckedInteractable<HandApply>, IAdminInfo, IServerSpawn
+	public class Nuke : NetworkBehaviour, ICheckedInteractable<HandApply>, IAdminInfo, IServerLifecycle
 	{
 		public NukeTimerEvent OnTimerUpdate = new NukeTimerEvent();
 
 		[SerializeField] private AddressableAudioSource TimerTickSound = null;
 
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 		private ItemStorage itemNuke;
 		private Coroutine timerHandle;
 		private CentComm.AlertLevel CurrentAlertLevel;
@@ -69,18 +72,27 @@ namespace Objects.Command
 		private int nukeCode;
 		public int NukeCode => nukeCode;
 
+		public bool UseSyndiNukeCode = false;
+
+		private const string ON_NUKE_SCORE_ENTRY = "nukedStation";
+		private const int ON_NUKE_SCORE_VALUE = -550000;
+
+		public int loadedOnRoundID = 0;
+
 		private void Awake()
 		{
 			currentTimerSeconds = minTimer;
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 			itemNuke = GetComponent<ItemStorage>();
 			nukeSlot = itemNuke.GetIndexedItemSlot(0);
 			Detonated = false;
+
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
-			if (SubSceneManager.Instance.SyndicateScene == gameObject.scene)
+
+			if (UseSyndiNukeCode)
 			{
 				nukeCode = AntagManager.SyndiNukeCode;
 			}
@@ -88,6 +100,18 @@ namespace Objects.Command
 			{
 				nukeCode = CodeGenerator();
 			}
+		}
+
+		private void OnDisable()
+		{
+			//Stop nuke detonating after round end or if its been destroyed!
+			StopAllCoroutines();
+		}
+
+		public void OnDespawnServer(DespawnInfo info)
+		{
+			//Stop nuke detonating after round end or if its been destroyed!
+			StopAllCoroutines();
 		}
 
 		public static int CodeGenerator()
@@ -121,15 +145,17 @@ namespace Objects.Command
 				Detonated = true;
 				//if yes, blow up the nuke
 				RpcDetonate();
-				//Kill Everyone in the universe
-				//FIXME kill only people on the station matrix that the nuke was detonated on
+				//Kills everyone on the matrix the nuke is currently on
 				StartCoroutine(WaitForDeath());
 				GameManager.Instance.RespawnCurrentlyAllowed = false;
 				DetonateVideo();
+				ScoreMachine.AddNewScoreEntry(ON_NUKE_SCORE_ENTRY, "Station Nuked",
+					ScoreMachine.ScoreType.Int, ScoreCategory.StationScore, ScoreAlignment.Bad);
+				ScoreMachine.AddToScoreInt(ON_NUKE_SCORE_VALUE, ON_NUKE_SCORE_ENTRY);
 			}
 			else
 			{
-				GameManager.Instance.EndRound();
+				GameManager.Instance.EndRound(loadedOnRoundID);
 			}
 		}
 
@@ -183,7 +209,7 @@ namespace Objects.Command
 				{
 					if (isTimerTicking)
 					{
-						GameManager.Instance.CentComm.lastAlertChange = GameManager.Instance.stationTime;
+						GameManager.Instance.CentComm.lastAlertChange = GameManager.Instance.RoundTime;
 						GameManager.Instance.CentComm.ChangeAlertLevel(CurrentAlertLevel);
 						this.TryStopCoroutine(ref timerHandle);
 						isTimerTicking = false;
@@ -206,8 +232,8 @@ namespace Objects.Command
 		{
 			if (IsCodeRight && !isSafetyOn)
 			{
-				bool isPushable = !objectBehaviour.IsPushable;
-				GetComponent<ObjectBehaviour>().ServerSetPushable(isPushable);
+				bool isPushable = !objectBehaviour.IsNotPushable;
+				objectBehaviour.SetIsNotPushable(isPushable);
 				return isPushable;
 			}
 			return null;
@@ -220,7 +246,7 @@ namespace Objects.Command
 				if (isTimer && isTimerTicking)
 				{
 					isTimerTicking = false;
-					GameManager.Instance.CentComm.lastAlertChange = GameManager.Instance.stationTime;
+					GameManager.Instance.CentComm.lastAlertChange = GameManager.Instance.RoundTime;
 					GameManager.Instance.CentComm.ChangeAlertLevel(CurrentAlertLevel);
 					this.TryStopCoroutine(ref timerHandle);
 				}
@@ -248,8 +274,9 @@ namespace Objects.Command
 				isTimerTicking = true;
 				CurrentTimerSeconds = digit;
 				CurrentAlertLevel = GameManager.Instance.CentComm.CurrentAlertLevel;
-				GameManager.Instance.CentComm.lastAlertChange = GameManager.Instance.stationTime;
+				GameManager.Instance.CentComm.lastAlertChange = GameManager.Instance.RoundTime;
 				GameManager.Instance.CentComm.ChangeAlertLevel(CentComm.AlertLevel.Delta);
+				loadedOnRoundID = GameManager.RoundID;
 				this.StartCoroutine(TickTimer(), ref timerHandle);
 				return true;
 			}
@@ -280,19 +307,36 @@ namespace Objects.Command
 
 		IEnumerator WaitForDeath()
 		{
-			yield return WaitFor.Seconds(5f);
-			var worldPos = gameObject.GetComponent<RegisterTile>().WorldPosition;
-			foreach (LivingHealthMasterBase livingHealth in FindObjectsOfType<LivingHealthMasterBase>())
+			yield return WaitFor.Seconds(2.5f);
+
+			//Grab the bounds of the matrix, grab all living creatures that are close-ish
+			//to the center of the matrix and gib them if they are within the bounds
+			//This is done instead of iterating over PresentPlayers on that matrix so that if a player is
+			//nearby but over a space tile or on a seperate matrix they still get gibbed
+
+			var matrix = gameObject.GetMatrixRoot();
+
+			//Prevent shenanigans caused by removal of the tile below the nuke
+			if (matrix.IsSpaceMatrix && MatrixManager.MainStationMatrix.WorldBounds.Contains(gameObject.AssumedWorldPosServer()))
 			{
-				var dist = Vector3.Distance(worldPos, livingHealth.GetComponent<RegisterTile>().WorldPosition);
-				if (dist < explosionRadius)
+				matrix = MatrixManager.MainStationMatrix.Matrix;
+			}
+
+			var matrixbounds = matrix.MatrixInfo.WorldBounds;
+			float searchradius = Mathf.Max(matrixbounds.size.x, matrixbounds.size.y);
+			var grabEntities = ComponentsTracker<LivingHealthMasterBase>.GetAllNearbyTypesToLocation(matrixbounds.center, searchradius, bypassInventories:true);
+			foreach (LivingHealthMasterBase livingHealth in grabEntities)
+			{
+				if (matrixbounds.Contains(livingHealth.GetComponent<RegisterTile>().WorldPosition))
 				{
-					livingHealth.Death();
+					//Cyborgs wont actually die from livingHealth.Death() so gib everything instead
+					livingHealth.GetComponent<IGib>()?.OnGib(true);
 				}
 			}
-			yield return WaitFor.Seconds(15f);
+			yield return WaitFor.Seconds(10f);
 			// Trigger end of round
-			GameManager.Instance.EndRound();
+			GameManager.Instance.RoundEndTime = 10;
+			GameManager.Instance.EndRound(loadedOnRoundID);
 		}
 
 		IEnumerator TickTimer()

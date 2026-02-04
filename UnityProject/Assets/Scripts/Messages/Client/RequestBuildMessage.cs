@@ -1,5 +1,6 @@
 using System.Linq;
 using Construction;
+using Logs;
 using Mirror;
 using UnityEngine;
 
@@ -13,10 +14,17 @@ namespace Messages.Client
 		public struct NetMessage : NetworkMessage
 		{
 			//index of the entry in the ConstructionList.
-			public byte EntryIndex;
+			public int EntryIndex;
+			public int Number;
 		}
 
 		public override void Process(NetMessage msg)
+		{
+			ProcessBuild(msg,SentByPlayer );
+		}
+
+
+		public void ProcessBuild(NetMessage msg, PlayerInfo SentByPlayer)
 		{
 			var playerScript = SentByPlayer.Script;
 			var playerObject = SentByPlayer.GameObject;
@@ -45,15 +53,16 @@ namespace Messages.Client
 			if (entry.Prefab == null)
 			{
 				//requires immediate attention, show it regardless of log filter:
-				Logger.Log($"Construction entry is missing prefab for {entry.Name}", Category.Construction);
+				Loggy.Info($"Construction entry is missing prefab for {entry.Name}", Category.Construction);
 				return;
 			}
 
 			var registerTile = entry.Prefab.GetComponent<RegisterTile>();
 			if (registerTile == null)
 			{
-				Logger.LogWarningFormat("Buildable prefab {0} has no registerTile, no idea if it's passable", Category.Construction, entry.Prefab);
+				Loggy.Warning().Format("Buildable prefab {0} has no registerTile, no idea if it's passable", Category.Construction, entry.Prefab);
 			}
+
 			var builtObjectIsImpassable = registerTile == null || !registerTile.IsPassable(true);
 			foreach (var thingAtPosition in atPosition)
 			{
@@ -65,6 +74,7 @@ namespace Messages.Client
 						Chat.AddExamineMsg(playerObject, $"There's already one here.");
 						return;
 					}
+
 				}
 
 				if (builtObjectIsImpassable)
@@ -76,22 +86,50 @@ namespace Messages.Client
 				}
 			}
 
-			//build and consume
-			void ProgressComplete()
+			if (entry.OnePerTile)
 			{
-				if (entry.ServerBuild(SpawnDestination.At(playerScript.registerTile), hasConstructionMenu))
-				{
-					Chat.AddActionMsgToChat(playerObject, $"You finish building the {entry.Name}.",
-						$"{playerObject.ExpensiveName()} finishes building the {entry.Name}.");
-				}
+				msg.Number = 1;
 			}
+
 
 			Chat.AddActionMsgToChat(playerObject, $"You begin building the {entry.Name}...",
 				$"{playerObject.ExpensiveName()} begins building the {entry.Name}...");
 			ToolUtils.ServerUseTool(playerObject, usedSlot.ItemObject,
-				ActionTarget.Tile(playerScript.registerTile.WorldPositionServer), entry.BuildTime,
-				ProgressComplete);
+				ActionTarget.Tile(playerScript.RegisterPlayer.WorldPositionServer), entry.BuildTime,
+				(() =>  Build(msg,entry, playerScript, hasConstructionMenu,  playerObject,SentByPlayer) ));
+
 		}
+
+
+		//build and consume
+		public void Build(NetMessage msg, BuildList.Entry  entry, PlayerScript playerScript, BuildingMaterial hasConstructionMenu, GameObject playerObject, PlayerInfo SentByPlayer)
+		{
+			var builtObject =
+				entry.ServerBuild(SpawnDestination.At(playerScript.RegisterPlayer), hasConstructionMenu);
+
+			msg.Number--;
+
+			if(builtObject == null) return;
+
+			Chat.AddActionMsgToChat(playerObject, $"You finish building the {entry.Name}.",
+				$"{playerObject.ExpensiveName()} finishes building the {entry.Name}.");
+
+
+
+			if (entry.FacePlayerDirectionOnConstruction && builtObject.TryGetComponent<Rotatable>(out var rotatable) &&
+			    playerScript.TryGetComponent<Rotatable>(out var playerRotatable))
+			{
+				//Face players direction
+				rotatable.FaceDirection(playerRotatable.CurrentDirection);
+			}
+
+			if (msg.Number > 0)
+			{
+				ProcessBuild(msg, SentByPlayer);
+			}
+
+		}
+
 
 		/// <summary>
 		/// Request constructing the given entry
@@ -99,15 +137,17 @@ namespace Messages.Client
 		/// <param name="entry">entry to build</param>
 		/// <param name="hasMenu">has construction menu component of the object being used to
 		/// construct.</param>
+		/// <param name="number"></param>
 		/// <returns></returns>
-		public static NetMessage Send(BuildList.Entry entry, BuildingMaterial hasMenu)
+		public static NetMessage Send(BuildList.Entry entry, BuildingMaterial hasMenu, int number)
 		{
 			int entryIndex = hasMenu.BuildList.Entries.ToList().IndexOf(entry);
 			if (entryIndex == -1) return new NetMessage(); // entryIndex was previously a byte, which made this check impossible.
 
 			NetMessage msg = new NetMessage
 			{
-				EntryIndex = (byte) entryIndex
+				EntryIndex =  entryIndex,
+				Number =number
 			};
 
 			Send(msg);

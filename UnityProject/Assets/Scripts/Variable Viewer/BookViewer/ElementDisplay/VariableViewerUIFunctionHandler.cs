@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Logs;
+using SecureStuff;
 using UnityEngine;
 
 public static class VVUIElementHandler
@@ -16,6 +18,8 @@ public static class VVUIElementHandler
 	public static List<PageElement> ToDestroy = new List<PageElement>();
 	public static Dictionary<Type, PageElement> Type2Element = new Dictionary<Type, PageElement>();
 
+	public static HashSet<Type> TestedTypes = new HashSet<Type>();
+
 	public static void ReSet()
 	{
 		PoolDictionary.Clear();
@@ -23,6 +27,73 @@ public static class VVUIElementHandler
 		CurrentlyOpen.Clear();
 		ToDestroy.Clear();
 		Type2Element.Clear();
+		TestedTypes.Clear();
+	}
+
+	public class SerialiseHook : ICustomSerialisationSystem
+	{
+		public bool CanDeSerialiseValue(Type InType)
+		{
+			var Found = Type2Element.ContainsKey(InType);
+			if (Found) return true;
+
+			if (TestedTypes.Contains(InType) == false)
+			{
+				TestedTypes.Add(InType);
+				foreach (PageElementEnum _Enum in Enum.GetValues(typeof(PageElementEnum)))
+				{
+					if (AvailableElements[_Enum].CanDeserialise(InType))
+					{
+						Type2Element[InType] = AvailableElements[_Enum];
+						break;
+					}
+				}
+			}
+			return Type2Element.ContainsKey(InType);
+		}
+
+		public object DeSerialiseValue(string StringData, Type InType)
+		{
+			return Type2Element[InType].DeSerialise(StringData, InType);
+		}
+
+
+		public string Serialise(object InObject, Type TypeOf)
+		{
+			if (TypeOf != null && Type2Element.ContainsKey(TypeOf))
+			{
+				return (Type2Element[TypeOf].Serialise(InObject));
+			}
+
+			if (TypeOf != null && TestedTypes.Contains(TypeOf) == false)
+			{
+				TestedTypes.Add(TypeOf);
+				foreach (PageElementEnum _Enum in Enum.GetValues(typeof(PageElementEnum)))
+				{
+					try
+					{
+						if (AvailableElements[_Enum].IsThisType(TypeOf))
+						{
+							Type2Element[TypeOf] = AvailableElements[_Enum];
+							return (Type2Element[TypeOf].Serialise(InObject));
+						}
+					}
+					catch (Exception e)
+					{
+						Loggy.Error(e.ToString());
+					}
+
+				}
+			}
+
+			var ReturnString = InObject.ToString();
+			return ReturnString;
+		}
+
+		public object GetDefaultValue(Type InType)
+		{
+			return Type2Element[InType].GetDefaultValue(InType);
+		}
 	}
 
 	public static void ProcessElement(GameObject DynamicPanel, VariableViewerNetworking.NetFriendlyPage Page = null,
@@ -61,6 +132,7 @@ public static class VVUIElementHandler
 			{
 				if (AvailableElements[_Enum].IsThisType(ValueType))
 				{
+					VVUIElementHandler.Type2Element[ValueType] = AvailableElements[_Enum];
 					_PageElement = InitialisePageElement(AvailableElements[_Enum]);
 					break;
 				}
@@ -99,7 +171,8 @@ public static class VVUIElementHandler
 	{
 		while (CurrentlyOpen.Count > 0)
 		{
-			if (CurrentlyOpen[0].IsPoolble)
+
+			if (CurrentlyOpen[0] != null && CurrentlyOpen[0].IsPoolble)
 			{
 				CurrentlyOpen[0].gameObject.SetActive(false);
 				PoolDictionary[CurrentlyOpen[0].PageElementType].Add(CurrentlyOpen[0]);
@@ -163,9 +236,23 @@ public static class VVUIElementHandler
 			return (Type2Element[TypeOf].Serialise(InObject));
 		}
 
-		return (InObject.ToString());
+		if (TypeOf != null && TestedTypes.Contains(TypeOf) == false)
+		{
+			TestedTypes.Add(TypeOf);
+			foreach (PageElementEnum _Enum in Enum.GetValues(typeof(PageElementEnum)))
+			{
+				if (AvailableElements[_Enum].IsThisType(TypeOf))
+				{
+					Type2Element[TypeOf] = AvailableElements[_Enum];
+					return (Type2Element[TypeOf].Serialise(InObject));
+				}
+			}
+		}
+
+		return (InObject?.ToString());
 	}
 }
+
 
 public enum PageElementEnum
 {
@@ -174,6 +261,8 @@ public enum PageElementEnum
 	Bool,
 	Collection,
 	Enum,
+	ScriptableObject,
+	Component,
 	Class,
 	InputField, //This has to be the last option
 }

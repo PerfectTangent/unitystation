@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Systems.Clearance;
 using UnityEngine;
 using Mirror;
@@ -20,7 +21,7 @@ namespace Items.PDA
 		ICheckedInteractable<HandApply>,
 		ICheckedInteractable<InventoryApply>,
 		IServerInventoryMove,
-		IClearanceProvider
+		IClearanceSource
 	{
 		// TODO: consider moving uplink code into its own class (perhaps compatible with pen, headset uplinks)
 
@@ -79,7 +80,6 @@ namespace Items.PDA
 		private Pickupable pickupable;
 		public ItemStorage storage {get; private set;}
 		private ItemLightControl flashlight;
-		private ItemActionButton actionButton;
 
 		/// <summary> The IDCard that is currently inserted into the PDA </summary>
 		private IDCard IDCard;
@@ -103,8 +103,38 @@ namespace Items.PDA
 		private ItemSlot IDSlot = default;
 		private ItemSlot CartridgeSlot = default;
 
-		//The actual list of access allowed set via the server and synced to all clients
-		private readonly SyncList<int> accessSyncList = new SyncList<int>();
+		public IEnumerable<Clearance> IssuedClearance
+		{
+			get
+			{
+				var Clearance = IDCard.OrNull()?.ClearanceSource.IssuedClearance;
+				if (Clearance == null)
+				{
+					return Enumerable.Empty<Clearance>();
+				}
+				else
+				{
+					return Clearance;
+				}
+
+			}
+		}
+
+		public IEnumerable<Clearance> LowPopIssuedClearance
+		{
+			get
+			{
+				var Clearance =  IDCard.OrNull()?.ClearanceSource.LowPopIssuedClearance;
+				if (Clearance == null)
+				{
+					return Enumerable.Empty<Clearance>();
+				}
+				else
+				{
+					return Clearance;
+				}
+			}
+		}
 
 		#region Lifecycle
 
@@ -113,17 +143,6 @@ namespace Items.PDA
 			pickupable = GetComponent<Pickupable>();
 			storage = GetComponent<ItemStorage>();
 			flashlight = GetComponent<ItemLightControl>();
-			actionButton = GetComponent<ItemActionButton>();
-		}
-
-		private void OnEnable()
-		{
-			actionButton.ServerActionClicked += ToggleFlashlight;
-		}
-
-		private void OnDisable()
-		{
-			actionButton.ServerActionClicked -= ToggleFlashlight;
 		}
 
 		private void Start()
@@ -152,30 +171,46 @@ namespace Items.PDA
 			if (RegisteredPlayerName != default) return; // PDA already registered to someone
 			if (info.ToRootPlayer == null) return; // PDA was not added to player
 
-			ConnectedPlayer pickedUpBy = info.ToRootPlayer.gameObject.Player();
+			var pickedUpBy = info.ToRootPlayer.gameObject;
 			RegisterTo(pickedUpBy);
 
 			if (debugUplink)
 			{
-				InstallUplink(pickedUpBy, 80, true);
+				InstallUplink(info.ToRootPlayer.PlayerScript.Mind, 80, true);
 			}
 		}
 
-		private void RegisterTo(ConnectedPlayer player)
+		private void RegisterTo(GameObject player)
 		{
-			RegisteredPlayerName = player.Script.playerName;
-			gameObject.name = $"{player.Script.playerName}'s PDA ({player.Script.mind.occupation.DisplayName})";
-			gameObject.Item().ServerSetArticleName(gameObject.name);
+			RegisteredPlayerName = player.name;
+
+			var DIS = player.GetComponent<DynamicItemStorage>();
+			if (DIS.InitialisedWithOccupation == null)
+			{
+				gameObject.name = $"{player.name}'s PDA";
+				gameObject.Item().ServerSetArticleName(gameObject.name);
+			}
+			else
+			{
+				gameObject.name = $"{player.name}'s PDA ({DIS.InitialisedWithOccupation.DisplayName})";
+				gameObject.Item().ServerSetArticleName(gameObject.name);
+			}
+
 		}
 
 		private void RegisterTo(string playerName)
 		{
 			RegisteredPlayerName = playerName;
-			gameObject.name = playerName == default ? gameObject.Item().InitialName : $"{playerName}'s PDA";
+			gameObject.name = playerName == default ? gameObject.Item().ArticleName : $"{playerName}'s PDA";
 			gameObject.Item().ServerSetArticleName(gameObject.name);
 		}
 
 		public void ToggleFlashlight()
+		{
+			flashlight.Toggle(!flashlight.IsOn);
+		}
+
+		public void ToggleFlashlight(Vector2 mousePosition)
 		{
 			flashlight.Toggle(!flashlight.IsOn);
 		}
@@ -206,7 +241,7 @@ namespace Items.PDA
 			}
 		}
 
-		private ConnectedPlayer GetPlayerByParentInventory()
+		private PlayerInfo GetPlayerByParentInventory()
 		{
 			if (pickupable.ItemSlot == null) return default;
 
@@ -242,7 +277,7 @@ namespace Items.PDA
 		{
 			GameObject sourceObject = gameObject;
 
-			ConnectedPlayer player = GetPlayerByParentInventory();
+			PlayerInfo player = GetPlayerByParentInventory();
 			if (player != null)
 			{
 				sourceObject = player.GameObject;
@@ -386,14 +421,14 @@ namespace Items.PDA
 		/// <param name="informPlayer">The player that will be informed the code to the PDA uplink</param>
 		/// <param name="tcCount">The amount of telecrystals to add to the uplink.</param>
 		/// <param name="isNukie">Determines if the uplink can purchase nukeop exclusive items</param>
-		public void InstallUplink(ConnectedPlayer informPlayer, int tcCount, bool isNukie)
+		public void InstallUplink(Mind player, int tcCount, bool isNukie)
 		{
 			UplinkTC = tcCount; // Add; if uplink installed again (e.g. via admin tools (player request more TC)).
 			UplinkUnlockCode = GenerateUplinkUnlockCode();
 			IsUplinkCapable = true;
 			isNukeOps = isNukie;
 
-			StartCoroutine(DelayInformUplinkCode(informPlayer));
+			StartCoroutine(DelayInformUplinkCode(player));
 		}
 
 		private string GenerateUplinkUnlockCode()
@@ -406,14 +441,14 @@ namespace Items.PDA
 			return code + nums;
 		}
 
-		private IEnumerator DelayInformUplinkCode(ConnectedPlayer forPlayer)
+		private IEnumerator DelayInformUplinkCode(Mind player)
 		{
 			// We delay the uplink code inform to reduce information overload (player was likely just given objectives)
 			yield return WaitFor.Seconds(informUplinkCodeDelay);
-			InformUplinkCode(forPlayer);
+			InformUplinkCode(player);
 		}
 
-		private void InformUplinkCode(ConnectedPlayer player)
+		private void InformUplinkCode(Mind player)
 		{
 			var uplinkMessage =
 					$"{(debugUplink ? "<b>UPLINK DEBUGGING ENABLED: </b>" : "")}" +
@@ -421,7 +456,7 @@ namespace Items.PDA
 					$"Simply enter the code <b>{UplinkUnlockCode}</b> into the ringtone select to unlock its hidden features.<i>";
 
 			PlaySoundPrivate(Ringtone);
-			Chat.AddExamineMsgFromServer(player, uplinkMessage);
+			Chat.AddExamineMsgFromServer(player.gameObject, uplinkMessage);
 		}
 
 		#endregion Uplink-Init
@@ -527,51 +562,12 @@ namespace Items.PDA
 			{
 				return IDCard;
 			}
-			else
+
+			if (IDSlot.Item && IDSlot.Item.TryGetComponent<IDCard>(out var insertedID))
 			{
-				if (IDSlot.Item && IDSlot.Item.TryGetComponent<IDCard>(out var insertedID))
-				{
-					return insertedID;
-				}
+				return insertedID;
 			}
 			return null;
-		}
-
-
-		[Server]
-		public bool HasAccess(Access access)
-		{
-			return accessSyncList.Contains((int)access);
-		}
-
-		[Server]
-		public SyncList<int> AccessList()
-		{
-			return accessSyncList;
-		}
-
-		// Removes the indicated access from this IDCard
-		[Server]
-		public void ServerRemoveAccess(Access access)
-		{
-			if (!HasAccess(access)) return;
-			accessSyncList.Remove((int)access);
-		}
-
-		// Adds the indicated access to this IDCard
-		[Server]
-		public void ServerAddAccess(Access access)
-		{
-			if (HasAccess(access)) return;
-			accessSyncList.Add((int)access);
-		}
-
-		// All the methods above will be obsolete as soon as we migrate
-		public IEnumerable<Clearance> GetClearance()
-		{
-			var idClearance = GetIDCard().OrNull()?.GetComponent<IClearanceProvider>();
-
-			return idClearance?.GetClearance();
 		}
 
 		#endregion IDAccess

@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 750112035541645587, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
+      propertyPath: parentID
+      value: 7470efeb47da3e0489a8552d945fe93e
+      objectReference: {fileID: 0}
     - target: {fileID: 750112035541645587, guid: 7470efeb47da3e0489a8552d945fe93e,
         type: 3}
       propertyPath: foreverID
@@ -76,18 +82,38 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300000, guid: dfb3029a44e77a942af2c704826a45a3,
+      objectReference: {fileID: 21300006, guid: dfb3029a44e77a942af2c704826a45a3,
         type: 3}
+    - target: {fileID: 4501693218904384333, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
+      propertyPath: m_WasSpriteAssigned
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5243552275122106936, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
+      propertyPath: _assetId
+      value: 649020114
+      objectReference: {fileID: 0}
     - target: {fileID: 5243552275122106936, guid: 7470efeb47da3e0489a8552d945fe93e,
         type: 3}
       propertyPath: m_AssetId
       value: 19766b88d9c52d948976f3bd1686beaf
       objectReference: {fileID: 0}
+    - target: {fileID: 6256255528912577043, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 1991301954310894479}
     - target: {fileID: 6466319416926214250, guid: 7470efeb47da3e0489a8552d945fe93e,
         type: 3}
       propertyPath: initialName
       value: secure windoor right assembly
       objectReference: {fileID: 0}
+    - target: {fileID: 6785459471518075200, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 6314271814080826250}
     - target: {fileID: 8369694537043747569, guid: 7470efeb47da3e0489a8552d945fe93e,
         type: 3}
       propertyPath: airlockWindowedToSpawn
@@ -96,9 +122,41 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 9172132693457972608, guid: 7470efeb47da3e0489a8552d945fe93e,
         type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 9002226352215620875}
+    - target: {fileID: 9172132693457972608, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 106ed6b77d795424493011b0750ee86c,
         type: 2}
+    - target: {fileID: 9172132693457972608, guid: 7470efeb47da3e0489a8552d945fe93e,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 106ed6b77d795424493011b0750ee86c,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7470efeb47da3e0489a8552d945fe93e, type: 3}
+--- !u!212 &1991301954310894479 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 6428300890453683657, guid: 7470efeb47da3e0489a8552d945fe93e,
+    type: 3}
+  m_PrefabInstance: {fileID: 4798426018202017350}
+  m_PrefabAsset: {fileID: 0}
+--- !u!212 &6314271814080826250 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 1528870682105009612, guid: 7470efeb47da3e0489a8552d945fe93e,
+    type: 3}
+  m_PrefabInstance: {fileID: 4798426018202017350}
+  m_PrefabAsset: {fileID: 0}
+--- !u!212 &9002226352215620875 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 4501693218904384333, guid: 7470efeb47da3e0489a8552d945fe93e,
+    type: 3}
+  m_PrefabInstance: {fileID: 4798426018202017350}
+  m_PrefabAsset: {fileID: 0}

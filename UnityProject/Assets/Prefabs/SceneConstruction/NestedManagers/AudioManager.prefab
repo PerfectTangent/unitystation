@@ -24,6 +24,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2817430344145190960}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -34,7 +35,6 @@ Transform:
   - {fileID: 816419345410753457}
   - {fileID: 4625026602921837359}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6486084706574251020
 MonoBehaviour:
@@ -52,6 +52,8 @@ MonoBehaviour:
   MasterMixer: {fileID: 24300001, guid: 94208a0928046438d9b8a00796e7a5a7, type: 2}
   MusicMixer: {fileID: -4580727899087032196, guid: 94208a0928046438d9b8a00796e7a5a7,
     type: 2}
+  JukeboxMixer: {fileID: 8650663893695279604, guid: 94208a0928046438d9b8a00796e7a5a7,
+    type: 2}
   SFXMixer: {fileID: 4650336978538376734, guid: 94208a0928046438d9b8a00796e7a5a7,
     type: 2}
   SFXMuffledMixer: {fileID: 7689869653675604508, guid: 94208a0928046438d9b8a00796e7a5a7,
@@ -60,11 +62,18 @@ MonoBehaviour:
     type: 2}
   TTSMixer: {fileID: 5431052916838343998, guid: 94208a0928046438d9b8a00796e7a5a7,
     type: 2}
+  TTSMixerRadio: {fileID: -4666304757818538078, guid: 94208a0928046438d9b8a00796e7a5a7,
+    type: 2}
+  TTSMixerRobot: {fileID: -6731210623203085696, guid: 94208a0928046438d9b8a00796e7a5a7,
+    type: 2}
+  GameplayMixer: {fileID: -5046356865596808244, guid: 94208a0928046438d9b8a00796e7a5a7,
+    type: 2}
 --- !u!1001 &3412184721786106631
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 6422432039292169283}
     m_Modifications:
     - target: {fileID: -431472425038679297, guid: 121687c1567e69043b22c5b48d721f82,
@@ -139,6 +148,9 @@ PrefabInstance:
       value: MusicManager
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 121687c1567e69043b22c5b48d721f82, type: 3}
 --- !u!4 &5839061247966037232 stripped
 Transform:
@@ -151,6 +163,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 6422432039292169283}
     m_Modifications:
     - target: {fileID: 3070296568355871359, guid: cbf4ed0d635f19144b12c30542f4995b,
@@ -214,6 +227,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cbf4ed0d635f19144b12c30542f4995b, type: 3}
 --- !u!4 &4625026602921837359 stripped
 Transform:
@@ -226,6 +242,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 6422432039292169283}
     m_Modifications:
     - target: {fileID: 9102338525819353079, guid: 09ae29db80683de4e9fe7f0754923c2b,
@@ -289,6 +306,9 @@ PrefabInstance:
       value: SoundAmbientManager
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 09ae29db80683de4e9fe7f0754923c2b, type: 3}
 --- !u!4 &816419345410753457 stripped
 Transform:
@@ -301,6 +321,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 6422432039292169283}
     m_Modifications:
     - target: {fileID: 5630492256413423177, guid: 2866138f543c57b4880ae338179b8d3e,
@@ -369,6 +390,9 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2866138f543c57b4880ae338179b8d3e, type: 3}
 --- !u!4 &3578368700868708540 stripped
 Transform:

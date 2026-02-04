@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3803078382356530339, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
+      propertyPath: parentID
+      value: 36006112e2a486147a7d18112e1cacd0
+      objectReference: {fileID: 0}
     - target: {fileID: 3803078382356530339, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
       propertyPath: foreverID
@@ -18,11 +24,22 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 7555715936902670365, guid: 88ea997b7df6b724f8f26c861e8378cc,
         type: 3}
+    - target: {fileID: 7678669196883027884, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
+      propertyPath: initialName
+      value: Raw Bear meatball
+      objectReference: {fileID: 0}
     - target: {fileID: 7779569253059051800, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
       propertyPath: relatedRecipes.Array.size
-      value: 12
+      value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 7779569253059051800, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[0].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 19330cbb75880b04494c6988d7a8381d,
+        type: 2}
     - target: {fileID: 7779569253059051800, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
       propertyPath: relatedRecipes.Array.data[11].recipe
@@ -91,8 +108,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7920059192537363834, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
+      propertyPath: _assetId
+      value: 235935969
+      objectReference: {fileID: 0}
+    - target: {fileID: 7920059192537363834, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
       propertyPath: m_AssetId
       value: f35db9596fdf15a468ffe1620f31088a
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 36006112e2a486147a7d18112e1cacd0, type: 3}

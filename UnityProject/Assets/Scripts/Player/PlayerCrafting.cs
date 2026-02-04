@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Systems.CraftingV2;
 using Systems.CraftingV2.ClientServerLogic;
 using Systems.CraftingV2.GUI;
@@ -44,6 +45,7 @@ namespace Player
 		private void Awake()
 		{
 			playerScript = GetComponent<PlayerScript>();
+			PlayerScript.OnActionControlPlayer += PlayerEnterBody;
 			InitKnownRecipesByCategories();
 		}
 
@@ -52,7 +54,7 @@ namespace Player
 			InitDefaultRecipes();
 		}
 
-		public override void OnStartLocalPlayer()
+		public void PlayerEnterBody()
 		{
 			RequestInitRecipes.Send(new RequestInitRecipes.NetMessage());
 		}
@@ -122,7 +124,7 @@ namespace Player
 				// ...then we'll handle the recipe learning on the "client" side,
 				// so we won't have duplicates in the known recipes list
 				// (because the server and the client have one known recipes list for two)
-				SendLearnedCraftingRecipe.SendTo(playerScript.connectedPlayer, recipe);
+				SendLearnedCraftingRecipe.SendTo(playerScript.PlayerInfo, recipe);
 				return;
 			}
 
@@ -131,7 +133,7 @@ namespace Player
 				return;
 			}
 
-			SendLearnedCraftingRecipe.SendTo(playerScript.connectedPlayer, recipe);
+			SendLearnedCraftingRecipe.SendTo(playerScript.PlayerInfo, recipe);
 		}
 
 		/// <summary>
@@ -188,7 +190,7 @@ namespace Player
 				return;
 			}
 
-			SendForgottenCraftingRecipe.SendTo(playerScript.connectedPlayer, recipe);
+			SendForgottenCraftingRecipe.SendTo(playerScript.PlayerInfo, recipe);
 		}
 
 		[Server]
@@ -264,11 +266,12 @@ namespace Player
 		[Server]
 		public CraftingStatus CanCraft(CraftingRecipe recipe)
 		{
+			string Reason = "";
 			return CanCraft(
 				recipe,
 				GetPossibleIngredients(NetworkSide.Server),
 				GetPossibleTools(NetworkSide.Server),
-				GetReagentContainers()
+				GetReagentContainers(), ref Reason
 			);
 		}
 
@@ -287,35 +290,37 @@ namespace Player
 			CraftingRecipe recipe,
 			List<CraftingIngredient> possibleIngredients,
 			List<ItemAttributesV2> possibleTools,
-			List<ReagentContainer> reagentContainers
+			List<ReagentContainer> reagentContainers,
+			ref string ReasonString
 		)
 		{
 			return IsPlayerAbleToCraft(recipe) == false
 				? CraftingStatus.NotAbleToCraft
-				: recipe.CanBeCrafted(possibleIngredients, possibleTools, reagentContainers);
+				: recipe.CanBeCrafted(possibleIngredients, possibleTools, reagentContainers, ref ReasonString);
 		}
 
 		[Client]
 		public CraftingStatus CanClientCraft(
 			CraftingRecipe recipe,
 			List<CraftingIngredient> possibleIngredients,
-			List<ItemAttributesV2> possibleTools
+			List<ItemAttributesV2> possibleTools,
+			ref string Reason
 		)
 		{
 			return KnowsRecipe(recipe) == false
 				? CraftingStatus.NotAbleToCraft
-				: recipe.CanBeCraftedIgnoringReagents(possibleIngredients, possibleTools);
+				: recipe.CanBeCraftedIgnoringReagents(possibleIngredients, possibleTools, ref Reason);
 		}
 
 		[Server]
-		private CraftingStatus CanServerCraft(CraftingRecipe recipe, List<ReagentContainer> reagentsContainers)
+		private CraftingStatus CanServerCraft(CraftingRecipe recipe, List<ReagentContainer> reagentsContainers, ref string ReasonString)
 		{
 			if (IsPlayerAbleToCraft() == false)
 			{
 				return CraftingStatus.NotAbleToCraft;
 			}
 
-			return recipe.CheckPossibleReagents(reagentsContainers)
+			return recipe.CheckPossibleReagents(reagentsContainers, ref ReasonString)
 				? CraftingStatus.AllGood
 				: CraftingStatus.NotEnoughReagents;
 		}
@@ -332,11 +337,11 @@ namespace Player
 		public List<CraftingIngredient> GetPossibleIngredients(NetworkSide networkSide)
 		{
 			List<CraftingIngredient> possibleIngredients = MatrixManager.GetReachableAdjacent<CraftingIngredient>(
-				playerScript.PlayerSync.ClientPosition, networkSide == NetworkSide.Server
+				playerScript.PlayerSync.registerTile.WorldPosition, networkSide == NetworkSide.Server
 			);
 
 			possibleIngredients.AddRange(MatrixManager.GetAt<CraftingIngredient>(
-				playerScript.PlayerSync.ClientPosition, networkSide == NetworkSide.Server
+				playerScript.PlayerSync.registerTile.WorldPosition, networkSide == NetworkSide.Server
 			));
 
 			foreach (ItemSlot handSlot in playerScript.DynamicItemStorage.GetHandSlots())
@@ -372,11 +377,11 @@ namespace Player
 		public List<ItemAttributesV2> GetPossibleTools(NetworkSide networkSide)
 		{
 			List<ItemAttributesV2> possibleTools = MatrixManager.GetReachableAdjacent<ItemAttributesV2>(
-				playerScript.PlayerSync.ClientPosition, networkSide == NetworkSide.Server
+				playerScript.PlayerSync.registerTile.WorldPosition, networkSide == NetworkSide.Server
 			);
 
 			possibleTools.AddRange(MatrixManager.GetAt<ItemAttributesV2>(
-				playerScript.PlayerSync.ClientPosition, networkSide == NetworkSide.Server
+				playerScript.PlayerSync.registerTile.WorldPosition, networkSide == NetworkSide.Server
 			));
 
 			foreach (ItemSlot handSlot in playerScript.DynamicItemStorage.GetHandSlots())
@@ -413,11 +418,11 @@ namespace Player
 		public List<ReagentContainer> GetReagentContainers()
 		{
 			List<ReagentContainer> reagentContainers = MatrixManager.GetReachableAdjacent<ReagentContainer>(
-				playerScript.PlayerSync.ClientPosition, true
+				playerScript.PlayerSync.registerTile.WorldPosition, true
 			);
 
 			reagentContainers.AddRange(MatrixManager.GetAt<ReagentContainer>(
-				PlayerScript.PlayerSync.ClientPosition,
+				PlayerScript.PlayerSync.registerTile.WorldPosition,
 				true
 			));
 
@@ -440,6 +445,15 @@ namespace Player
 				)
 				{
 					reagentContainers.Add(reagentContainer);
+				}
+			}
+
+			for (int i = reagentContainers.Count - 1; i >= 0; i--)
+			{
+				if (reagentContainers[i].TransferMode is TransferMode.Syringe or TransferMode.InputOnly
+				    or TransferMode.NoTransfer)
+				{
+					reagentContainers.RemoveAt(i);
 				}
 			}
 
@@ -488,19 +502,26 @@ namespace Player
 		public void TryToStartCrafting(
 			CraftingRecipe recipe,
 			NetworkSide networkSide,
-			CraftingActionParameters craftingActionParameters
-		)
+			CraftingActionParameters craftingActionParameters)
 		{
+			if (playerScript.PlayerTypeSettings.CanCraft == false)
+			{
+				Chat.AddExamineMsg(gameObject, "You are not allowed to craft!");
+				return;
+			}
+
 			if (networkSide == NetworkSide.Client)
 			{
+				string Reason = "";
 				CraftingStatus craftingStatus = CanClientCraft(
 					recipe,
 					GetPossibleIngredients(networkSide),
-					GetPossibleTools(networkSide)
+					GetPossibleTools(networkSide),
+					ref Reason
 				);
 				if (craftingActionParameters.Feedback == FeedbackType.GiveAllFeedback || (craftingActionParameters.Feedback == FeedbackType.GiveOnlySuccess && craftingStatus == CraftingStatus.AllGood))
 				{
-					GiveClientSidedFeedback(craftingStatus, recipe, false);
+					GiveClientSidedFeedback(craftingStatus, recipe, false, Reason);
 				}
 
 				if (craftingStatus != CraftingStatus.AllGood)
@@ -555,14 +576,15 @@ namespace Player
 			CraftingActionParameters craftingActionParameters
 		)
 		{
+			var ReasonString = "";
 			CraftingStatus craftingStatus =
 				craftingActionParameters.IgnoreToolsAndIngredients
-					? CanServerCraft(recipe, reagentContainers)
-					: CanCraft(recipe, possibleIngredients, possibleTools, reagentContainers);
+					? CanServerCraft(recipe, reagentContainers, ref ReasonString)
+					: CanCraft(recipe, possibleIngredients, possibleTools, reagentContainers, ref ReasonString);
 
 			if (craftingActionParameters.Feedback == FeedbackType.GiveAllFeedback || (craftingActionParameters.Feedback == FeedbackType.GiveOnlySuccess && craftingStatus == CraftingStatus.AllGood))
 			{
-				GiveServerSidedFeedback(craftingStatus, recipe, false);
+				GiveServerSidedFeedback(craftingStatus, recipe, false, ReasonString);
 			}
 
 			if (craftingStatus != CraftingStatus.AllGood)
@@ -592,7 +614,7 @@ namespace Player
 			StandardProgressAction.Create(
 				craftProgressActionConfig,
 				() => TryToFinishCrafting(recipe, craftingActionParameters)
-			).ServerStartProgress(playerScript.registerTile, recipe.CraftingTime, playerScript.gameObject);
+			).ServerStartProgress(playerScript.RegisterPlayer, recipe.CraftingTime, playerScript.gameObject);
 		}
 
 		#endregion
@@ -640,14 +662,15 @@ namespace Player
 			CraftingActionParameters craftingActionParameters
 		)
 		{
+			string reasonString = "";
 			CraftingStatus craftingStatus =
 				craftingActionParameters.IgnoreToolsAndIngredients
-					? CanServerCraft(recipe, reagentContainers)
-					: CanCraft(recipe, possibleIngredients, possibleTools, reagentContainers);
+					? CanServerCraft(recipe, reagentContainers, ref reasonString)
+					: CanCraft(recipe, possibleIngredients, possibleTools, reagentContainers, ref reasonString);
 
 			if (craftingActionParameters.Feedback == FeedbackType.GiveAllFeedback || (craftingActionParameters.Feedback == FeedbackType.GiveOnlySuccess && craftingStatus == CraftingStatus.AllGood))
 			{
-				GiveServerSidedFeedback(craftingStatus, recipe, true);
+				GiveServerSidedFeedback(craftingStatus, recipe, true, reasonString);
 			}
 
 			if (craftingStatus != CraftingStatus.AllGood)
@@ -683,7 +706,8 @@ namespace Player
 		public void GiveClientSidedFeedback(
 			CraftingStatus craftingStatus,
 			CraftingRecipe recipe,
-			bool completingCrafting
+			bool completingCrafting,
+			string Reason
 		)
 		{
 			switch (craftingStatus)
@@ -707,22 +731,22 @@ namespace Player
 					return;
 				case CraftingStatus.NotEnoughIngredients:
 					Chat.AddExamineMsgToClient(
-						$"You can't craft \"{recipe.RecipeName}\" because there are not enough ingredients."
+						$"You can't craft \"{recipe.RecipeName}\" because there are not enough ingredients." + Reason
 					);
 					return;
 				case CraftingStatus.NotEnoughTools:
 					Chat.AddExamineMsgToClient(
-						$"You can't craft \"{recipe.RecipeName}\" because there are not enough tools."
+						$"You can't craft \"{recipe.RecipeName}\" because there are not enough tools."  + Reason
 					);
 					return;
 				case CraftingStatus.NotEnoughReagents:
 					Chat.AddExamineMsgToClient(
-						$"You can't craft \"{recipe.RecipeName}\" because there are not enough reagents."
+						$"You can't craft \"{recipe.RecipeName}\" because there are not enough reagents."  + Reason
 					);
 					return;
 				case CraftingStatus.NotAbleToCraft:
 					Chat.AddExamineMsgToClient(
-						$"You can't craft \"{recipe.RecipeName}\" because your character can't craft this."
+						$"You can't craft \"{recipe.RecipeName}\" because your character can't craft this."  + Reason
 					);
 					return;
 				case CraftingStatus.UnspecifiedImpossibility:
@@ -733,7 +757,7 @@ namespace Player
 				default:
 					Chat.AddExamineMsgToClient(
 						$"You can't craft \"{recipe.RecipeName}\" for some reason. " +
-						"Report this message to developers."
+						"Report this message to developers." + Reason
 					);
 					return;
 			}
@@ -742,7 +766,8 @@ namespace Player
 		public void GiveServerSidedFeedback(
 			CraftingStatus craftingStatus,
 			CraftingRecipe recipe,
-			bool completingCrafting
+			bool completingCrafting,
+			string reasonString
 		)
 		{
 			switch (craftingStatus)
@@ -769,38 +794,38 @@ namespace Player
 				case CraftingStatus.NotEnoughIngredients:
 					Chat.AddExamineMsgFromServer(
 						playerScript.gameObject,
-						$"You can't craft \"{recipe.RecipeName}\" because there are not enough ingredients."
+						$"You can't craft \"{recipe.RecipeName}\" because there are not enough ingredients." + reasonString
 					);
 					return;
 				case CraftingStatus.NotEnoughTools:
 					Chat.AddExamineMsgFromServer(
 						playerScript.gameObject,
-						$"You can't craft \"{recipe.RecipeName}\" because there are not enough tools."
+						$"You can't craft \"{recipe.RecipeName}\" because there are not enough tools." + reasonString
 					);
 					return;
 				case CraftingStatus.NotEnoughReagents:
 					Chat.AddExamineMsgFromServer(
 						playerScript.gameObject,
-						$"You can't craft \"{recipe.RecipeName}\" because there are not enough reagents."
+						$"You can't craft \"{recipe.RecipeName}\" because there are not enough reagents." + reasonString
 					);
 					return;
 				case CraftingStatus.NotAbleToCraft:
 					Chat.AddExamineMsgFromServer(
 						playerScript.gameObject,
-						$"You can't craft \"{recipe.RecipeName}\" because your character can't craft this."
+						$"You can't craft \"{recipe.RecipeName}\" because your character can't craft this." + reasonString
 					);
 					return;
 				case CraftingStatus.UnspecifiedImpossibility:
 					Chat.AddExamineMsgFromServer(
 						playerScript.gameObject,
-						$"You can't craft \"{recipe.RecipeName}\"."
+						$"You can't craft \"{recipe.RecipeName}\"." + reasonString
 					);
 					return;
 				default:
 					Chat.AddExamineMsgFromServer(
 						playerScript.gameObject,
 						$"You can't craft \"{recipe.RecipeName}\" for some reason. " +
-						"Report this message to developers."
+						"Report this message to developers."  + reasonString
 					);
 					return;
 			}

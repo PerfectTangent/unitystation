@@ -1,33 +1,27 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using Mirror;
 using CameraEffects;
+using HealthV2;
 using Messages.Server;
 
 namespace Player
 {
-	public class PlayerFlashEffects : NetworkBehaviour
-	{
-		[Server]
-		public void ServerSendMessageToClient(GameObject client, float newValue)
-		{
-			PlayerDrunkServerMessage.Send(client, newValue);
-			PlayerFlashEffectsMessage.Send(client, newValue);
-		}
-	}
-
 	public class PlayerFlashEffectsMessage : ServerMessage<PlayerFlashEffectsMessage.NetMessage>
 	{
 		public struct NetMessage : NetworkMessage
 		{
-			public float flashValue;
+			public float FlashValue;
 		}
 
 		public override void Process(NetMessage msg)
 		{
 			var camera = Camera.main;
 			if (camera == null) return;
-			camera.GetComponent<CameraEffectControlScript>().FlashEyes(msg.flashValue);
+			camera.GetComponent<CameraEffectControlScript>().FlashEyes(msg.FlashValue);
 		}
+
+
 
 		/// <summary>
 		/// Send full update to a client
@@ -36,7 +30,7 @@ namespace Player
 		{
 			NetMessage msg = new NetMessage
 			{
-				flashValue = newflashValue
+				FlashValue = newflashValue,
 			};
 
 			SendTo(clientConn, msg);

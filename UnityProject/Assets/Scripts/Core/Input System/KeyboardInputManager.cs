@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using _3D;
+using Core.Chat;
 using UnityEngine;
 using UI.Chat_UI;
 using static KeybindManager;
@@ -31,11 +33,13 @@ public class KeyboardInputManager : MonoBehaviour
 
 	private void OnEnable()
 	{
+		if (CustomNetworkManager.IsHeadless) return;
 		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
 	}
 
 	private void OnDisable()
 	{
+		if (CustomNetworkManager.IsHeadless) return;
 		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 	}
 
@@ -161,6 +165,11 @@ public class KeyboardInputManager : MonoBehaviour
 		       CommonInput.GetKey(KeyCode.LeftCommand) || CommonInput.GetKey(KeyCode.RightCommand);
 	}
 
+	public static bool IsTabPressed()
+	{
+		return CommonInput.GetKey(KeyCode.Tab);
+	}
+
 	/// <summary>
 	/// Checks if the left or right shift key has been pressed
 	/// </summary>
@@ -172,9 +181,17 @@ public class KeyboardInputManager : MonoBehaviour
 	/// <summary>
 	/// Checks if the left or right alt key has been pressed (AltGr sends RightAlt)
 	/// </summary>
-	public static bool IsAltPressed()
+	public static bool IsAltActionKeyPressed()
 	{
-		return CommonInput.GetKey(KeyCode.LeftAlt) || CommonInput.GetKey(KeyCode.RightAlt);
+		return Instance.CheckKeyAction( KeyAction.InteractionModifier, KeyEventType.Down) || Instance.CheckKeyAction( KeyAction.InteractionModifier, KeyEventType.Hold);
+	}
+
+	/// <summary>
+	/// Checks if the middle mouse button has been pressed
+	/// </summary>
+	public static bool IsMiddleMouseButtonPressed()
+	{
+		return CommonInput.GetKeyDown(KeyCode.Mouse2);
 	}
 
 	private bool CheckComboEvent(KeyCombo keyCombo, KeyEventType keyEventType = KeyEventType.Down)
@@ -227,9 +244,11 @@ public class KeyboardInputManager : MonoBehaviour
 		{ KeyAction.ChatLocal,		() => { ChatUI.Instance.OpenChatWindow(ChatChannel.Local); }},
 		{ KeyAction.ChatRadio,		() => { ChatUI.Instance.OpenChatWindow(ChatChannel.Common); }},
 		{ KeyAction.ChatOOC,		() => { ChatUI.Instance.OpenChatWindow(ChatChannel.OOC); }},
-		{ KeyAction.ToggleHelp,    () => { ChatUI.Instance.OnHelpButton(); }},
+		{ KeyAction.ToggleHelp,     () => { ChatUI.Instance.OnHelpButton(); }},
 		{ KeyAction.ToggleAHelp,    () => { ChatUI.Instance.OnAdminHelpButton(); }},
 		{ KeyAction.ToggleMHelp,    () => { ChatUI.Instance.OnMentorHelpButton(); }},
+		{ KeyAction.PushToTalk,     () => { VoiceChatManager.Instance.ClientPushToTalkPressed = !VoiceChatManager.Instance.ClientPushToTalkPressed; }},
+		{ KeyAction.PushToSTT,     () => { WhisperMicrophoneHandler.Instance.gameObject.SetActive(!WhisperMicrophoneHandler.Instance.gameObject.activeSelf); }},
 
 		// Body part selection
 		{ KeyAction.TargetHead,		() => { UIManager.ZoneSelector.CycleZones(BodyPartType.Head, BodyPartType.Eyes, BodyPartType.Mouth); }},
@@ -248,6 +267,9 @@ public class KeyboardInputManager : MonoBehaviour
 
 		{ KeyAction.PocketOne, 		() => { PlayerManager.LocalPlayerScript.DynamicItemStorage.TryItemInteract(NamedSlot.storage01);}},
 		{ KeyAction.PocketTwo, 		() => { PlayerManager.LocalPlayerScript.DynamicItemStorage.TryItemInteract(NamedSlot.storage02);}},
-		{ KeyAction.PocketThree, 	() => { PlayerManager.LocalPlayerScript.DynamicItemStorage.TryItemInteract(NamedSlot.suitStorage); }}
+		{ KeyAction.PocketThree, 	() => { PlayerManager.LocalPlayerScript.DynamicItemStorage.TryItemInteract(NamedSlot.suitStorage); }},
+		{ KeyAction.HideUi,         () => { UIManager.Instance.ToggleUiVisibility(); }},
+		{ KeyAction.EmoteWindowUI,  () => { EmoteActionManager.Instance.CheckForInputForEmoteWindow(); }},
+		{ KeyAction.Mode3DKeyToggle, () => { if (FirstPersonCamera.Instance != null) { FirstPersonCamera.Instance.MouseActivated = !FirstPersonCamera.Instance.MouseActivated; } }},
 	};
 }

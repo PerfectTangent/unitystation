@@ -2,11 +2,16 @@
 using System.Collections.Generic;
 using System.Text;
 using DatabaseAPI;
+using IngameDebugConsole;
+using Initialisation;
+using Logs;
+using Managers;
+using Newtonsoft.Json;
+using Shared.Managers;
 using UnityEngine;
 using WebSocketSharp;
 using WebSocketSharp.Net;
 using WebSocketSharp.Server;
-using Managers;
 
 public class RconManager : SingletonManager<RconManager>
 {
@@ -23,8 +28,9 @@ public class RconManager : SingletonManager<RconManager>
 
 	float monitorUpdate = 0f;
 
-	void Start()
+	public override void Start()
 	{
+		base.Start();
 		Instance.Init();
 	}
 
@@ -44,7 +50,7 @@ public class RconManager : SingletonManager<RconManager>
 
 	private void Init()
 	{
-		Logger.Log("Init RconManager", Category.Rcon);
+		Loggy.Info("Init RconManager", Category.Rcon);
 		DontDestroyOnLoad(gameObject);
 
 		if (ServerData.ServerConfig == null)
@@ -59,10 +65,11 @@ public class RconManager : SingletonManager<RconManager>
 
 	private void OnServerDataLoaded()
 	{
+		if (gameObject == null) return;
 		ServerData.serverDataLoaded -= OnServerDataLoaded;
 		if (ServerData.ServerConfig == null)
 		{
-			Logger.Log("No server config found: rcon", Category.Rcon);
+			Loggy.Info("No server config found: rcon", Category.Rcon);
 			Destroy(gameObject);
 		}
 		else
@@ -70,12 +77,12 @@ public class RconManager : SingletonManager<RconManager>
 			config = ServerData.ServerConfig;
 			if (string.IsNullOrEmpty(config.RconPass) || config.RconPort == 0)
 			{
-				Logger.Log("Invalid Rcon config, please check your RconPass and RconPort values", Category.Rcon);
+				Loggy.Info("Invalid Rcon config, please check your RconPass and RconPort values", Category.Rcon);
 				Destroy(gameObject);
 			}
 			else
 			{
-				StartServer();
+				LoadManager.RegisterActionDelayed(StartServer, 500); //Maybe giving it a little bit of time to fix a crash?
 			}
 		}
 	}
@@ -84,15 +91,15 @@ public class RconManager : SingletonManager<RconManager>
 	{
 		if (httpServer != null)
 		{
-			Logger.Log("Already Listening: WebSocket", Category.Rcon);
+			Loggy.Info("Already Listening: WebSocket", Category.Rcon);
 			return;
 		}
 
-		Logger.Log("config loaded", Category.Rcon);
+		Loggy.Info("config loaded", Category.Rcon);
 
 		if (GameData.IsHeadlessServer == false && Application.isEditor == false)
 		{
-			Logger.Log("Dercon", Category.Rcon);
+			Loggy.Info("Dercon", Category.Rcon);
 			Destroy(gameObject);
 			return;
 		}
@@ -127,13 +134,13 @@ public class RconManager : SingletonManager<RconManager>
 
 		if (httpServer.IsListening)
 		{
-			Logger.LogFormat("Providing websocket services on port {0}.", Category.Rcon, httpServer.Port);
+			Loggy.Info().Format("Providing websocket services on port {0}.", Category.Rcon, httpServer.Port);
 			foreach (var path in httpServer.WebSocketServices.Paths)
-				Logger.LogFormat("- {0}", Category.Rcon, path);
+				Loggy.Info().Format("- {0}", Category.Rcon, path);
 		}
 		else
 		{
-			Logger.LogError("Failed to start Rcon server.", Category.Rcon);
+			Loggy.Error("Failed to start Rcon server.", Category.Rcon);
 			Destroy(gameObject);
 		}
 	}
@@ -165,6 +172,8 @@ public class RconManager : SingletonManager<RconManager>
 
 	public static void AddChatLog(string msg)
 	{
+		if(Instance.chatHost == null) return;
+
 		msg = $"{DateTime.UtcNow}:    {msg}<br>";
 		AmendChatLog(msg);
 		Instance.chatHost.Sessions.Broadcast(msg);
@@ -183,7 +192,8 @@ public class RconManager : SingletonManager<RconManager>
 
 	public static void UpdatePlayerListRcon()
 	{
-		var json = JsonUtility.ToJson(new Players());
+		if(Instance.playerListHost == null) return;
+		var json = JsonConvert.SerializeObject(new Players());
 		BroadcastToSessions(json, Instance.playerListHost.Sessions.Sessions);
 	}
 
@@ -213,7 +223,7 @@ public class RconManager : SingletonManager<RconManager>
 			}
 			else
 			{
-				Logger.LogFormat("Do not broadcast to (connection not ready): {0}", Category.Rcon, conn.ID);
+				Loggy.Info().Format("Do not broadcast to (connection not ready): {0}", Category.Rcon, conn.ID);
 			}
 		}
 	}
@@ -299,7 +309,7 @@ public class RconManager : SingletonManager<RconManager>
 	protected static void ExecuteCommand(string command)
 	{
 		command = command.Substring(1, command.Length - 1);
-		IngameDebugConsole.DebugLogConsole.ExecuteCommand(command);
+		DebugLogConsole.ExecuteCommand(command);
 	}
 
 	#endregion
@@ -332,7 +342,7 @@ public class RconMonitor : WebSocketBehavior
 	{
 		if (Context.User.Identity.IsAuthenticated)
 		{
-			Logger.Log("admin logged in", Category.Rcon);
+			Loggy.Info("admin logged in", Category.Rcon);
 		}
 
 		base.OnOpen();
@@ -342,7 +352,7 @@ public class RconMonitor : WebSocketBehavior
 	{
 		if (Context.User.Identity.IsAuthenticated)
 		{
-			Logger.Log("admin closed. reason: " + e.Reason, Category.Rcon);
+			Loggy.Info("admin closed. reason: " + e.Reason, Category.Rcon);
 		}
 
 		base.OnClose(e);
@@ -373,7 +383,7 @@ public class RconPlayerList : WebSocketBehavior
 
 		if (e.Data == "players")
 		{
-			var playerList = JsonUtility.ToJson(new Players());
+			var playerList = JsonConvert.SerializeObject(new Players());
 			if (!string.IsNullOrEmpty(playerList))
 			{
 				Send(playerList);
@@ -395,7 +405,7 @@ public class Players
 			var player = PlayerList.Instance.InGamePlayers[i];
 			var playerEntry = new PlayerDetails()
 			{
-				playerName = player.Name + $" {player.Job.ToString()} : Acc: {player.Username} {player.UserId} {player.ConnectionIP} ",
+				playerName = player.Name + $" {player.Job.ToString()} : Acc: {player.Username} {player.AccountId} {player.ConnectionIP} ",
 					job = player.Job.ToString()
 			};
 			players.Add(playerEntry);

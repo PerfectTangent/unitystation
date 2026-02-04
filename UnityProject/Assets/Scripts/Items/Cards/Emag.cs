@@ -1,8 +1,11 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using AddressableReferences;
+using Core.Admin.Logs;
 using UnityEngine;
 using Mirror;
+using Systems.Explosions;
+using Util.Independent.FluentRichText;
 
 namespace Items
 {
@@ -13,16 +16,13 @@ namespace Items
 	{
 		private SpriteHandler spriteHandler;
 
-		[Tooltip("Number of charges emags start with")]
-		[SerializeField]
+		[Tooltip("Number of charges emags start with")] [SerializeField]
 		public int startCharges = 3;
 
-		[Tooltip("Number of seconds it takes to regenerate 1 charge")]
-		[SerializeField]
+		[Tooltip("Number of seconds it takes to regenerate 1 charge")] [SerializeField]
 		public float rechargeTimeInSeconds = 10f;
 
-		[SyncVar(hook = nameof(SyncCharges))]
-		private int charges;
+		[SyncVar(hook = nameof(SyncCharges))] private int charges;
 
 		/// <summary>
 		/// Number of charges left on emag
@@ -32,6 +32,7 @@ namespace Items
 		public AddressableAudioSource OutOfChargesSFXA;
 
 		#region SyncVarFuncs
+
 		void Awake()
 		{
 			charges = startCharges;
@@ -56,6 +57,7 @@ namespace Items
 		{
 			SyncCharges(startCharges, startCharges);
 		}
+
 		#endregion
 
 		private void SyncCharges(int oldCharges, int newCharges)
@@ -73,7 +75,7 @@ namespace Items
 		///</summary>
 		private int ScaleChargesToSpriteIndex()
 		{
-			int output = Mathf.CeilToInt(((float)Charges / (float)startCharges) * 3f) - 1;
+			int output = Mathf.CeilToInt(((float) Charges / (float) startCharges) * 3f) - 1;
 			return output;
 		}
 
@@ -90,14 +92,34 @@ namespace Items
 		/// </summary>
 		public bool UseCharge(HandApply interaction)
 		{
+			AdminLogsManager.AddNewLog(
+				interaction.Performer,
+				$"{interaction.PerformerPlayerScript.visibleName} has emmaged {interaction.TargetObject.name}.",
+				LogCategory.Interaction,
+				Severity.ANNOYING);
 			return UseCharge(interaction.TargetObject, interaction.Performer);
 		}
 
 		public bool UseCharge(GameObject TargetObject, GameObject Performer)
 		{
-			Chat.AddActionMsgToChat(Performer,
-				$"You wave the Emag over the {TargetObject.ExpensiveName()}'s electrical panel.",
-				$"{Performer.ExpensiveName()} waves something over the {TargetObject.ExpensiveName()}'s electrical panel.");
+			var chargeUsed = UseChargeLogic(Performer);
+			if (chargeUsed)
+			{
+				Chat.AddActionMsgToChat(
+					Performer,
+					$"You wave the emag over the {TargetObject.ExpensiveName()}'s electrical panel, and it emits a satisfying electrical pop while the number {charges.ToString().Color(Color.green)} flashes in green.",
+					$"{Performer.ExpensiveName()} waves something over the {TargetObject.ExpensiveName()}'s electrical panel."
+					);
+				SparkUtil.TrySpark(Performer);
+			}
+			else
+			{
+				Chat.AddActionMsgToChat(
+					Performer,
+					$"You wave the emag over the {TargetObject.ExpensiveName()}'s electrical panel, but nothing happens as the emag's components flash the number {charges.ToString().Color(Color.red)} in red.",
+					$"{Performer.ExpensiveName()} waves something over the {TargetObject.ExpensiveName()}'s electrical panel."
+					);
+			}
 			return UseChargeLogic(Performer);
 		}
 
@@ -105,24 +127,26 @@ namespace Items
 		{
 			if (Charges > 0)
 			{
-				//if this is the first charge taken off, add recharge loop
-				if (Charges >= startCharges)
-				{
-					UpdateManager.Add(RegenerateCharge, rechargeTimeInSeconds);
-				}
-
-				SyncCharges(Charges, Charges - 1);
+				charges = Charges - 1;
 				if (Charges > 0)
 				{
-					spriteHandler.ChangeSprite(ScaleChargesToSpriteIndex());
+					spriteHandler.SetCatalogueIndexSprite(ScaleChargesToSpriteIndex());
 				}
 				else
 				{
 					SoundManager.PlayNetworkedForPlayer(recipient: Performer, OutOfChargesSFXA, sourceObj: gameObject);
 					spriteHandler.Empty();
 				}
+
+				//if this is the first charge taken off, add recharge loop
+				if (Charges < startCharges || Charges == 0)
+				{
+					UpdateManager.Add(RegenerateCharge, rechargeTimeInSeconds);
+				}
+
 				return true;
 			}
+
 			return false;
 		}
 
@@ -130,13 +154,43 @@ namespace Items
 		{
 			if (Charges < startCharges)
 			{
-				SyncCharges(Charges, Charges + 1);
-				spriteHandler.ChangeSprite(ScaleChargesToSpriteIndex());
+				AddCharges(1);
+				spriteHandler.SetCatalogueIndexSprite(ScaleChargesToSpriteIndex());
 			}
+
 			if (Charges >= startCharges)
 			{
 				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, RegenerateCharge);
 			}
+		}
+
+		public void AddCharges(int incharges)
+		{
+			SyncCharges(Charges, Charges + incharges);
+		}
+
+
+		public static Emag GetEmagInDynamicItemStorage(DynamicItemStorage dynamicItemStorage)
+		{
+			if (dynamicItemStorage == null) return null;
+			Emag emagInHand = dynamicItemStorage.OrNull()?.GetActiveHandSlot()?.Item.OrNull()?.gameObject.OrNull()
+				?.GetComponent<Emag>()?.OrNull();
+
+			if (emagInHand != null)
+			{
+				return emagInHand;
+			}
+
+			foreach (var item in dynamicItemStorage.GetNamedItemSlots(NamedSlot.id))
+			{
+				Emag emagInIdSlot = item?.Item.OrNull()?.gameObject.GetComponent<Emag>()?.OrNull();
+				if (emagInIdSlot != null)
+				{
+					return emagInIdSlot;
+				}
+			}
+
+			return null;
 		}
 	}
 }

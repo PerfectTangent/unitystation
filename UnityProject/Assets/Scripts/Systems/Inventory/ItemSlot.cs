@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Items;
+using Logs;
 using Messages.Server;
 using Mirror;
 using UnityEngine;
@@ -49,6 +50,13 @@ public class ItemSlot
 	/// </summary>
 	public Pickupable Item => item;
 
+
+	/// <summary>
+	/// Dictates whether or not the item can be removed by any means
+	/// Remember to send UpdateItemSlotMessage If you change it!!
+	/// </summary>
+	public bool ItemNotRemovable = false;
+
 	/// <summary>
 	/// Net ID of the ItemStorage this slot exists in
 	/// </summary>
@@ -87,11 +95,11 @@ public class ItemSlot
 	public NamedSlot? NamedSlot => slotIdentifier.NamedSlot;
 
 	/// <summary>
-	/// True iff the slot has no item.
+	/// True if the slot has no item.
 	/// </summary>
 	public bool IsEmpty => Item == null;
 	/// <summary>
-	/// True iff the slot has an item
+	/// True if the slot has an item
 	/// </summary>
 	public bool IsOccupied => !IsEmpty;
 
@@ -197,7 +205,7 @@ public class ItemSlot
 	{
 		if (CustomNetworkManager.IsServer == false) return;
 		serverObserverPlayers.Add(observerPlayer);
-		UpdateItemSlotMessage.Send(observerPlayer, this);
+		UpdateItemNSlotMessage.Send(observerPlayer, this);
 	}
 
 	/// <summary>
@@ -209,7 +217,7 @@ public class ItemSlot
 		if (CustomNetworkManager.IsServer == false) return;
 		serverObserverPlayers.Remove(observerPlayer);
 		// tell the client the slot is now empty
-		UpdateItemSlotMessage.Send(observerPlayer, this, true);
+		UpdateItemNSlotMessage.Send(observerPlayer, this, true);
 	}
 
 	/// <summary>
@@ -228,6 +236,13 @@ public class ItemSlot
 	public GameObject GetRootStorageOrPlayer()
 	{
 		return itemStorage.GetRootStorageOrPlayer();
+	}
+
+	public (GameObject, PlayerScript) GetRootStorageAndIfPlayer()
+	{
+		var storage = itemStorage.GetRootStorageOrPlayer();
+		if (storage == null) return (null, null);
+		return storage.TryGetComponent(out PlayerScript playerScript) ? (storage, playerScript) : (storage, null);
 	}
 
 	public override string ToString()
@@ -272,7 +287,7 @@ public class ItemSlot
 			}
 		}
 
-		UpdateItemSlotMessage.Send(serverObserverPlayers, this);
+		UpdateItemNSlotMessage.Send(serverObserverPlayers, this);
 	}
 
 	/// <summary>
@@ -317,7 +332,7 @@ public class ItemSlot
 			{
 				if (interactiveStorage.denyStorageOfStorageItems.HasFlag(storeIdentifier.StorageItemName))
 				{
-					Logger.LogTrace($"Cannot fit {toStore} in slot {ToString()}, item was blacklisted.", Category.Inventory);
+					Loggy.Trace($"Cannot fit {toStore} in slot {ToString()}, item was blacklisted.", Category.Inventory);
 					if (examineRecipient)
 					{
 						Chat.AddExamineMsg(examineRecipient,
@@ -336,7 +351,7 @@ public class ItemSlot
 		{
 			if (storageToCheck.gameObject == toStore.gameObject)
 			{
-				Logger.LogTraceFormat(
+				Loggy.Trace().Format(
 					"Cannot fit {0} in slot {1}, this would create an inventory hierarchy loop (putting the" +
 					" storage inside itself)", Category.Inventory, toStore, ToString());
 				if (examineRecipient)
@@ -359,7 +374,7 @@ public class ItemSlot
 			count++;
 			if (count > 5)
 			{
-				Logger.LogTraceFormat(
+				Loggy.Trace().Format(
 					"Something went wrong when adding {0} in slot {1}, aborting!", Category.Inventory, toStore, ToString());
 				return false;
 			}
@@ -367,7 +382,7 @@ public class ItemSlot
 
 		//if the slot already has an item, it's allowed to stack only if the item to add can stack with
 		//the existing item.
-		if (!ignoreOccupied && item != null)
+		if (ignoreOccupied == false && item != null)
 		{
 			var thisStackable = item.GetComponent<Stackable>();
 			var otherStackable = toStore.GetComponent<Stackable>();
@@ -375,12 +390,12 @@ public class ItemSlot
 								thisStackable.CanAccommodate(otherStackable);
 			if (!stackResult)
 			{
-				Logger.LogTraceFormat(
+				Loggy.Trace().Format(
 					"Cannot stack {0} in slot {1}", Category.Inventory, toStore, ToString());
 			}
 			else
 			{
-				Logger.LogTraceFormat(
+				Loggy.Trace().Format(
 					"Can stack {0} in slot {1}", Category.Inventory, toStore, ToString());
 			}
 			return stackResult;
@@ -421,7 +436,7 @@ public class ItemSlot
 		var pu = pickupable.GetComponent<Pickupable>();
 		if (pu == null)
 		{
-			Logger.LogWarningFormat("{0} has no pickupable, thus can't fit anywhere. It's probably a bug that" +
+			Loggy.Warning().Format("{0} has no pickupable, thus can't fit anywhere. It's probably a bug that" +
 								  " this was even attempted.", Category.Inventory, pickupable.name);
 			return false;
 		}
@@ -436,14 +451,23 @@ public class ItemSlot
 	/// </summary>
 	public static void Free(ItemStorage storageToFree)
 	{
-		if (CustomNetworkManager.Instance != null && CustomNetworkManager.Instance._isServer)
+		if (CustomNetworkManager.Instance != null && CustomNetworkManager.IsServer)
 		{
 			// destroy all items in the slots
 			foreach (var slot in storageToFree.GetItemSlots())
 			{
-				if (slot.Item != null)
+				if (slot.Item != null )
 				{
-					Inventory.ServerDespawn(slot);
+					var Integrity = slot.Item.GetComponent<Integrity>();
+					if (Integrity?.Resistances?.Indestructable == true)
+					{
+						Inventory.ServerDrop(slot);
+					}
+					else
+					{
+						Inventory.ServerDespawn(slot);
+					}
+
 				}
 			}
 		}

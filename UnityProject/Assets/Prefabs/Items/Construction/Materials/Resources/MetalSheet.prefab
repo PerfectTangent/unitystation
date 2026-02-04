@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -1522837875078304347, guid: b56fec0300832ce48ade0ddf2e577ee7,
@@ -19,6 +20,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 4fac1629a6b652d46803215274a2c5dd,
         type: 2}
+    - target: {fileID: 2335991647453887416, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 4fac1629a6b652d46803215274a2c5dd,
+        type: 2}
+    - target: {fileID: 3285299878679120978, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: parentID
+      value: b56fec0300832ce48ade0ddf2e577ee7
+      objectReference: {fileID: 0}
     - target: {fileID: 3285299878679120978, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: foreverID
@@ -26,9 +38,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
+      propertyPath: stacksWith.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
       propertyPath: stackSprites.Array.size
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: 'stacksWith.Array.data[0]'
+      value: 
+      objectReference: {fileID: 329588525192369323, guid: 375826004851fb84bbc78b1362c4d6cd,
+        type: 3}
+    - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: InitialstacksWith.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: 'InitialstacksWith.Array.data[0]'
+      value: 
+      objectReference: {fileID: 329588525192369323, guid: 375826004851fb84bbc78b1362c4d6cd,
+        type: 3}
     - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: stackSprites.Array.data[0].SpriteSO
@@ -55,12 +89,72 @@ PrefabInstance:
     - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: stackSprites.Array.data[1].OverAmount
-      value: 3
+      value: 17
       objectReference: {fileID: 0}
     - target: {fileID: 5200803135255930768, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: stackSprites.Array.data[2].OverAmount
-      value: 51
+      value: 34
+      objectReference: {fileID: 0}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[0].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 1d1a12050acb49144b753de71904614c,
+        type: 2}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[1].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 3141e2bf964dcb64596b3a52beb69868,
+        type: 2}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: f4314838b01e33b468ccb7e9bb8d5b1a,
+        type: 2}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[3].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 699e523c4be366f4c902147c30b8c386,
+        type: 2}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[4].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 3cbc309cc235b9941b8e91d29309281e,
+        type: 2}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[0].ingredientIndex
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[1].ingredientIndex
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].ingredientIndex
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[3].ingredientIndex
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8261308650186557929, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[4].ingredientIndex
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8340835308478918493, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
@@ -100,7 +194,7 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 8340835308478918493, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
-      propertyPath: initialTraits.Array.data[1]
+      propertyPath: 'initialTraits.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: f27d5423a79d84fcab6199b0c5a47f4e,
         type: 2}
@@ -120,10 +214,27 @@ PrefabInstance:
       propertyPath: itemSprites.RightHand.Texture
       value: 
       objectReference: {fileID: 2800000, guid: cd822dad686a23d4ab3e308cb0b36b38, type: 3}
+    - target: {fileID: 8340835308478918493, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 4027a423c0c3d9a449a27f11d36c27b7,
+        type: 2}
+    - target: {fileID: 8340835308478918493, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: ff8192db75b04b44aa84486dd196324e,
+        type: 2}
     - target: {fileID: 8410104111733346763, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: Resistances.FireProof
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8410813880369429899, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      propertyPath: _assetId
+      value: 2469038980
       objectReference: {fileID: 0}
     - target: {fileID: 8410813880369429899, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
@@ -163,17 +274,17 @@ PrefabInstance:
     - target: {fileID: 8448331862702718283, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8448331862702718283, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8448331862702718283, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8448331862702718283, guid: b56fec0300832ce48ade0ddf2e577ee7,
         type: 3}
@@ -202,6 +313,13 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8443408387443916863, guid: b56fec0300832ce48ade0ddf2e577ee7,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -6552081043697107899}
   m_SourcePrefab: {fileID: 100100000, guid: b56fec0300832ce48ade0ddf2e577ee7, type: 3}
 --- !u!1 &5770283965274354279 stripped
 GameObject:

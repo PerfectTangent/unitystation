@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq;
+using Logs;
+using Messages.Client;
 using Messages.Client.Interaction;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -62,7 +64,7 @@ namespace UI
 			base.OnPointerEnter(eventData);
 			try
 			{
-				var item = PlayerManager.LocalPlayerScript?.DynamicItemStorage?.GetActiveHandSlot().Item;
+				var item = PlayerManager.LocalPlayerScript?.DynamicItemStorage?.GetActiveHandSlot()?.Item;
 				if (item == null
 				    || itemSlot.Item != null
 				    || itemSlot.NamedSlot == NamedSlot.rightHand
@@ -79,7 +81,7 @@ namespace UI
 			}
 			catch (NullReferenceException exception)
 			{
-				Logger.LogError($"Caught an NRE in UI_ItemSLot.OnPointerEnter() {exception.Message} \n {exception.StackTrace}", Category.UI);
+				Loggy.Error($"Caught an NRE in UI_ItemSLot.OnPointerEnter() {exception.Message} \n {exception.StackTrace}", Category.UI);
 			}
 		}
 
@@ -131,7 +133,15 @@ namespace UI
 				{
 					UIManager.UiDragAndDrop.DropInteracted = true;
 					UIManager.UiDragAndDrop.StopDrag();
-					Inventory.ClientRequestTransfer(fromSlot, itemSlot.ItemSlot);
+					if (UIManager.UiDragAndDrop?.FromSlotCache?.IsAdmins == true || itemSlot?.IsAdmins == true)
+					{
+						AdminInventoryTransferMessage.Send(fromSlot, itemSlot.ItemSlot );
+					}
+					else
+					{
+						Inventory.ClientRequestTransfer(fromSlot, itemSlot.ItemSlot);
+					}
+
 				}
 			}
 			UIManager.UiDragAndDrop.StopDrag();

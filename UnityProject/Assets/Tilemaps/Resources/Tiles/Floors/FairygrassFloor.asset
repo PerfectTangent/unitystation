@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c576ac449c2d45d99890dcfa21598645, type: 3}
   m_Name: FairygrassFloor
   m_EditorClassIdentifier: 
+  <ForeverID>k__BackingField: 7a38e3056e12d754fa7e2537b8b399b1
   displayName: fairygrass
   description: 
   LayerType: 3
   TileType: 3
   RequiredTiles:
   - {fileID: 11400000, guid: 83855008e43a2674d8d6a006ce94326f, type: 2}
+  Mass: 1
   floorTileSounds: {fileID: 11400000, guid: e0953fbd8f90d9a4eaf2c871129716a6, type: 2}
   CanSoundOverride: 0
   atmosPassable: 1
@@ -26,6 +28,7 @@ MonoBehaviour:
   passable: 1
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -50,9 +53,15 @@ MonoBehaviour:
     Acid: 0
     Magic: 0
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions:
   - {fileID: 11400000, guid: 7b6820d9f95c544a8bf274f9125b4941, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 7442924948615764909, guid: 2b266284fc17344419281d8fcde6b385,
     type: 3}
@@ -70,4 +79,6 @@ MonoBehaviour:
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   SoundOnDestroy: []
-  sprite: {fileID: 21300000, guid: 6902624dac204bc48ade4e4b317f269c, type: 3}
+  sprite: {fileID: 21300000, guid: 5104096e3324c854e8f9316e51a65582, type: 3}
+  CanBeHighlightedThroughScanners: 0
+  HighlightObject: {fileID: 0}

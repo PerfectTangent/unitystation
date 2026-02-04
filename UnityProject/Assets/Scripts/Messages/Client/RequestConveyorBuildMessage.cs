@@ -1,6 +1,7 @@
 using System.Linq;
 using Construction;
 using Construction.Conveyors;
+using Logs;
 using Mirror;
 using UnityEngine;
 
@@ -17,16 +18,27 @@ namespace Messages.Client
 			//index of the entry in the ConstructionList.
 			public byte EntryIndex;
 			public ConveyorBelt.ConveyorDirection Direction;
+			public bool Sandboxing;
 		}
 
 		public override void Process(NetMessage msg)
 		{
 			var playerScript = SentByPlayer.Script;
+			if (msg.Sandboxing && AdminCommands.AdminCommandsManager.HasPermission(playerScript.connectionToClient, out var _, "MAP_SPAWN"))
+			{
+				var spawnedObj = Spawn.ServerPrefab(UIManager.BuildMenu.ConveyorBuildMenu.ConveyorBeltPrefab.Prefab, playerScript.RegisterPlayer.WorldPosition)?.GameObject;
+				if (spawnedObj)
+				{
+					var conveyorBelt = spawnedObj.GetComponent<ConveyorBelt>();
+					if (conveyorBelt != null) conveyorBelt.SetBeltFromBuildMenu(msg.Direction);
+				}
+				return;
+			}
+
 			var playerObject = SentByPlayer.GameObject;
 			var clientStorage = playerScript.DynamicItemStorage;
 			var usedSlot = clientStorage.GetActiveHandSlot();
 			if (usedSlot == null || usedSlot.ItemObject == null) return;
-
 			var hasConstructionMenu = usedSlot.ItemObject.GetComponent<BuildingMaterial>();
 			if (hasConstructionMenu == null) return;
 
@@ -48,14 +60,14 @@ namespace Messages.Client
 			if (entry.Prefab == null)
 			{
 				//requires immediate attention, show it regardless of log filter:
-				Logger.Log($"Construction entry is missing prefab for {entry.Name}", Category.Construction);
+				Loggy.Info($"Construction entry is missing prefab for {entry.Name}", Category.Construction);
 				return;
 			}
 
 			var registerTile = entry.Prefab.GetComponent<RegisterTile>();
 			if (registerTile == null)
 			{
-				Logger.LogWarningFormat("Buildable prefab {0} has no registerTile, no idea if it's passable", Category.Construction, entry.Prefab);
+				Loggy.Warning().Format("Buildable prefab {0} has no registerTile, no idea if it's passable", Category.Construction, entry.Prefab);
 			}
 			var builtObjectIsImpassable = registerTile == null || !registerTile.IsPassable(true);
 			foreach (var thingAtPosition in atPosition)
@@ -82,34 +94,44 @@ namespace Messages.Client
 			//build and consume
 			void ProgressComplete()
 			{
-				var spawnedObj = entry.ServerBuild(SpawnDestination.At(playerScript.registerTile), hasConstructionMenu);
+				var spawnedObj = entry.ServerBuild(SpawnDestination.At(playerScript.RegisterPlayer), hasConstructionMenu);
 				if (spawnedObj)
 				{
 					var conveyorBelt = spawnedObj.GetComponent<ConveyorBelt>();
 					if (conveyorBelt != null) conveyorBelt.SetBeltFromBuildMenu(msg.Direction);
 
 					Chat.AddActionMsgToChat(playerObject, $"You finish building the {entry.Name}.",
-						$"{playerObject.ExpensiveName()} finishes building the {entry.Name}.");
+						 $"{playerObject.ExpensiveName()} finishes building the {entry.Name}.");
 				}
 			}
-
 			Chat.AddActionMsgToChat(playerObject, $"You begin building the {entry.Name}...",
 				$"{playerObject.ExpensiveName()} begins building the {entry.Name}...");
 			ToolUtils.ServerUseTool(playerObject, usedSlot.ItemObject,
-				ActionTarget.Tile(playerScript.registerTile.WorldPositionServer), entry.BuildTime,
+				ActionTarget.Tile(playerScript.RegisterPlayer.WorldPositionServer), entry.BuildTime,
 				ProgressComplete);
 		}
 
 		public static NetMessage Send(BuildList.Entry entry, BuildingMaterial hasMenu,
-			ConveyorBelt.ConveyorDirection direction)
+			ConveyorBelt.ConveyorDirection direction, bool isSandbox)
 		{
+			if (isSandbox)
+			{
+				var smsg = new NetMessage
+				{
+					Direction = direction,
+					Sandboxing = isSandbox,
+				};
+				Send(smsg);
+				return smsg;
+			}
 			var entryIndex = hasMenu.BuildList.Entries.ToList().IndexOf(entry);
 			if (entryIndex == -1) return new NetMessage();
 
 			var msg = new NetMessage
 			{
 				EntryIndex = (byte)entryIndex,
-				Direction = direction
+				Direction = direction,
+				Sandboxing = isSandbox,
 			};
 
 			Send(msg);

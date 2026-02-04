@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Scream
   m_EditorClassIdentifier: 
   emoteName: scream
+  EmoteIcon: {fileID: 21300002, guid: 5ac49bdee78232f4e8d7405935643a36, type: 3}
   requiresHands: 0
   allowEmoteWhileInCrit: 1
   isAudibleEmote: 1
@@ -33,6 +34,89 @@ MonoBehaviour:
       m_EditorAssetChanged: 0
   TypedSounds:
   - VoiceRace: {fileID: 11400000, guid: f8cc40dce57da8d4aa283decb92b4507, type: 2}
+    VoiceDatas:
+    - VoiceSex: 1
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/MaleScream1.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/MaleScream2.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/MaleScream3.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/MaleScream4.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/MaleScream5.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/MaleScream6.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+    - VoiceSex: 2
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/FemaleScream1.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/FemaleScream2.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/FemaleScream3.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/FemaleScream4.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Human/Screams/FemaleScream5.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+  - VoiceRace: {fileID: 11400000, guid: 5edc24611f99b9440a3e7b467b15a192, type: 2}
     VoiceDatas:
     - VoiceSex: 1
       Sounds:
@@ -231,4 +315,147 @@ MonoBehaviour:
           m_SubObjectName: 
           m_SubObjectType: 
           m_EditorAssetChanged: 0
+  - VoiceRace: {fileID: 11400000, guid: 9964159d746866b47bbdaf9fea2045ff, type: 2}
+    VoiceDatas:
+    - VoiceSex: 2
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 1.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 2.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 3.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 4.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 5.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 6.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 7.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+    - VoiceSex: 1
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 1.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 2.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 3.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 4.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 5.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 6.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/Voices/Monkey/screams/Scream 7.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+  - VoiceRace: {fileID: 11400000, guid: f0297cb2a01ba64408e02a2944608937, type: 2}
+    VoiceDatas:
+    - VoiceSex: 2
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/NPC/Arial/ArialScream.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+    - VoiceSex: 1
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/NPC/Arial/ArialScream.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
+    - VoiceSex: 0
+      Sounds:
+      - SetLoadSetting: 0
+        AssetAddress: Assets/Prefabs/NPC/Arial/ArialScream.prefab
+        AssetReference:
+          m_AssetGUID: 
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_EditorAssetChanged: 0
   pitchRange: {x: 0.7, y: 1}
+  allowedPlayerTypes: 1
+  Behaviors:
+  - rid: 1202199920717332647
+  references:
+    version: 2
+    RefIds:
+    - rid: 1202199920717332647
+      type: {class: ExhaleOnEmote, ns: ScriptableObjects.RP.EmoteBehaviors, asm: Assets}
+      data:
+        efficiency: 0.65

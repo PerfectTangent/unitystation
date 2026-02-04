@@ -1,10 +1,18 @@
 using System;
 using System.Collections;
+using Logs;
 using UnityEngine;
+using UnityEngine.U2D;
 using Random = UnityEngine.Random;
 
 public class Camera2DFollow : MonoBehaviour
 {
+	public float xCorrectionMultiplier = 0;
+
+	public float AspectRatioCorrectionMultiplier = 1;
+	public float AspectRatioCorrectionPowerMultiplier = 1;
+
+
 	//Static to make sure its the only cam in scene & for later access to camshake
 	public static Camera2DFollow followControl;
 
@@ -12,7 +20,7 @@ public class Camera2DFollow : MonoBehaviour
 	private readonly float lookAheadMoveThreshold = 0.05f;
 	private readonly float lookAheadReturnSpeed = 0.5f;
 
-	private readonly float yOffSet = -0.5f;
+	public float yOffSet = -0.5f;
 
 	private Vector3 cachePos;
 	private Vector3 currentVelocity;
@@ -34,14 +42,12 @@ public class Camera2DFollow : MonoBehaviour
 
 	private bool isShaking;
 
-	private Vector3 lastTargetPosition;
-
 	public GameObject listenerObj;
 
 	private float lookAheadFactor;
 	private Vector3 lookAheadPos;
 	private float lookAheadSave;
-	private float offsetZ = -1f;
+	public float offsetZ = -1f;
 
 	public Transform starsBackground;
 	public float pixelAdjustment = 64f;
@@ -49,6 +55,8 @@ public class Camera2DFollow : MonoBehaviour
 	//Shake Cam
 	private float shakeAmount;
 
+
+	public Transform FOVtarget;
 	public Transform target;
 	public float xOffset = 4f;
 
@@ -59,6 +67,14 @@ public class Camera2DFollow : MonoBehaviour
 
 	[HideInInspector]
 	public Camera cam;
+
+
+	public PixelPerfectCamera PixelPerfectCamera;
+	private Camera _camera;
+
+
+	public bool ODDeven = false;
+	public Vector2 Previous = Vector2.zero;
 
 	private void Awake()
 	{
@@ -76,29 +92,29 @@ public class Camera2DFollow : MonoBehaviour
 
 	private void OnEnable()
 	{
-		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
+		UpdateManager.SetCameraUpdate(UpdateMe);
+
 	}
 
 	private void Start()
 	{
+		_camera = UnityEngine.Camera.main;
 		lookAheadSave = lookAheadFactor;
-		if (target != null)
-		{
-			lastTargetPosition = target.position;
-			offsetZ = (transform.position - target.position).z;
-		}
+
 		transform.parent = null;
 		starsBackground.parent = null;
+		PixelPerfectCamera = this.GetComponent<PixelPerfectCamera>();
 	}
 
 	private void OnDisable()
 	{
-		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+		UpdateManager.SetCameraUpdate(null);
 	}
 
 	//idk I don't know probably should look into the sometime TODO look into this
 	public void SetCameraXOffset()
 	{
+		return;
 		float xOffSet =
 			(transform.position.x - Camera.main.ScreenToWorldPoint(UIManager.Instance.transform.position).x) * 1.38f;
 
@@ -107,18 +123,36 @@ public class Camera2DFollow : MonoBehaviour
 
 	private void UpdateMe()
 	{
-		if(!PlayerManager.LocalPlayerScript){
-			return;
-		}
-		//Really should sort out the load order and then we can remove this check:
-		if(!PlayerManager.LocalPlayerScript.IsGhost && !PlayerManager.LocalPlayerScript.weaponNetworkActions){
-			return;
-		}
+		//VOX!!!!
+		//or 3d Graph to work out what's going on
+
 		if (target != null && !isShaking)
 		{
-			if ( (int)target.position.z == -100 )
-			{ //not following target on invalid coordinates
-				return;
+
+			if (FOVtarget != null)
+			{
+				var fovoffset = FOVtarget.transform.position - target.transform.position;
+				// var oldx = fovoffset.x;
+				//
+				//
+				//
+				// //Loggy.Info(((float)Screen.width / Screen.height).ToString());
+				//
+				// var CorrectionNumber = xCorrectionMultiplier;
+				//
+				// switch (PixelPerfectCamera.assetsPPU)
+				// {
+				// 	case 32:
+				// 		//CorrectionNumber = -0.3f;
+				// 		break;
+				// }
+				// var newx = fovoffset.x *  Mathf.Pow( (((float) Screen.height/  Screen.width) *  AspectRatioCorrectionMultiplier), AspectRatioCorrectionPowerMultiplier);
+				// fovoffset.x = oldx - (newx * CorrectionNumber);
+				lightingSystem.fovCenterOffset = fovoffset;
+			}
+			else
+			{
+				lightingSystem.fovCenterOffset = Vector3.zero;
 			}
 
 			recoilOffset = Vector3.zero;
@@ -147,27 +181,24 @@ public class Camera2DFollow : MonoBehaviour
 
 			}
 
-
-			// only update lookahead pos if accelerating or changed direction
-			float xMoveDelta = (target.position - lastTargetPosition).x;
-
-			bool updateLookAheadTarget = Mathf.Abs(xMoveDelta) > lookAheadMoveThreshold;
-
-			if (updateLookAheadTarget)
+			ODDeven = !ODDeven;
+			if (ODDeven)
 			{
-				lookAheadPos = lookAheadFactor * Vector3.right * Mathf.Sign(xMoveDelta);
+				Previous = recoilOffset;
 			}
 			else
 			{
-				lookAheadPos = Vector3.MoveTowards(lookAheadPos, Vector3.zero, Time.deltaTime * lookAheadReturnSpeed);
+				recoilOffset = Previous;
 			}
 
-			Vector3 aheadTargetPos = target.position + lookAheadPos + Vector3.forward * offsetZ;
+			Vector3 aheadTargetPos =
+				target.gameObject.AssumedWorldPosServer() + new Vector3(0, 0, offsetZ);
 
 			aheadTargetPos.y += yOffSet;
 
 			// Disabled for now since it introduced errors in to pixel perfect light renderer.
 			//aheadTargetPos.x += xOffset;
+
 
 			Vector3 newPos = Vector3.SmoothDamp(transform.position, aheadTargetPos, ref currentVelocity, damping);
 
@@ -179,16 +210,27 @@ public class Camera2DFollow : MonoBehaviour
 
 			// ReSharper disable once HONK1002
 			transform.position = newPos + (Vector3)recoilOffset;
-			listenerObj.transform.position = target.position;
-			starsBackground.position = -newPos * starScroll;
 
-			lastTargetPosition = target.position;
-			if (stencilMask != null && stencilMask.transform.parent != target) {
+			//Used to fix World mouse Position jitter
+			Vector3 cameraPosition = _camera.transform.position;
+			Vector3 roundedCameraPosition = PixelPerfectCamera.RoundToPixel(cameraPosition);
+			Vector3 offset = roundedCameraPosition - cameraPosition;
+			offset.z = -offset.z;
+			Matrix4x4 offsetMatrix = Matrix4x4.TRS(-offset, Quaternion.identity, new Vector3(1.0f, 1.0f, -1.0f));
+
+			_camera.worldToCameraMatrix = offsetMatrix * _camera.transform.worldToLocalMatrix;
+
+
+			if (stencilMask != null && stencilMask.transform.parent != target)
+			{
 				stencilMask.transform.parent = target;
 				stencilMask.transform.localPosition = Vector3.zero;
 			}
 
 		}
+
+
+		CommonInput.CashedMouseWorldPosition = Camera.main.ScreenToWorldPoint(CommonInput.mousePosition);
 	}
 
 	public void SetXOffset(float offset)
@@ -203,6 +245,7 @@ public class Camera2DFollow : MonoBehaviour
 	}
 
 	public void ZeroStars(){
+		if (starsBackground == null) return;
 		starsBackground.transform.position = transform.position;
 	}
 
@@ -219,6 +262,7 @@ public class Camera2DFollow : MonoBehaviour
 	/// <param name="cameraRecoilConfig">configuration for the recoil</param>
 	public void Recoil(Vector2 dir, CameraRecoilConfig cameraRecoilConfig)
 	{
+		if (Manager3D.Is3D) return;
 		if (isShaking) return;
 		this.activeRecoilConfig = cameraRecoilConfig;
 		if (recoilOffsetDestination != Vector2.zero)
@@ -254,6 +298,7 @@ public class Camera2DFollow : MonoBehaviour
 	/// <param name="length"></param>
 	public void Shake(float amt, float length)
 	{
+		if (Manager3D.Is3D) return;
 		//cancel recoil if it is happening
 		if (recoilOffsetDestination != Vector2.zero)
 		{
@@ -273,6 +318,7 @@ public class Camera2DFollow : MonoBehaviour
 
 	private void DoShake()
 	{
+		if (Manager3D.Is3D) return;
 		if (shakeAmount > 0)
 		{
 			Vector3 camPos = transform.position;

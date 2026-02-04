@@ -1,12 +1,10 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using System.Globalization;
 using AdminCommands;
-using DatabaseAPI;
-using Audio.Containers;
-using System.Threading.Tasks;
-using AddressableReferences;
-
+using Logs;
+using Messages.Server.SoundMessages;
+using NaughtyAttributes;
+using TMPro;
+using UnityEngine;
 
 namespace AdminTools
 {
@@ -15,12 +13,62 @@ namespace AdminTools
 	/// </summary>
 	public class AdminGlobalSound : AdminGlobalAudio
 	{
-		public override void PlayAudio(int index) //send sound to audio manager
+		[SerializeField] private Transform warningPage;
+		[SerializeField] private Transform playSettingsPage;
+		[SerializeField] private TMP_Text toPlayText;
+
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField pitch;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField pan;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField volume;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField time;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField minDistance;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField maxDistance;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField spatial;
+		[BoxGroup("Paramter Settings"), SerializeField]
+		private TMP_InputField blend;
+
+		private string audioToPlay;
+
+		public override void PlayAudio(string index) //send sound to audio manager
 		{
-			if (index < audioList.Count)
+			audioToPlay = index;
+			toPlayText.text = index;
+			warningPage.gameObject.SetActive(false);
+			playSettingsPage.gameObject.SetActive(true);
+		}
+
+		private AudioSourceParameters GetSettings()
+		{
+			return new AudioSourceParameters
 			{
-				//AdminCommandsManager.Instance.CmdPlaySound(audioList[index]);
-			}
+				Volume = float.Parse(volume.text.Trim()),
+				Pan = float.Parse(pan.text.Trim()),
+				MinDistance = float.Parse(minDistance.text.Trim()),
+				MaxDistance = float.Parse(maxDistance.text.Trim()),
+				SpatialBlend = float.Parse(blend.text.Trim()),
+				Pitch = float.Parse(pitch.text.Trim()),
+				Time = float.Parse(time.text.Trim()),
+				Spread = float.Parse(spatial.text.Trim())
+			};
+		}
+
+		public void HandlePlayingAudioGlobal()
+		{
+			var settings = GetSettings();
+			settings.MaxDistance = 9290000;
+			AdminCommandsManager.Instance.CmdPlaySound(audioToPlay, settings, true);
+		}
+
+		public void HandlePlayingAudioAtAdminGhost()
+		{
+			AdminCommandsManager.Instance.CmdPlaySoundAtAdminGhost(audioToPlay, GetSettings(), false);
 		}
 	}
 }

@@ -26,7 +26,7 @@ namespace UI.Core.Windows
 		private bool showCoordTeleportRegion = true;
 
 		public event Action<TeleportInfo> onTeleportRequested;
-		public event Action<Vector3> onTeleportToVector;
+		public event Action<Vector3> onTeleportToVectorWorld;
 
 		public List<GameObject> TeleportButtons { get; private set; } = new List<GameObject>();
 
@@ -47,7 +47,7 @@ namespace UI.Core.Windows
 		public void ButtonClicked(TeleportInfo info)
 		{
 			onTeleportRequested?.Invoke(info);
-			if (PlayerManager.LocalPlayer.TryGetComponent<GhostOrbit>(out var orbit) == false) return;
+			if (PlayerManager.LocalPlayerObject.TryGetComponent<GhostOrbit>(out var orbit) == false) return;
 			orbit.CmdStopOrbiting();
 			if (OrbitOnTeleport == false) return;
 			orbit.CmdServerOrbit(info.gameObject);
@@ -55,7 +55,7 @@ namespace UI.Core.Windows
 
 		public void TeleportToVector(Vector3 vector)
 		{
-			onTeleportToVector?.Invoke(vector);
+			onTeleportToVectorWorld?.Invoke(vector);
 		}
 
 		public void CloseWindow()

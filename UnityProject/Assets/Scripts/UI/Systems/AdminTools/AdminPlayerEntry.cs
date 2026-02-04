@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
+using System.Text;
+using Logs;
+using Managers.SettingsManager;
 using Player;
 using UnityEngine;
 using UnityEngine.UI;
@@ -27,40 +29,27 @@ namespace AdminTools
 
 		public AdminPlayerEntryData PlayerData { get; set; }
 
+		/// <summary>
+		/// Populates the PlayerEntry button in admin/mentor panels
+		/// </summary>
+		/// <param name="playerEntryData">The data that will populate the UI</param>
+		/// <param name="onClickEvent">What happens when clicked</param>
+		/// <param name="masterNotification">Reference to notification monobehaviour</param>
+		/// <param name="disableInteract">Should disable the interaction with the button?</param>
+		/// <param name="isForMentor">Is this information for a mentor? (They have less information than admins)</param>
 		public void UpdateButton(AdminPlayerEntryData playerEntryData, Action<AdminPlayerEntry> onClickEvent, GUI_Notification masterNotification = null,
-			bool disableInteract = false, bool hideSensitiveFields = false)
+			bool disableInteract = false, bool isForMentor = false)
 		{
 			parentNotification = masterNotification;
 			OnClickEvent = onClickEvent;
 			PlayerData = playerEntryData;
-
-			if (!hideSensitiveFields)
-			{
-				displayName.text =
-					$"{playerEntryData.name} - {playerEntryData.currentJob}. ACC: {(playerEntryData.isAdmin ? "<color=red>[A]</color>" : "")}{(playerEntryData.isMentor ? "<color=#6400ff>[M]</color>" : "")} {playerEntryData.accountName} {playerEntryData.ipAddress} UUID {playerEntryData.uid}";
-			}
-			else
-			{
-				displayName.text = $"{(playerEntryData.isAdmin ? "<color=red>[A]</color>" : "")}{(playerEntryData.isMentor ? "<color=#6400ff>[M]</color>" : "")} {playerEntryData.accountName}";
-			}
-
-			if (PlayerData.isAntag && !hideSensitiveFields)
-			{
-				displayName.color = antagTextColor;
-			}
-			else
-			{
-				displayName.color = Color.white;
-			}
-
-			if (PlayerData.ipAddress == "")
-			{
-				offlineNot.SetActive(true);
-			}
-			else
-			{
-				offlineNot.SetActive(false);
-			}
+			var displayData = new StringBuilder();
+			AppendBasicInformation(displayData, playerEntryData, isForMentor);
+			AppendAdminMentorStatus(displayData, playerEntryData);
+			AppendPersonalInformation(displayData, playerEntryData, isForMentor);
+			displayName.text = displayData.ToString();
+			displayName.color = playerEntryData.isAntag ? antagTextColor : Color.white;
+			offlineNot.SetActive(!playerEntryData.isOnline);
 
 			if (disableInteract)
 			{
@@ -75,11 +64,46 @@ namespace AdminTools
 			RefreshNotification();
 		}
 
+		private void AppendBasicInformation(StringBuilder builder, AdminPlayerEntryData playerEntryData, bool hideInGameInformation)
+		{
+			builder.Append(playerEntryData.name);
+			if (hideInGameInformation) return;
+			builder.Append(" - ");
+			builder.Append(playerEntryData.currentJob);
+		}
+
+		private void AppendAdminMentorStatus(StringBuilder builder, AdminPlayerEntryData playerEntryData)
+		{
+			if (string.IsNullOrWhiteSpace(playerEntryData.roleColour) == false )
+			{
+				builder.Append($"<color={playerEntryData.roleColour}>[{playerEntryData.roleSmall}]</color>");
+			}
+		}
+
+		private void AppendPersonalInformation(StringBuilder builder, AdminPlayerEntryData playerEntryData, bool hideSensitiveFields)
+		{
+			builder.Append(" ACC: ");
+			builder.Append(playerEntryData.accountName);
+			if (hideSensitiveFields || MiscSettings.Instance.StreamerModeEnabled)
+			{
+				return;
+			}
+			builder.Append(" ");
+			builder.Append(playerEntryData.ipAddress);
+			builder.Append(" UUID ");
+			builder.Append(playerEntryData.uid);
+		}
+
+		public void OnEnable()
+		{
+			RefreshNotification();
+		}
+
 		public void RefreshNotification()
 		{
 			if (parentNotification == null) return;
 
-			if (parentNotification.notifications.ContainsKey(PlayerData.uid))
+			if (PlayerData != null && parentNotification.notifications.ContainsKey(PlayerData.uid))
 			{
 				pendingMsgNotification.ClearAll();
 				pendingMsgNotification.AddNotification(PlayerData.uid,
@@ -103,8 +127,9 @@ namespace AdminTools
 
 		public void ClearMessageNot()
 		{
+			if (PlayerData == null) return;
 			if(parentNotification != null) parentNotification.RemoveNotification(PlayerData.uid);
-			pendingMsgNotification.ClearAll();
+			pendingMsgNotification?.ClearAll();
 		}
 
 		public void SelectPlayer()
@@ -122,9 +147,9 @@ namespace AdminTools
 		{
 			if(recentClick == false) return;
 			var player = PlayerList.Instance.GetPlayerByID(PlayerData.uid);
-			if (player == null || player.Script == null || player.Script.mind.body == null) return;
-			if(PlayerManager.PlayerScript.IsDeadOrGhost == false) AGhost.Ghost();
-			GhostOrbit.Instance.CmdServerOrbit(player.Script.mind.body.gameObject);
+			if (player == null || player.Script == null || player.Mind.Body == null) return;
+			if(PlayerManager.LocalPlayerScript.IsDeadOrGhost == false) AGhost.Ghost();
+			GhostOrbit.Instance.CmdServerOrbit(player.Mind.Body.gameObject);
 		}
 
 		private IEnumerator ClickCooldown()

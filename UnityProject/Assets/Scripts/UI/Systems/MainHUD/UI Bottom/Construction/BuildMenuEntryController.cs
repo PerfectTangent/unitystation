@@ -1,5 +1,6 @@
 using System;
 using Construction;
+using Logs;
 using Messages.Client;
 using UnityEngine;
 using UnityEngine.UI;
@@ -75,7 +76,7 @@ namespace UI.UI_Bottom
 			}
 			else
 			{
-				Logger.LogError($"Construction Entry {entry.Name} doesn't use prefab", Category.Construction);
+				Loggy.Error($"Construction Entry {entry.Name} doesn't use prefab", Category.Construction);
 			}
 
 			entryName.text = entry.Name;
@@ -94,7 +95,15 @@ namespace UI.UI_Bottom
 				return;
 			}
 
-			RequestBuildMessage.Send(entry, buildingMaterial);
+
+			if (int.TryParse(UIManager.BuildMenu.NumberInputField.text, out var numberWanted) == false)
+			{
+				numberWanted = 1;
+				UIManager.BuildMenu.NumberInputField.text = numberWanted.ToString();
+			}
+
+
+			RequestBuildMessage.Send(entry, buildingMaterial, numberWanted);
 			UIManager.BuildMenu.CloseBuildMenu();
 		}
 	}

@@ -79,13 +79,13 @@ namespace Systems.Atmospherics
 
 			if (reactionEnergy > 0)
 			{
-				gasMix.AddGas(Gas.Oxygen, AtmosDefines.FUSION_TRITIUM_MOLES_USED * (reactionEnergy * AtmosDefines.FUSION_TRITIUM_CONVERSION_COEFFICIENT));
-				gasMix.AddGas(Gas.NitrousOxide, AtmosDefines.FUSION_TRITIUM_MOLES_USED * (reactionEnergy * AtmosDefines.FUSION_TRITIUM_CONVERSION_COEFFICIENT));
+				gasMix.AddGasWithTemperature(Gas.Oxygen, AtmosDefines.FUSION_TRITIUM_MOLES_USED * (reactionEnergy * AtmosDefines.FUSION_TRITIUM_CONVERSION_COEFFICIENT), gasMix.Temperature );
+				gasMix.AddGasWithTemperature(Gas.NitrousOxide, AtmosDefines.FUSION_TRITIUM_MOLES_USED * (reactionEnergy * AtmosDefines.FUSION_TRITIUM_CONVERSION_COEFFICIENT), gasMix.Temperature );
 			}
 
 			if (reactionEnergy != 0)
 			{
-				RadiationManager.Instance.RequestPulse(node.Position.ToWorld(node.PositionMatrix).RoundToInt(), Mathf.Max((AtmosDefines.FUSION_RAD_COEFFICIENT/instability)+ AtmosDefines.FUSION_RAD_MAX, 0), rnd.Next(Int32.MinValue, Int32.MaxValue));
+				RadiationManager.Instance.RequestPulse(node.WorldPosition.RoundToInt(), Mathf.Max((AtmosDefines.FUSION_RAD_COEFFICIENT/instability)+ AtmosDefines.FUSION_RAD_MAX, 0), rnd.Next(Int32.MinValue, Int32.MaxValue));
 
 				var newHeatCap = gasMix.WholeHeatCapacity;
 				if (newHeatCap > 0.0003f && (gasMix.Temperature <= AtmosDefines.FUSION_MAXIMUM_TEMPERATURE || reactionEnergy <= 0))

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -7987623581128504728, guid: 157fcff274a3644448d1ff3bdc019619,
@@ -32,6 +33,11 @@ PrefabInstance:
         type: 3}
       propertyPath: initialIntegrity
       value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 3210787376857357156, guid: 157fcff274a3644448d1ff3bdc019619,
+        type: 3}
+      propertyPath: _assetId
+      value: 2093812457
       objectReference: {fileID: 0}
     - target: {fileID: 3210787376857357156, guid: 157fcff274a3644448d1ff3bdc019619,
         type: 3}
@@ -119,6 +125,11 @@ PrefabInstance:
       propertyPath: m_SortingOrder
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6609969044137842044, guid: 157fcff274a3644448d1ff3bdc019619,
+        type: 3}
+      propertyPath: isNotPushable
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7077309542080996789, guid: 157fcff274a3644448d1ff3bdc019619,
         type: 3}
       propertyPath: m_LocalRotation.x
@@ -133,6 +144,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalRotation.z
       value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7936252890283790415, guid: 157fcff274a3644448d1ff3bdc019619,
+        type: 3}
+      propertyPath: parentID
+      value: 157fcff274a3644448d1ff3bdc019619
       objectReference: {fileID: 0}
     - target: {fileID: 7936252890283790415, guid: 157fcff274a3644448d1ff3bdc019619,
         type: 3}
@@ -152,6 +168,17 @@ PrefabInstance:
     - {fileID: 9012874896178120669, guid: 157fcff274a3644448d1ff3bdc019619, type: 3}
     - {fileID: 992935627982901909, guid: 157fcff274a3644448d1ff3bdc019619, type: 3}
     - {fileID: -7987623581128504728, guid: 157fcff274a3644448d1ff3bdc019619, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6436439715640028678, guid: 157fcff274a3644448d1ff3bdc019619,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -916370008663990088}
+    - targetCorrespondingSourceObject: {fileID: 6436439715640028678, guid: 157fcff274a3644448d1ff3bdc019619,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8615718183443782814}
   m_SourcePrefab: {fileID: 100100000, guid: 157fcff274a3644448d1ff3bdc019619, type: 3}
 --- !u!1 &5198140336175476872 stripped
 GameObject:
@@ -171,12 +198,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9e51e431ef59f64ea946349935e5148, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   layerTile: {fileID: 11400000, guid: f12f5073d044ea3458ce449531942979, type: 2}
-  matsOnDeconstruct: {fileID: 8579127030982015588, guid: 66a5287d0bf216847a2f4fe34228a0cf,
-    type: 3}
-  countOfMatsOnDissasemle: 2
+  onDeconstruct:
+  - prefab: {fileID: 8579127030982015588, guid: 66a5287d0bf216847a2f4fe34228a0cf,
+      type: 3}
+    count: 2
   soundOnDeconstruct:
     SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/Effects/Wrench.prefab
@@ -185,13 +214,11 @@ MonoBehaviour:
       m_SubObjectName: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
-  shardsOnDestroy: {fileID: 2265521501557685915, guid: 82677ff961fa72944936cc923625a1bc,
-    type: 3}
-  minCountOfShardsOnDestroy: 1
-  maxCountOfShardsOnDestroy: 2
-  rodsOnDestroy: {fileID: 0}
-  minCountOfRodsOnDestroy: 0
-  maxCountOfRodsOnDestroy: 0
+  onDestroy:
+  - prefab: {fileID: 2265521501557685915, guid: 82677ff961fa72944936cc923625a1bc,
+      type: 3}
+    minCountOnDestroy: 1
+    maxCountOnDestroy: 2
   soundOnDestroy:
     SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/Effects/GlassBreak01.prefab
@@ -212,11 +239,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a459a0316cc4d5b87d046f28dc136c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   matrixDebugLogging: 0
   objectType: 1
-  customNetTransform: {fileID: 6955580113430390666}
+  LiesFlat3D: 0
   prefabTracker: {fileID: 0}
   CurrentsortingGroup: {fileID: 7417356192938935352}
   AtmosPassable: 1
@@ -224,18 +252,6 @@ MonoBehaviour:
   initialPassable: 0
   initialCrawlPassable: 0
   passableExclusionsToThis: []
---- !u!114 &6955580113430390666 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8211889008010393860, guid: 157fcff274a3644448d1ff3bdc019619,
-    type: 3}
-  m_PrefabInstance: {fileID: 1256876796715916942}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5198140336175476872}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!210 &7417356192938935352 stripped
 SortingGroup:
   m_CorrespondingSourceObject: {fileID: 8619587188180753078, guid: 157fcff274a3644448d1ff3bdc019619,

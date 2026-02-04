@@ -13,19 +13,20 @@ MonoBehaviour:
   m_Name: Paramedic
   m_EditorClassIdentifier: 
   jobType: 52
+  jobCategory: 3
   isCrewmember: 1
   lateSpawnIsArrivals: 1
   inventoryPopulator: {fileID: 11400000, guid: f19c080df7b64694fa5cba07af8946d5, type: 2}
   useStandardPopulator: 1
+  useCharacterSettings: 1
+  CustomSpeciesOverwrite: {fileID: 0}
   limit: 2
   priority: 99
-  allowedAccess: 1a00000022000000330000003a0000004600000031000000
-  allowedLowPopAccess: 
-  issuedClearance: 1f0000000d0000000500000006000000280000000c000000
-  issuedLowPopClearance: 1f0000000d0000000500000006000000280000000c000000
+  issuedClearance: 1f0000000d0000000c000000050000000600000028000000
+  issuedLowPopClearance: 
   spells: []
   progress: 60
-  choiceColor: {r: 1, g: 0.93333334, b: 0.9411765, a: 1}
+  choiceColor: {r: 0.086908154, g: 0.648544, b: 0.8773585, a: 1}
   previewSprite: {fileID: 21300000, guid: 9957043fd950684409892d53cf9c2707, type: 3}
   displayName: Paramedic
   difficulty: 1
@@ -45,16 +46,21 @@ MonoBehaviour:
   customProperties:
     m_keys: []
     m_values: 
+  BetterCustomProperties: []
   isTargeteable: 1
   playSound: 1
   spawnSound:
-    SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/AmbientTracks/SpawnSounds/departments/Medical_Spawn.prefab
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   textColor: {r: 1, g: 0.9333334, b: 0.94117653, a: 1}
   backgroundColor: {r: 1, g: 0, b: 0, a: 0}
   specialPlayerPrefab: {fileID: 0}
+  StartingMutations: []
+  references:
+    version: 2
+    RefIds: []

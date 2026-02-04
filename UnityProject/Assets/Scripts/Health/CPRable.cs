@@ -1,4 +1,7 @@
 using HealthV2;
+using HealthV2.Living.PolymorphicSystems;
+using HealthV2.Living.PolymorphicSystems.Bodypart;
+using Items.Implants.Organs;
 using UnityEngine;
 
 /// <summary>
@@ -58,7 +61,7 @@ public class CPRable : MonoBehaviour, ICheckedInteractable<HandApply>
 	private void ServerDoCPR(GameObject performer, GameObject target, BodyPartType TargetBodyPart)
 	{
 		var health = target.GetComponent<LivingHealthMasterBase>();
-		Vector3Int position = health.ObjectBehaviour.AssumedWorldPositionServer();
+		Vector3Int position = health.ObjectBehaviour.registerTile.WorldPosition;
 		MetaDataNode node = MatrixManager.GetMetaDataAt(position);
 
 		bool hasLung = false;
@@ -71,26 +74,28 @@ public class CPRable : MonoBehaviour, ICheckedInteractable<HandApply>
 				{
 					if (organ is Lungs lung)
 					{
-						lung.TryBreathing(node, 1);
+						lung.TryBreathing(node, 1, true);
+						lung.TryBreathing(node, 1, true);
+						lung.TryBreathing(node, 1, true);
 						hasLung = true;
 					}
 
 					if (organ is Heart heart)
 					{
-						heart.Heartbeat(1);
+						heart.ForcedBeats =+ 6;
 						hasHeart = true;
 					}
 				}
 			}
 		}
 
-		if (hasHeart && hasLung)
+		if (hasLung && hasHeart)
 		{
 			Chat.AddActionMsgToChat(
 				performer,
 				$"You perform CPR on {targetName}.",
 				$"{performerName} performs CPR on {targetName}.");
-			Chat.AddExamineMsgFromServer(target, $"You feel fresh air enter your lungs. It feels good!");
+			Chat.AddExamineMsgFromServer(target, $"You feel fresh air enter your lungs and your heart pumping, It feels good!");
 		}
 		else
 		{

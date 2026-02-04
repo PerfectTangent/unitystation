@@ -1,4 +1,9 @@
-﻿using UI.Chat_UI;
+﻿using System;
+using System.Collections;
+using System.Linq;
+using Logs;
+using UI.Chat_UI;
+using UI.Systems.AdminTools.DevTools.Search;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,11 +13,34 @@ using UnityEngine.UI;
 public class GUI_DevSpawner : MonoBehaviour
 {
 
+	public static GUI_DevSpawner Instance;
+
 	[Tooltip("Prefab that should be used for each list item")]
 	public GameObject listItemPrefab;
 	[Tooltip("content panel into which the list items should be placed")]
 	public GameObject contentPanel;
 	public InputField searchBox;
+	public InputField StackAmountBox;
+	public Toggle DEBUGToggle;
+	public Toggle MappingToggle;
+
+	public GameObject Menu;
+
+	public int StackAmount
+	{
+		get
+		{
+
+			if (int.TryParse(StackAmountBox.text, out var number))
+			{
+				return number;
+			}
+			else
+			{
+				return -1;
+			}
+		}
+	}
 
 	[Tooltip("Always perform a wildcard search, with wildcard being added at the end")]
 	public bool alwaysWildcard = true;
@@ -27,9 +55,14 @@ public class GUI_DevSpawner : MonoBehaviour
 
 	private bool isFocused;
 
+	public void Awake()
+	{
+		Instance = this;
+	}
+
 	void Start()
     {
-	    spawnerSearch = SpawnerSearch.ForPrefabs(Spawn.SpawnablePrefabs());
+	    spawnerSearch = SpawnerSearch.ForPrefabs(Spawn.SpawnablePrefabs().ToHashSet());
     }
 
 	private void OnEnable()
@@ -63,6 +96,7 @@ public class GUI_DevSpawner : MonoBehaviour
 	    isFocused = true;
 	    UIManager.IsInputFocus = true;
 	    UIManager.PreventChatInput = true;
+	    UIManager.IsMouseInteractionDisabled = true;
     }
 
     private void InputUnfocus()
@@ -71,7 +105,7 @@ public class GUI_DevSpawner : MonoBehaviour
 	    isFocused = false;
 	    UIManager.IsInputFocus = false;
 	    UIManager.PreventChatInput = false;
-
+	    UIManager.IsMouseInteractionDisabled = false;
 	    //Note: this is what stops the chat box from opening when pressing enter
 	    ChatUI.Instance.StartWindowCooldown();
     }
@@ -84,9 +118,19 @@ public class GUI_DevSpawner : MonoBehaviour
 	    }
     }
 
-    public void Search()
+    public void Search(string SearchOverride = null)
     {
-	    if (searchBox.text.Length < minCharactersForSearch) return;
+	    if (searchBox == null)
+	    {
+		    Loggy.Error("searchBox is null");
+	    }
+
+	    if (string.IsNullOrWhiteSpace(SearchOverride) && searchBox.text.Length < minCharactersForSearch) return;
+
+	    if (contentPanel == null)
+	    {
+		    Loggy.Error("contentPanel is null");
+	    }
 
 		// delete previous results
 	    foreach (Transform child in contentPanel.transform)
@@ -94,7 +138,31 @@ public class GUI_DevSpawner : MonoBehaviour
 		    Destroy(child.gameObject);
 	    }
 
-	    var docs = spawnerSearch.Search(searchBox.text);
+
+
+	    string StringSearch = searchBox.text;
+
+	    if (string.IsNullOrWhiteSpace(SearchOverride) == false)
+	    {
+		    StringSearch = SearchOverride;
+		    bool Cashed = searchWhileTyping;
+		    searchWhileTyping = false;
+		    searchBox.text = SearchOverride;
+		    searchWhileTyping = Cashed;
+	    }
+
+
+	    if (spawnerSearch == null)
+	    {
+		    Loggy.Error("spawnerSearch is null");
+	    }
+
+	    if (DEBUGToggle == null)
+	    {
+		    Loggy.Error("DEBUGToggle is null");
+	    }
+
+	    var docs = spawnerSearch.Search(StringSearch, DEBUGToggle.isOn);
 
 	    // display new results
 	    foreach (var doc in docs)
@@ -114,15 +182,16 @@ public class GUI_DevSpawner : MonoBehaviour
 	public void Open()
 	{
 		_ = SoundManager.Play(CommonSounds.Instance.Click01);
-		Logger.Log("Opening dev spawner menu", Category.NetUI);
-		transform.GetChild(0).gameObject.SetActive(true);
+		Loggy.Info("Opening dev spawner menu", Category.NetUI);
+		Menu.gameObject.SetActive(true);
 		transform.SetAsLastSibling();
+		StackAmountBox.text = "-1";
 	}
 
 	public void Close()
 	{
 		_ = SoundManager.Play(CommonSounds.Instance.Click01);
-		Logger.Log("Closing dev spawner menu", Category.NetUI);
-		transform.GetChild(0).gameObject.SetActive(false);
+		Loggy.Info("Closing dev spawner menu", Category.NetUI);
+		Menu.SetActive(false);
 	}
 }

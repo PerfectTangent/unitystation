@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Mirror;
-using DatabaseAPI;
+using Core.Accounts;
 using Messages.Client.Admin;
 using Messages.Server.AdminTools;
+using Newtonsoft.Json;
 
 
 namespace AdminTools
@@ -18,12 +19,12 @@ namespace AdminTools
 		/// <summary>
 		/// All messages sent and recieved between admins
 		/// </summary>
-		private readonly List<AdminChatMessage> serverAdminChatLogs = new List<AdminChatMessage>();
+		private readonly List<AdminChatMessage> serverAdminChatLogs = new();
 
 		/// <summary>
 		/// The admins client local cache for admin to admin chat
 		/// </summary>
-		private readonly List<AdminChatMessage> clientAdminChatLogs = new List<AdminChatMessage>();
+		private readonly List<AdminChatMessage> clientAdminChatLogs = new();
 
 		public void ClearLogs()
 		{
@@ -44,12 +45,12 @@ namespace AdminTools
 			chatScroll.OnInputFieldSubmit -= OnInputSend;
 		}
 
-		public void ServerAddChatRecord(string message, string userId)
+		public void ServerAddChatRecord(string message, PlayerInfo fromPlayer)
 		{
 			var entry = new AdminChatMessage
 			{
-				fromUserid = userId,
-				Message = message
+				fromUserid = fromPlayer.AccountId,
+				Message =  GameManager.Instance.RoundTime.ToString(@"hh\:mm\:ss") + " - " + $"{fromPlayer.Username}: {message}",
 			};
 
 			serverAdminChatLogs.Add(entry);
@@ -59,7 +60,8 @@ namespace AdminTools
 
 		public void ServerGetUnreadMessages(string adminId, int currentCount, NetworkConnection requestee)
 		{
-			if (!PlayerList.Instance.IsAdmin(adminId)) return;
+
+			if (PlayerList.HasTAGServer(TAG.ADMIN_CHAT,adminId) == false) return;
 
 			if (currentCount >= serverAdminChatLogs.Count)
 			{
@@ -68,7 +70,7 @@ namespace AdminTools
 
 			foreach (var adminChatChunk in serverAdminChatLogs.ToList().Chunk(100))
 			{
-				AdminChatUpdate update = new AdminChatUpdate
+				AdminChatUpdate update = new()
 				{
 					messages = adminChatChunk.ToList()
 				};
@@ -86,7 +88,7 @@ namespace AdminTools
 		{
 			if (string.IsNullOrEmpty(unreadMessagesJson)) return;
 
-			var update = JsonUtility.FromJson<AdminChatUpdate>(unreadMessagesJson);
+			var update = JsonConvert.DeserializeObject<AdminChatUpdate>(unreadMessagesJson);
 			clientAdminChatLogs.AddRange(update.messages);
 
 			chatScroll.AppendChatEntries(update.messages.Cast<ChatEntryData>().ToList());
@@ -94,7 +96,7 @@ namespace AdminTools
 
 		public void OnInputSend(string message)
 		{
-			RequestAdminChatMessage.Send($"{ServerData.Auth.CurrentUser.DisplayName}: {message}");
+			RequestAdminChatMessage.Send(message);
 		}
 	}
 }

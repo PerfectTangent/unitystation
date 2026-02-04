@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using Mirror;
+using SecureStuff;
 using UnityEngine.UI;
 
 namespace IngameDebugConsole
@@ -355,6 +357,7 @@ namespace IngameDebugConsole
 				if (text.Length > 0)
 				{
 					// Execute the command
+					DebugLogConsole.InitializeAsync();
 					DebugLogConsole.ExecuteCommand(text);
 
 					// Snap to bottom and select the latest entry
@@ -600,12 +603,12 @@ namespace IngameDebugConsole
 		{
 			if (Debug.isDebugBuild)
 			{
-				ProfileManager.Instance.StartProfile(30);
-				Logger.Log("Running a local profile, saving on installation folder", Category.DebugConsole);
+				SafeProfileManager.Instance.StartProfile(30);
+				Loggy.Info("Running a local profile, saving on installation folder", Category.DebugConsole);
 			}
 			else
 			{
-				Logger.Log("Unable to run local profile, the build needs to be in development mode", Category.DebugConsole);
+				Loggy.Info("Unable to run local profile, the build needs to be in development mode", Category.DebugConsole);
 			}
 		}
 
@@ -616,12 +619,12 @@ namespace IngameDebugConsole
 		{
 			if (Debug.isDebugBuild)
 			{
-				ProfileManager.Instance.RunMemoryProfile();
-				Logger.Log("Running a local memory profile, saving on installation folder", Category.DebugConsole);
+				SafeProfileManager.Instance.RunMemoryProfile();
+				Loggy.Info("Running a local memory profile, saving on installation folder", Category.DebugConsole);
 			}
 			else
 			{
-				Logger.Log("Unable to run local profile, the build needs to be in development mode", Category.DebugConsole);
+				Loggy.Info("Unable to run local profile, the build needs to be in development mode", Category.DebugConsole);
 			}
 		}
 

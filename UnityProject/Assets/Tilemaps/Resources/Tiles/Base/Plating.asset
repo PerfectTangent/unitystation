@@ -12,11 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c576ac449c2d45d99890dcfa21598645, type: 3}
   m_Name: Plating
   m_EditorClassIdentifier: 
-  displayName: plating
+  <ForeverID>k__BackingField: 83855008e43a2674d8d6a006ce94326f
+  displayName: base plating
   description: 
   LayerType: 4
   TileType: 7
   RequiredTiles: []
+  Mass: 1
   floorTileSounds: {fileID: 11400000, guid: b6656d824eea91648b8ada5f88db78ca, type: 2}
   CanSoundOverride: 0
   atmosPassable: 1
@@ -25,6 +27,7 @@ MonoBehaviour:
   passable: 1
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -49,9 +52,15 @@ MonoBehaviour:
     Acid: 50
     Magic: 0
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 20594944fdc1e8c4f926faf5d0653dae, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 0}
   spawnAmountOnDeconstruct: 0
@@ -70,3 +79,5 @@ MonoBehaviour:
       m_EditorAssetChanged: 0
   SoundOnDestroy: []
   sprite: {fileID: 21300000, guid: c54314c048f30ff4dac54c38943c0083, type: 3}
+  CanBeHighlightedThroughScanners: 0
+  HighlightObject: {fileID: 0}

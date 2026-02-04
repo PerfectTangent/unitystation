@@ -1,8 +1,9 @@
-﻿using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using Initialisation;
-using Managers;
+using Shared.Managers;
 using UnityEngine;
+using Random = System.Random;
 
 public class StringManager : SingletonManager<StringManager>, IInitialise
 {
@@ -23,49 +24,73 @@ public class StringManager : SingletonManager<StringManager>, IInitialise
 
 	void IInitialise.Initialise()
 	{
-		for (int i = 0; i < nameTextFiles.Count; i++)
+		string[] lineEndings = { "\r\n", "\r", "\n" };
+		foreach (var nameFile in nameTextFiles)
 		{
-			string[] lines = nameTextFiles[i].text.Split(
-				new [] { "\r\n", "\r", "\n" },
-				System.StringSplitOptions.None);
-			textObjects.Add(nameTextFiles[i].name, new List<string>(lines));
+			var lines = nameFile.text.Split(lineEndings, StringSplitOptions.None);
+			textObjects.Add(nameFile.name, new List<string>(lines));
 		}
 	}
 
-	public static string GetRandomLizardName(Gender gender)
+	public static string GetRandomLizardName(Gender gender = Gender.NonBinary)
 	{
 		//Uses random gendered name if NonBinary
-		if (gender == Gender.NonBinary) gender = Random.value > 0.5f ? Gender.Male : Gender.Female;
+		if (gender == Gender.NonBinary)
+		{
+			gender = DMMath.Prob(50) ? Gender.Male : Gender.Female;
+		}
 
 		//ToLowerInvariant because ToLower has different behaviour based on culture
 		var genderKey = gender.ToString().ToLowerInvariant();
 
-		//Random.Range is max exclusive and as such .Count can be used directly
-		var randomLizard =
-			Instance.textObjects[$"lizard_{genderKey}"][Random.Range(0, Instance.textObjects[$"lizard_{genderKey}"].Count)];
-
-		return randomLizard;
+		return Instance.textObjects[$"lizard_{genderKey}"].PickRandom();
 	}
 
-	public static string GetRandomMaleName()
+	public static string GetRandomGenericBorgSerialNumberName()
 	{
-		return GetRandomName(Gender.Male);
-	}
-
-	public static string GetRandomFemaleName()
-	{
-		return GetRandomName(Gender.Female);
+		Random random = new Random();
+		int a = random.Next(0, 26);
+		int b = random.Next(0, 26);
+		int num = random.Next(100, 999);
+		char ch1 = (char)('a' + a);
+		char ch2 = (char)('a' + b);
+		return $"{ch1}{ch2}-{num}".ToUpper();
 	}
 
 	/// <summary>
-	/// Combines a random first and last name depending on gender, uses both male and female names if gender is NonBinary
+	/// Combines a random first and last name depending on gender.
+	/// Uses both male and female names if gender is NonBinary. Species aware. Will return humanoid names if no species is specified.
 	/// </summary>
-	public static string GetRandomName(Gender gender)
+	public static string GetRandomName(Gender gender = Gender.NonBinary, string species = "Human")
 	{
-		if (gender == Gender.NonBinary) gender = Random.value > 0.5f ? Gender.Male : Gender.Female; //Uses random gendered name if NonBinary
-		var genderKey = gender.ToString().ToLowerInvariant(); //ToLowerInvariant because ToLower has different behaviour based on culture
-		var firstName = Instance.textObjects[$"first_{genderKey}"][Random.Range(0, Instance.textObjects[$"first_{genderKey}"].Count)]; //Random.Range is max exclusive and as such .Count can be used directly
-		var lastName = Instance.textObjects["last"][Random.Range(0, Instance.textObjects["last"].Count)];
+		//TODO: Make this more generic so we don't hard-code these things all the time.
+		if (species == "Lizard" || species == "Ashwalker")
+		{
+			return GetRandomLizardName(gender);
+		}
+
+		if (species == "Robot" || species == "Cyborg" || species == "Borg")
+		{
+			return GetRandomGenericBorgSerialNumberName();
+		}
+
+		return GetRandomHumanoidName(gender);
+	}
+
+	public static string GetRandomHumanoidName(Gender gender = Gender.NonBinary)
+	{
+		//Uses random gendered name if NonBinary
+		if (gender == Gender.NonBinary)
+		{
+			gender = DMMath.Prob(50) ? Gender.Male : Gender.Female;
+		}
+
+		//ToLowerInvariant because ToLower has different behaviour based on culture
+		var genderKey = gender.ToString().ToLowerInvariant();
+
+		var firstName = Instance.textObjects[$"first_{genderKey}"].PickRandom();
+		var lastName = Instance.textObjects["last"].PickRandom();
+
 		return $"{firstName} {lastName}";
 	}
 }

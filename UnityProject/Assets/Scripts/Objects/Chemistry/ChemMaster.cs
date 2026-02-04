@@ -6,19 +6,22 @@ using Mirror;
 using UnityEngine;
 using Systems.Electricity;
 using Items;
+using Logs;
 
 namespace Chemistry
 {
 	/// <summary>
 	/// Main component for ChemMaster, or Chemical Master™.
 	/// </summary>
-	public class ChemMaster : MonoBehaviour, ICheckedInteractable<HandApply>, IAPCPowerable
+	public class ChemMaster : MonoBehaviour, ICheckedInteractable<HandApply>, IAPCPowerable, ICheckedInteractable<MouseDrop>
 	{
 		[SerializeField] public List<GameObject> ChemMasterProducts;
 
+		public ItemStorage itemStorage;
+
 		private void Start()
 		{
-			ItemStorage itemStorage = GetComponent<ItemStorage>();
+
 			containerSlot = itemStorage.GetIndexedItemSlot(0);
 			bufferItemOne = itemStorage.GetIndexedItemSlot(1);
 			bufferItemTwo = itemStorage.GetIndexedItemSlot(2);
@@ -56,12 +59,12 @@ namespace Chemistry
 
 			//math
 			float space = capacity - currentTotal;
-			Logger.LogTrace($"Buffer| capacity:{capacity} total:{currentTotal} space:{space}", Category.Chemistry);
+			Loggy.Trace($"Buffer| capacity:{capacity} total:{currentTotal} space:{space}", Category.Chemistry);
 
 			//part one of transfer: isolate reagents, add to tempTransfer Mix
 			if (space > 0)
 			{
-				Logger.LogTrace($"BEFORE| Mix:{Container.CurrentReagentMix}", Category.Chemistry);
+				Loggy.Trace($"BEFORE| Mix:{Container.CurrentReagentMix}", Category.Chemistry);
 				if (amount < space)
 				{
 					Container.CurrentReagentMix.Remove(reagent, amount);
@@ -73,7 +76,7 @@ namespace Chemistry
 					tempTransfer.Add(reagent, space);
 				}
 
-				Logger.LogTrace($"AFTER|| Mix:{Container.CurrentReagentMix}", Category.Chemistry);
+				Loggy.Trace($"AFTER|| Mix:{Container.CurrentReagentMix}", Category.Chemistry);
 			}
 
 			//part two of transfer: fill Buffer from tempTransfer Mix
@@ -128,7 +131,7 @@ namespace Chemistry
 					overridingMix.TransferTo(BufferslotOne.CurrentReagentMix, BufferslotOne.MaxCapacity);
 				}
 
-				Logger.LogTrace($"ChemMaster: {gameObject} " +
+				Loggy.Trace($"ChemMaster: {gameObject} " +
 				                $"Reagentmix buffer one after: {BufferslotOne.CurrentReagentMix}", Category.Chemistry);
 			}
 
@@ -138,7 +141,7 @@ namespace Chemistry
 				//Only two containers, and previous math confirms
 				// that tempTransfer amount won't be larger than last buffer
 				overridingMix.TransferTo(BufferslotTwo.CurrentReagentMix, overridingMix.Total);
-				Logger.LogTrace($"ChemMaster: {gameObject} " +
+				Loggy.Trace($"ChemMaster: {gameObject} " +
 				                $"reagentmix buffer two after: {BufferslotTwo.CurrentReagentMix}", Category.Chemistry);
 			}
 		}
@@ -155,14 +158,14 @@ namespace Chemistry
 				BufferslotTwo.CurrentReagentMix.Clear();
 			}
 
-			Logger.LogTrace($"The buffer for ChemMaster {gameObject} is cleared.", Category.Chemistry);
+			Loggy.Trace($"The buffer for ChemMaster {gameObject} is cleared.", Category.Chemistry);
 		}
 
-		public void DispenseProduct(int productId, int numberOfProduct, string newName)
+		public void DispenseProduct(GameObject productId, int numberOfProduct, string newName, int PillproductChoice)
 		{
 			ReagentMix temp = GetBufferMix();
 			//Do Math
-			float maxProductAmount = ChemMasterProducts[productId].GetComponent<ReagentContainer>().MaxCapacity;
+			float maxProductAmount = productId.GetComponent<ReagentContainer>().MaxCapacity;
 			float maxTotalAllProducts = maxProductAmount * numberOfProduct;
 			float amountPerProduct = ((maxTotalAllProducts > temp.Total) ? temp.Total : maxTotalAllProducts)
 			                         / numberOfProduct;
@@ -170,8 +173,13 @@ namespace Chemistry
 			for (int i = 0; i < numberOfProduct; i++)
 			{
 				//Spawn Object
-				var product = Spawn.ServerPrefab(ChemMasterProducts[productId], gameObject.WorldPosServer(),
+				var product = Spawn.ServerPrefab(productId, gameObject.AssumedWorldPosServer(),
 					transform.parent).GameObject;
+
+				if (product.GetComponent<ItemAttributesV2>().HasTrait(CommonTraits.Instance.Pill))
+				{
+					product.GetComponentInChildren<SpriteHandler>().SetCatalogueIndexSprite(PillproductChoice);
+				}
 
 				//Fill Product
 				ReagentContainer productContainer = product.GetComponent<ReagentContainer>();
@@ -265,7 +273,7 @@ namespace Chemistry
 
 		#region Interactions
 
-		private ItemSlot GetBestSlot(GameObject item, ConnectedPlayer subject)
+		private ItemSlot GetBestSlot(GameObject item, PlayerInfo subject)
 		{
 			if (subject == null)
 			{
@@ -280,7 +288,7 @@ namespace Chemistry
 		/// Ejects input container from ChemMaster into best slot available and clears the buffer
 		/// </summary>
 		/// <param name="subject"></param>
-		public void EjectContainer(ConnectedPlayer subject)
+		public void EjectContainer(PlayerInfo subject)
 		{
 			containerSlot.Item.GetComponent<ReagentContainer>().OnReagentMixChanged.Invoke();
 			var bestSlot = GetBestSlot(containerSlot.ItemObject, subject);
@@ -293,9 +301,34 @@ namespace Chemistry
 			UpdateGui();
 		}
 
+		public bool WillInteract(MouseDrop interaction, NetworkSide side)
+		{
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+
+			//only interaction that works is using a reagent container on this
+			if (Validations.HasComponent<ReagentContainer>(interaction.DroppedObject) == false) return false;
+
+			return true;
+		}
+
+		public void ServerPerformInteraction(MouseDrop interaction)
+		{
+
+			if (containerSlot.IsOccupied)
+			{
+				Chat.AddExamineMsgFromServer(interaction.Performer, "The machine already has a beaker in it");
+				return;
+			}
+
+			//Inserts reagent container
+			Inventory.ServerAdd(interaction.DroppedObject, containerSlot);
+			UpdateGui();
+		}
+
+
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			//only interaction that works is using a reagent container on this
 			if (!Validations.HasComponent<ReagentContainer>(interaction.HandObject)) return false;
@@ -305,6 +338,13 @@ namespace Chemistry
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
+
+			if (containerSlot.IsOccupied)
+			{
+				Chat.AddExamineMsgFromServer(interaction.Performer, "The machine already has a beaker in it");
+				return;
+			}
+
 			//Inserts reagent container
 			Inventory.ServerTransfer(interaction.HandSlot, containerSlot);
 			UpdateGui();

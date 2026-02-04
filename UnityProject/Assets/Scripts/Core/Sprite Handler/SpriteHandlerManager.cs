@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Logs;
 using Messages.Server.SpritesMessages;
 using Mirror;
 using UnityEngine;
@@ -12,12 +13,18 @@ public class SpriteHandlerManager : NetworkBehaviour
 	private static SpriteHandlerManager spriteHandlerManager;
 	public static SpriteHandlerManager Instance => spriteHandlerManager;
 
-	public static Dictionary<NetworkIdentity, Dictionary<string, SpriteHandler>> PresentSprites =
-		new Dictionary<NetworkIdentity, Dictionary<string, SpriteHandler>>();
+	public static Dictionary<NetworkIdentity, Dictionary<string, SpriteHandler>> PresentSprites = new Dictionary<NetworkIdentity, Dictionary<string, SpriteHandler>>();
+
+	public static Dictionary<string, SpriteHandler> SpecialPresentSprites = new Dictionary<string, SpriteHandler>();
+
 
 	public Dictionary<SpriteHandler, SpriteChange> QueueChanges = new Dictionary<SpriteHandler, SpriteChange>();
 
 	public Dictionary<SpriteHandler, SpriteChange> NewClientChanges = new Dictionary<SpriteHandler, SpriteChange>();
+
+	public Dictionary<string, SpriteChange> SpecialQueueChanges = new Dictionary<string, SpriteChange>();
+
+	public Dictionary<string, SpriteChange> SpecialNewClientChanges = new Dictionary<string, SpriteChange>();
 
 	private void Awake()
 	{
@@ -35,6 +42,49 @@ public class SpriteHandlerManager : NetworkBehaviour
 			new Task(SpriteCatalogue.Instance.GenerateResistantCatalogue).Start();
 		}
 	}
+	public int Clean()
+	{
+		int ret = 0;
+
+		ret += CleanupUtil.RidDictionaryOfDeadElements(PresentSprites, (u, k) => u != null);
+
+		foreach (var a in PresentSprites)
+		{
+			ret += CleanupUtil.RidDictionaryOfDeadElements(a.Value, (u, k) => k != null);
+
+			foreach (var f in a.Value)
+			{
+				List<Action<Color>> survivor_list = new List<Action<Color>>();
+
+				foreach (var b in f.Value.OnColorChanged)
+				{
+					if ((!(b.Target is UI_ItemImage.ImageAndHandler)) || (b.Target as UI_ItemImage.ImageAndHandler).UIImage != null)
+					{
+						survivor_list.Add(b);
+					}
+				}
+				f.Value.OnColorChanged.Clear();
+				f.Value.OnColorChanged.AddRange(survivor_list);
+			}
+
+			foreach (var f in a.Value)
+			{
+				List<Action<Sprite>> survivor_list = new List<Action<Sprite>>();
+
+				foreach (var b in f.Value.OnSpriteChanged)
+				{
+					if ((!(b.Target is UI_ItemImage.ImageAndHandler)) || (b.Target as UI_ItemImage.ImageAndHandler).UIImage != null)
+					{
+						survivor_list.Add(b);
+					}
+				}
+				f.Value.OnSpriteChanged.Clear();
+				f.Value.OnSpriteChanged.AddRange(survivor_list);
+			}
+		}
+
+		return ret;
+	}
 
 	private void OnEnable()
 	{
@@ -46,8 +96,12 @@ public class SpriteHandlerManager : NetworkBehaviour
 		SceneManager.activeSceneChanged -= OnRoundRestart;
 	}
 
-	void OnRoundRestart(Scene oldScene, Scene newScene)
+	public void OnRoundRestart(Scene oldScene, Scene newScene)
 	{
+		SpecialQueueChanges.Clear();
+		SpecialNewClientChanges.Clear();
+		SpecialPresentSprites.Clear();
+
 		QueueChanges.Clear();
 		NewClientChanges.Clear();
 		PresentSprites.Clear();
@@ -56,7 +110,16 @@ public class SpriteHandlerManager : NetworkBehaviour
 
 	public void OnDestroy()
 	{
+		SceneManager.activeSceneChanged -= OnRoundRestart;
+		SpecialQueueChanges.Clear();
+		SpecialNewClientChanges.Clear();
+		SpecialPresentSprites.Clear();
+
+		QueueChanges.Clear();
+		NewClientChanges.Clear();
 		PresentSprites.Clear();
+		PresentSprites = new Dictionary<NetworkIdentity, Dictionary<string, SpriteHandler>>();
+		SpriteUpdateMessage.UnprocessedData.Clear();
 	}
 
 	public static void UnRegisterHandler(NetworkIdentity networkIdentity, SpriteHandler spriteHandler)
@@ -66,13 +129,13 @@ public class SpriteHandlerManager : NetworkBehaviour
 		{
 			if (spriteHandler?.transform?.parent != null)
 			{
-				Logger.LogError(" RegisterHandler networkIdentity is null on  > " + spriteHandler.transform.parent.name,
+				Loggy.Error(" RegisterHandler networkIdentity is null on  > " + spriteHandler.transform.parent.name,
 					Category.Sprites);
 				return;
 			}
 			else
 			{
-				Logger.LogError(" RegisterHandler networkIdentity is null on  ? ",
+				Loggy.Error(" RegisterHandler networkIdentity is null on  ? ",
 					Category.Sprites);
 			}
 
@@ -88,19 +151,38 @@ public class SpriteHandlerManager : NetworkBehaviour
 	}
 
 
+	public static void RegisterSpecialHandler(string Name, SpriteHandler spriteHandler = null)
+	{
+		if (SpecialPresentSprites.ContainsKey(Name) == false || spriteHandler != null)
+		{
+			SpecialPresentSprites[Name] = spriteHandler;
+		}
+
+	}
+
+	public static void UnRegisterSpecialHandler(string Name)
+	{
+		if (SpecialPresentSprites.ContainsKey(Name))
+		{
+			SpecialPresentSprites.Remove(Name);
+		}
+
+	}
+
+
 	public static void RegisterHandler(NetworkIdentity networkIdentity, SpriteHandler spriteHandler)
 	{
 		if (networkIdentity == null)
 		{
 			if (spriteHandler?.transform?.parent != null)
 			{
-				Logger.LogError(" RegisterHandler networkIdentity is null on  > " + spriteHandler.transform.parent.name,
+				Loggy.Error(" RegisterHandler networkIdentity is null on  > " + spriteHandler.transform.parent.name,
 					Category.Sprites);
 				return;
 			}
 			else
 			{
-				Logger.LogError(" RegisterHandler networkIdentity is null on  ? ",
+				Loggy.Error(" RegisterHandler networkIdentity is null on  ? ",
 					Category.Sprites);
 			}
 		}
@@ -115,7 +197,7 @@ public class SpriteHandlerManager : NetworkBehaviour
 		{
 			if (PresentSprites[networkIdentity][spriteHandler.name] != spriteHandler)
 			{
-				Logger.LogError(
+				Loggy.Error(
 					"SpriteHandler has the same name as another SpriteHandler on the game object > " + spriteHandler.name + " On parent > " +
 					spriteHandler.transform.parent.name + " with Net ID of " +  networkIdentity.netId , Category.Sprites);
 			}
@@ -127,6 +209,12 @@ public class SpriteHandlerManager : NetworkBehaviour
 	public void UpdateNewPlayer(NetworkConnection requestedBy)
 	{
 		SpriteUpdateMessage.SendToSpecified(requestedBy, NewClientChanges);
+		SpriteUpdateMessage.SendToSpecified(requestedBy, SpecialNewClientChanges);
+	}
+
+	public void UpdateSpecialNewPlayer(NetworkConnection requestedBy)
+	{
+		SpriteUpdateMessage.SendToSpecified(requestedBy, SpecialNewClientChanges);
 	}
 
 	public void ClientRequestForceUpdate(List<SpriteHandler> Specifyed ,NetworkConnection requestedBy)
@@ -152,13 +240,18 @@ public class SpriteHandlerManager : NetworkBehaviour
 	{
 		if (QueueChanges.Count > 0)
 		{
-			//Logger.Log(QueueChanges.Count.ToString());
+			//Loggy.Log(QueueChanges.Count.ToString());
 			//32767 Number of management characters
 			//Assuming 50 characters per change
 			//655.34‬ changes
 			//worst-case scenario 600
 			//maybe bring down to 500
 			SpriteUpdateMessage.SendToAll(QueueChanges);
+		}
+
+		if (SpecialQueueChanges.Count > 0)
+		{
+			SpriteUpdateMessage.SendToAll(SpecialQueueChanges); //Probably unsecured but oh well
 		}
 	}
 
@@ -178,6 +271,21 @@ public class SpriteHandlerManager : NetworkBehaviour
 		}
 
 		QueueChanges.Clear();
+
+
+		foreach (var Change in SpecialQueueChanges)
+		{
+			if (SpecialNewClientChanges.ContainsKey(Change.Key))
+			{
+				SpecialNewClientChanges[Change.Key].MergeInto(Change.Value, this);
+			}
+			else
+			{
+				SpecialNewClientChanges[Change.Key] = Change.Value;
+			}
+		}
+
+		SpecialQueueChanges.Clear();
 	}
 
 	//Ignore startingGameObject when calling externally, as its used internally in this functions recursion
@@ -204,7 +312,7 @@ public class SpriteHandlerManager : NetworkBehaviour
 			return GetRecursivelyANetworkBehaviour(gameObject.transform.parent.gameObject, startingGameObject);
 		}
 
-		Logger.LogError($"Was unable to find A NetworkBehaviour for {startingGameObject.ExpensiveName()} Parent: {startingGameObject.transform.parent.OrNull()?.gameObject.ExpensiveName()}" +
+		Loggy.Error($"Was unable to find A NetworkBehaviour for {startingGameObject.ExpensiveName()} Parent: {startingGameObject.transform.parent.OrNull()?.gameObject.ExpensiveName()}" +
 		                $"Parent Parent: {startingGameObject.transform.parent.OrNull()?.parent.OrNull()?.gameObject.ExpensiveName()}",
 			Category.Sprites);
 		return null;
@@ -286,6 +394,7 @@ public class SpriteHandlerManager : NetworkBehaviour
 			if (spriteChange.Empty)
 			{
 				if (PresentSpriteSet != -1) PresentSpriteSet = -1;
+				if (CataloguePage != -1) CataloguePage = -1;
 				Empty = spriteChange.Empty;
 			}
 

@@ -1,9 +1,15 @@
-﻿using System;
+using UnityEngine;
+using System;
 using System.Collections.Generic;
+using Core;
+using Core.Admin.Logs;
 using UnityEngine;
 using Items;
+using Items.PDA;
 using Objects.Machines;
+using Systems.Score;
 using UI.Objects.Cargo;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Mining
 {
@@ -26,7 +32,7 @@ namespace Objects.Mining
 
 		public void LoadNearbyOres()
 		{
-			var nearbyObjects = MatrixManager.GetAdjacent<ObjectBehaviour>(registerObject.WorldPosition, true);
+			var nearbyObjects = MatrixManager.GetAdjacent<UniversalObjectPhysics>(registerObject.WorldPosition, true);
 			foreach (var objectBehaviour in nearbyObjects)
 			{
 				var item = objectBehaviour.gameObject;
@@ -100,7 +106,7 @@ namespace Objects.Mining
 					var inStackable = ore.GetComponent<Stackable>();
 					laborPoints += inStackable.Amount * materialSheet.laborPoint;
 					materialStorageLink.TryAddSheet(materialSheet.materialTrait, inStackable.Amount);
-					_ = Despawn.ServerSingle(ore);
+					ore.GetComponent<Stackable>().ServerConsume(inStackable.Amount);
 				}
 			}
 		}
@@ -113,13 +119,33 @@ namespace Objects.Mining
 			{
 				if (itemSlot.ItemObject)
 				{
-					var idCard = AccessRestrictions.GetIDCard(itemSlot.ItemObject);
+					var pointsToClaim = laborPoints;
+					var idCard = GetId(itemSlot.ItemObject);
+					ScoreMachine.AddToScoreInt(laborPoints, RoundEndScoreBuilder.COMMON_SCORE_LABORPOINTS);
 					idCard.currencies[(int)CurrencyType.LaborPoints] += laborPoints;
 					laborPoints = 0;
 					oreRedemptiomMachineGUI.UpdateLaborPoints(laborPoints);
+					AdminLogsManager.AddNewLog(player,
+						$"{player.ExpensiveName()} has claimed {pointsToClaim} labor points on ID ({idCard.RegisteredName}) " +
+						$"at {gameObject.AssumedWorldPosServer()}.", LogCategory.Interaction);
 					return;
 				}
 			}
+		}
+
+		private IDCard GetId(GameObject id)
+		{
+			if (id.TryGetComponent<IDCard>(out var idCard))
+			{
+				return idCard;
+			}
+
+			if (id.TryGetComponent<PDALogic>(out var pda))
+			{
+				return pda.GetIDCard();
+			}
+
+			return  null;
 		}
 	}
 }

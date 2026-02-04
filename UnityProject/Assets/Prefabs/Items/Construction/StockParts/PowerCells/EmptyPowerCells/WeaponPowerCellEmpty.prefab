@@ -5,17 +5,44 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 862816665872160285, guid: bd07fb3945875634685790190ea8decc,
+        type: 3}
+      propertyPath: parentID
+      value: bd07fb3945875634685790190ea8decc
+      objectReference: {fileID: 0}
     - target: {fileID: 862816665872160285, guid: bd07fb3945875634685790190ea8decc,
         type: 3}
       propertyPath: foreverID
       value: 08ca0ad89e4b8aa479224994b1d576d1
       objectReference: {fileID: 0}
+    - target: {fileID: 4035707108766004751, guid: bd07fb3945875634685790190ea8decc,
+        type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: d4a95b74237e3b84194e40eeec19bb61,
+        type: 3}
+    - target: {fileID: 4035707108766004751, guid: bd07fb3945875634685790190ea8decc,
+        type: 3}
+      propertyPath: m_WasSpriteAssigned
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5039032819772725725, guid: bd07fb3945875634685790190ea8decc,
         type: 3}
       propertyPath: Watts
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5039032819772725725, guid: bd07fb3945875634685790190ea8decc,
+        type: 3}
+      propertyPath: watts
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5969480983207831492, guid: bd07fb3945875634685790190ea8decc,
+        type: 3}
+      propertyPath: _assetId
+      value: 3343999835
       objectReference: {fileID: 0}
     - target: {fileID: 5969480983207831492, guid: bd07fb3945875634685790190ea8decc,
         type: 3}
@@ -83,4 +110,7 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bd07fb3945875634685790190ea8decc, type: 3}

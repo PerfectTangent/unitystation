@@ -5,6 +5,7 @@ using Mirror;
 using NaughtyAttributes;
 using Core.Directionals;
 using Effects.Overlays;
+using Logs;
 
 namespace Systems.Mob
 {
@@ -81,7 +82,10 @@ namespace Systems.Mob
 			health = GetComponent<LivingHealthBehaviour>();
 			rotatable = GetComponent<Rotatable>();
 
-			rotatable.OnRotationChange.AddListener(OnDirectionChange);
+			if (rotatable != null)
+			{
+				rotatable.OnRotationChange.AddListener(OnDirectionChange);
+			}
 		}
 
 		public override void OnStartServer()
@@ -139,11 +143,11 @@ namespace Systems.Mob
 		{
 			if (spriteHandler == null)
 			{
-				Logger.LogWarning($"{nameof(SpriteHandler)} missing on {gameObject}!", Category.Mobs);
+				Loggy.Warning($"{nameof(SpriteHandler)} missing on {gameObject}!", Category.Mobs);
 				return;
 			}
 
-			spriteHandler.ChangeSprite(index, network);
+			spriteHandler.SetCatalogueIndexSprite(index, network);
 		}
 
 		/// <summary>

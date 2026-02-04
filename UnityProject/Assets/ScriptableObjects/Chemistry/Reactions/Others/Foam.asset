@@ -18,6 +18,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 522665e55a63647f6a9959f4b0a52c31, type: 2}
     m_values: 0100000001000000
   useExactAmounts: 0
+  MinimumReactionMultiple: 0
   catalysts:
     m_keys: []
     m_values: 
@@ -31,4 +32,9 @@ MonoBehaviour:
   results:
     m_keys: []
     m_values: 
-  effects: []
+  effectDict:
+    m_keys:
+    - {fileID: 11400000, guid: 03d101d9e8bab6b42ad822b397044a6b, type: 2}
+    m_values: 03000000
+  overrideDisplayName: Foam
+  indexInSingleton: 397

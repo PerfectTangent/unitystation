@@ -2,6 +2,7 @@
 using UnityEngine;
 using Mirror;
 using AddressableReferences;
+using Logs;
 
 namespace Systems.Spells.Wizard
 {
@@ -17,7 +18,22 @@ namespace Systems.Spells.Wizard
 
 		// We sync the teleporting player so we can play animations locally.
 		[SyncVar(hook = nameof(SyncPlayer))]
-		private GameObject teleportingPlayer;
+		private NetworkIdentity IDteleportingPlayer;
+
+		private PlayerInfo teleportingPlayer;
+		private PlayerInfo TeleportingPlayer
+		{
+			get
+			{
+				return teleportingPlayer;
+			}
+			set
+			{
+				teleportingPlayer = value;
+				SyncPlayer(IDteleportingPlayer, value.GameObject.NetWorkIdentity());
+			}
+		}
+
 
 		private Transform playerSprite;
 
@@ -31,38 +47,37 @@ namespace Systems.Spells.Wizard
 		[SyncVar(hook = nameof(SyncAnimation))]
 		private bool syncAnimation = false;
 
-		public void ServerTeleportWizard(GameObject playerToTeleport, Vector3Int toWorldPos)
+		public void ServerTeleportWizard(PlayerInfo playerToTeleport, Vector3Int toWorldPos)
 		{
-			teleportingPlayer = playerToTeleport;
+			TeleportingPlayer = playerToTeleport;
 
 			StartCoroutine(RunTeleportSequence(toWorldPos));
 		}
 
 		private IEnumerator RunTeleportSequence(Vector3Int toWorldPos)
 		{
-			ConnectedPlayer player = teleportingPlayer.Player();
-
 			IsBusy = true;
 			syncAnimation = true;
-			SoundManager.PlayNetworkedAtPos(TeleportDisappear, player.Script.WorldPos);
+			SoundManager.PlayNetworkedAtPos(TeleportDisappear, TeleportingPlayer.Script.WorldPos);
 			yield return WaitFor.Seconds(TELEPORT_ANIMATE_TIME + TELEPORT_TRAVEL_TIME);
 
-			player.Script.PlayerSync.SetPosition(toWorldPos, true);
+			TeleportingPlayer.Script.PlayerSync.AppearAtWorldPositionServer(toWorldPos);
 
 			syncAnimation = false;
-			SoundManager.PlayNetworkedAtPos(TeleportAppear, player.Script.WorldPos);
+			SoundManager.PlayNetworkedAtPos(TeleportAppear, TeleportingPlayer.Script.WorldPos);
 			yield return WaitFor.Seconds(TELEPORT_ANIMATE_TIME);
 			IsBusy = false;
 		}
 
-		private void SyncPlayer(GameObject oldPlayer, GameObject newPlayer)
+		private void SyncPlayer(NetworkIdentity oldPlayer, NetworkIdentity newPlayer)
 		{
-			teleportingPlayer = newPlayer;
-			playerSprite = teleportingPlayer.transform.Find("Sprites");
+			IDteleportingPlayer = newPlayer;
+			if (teleportingPlayer == null) return; //might be setting to null idk
+ 			playerSprite = TeleportingPlayer.GameObject.transform.Find("Sprites");
 
 			if (playerSprite == null)
 			{
-				Logger.LogError($"Couldn't find child GameObject 'Sprites' on {teleportingPlayer}. Has the hierarchy changed?", Category.Spells);
+				Loggy.Error($"Couldn't find child GameObject 'Sprites' on {teleportingPlayer}. Has the hierarchy changed?", Category.Spells);
 			}
 		}
 
@@ -97,7 +112,7 @@ namespace Systems.Spells.Wizard
 
 		private void AnimateOpacity(float alpha, float time)
 		{
-			SpriteHandler[] spriteHandlers = teleportingPlayer.GetComponentsInChildren<SpriteHandler>();
+			SpriteHandler[] spriteHandlers = TeleportingPlayer.GameObject.GetComponentsInChildren<SpriteHandler>();
 
 			foreach (var handler in spriteHandlers)
 			{

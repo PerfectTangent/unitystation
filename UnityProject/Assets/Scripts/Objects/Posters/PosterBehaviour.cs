@@ -8,8 +8,10 @@ namespace Objects
 {
 	public class PosterBehaviour : NetworkBehaviour, ICheckedInteractable<HandApply>
 	{
-		public SpriteRenderer sprite;
+		public SpriteHandler sprite;
 		public GameObject rolledPosterPrefab;
+
+		public ObjectAttributes Attributes;
 
 		[Tooltip("The sound made when the poster is ripped off a wall.")]
 		[SerializeField] private AddressableAudioSource RipSound;
@@ -33,10 +35,19 @@ namespace Objects
 		{
 			posterVariant = p;
 
-			var poster = GetPoster(p);
-			if (poster != null)
+
+			if (CustomNetworkManager.IsServer)
 			{
-				sprite.sprite = poster.sprite;
+
+
+				var poster = GetPoster(p);
+				if (poster != null)
+				{
+					Attributes.ServerSetArticleName(poster.Name);
+					Attributes.ServerSetArticleDescription(poster.Description);
+
+					sprite.SetSpriteSO(poster.spriteSo);
+				}
 			}
 		}
 
@@ -55,7 +66,7 @@ namespace Objects
 				}
 				else
 				{
-					return ContrabandPosters[Random.Range(0, OfficialPosters.Count - 1)];
+					return ContrabandPosters[Random.Range(0, ContrabandPosters.Count - 1)];
 				}
 			}
 
@@ -66,7 +77,7 @@ namespace Objects
 
 			if (p == Posters.RandomContraband)
 			{
-				return ContrabandPosters[Random.Range(0, OfficialPosters.Count - 1)];
+				return ContrabandPosters[Random.Range(0, ContrabandPosters.Count - 1)];
 			}
 
 			var index = OfficialPosters.FindIndex(x => x.PosterName == p);
@@ -108,7 +119,7 @@ namespace Objects
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			var pos = interaction.Performer.WorldPosServer();
+			var pos = interaction.Performer.AssumedWorldPosServer();
 			var pna = interaction.Performer.GetComponent<PlayerNetworkActions>();
 			var item = pna.GetActiveHandItem();
 			if (Validations.HasItemTrait(item, CommonTraits.Instance.Wirecutter))
@@ -123,9 +134,13 @@ namespace Objects
 				{
 					Chat.AddExamineMsgFromServer(interaction.Performer, "You carefully remove the poster from the wall.");
 
-					rolledPosterPrefab.GetComponent<RolledPoster>().posterVariant = posterVariant;
 
-					Spawn.ServerPrefab(rolledPosterPrefab, pos, interaction.Performer.transform.parent);
+
+					var Poster =  Spawn.ServerPrefab(rolledPosterPrefab, pos, interaction.Performer.transform.parent);
+					var Rolled =Poster.GameObject.GetComponent<RolledPoster>();
+					Rolled.posterVariant = posterVariant;
+					Rolled.InitialPoster =  posterVariant;
+
 				}
 
 				_ = Despawn.ServerSingle(gameObject);
@@ -138,8 +153,8 @@ namespace Objects
 				return;
 			}
 
-			Chat.AddLocalMsgToChat(interaction.Performer.ExpensiveName() +
-								   " rips the poster in a single, decisive motion!", interaction.Performer);
+			Chat.AddActionMsgToChat(interaction.Performer, interaction.Performer.ExpensiveName() +
+															" rips the poster in a single, decisive motion!");
 			SoundManager.PlayNetworkedAtPos(RipSound, pos, sourceObj: gameObject);
 
 			SyncPosterType(posterVariant, Posters.Ripped);

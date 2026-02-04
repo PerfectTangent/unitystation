@@ -1,7 +1,9 @@
 ﻿using System;
+using Core;
 using UnityEngine;
 using UnityEngine.UI;
 using Objects;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace AdminTools
 {
@@ -12,7 +14,7 @@ namespace AdminTools
 	public class AdminOverlayPanel : MonoBehaviour
 	{
 		[SerializeField] private Text displayText = null;
-		private ObjectBehaviour targetObjBehaviour;
+		private UniversalObjectPhysics targetObjBehaviour;
 		private AdminOverlay adminOverlay;
 		private Transform target;
 		private Vector3 followOffset;
@@ -33,7 +35,7 @@ namespace AdminTools
 		{
 			if (objectToFollow == null) return;
 
-			targetObjBehaviour = objectToFollow.GetComponent<ObjectBehaviour>();
+			targetObjBehaviour = objectToFollow.GetComponent<UniversalObjectPhysics>();
 			target = objectToFollow.transform;
 
 			cam = Camera.main;
@@ -68,11 +70,13 @@ namespace AdminTools
 
 		private void OnEnable()
 		{
+			if (CustomNetworkManager.IsHeadless) return;
 			UpdateManager.Add(CallbackType.FIXED_UPDATE, FixedUpdateMe);
 		}
 
 		private void OnDisable()
 		{
+			if (CustomNetworkManager.IsHeadless) return;
 			UpdateManager.Remove(CallbackType.FIXED_UPDATE, FixedUpdateMe);
 		}
 
@@ -89,11 +93,11 @@ namespace AdminTools
 			// check container:
 			if(targetObjBehaviour != null)
 			{
-				if (targetObjBehaviour.parentContainer != null)
+				if (targetObjBehaviour.ContainedInObjectContainer != null)
 				{
-					if (targetObjBehaviour.parentContainer.transform != target)
+					if (targetObjBehaviour.ContainedInObjectContainer.transform != target)
 					{
-						target = targetObjBehaviour.parentContainer.transform;
+						target = targetObjBehaviour.ContainedInObjectContainer.transform;
 					}
 				}
 				else

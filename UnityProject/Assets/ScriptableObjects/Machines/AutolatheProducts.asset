@@ -134,6 +134,33 @@ MonoBehaviour:
         - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
         m_values: d606000090010000
       productionTime: 4
+    - name: Toolbox
+      product: {fileID: 8568672687853555390, guid: 5e6f53b64c8b43c4285d171f4a9346a3,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        m_values: f4010000
+      productionTime: 4
+    - name: item research scanner
+      product: {fileID: 4741038444309498077, guid: 36fae238052a2d449b742db0be4538f6,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        - {fileID: 11400000, guid: aad81582143ba4f4fb4f4c99563f715f, type: 2}
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: f4010000fa000000fa000000
+      productionTime: 4
+    - name: Cable Coil High
+      product: {fileID: 1431646644770877665, guid: 288980126acf5f441841169958c31630,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: 0a00000005000000
+      productionTime: 4
     - name: Cable Coil
       product: {fileID: 5680136605834777345, guid: c3e6805b264a935428b0de415ea57943,
         type: 3}
@@ -143,13 +170,14 @@ MonoBehaviour:
         - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
         m_values: 0a00000005000000
       productionTime: 4
-    - name: Toolbox
-      product: {fileID: 8568672687853555390, guid: 5e6f53b64c8b43c4285d171f4a9346a3,
+    - name: Cable Coil Low
+      product: {fileID: 7657921970005526780, guid: 7f32e42309899114b9c122f261161bc5,
         type: 3}
       materialToAmounts:
         m_keys:
         - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
-        m_values: f4010000
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: 0a00000005000000
       productionTime: 4
   - categoryName: Construction
     products:
@@ -274,7 +302,7 @@ MonoBehaviour:
       materialToAmounts:
         m_keys:
         - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
-        m_values: d0070000
+        m_values: c8000000
       productionTime: 4
     - name: Speed Loader (.38)
       product: {fileID: 3421280542771565670, guid: 4262f7c3dbc59a8499d9f780d06bd0ad,
@@ -282,8 +310,32 @@ MonoBehaviour:
       materialToAmounts:
         m_keys:
         - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
-        m_values: 204e0000
+        m_values: e8030000
       productionTime: 4
+    - name: Buckshot Shell
+      product: {fileID: 4746090753305054212, guid: 275e5e346ea26524b98998796d344f4f,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        m_values: c8000000
+      productionTime: 4
+    - name: 4.6x30mm round
+      product: {fileID: 3437603126134050121, guid: f384b48623b6e474dbdfd434f5958455,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        m_values: 64000000
+      productionTime: 1
+    - name: 9mm Round
+      product: {fileID: 5107909693011956803, guid: 5d37ebc7a0cbd0948a172b21dd46ca54,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        m_values: 50000000
+      productionTime: 1
   - categoryName: Medical
     products:
     - name: Beaker
@@ -310,6 +362,23 @@ MonoBehaviour:
         - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
         - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
         m_values: c800000064000000
+      productionTime: 4
+    - name: Mutation Grabber
+      product: {fileID: 662671204213232715, guid: f366650cffd96f94fba163684087ba01,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: c800000064000000
+      productionTime: 4
+    - name: Empty blood pack
+      product: {fileID: 8672458043538070217, guid: f15d6d62ed2214741a08dfe33bffa622,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: 64000000
       productionTime: 4
   - categoryName: Dinnerware
     products:
@@ -339,6 +408,22 @@ MonoBehaviour:
         - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
         - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
         m_values: 6400000064000000
+      productionTime: 4
+    - name: Medium Machine Connector
+      product: {fileID: 2576181618821966758, guid: d88c145d60cabfd4092f839650cea997,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        m_values: 64000000
+      productionTime: 4
+    - name: Low Machine Connector
+      product: {fileID: 783131783223160221, guid: eb3039e757a51bd42aa5d92b0a3711ef,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        m_values: 64000000
       productionTime: 4
   - categoryName: T-Comm
     products:
@@ -404,6 +489,15 @@ MonoBehaviour:
         - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
         m_values: 64000000
       productionTime: 0.8
+    - name: Rapid Part Exchange Device
+      product: {fileID: 3353754686357998988, guid: f8fda732ffebabe4e897f6a05b95c450,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: 1027000088130000
+      productionTime: 3
   - categoryName: Misc
     products:
     - name: Basic Power Cell
@@ -504,4 +598,13 @@ MonoBehaviour:
         - {fileID: 11400000, guid: aad81582143ba4f4fb4f4c99563f715f, type: 2}
         - {fileID: 11400000, guid: 34a32a7e1dca6124e9b583dd262acb0a, type: 2}
         m_values: 64000000f401000064000000f4010000
+      productionTime: 5
+    - name: Atmospheric Grenade
+      product: {fileID: 1273544886000789325, guid: 9048a2e02f9e4d4cabf6fb1fe495a5ce,
+        type: 3}
+      materialToAmounts:
+        m_keys:
+        - {fileID: 11400000, guid: 80c7380282adee649aa0c255f79bc5f2, type: 2}
+        - {fileID: 11400000, guid: cde83a8cd1e2083479c40e5e1c19292b, type: 2}
+        m_values: f401000032000000
       productionTime: 5

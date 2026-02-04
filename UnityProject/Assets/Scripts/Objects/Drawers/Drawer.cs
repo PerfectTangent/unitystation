@@ -4,15 +4,17 @@ using System.Linq;
 using UnityEngine;
 using Mirror;
 using AddressableReferences;
+using Core;
+using Logs;
 using Messages.Server.SoundMessages;
 using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Drawers
 {
 	/// <summary>
 	/// A generic drawer component designed for multi-tile drawer objects.
 	/// </summary>
-	[RequireComponent(typeof(ObjectBehaviour))] // For setting held items' containers to the drawer.
 	[ExecuteInEditMode]
 	public class Drawer : NetworkBehaviour, IServerLifecycle, ICheckedInteractable<HandApply>, IEscapable
 	{
@@ -39,7 +41,7 @@ namespace Objects.Drawers
 
 		protected RegisterObject registerObject;
 		protected Rotatable rotatable;
-		protected PushPull drawerPushPull;
+		protected UniversalObjectPhysics drawerPushPull;
 		protected SpriteHandler drawerSpriteHandler;
 
 		protected Matrix Matrix => registerObject.Matrix;
@@ -49,8 +51,8 @@ namespace Objects.Drawers
 		protected Vector3Int TrayLocalPosition => ((Vector3)TrayWorldPosition).ToLocalInt(Matrix);
 
 		protected GameObject tray;
-		protected CustomNetTransform trayTransform;
-		protected ObjectBehaviour trayBehaviour;
+		protected UniversalObjectPhysics ObjectPhysics;
+		protected UniversalObjectPhysics trayBehaviour;
 		protected ObjectContainer container;
 		protected SpriteHandler traySpriteHandler;
 
@@ -69,7 +71,7 @@ namespace Objects.Drawers
 		{
 			registerObject = GetComponent<RegisterObject>();
 			rotatable = GetComponent<Rotatable>();
-			drawerPushPull = GetComponent<PushPull>();
+			drawerPushPull = GetComponent<UniversalObjectPhysics>();
 			container = GetComponent<ObjectContainer>();
 			drawerSpriteHandler = GetComponentInChildren<SpriteHandler>();
 		}
@@ -91,7 +93,7 @@ namespace Objects.Drawers
 			SpawnResult traySpawn = Spawn.ServerPrefab(trayPrefab, DrawerWorldPosition);
 			if (!traySpawn.Successful)
 			{
-				Logger.LogError($"Failed to spawn tray! Is {name} prefab missing reference to {nameof(traySpawn)} prefab?",
+				Loggy.Error($"Failed to spawn tray! Is {name} prefab missing reference to {nameof(traySpawn)} prefab?",
 					Category.Machines);
 				return;
 			}
@@ -99,10 +101,9 @@ namespace Objects.Drawers
 
 			tray.GetComponent<InteractableDrawerTray>().parentDrawer = this;
 			traySpriteHandler = tray.GetComponentInChildren<SpriteHandler>();
-			trayTransform = tray.GetComponent<CustomNetTransform>();
-			trayBehaviour = tray.GetComponent<ObjectBehaviour>();
-			trayBehaviour.parentContainer = drawerPushPull;
-			trayBehaviour.VisibleState = false;
+			ObjectPhysics = tray.GetComponent<UniversalObjectPhysics>();
+			trayBehaviour = ObjectPhysics;
+			trayBehaviour.StoreTo(container);
 
 			UpdateSpriteState();
 			UpdateSpriteOrientation();
@@ -144,17 +145,17 @@ namespace Objects.Drawers
 
 		private void UpdateSpriteState()
 		{
-			drawerSpriteHandler.ChangeSprite((int)drawerState);
+			drawerSpriteHandler.SetCatalogueIndexSprite((int)drawerState);
 		}
 
 		private void UpdateSpriteOrientation()
 		{
 			int spriteVariant = (int)GetSpriteDirection();
-			drawerSpriteHandler.ChangeSpriteVariant(spriteVariant);
+			drawerSpriteHandler.SetSpriteVariant(spriteVariant);
 
 			if (traySpriteHandler != null)
 			{
-				traySpriteHandler.ChangeSpriteVariant(spriteVariant);
+				traySpriteHandler.SetSpriteVariant(spriteVariant);
 			}
 		}
 
@@ -176,7 +177,7 @@ namespace Objects.Drawers
 
 		public virtual bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.HandObject != null) return false;
 
 			return true;
@@ -205,8 +206,8 @@ namespace Objects.Drawers
 		public virtual void OpenDrawer()
 		{
 			if(drawerState == DrawerState.Open) return;
-			trayBehaviour.parentContainer = null;
-			trayTransform.SetPosition(TrayWorldPosition);
+			trayBehaviour.StoreTo(null);
+			ObjectPhysics.AppearAtWorldPositionServer(TrayWorldPosition);
 
 			container.RetrieveObjects(TrayWorldPosition);
 
@@ -217,9 +218,7 @@ namespace Objects.Drawers
 
 		public virtual void CloseDrawer()
 		{
-			trayBehaviour.parentContainer = drawerPushPull;
-			trayBehaviour.VisibleState = false;
-
+			trayBehaviour.StoreTo(container);
 			GatherObjects();
 			AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: Random.Range(0.8f, 1.2f));
 			SoundManager.PlayNetworkedAtPos(BinCloseSFX, DrawerWorldPosition, audioSourceParameters, sourceObj: gameObject);
@@ -228,11 +227,11 @@ namespace Objects.Drawers
 
 		protected virtual void GatherObjects()
 		{
-			var items = Matrix.Get<ObjectBehaviour>(TrayLocalPosition, true);
-			foreach (ObjectBehaviour item in items)
+			var items = Matrix.Get<UniversalObjectPhysics>(TrayLocalPosition, true);
+			foreach (var item in items)
 			{
 				//Prevents stuff like cameras ending up inside (check for health in case player wearing mag boots)
-				if(item.IsPushable == false && item.TryGetComponent<HealthV2.LivingHealthMasterBase>(out _) == false) continue;
+				if(item.IsNotPushable && item.TryGetComponent<HealthV2.LivingHealthMasterBase>(out _) == false) continue;
 
 				if (storePlayers == false && item.TryGetComponent<PlayerScript>(out _)) continue;
 
@@ -242,7 +241,7 @@ namespace Objects.Drawers
 			}
 		}
 
-		public void EntityTryEscape(GameObject entity,Action ifCompleted)
+		public void EntityTryEscape(GameObject entity,Action ifCompleted, MoveAction moveAction)
 		{
 			if(entity.Player() == null) return;
 			if (escapeTime <= 0.1f)

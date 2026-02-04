@@ -73,6 +73,8 @@ namespace Objects
 		[NonSerialized]
 		public UnityEvent<bool> OnStateChange = new UnityEvent<bool>();
 
+		private Vector3 previousDetectPosition;
+
 		private void Awake()
 		{
 			apcPoweredDevice = GetComponent<APCPoweredDevice>();
@@ -101,7 +103,11 @@ namespace Objects
 					ToggleLight(GlobalLightStatus);
 				}
 
-				apcPoweredDevice.OrNull()?.OnStateChangeEvent.AddListener(PowerStateChanged);
+				if (apcPoweredDevice != null)
+				{
+					apcPoweredDevice.OnStateChangeEvent += PowerStateChanged;
+				}
+
 				integrity.OnWillDestroyServer.AddListener(OnCameraDestruction);
 
 				if (motionSensingCamera)
@@ -115,10 +121,21 @@ namespace Objects
 		{
 			cameras[securityCameraChannel].Remove(this);
 
-			apcPoweredDevice.OrNull()?.OnStateChangeEvent.RemoveListener(PowerStateChanged);
+			if (apcPoweredDevice != null)
+			{
+				apcPoweredDevice.OnStateChangeEvent -= PowerStateChanged;
+			}
+
 			integrity.OnWillDestroyServer.RemoveListener(OnCameraDestruction);
 
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, MotionSensingUpdate);
+		}
+
+		private void OnDestroy()
+		{
+			//(Max): Turn this into a serialized action!!
+			// Unity events suck major balls, and cause a lot of GC.
+			OnStateChange.RemoveAllListeners();
 		}
 
 		#region Ai Camera Switching Interaction
@@ -138,7 +155,7 @@ namespace Objects
 		{
 			if (interaction.Performer.TryGetComponent<AiPlayer>(out var aiPlayer) == false) return;
 
-			if(aiPlayer.OpenNetworks.Contains(securityCameraChannel) == false) return;
+			if (aiPlayer.OpenNetworks.Contains(securityCameraChannel) == false) return;
 
 			if (cameraActive == false)
 			{
@@ -169,7 +186,7 @@ namespace Objects
 		[Client]
 		private void SyncStatus(bool oldState, bool newState)
 		{
-			if(PlayerManager.LocalPlayer.OrNull()?.GetComponent<AiPlayer>() == null) return;
+			if(PlayerManager.LocalPlayerObject.OrNull()?.GetComponent<AiPlayer>() == null) return;
 
 			ToggleAiSprite(newState);
 
@@ -199,9 +216,9 @@ namespace Objects
 
 		public void SetUp(PlayerScript player)
 		{
-			if(player.connectedPlayer?.Connection == null) return;
+			if(player.PlayerInfo?.Connection == null) return;
 
-			player.playerNetworkActions.TargetRpcOpenInput(gameObject, "Camera Channel", securityCameraChannel);
+			player.PlayerNetworkActions.TargetRpcOpenInput(gameObject, "Camera Channel", securityCameraChannel);
 		}
 
 		private void SetNewChannel(string oldState, string newState)
@@ -335,17 +352,17 @@ namespace Objects
 
 		#region Power
 
-		private void PowerStateChanged(Tuple<PowerState, PowerState> oldAndNewStates)
+		private void PowerStateChanged(PowerState Old, PowerState newState)
 		{
 			//If now off turn off
-			if (oldAndNewStates.Item2 == PowerState.Off)
+			if (newState == PowerState.Off)
 			{
 				ServerSetCameraState(false);
 				return;
 			}
 
 			//If was off turn on if wires not cut
-			if (oldAndNewStates.Item1 == PowerState.Off && wiresCut == false)
+			if (newState == PowerState.On && wiresCut == false)
 			{
 				ServerSetCameraState(true);
 			}
@@ -359,8 +376,8 @@ namespace Objects
 		private void ServerSetCameraState(bool newState)
 		{
 			cameraActive = newState;
-			spriteHandler.OrNull()?.ChangeSprite(cameraActive ? 1 : 0);
-			OnStateChange.Invoke(newState);
+			spriteHandler.OrNull()?.SetCatalogueIndexSprite(cameraActive ? 1 : 0);
+			OnStateChange?.Invoke(newState);
 
 			//On state change, resync number of active cameras
 			SyncNumberOfCameras();
@@ -371,7 +388,7 @@ namespace Objects
 		{
 			foreach (var player in PlayerList.Instance.GetAllPlayers())
 			{
-				if(player.Script.PlayerState != PlayerScript.PlayerStates.Ai) continue;
+				if(player.Script.PlayerType != PlayerTypes.Ai) continue;
 
 				if (player.Script.TryGetComponent<AiPlayer>(out var aiPlayer) == false) continue;
 
@@ -425,7 +442,7 @@ namespace Objects
 				if (mob.TryGetComponent<PlayerScript>(out var script))
 				{
 					//Only target normal players and alive players can trigger sensor
-					if(script.PlayerState != PlayerScript.PlayerStates.Normal || script.IsDeadOrGhost) continue;
+					if(script.IsNormal == false || script.IsDeadOrGhost) continue;
 
 					worldPos = script.WorldPos;
 				}
@@ -435,7 +452,7 @@ namespace Objects
 					//Only alive mobs can trigger sensor
 					if(mobAi.IsDead) continue;
 
-					worldPos = mobAi.Cnt.ServerPosition;
+					worldPos = mobAi.ObjectPhysics.transform.position;
 				}
 				else
 				{
@@ -449,7 +466,13 @@ namespace Objects
 				//Check to see if we hit a wall or closed door
 				if(linecast.ItHit) continue;
 
+				//Don't spam the detect if the player hasn't moved
+				if(previousDetectPosition == worldPos) continue;
+				previousDetectPosition = worldPos;
+
 				SendAlert(orderedMobs, cameraPos);
+
+				//Only need to detect once
 				break;
 			}
 		}
@@ -458,17 +481,18 @@ namespace Objects
 		{
 			foreach (var player in PlayerList.Instance.GetAllPlayers())
 			{
-				if(player.Script.PlayerState != PlayerScript.PlayerStates.Ai) continue;
+				if(player.Script.PlayerType != PlayerTypes.Ai) continue;
 
 				Chat.AddExamineMsgFromServer(player, $"ALERT: {gameObject.name} motion sensor activated");
 			}
 
+			//Send message to nearby players seeing the camera detect them
 			foreach (var mob in colliders)
 			{
 				if(mob.TryGetComponent<PlayerScript>(out var script) == false) continue;
 
 				//Only target normal players and alive players
-				if(script.PlayerState != PlayerScript.PlayerStates.Normal || script.IsDeadOrGhost) continue;
+				if(script.PlayerType != PlayerTypes.Normal || script.IsDeadOrGhost) continue;
 
 				var linecast = MatrixManager.Linecast(cameraPos,
 					LayerTypeSelection.Walls, LayerMask.GetMask("Door Closed", "Walls"), script.WorldPos);

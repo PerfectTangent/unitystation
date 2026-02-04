@@ -1,18 +1,15 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-using UI.Core.NetUI;
-using UI.Objects.Robotics;
+﻿using UI.Core.NetUI;
 
 namespace UI.Objects
 {
 	public class GUI_RDProMaterialEntry : DynamicEntry
 	{
-		private GUI_RDProductionMachine RDProMasterTab => MasterTab as GUI_RDProductionMachine;
+		private GUI_RDProductionMachine RDProMasterTab => containedInTab as GUI_RDProductionMachine;
 
 		private ItemTrait materialType;
 		private int currentAmount;
 
-		private NetLabel amountLabel;
+		private NetText_label amountLabel;
 
 		private NetInteractiveButton buttonOne;
 		private NetInteractiveButton buttonTen;
@@ -41,12 +38,12 @@ namespace UI.Objects
 				switch (nameBeforeIndex)
 				{
 					case "MaterialName":
-						((NetUIElement<string>)element).SetValueServer(CraftingManager.MaterialSheetData[material].displayName + ":");
+						((NetUIElement<string>)element).MasterSetValue(CraftingManager.MaterialSheetData[material].displayName + ":");
 						break;
 
 					case "MaterialAmount":
-						((NetUIElement<string>)element).SetValueServer(currentAmount + " cm3");
-						amountLabel = element as NetLabel;
+						((NetUIElement<string>)element).MasterSetValue(currentAmount + " cm3");
+						amountLabel = element as NetText_label;
 						break;
 
 					case "OneSheetButton":

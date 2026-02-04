@@ -1,3 +1,4 @@
+using Core.Admin.Logs;
 using Mirror;
 using DiscordWebhook;
 using InGameEvents;
@@ -14,7 +15,7 @@ namespace Messages.Client.Admin
 
 		public override void Process(NetMessage netMsg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.ROUND_RANDOM_EVENTS) == false) return;
 
 			if (InGameEventsManager.Instance.RandomEventsAllowed == netMsg.RandomEventsAllowed) return;
 
@@ -22,8 +23,7 @@ namespace Messages.Client.Admin
 
 			var state = netMsg.RandomEventsAllowed ? "ON" : "OFF";
 			var msg = $"Admin: {SentByPlayer.Username}, turned random events {state}";
-
-			UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(msg, null);
+			AdminLogsManager.AddNewLog(SentByPlayer.GameObject, msg, LogCategory.Admin);
 			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookAdminLogURL, msg, "");
 		}
 
@@ -39,4 +39,3 @@ namespace Messages.Client.Admin
 		}
 	}
 }
- 

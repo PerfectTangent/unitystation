@@ -6,14 +6,6 @@ using UnityEngine.UI;
 
 public class PlayerHealthUI : MonoBehaviour
 {
-	public GameObject toxinAlert;
-	public GameObject heatAlert;
-	public GameObject coldAlert;
-	public UI_PressureAlert pressureAlert;
-	public GameObject oxygenAlert;
-	public UI_TemperatureAlert temperatureAlert;
-	public SpriteHandler hungerAlert;
-	public SpriteHandler bleedingAlert;
 	public UI_HeartMonitor heartMonitor;
 	public List<DamageMonitorListener> bodyPartListeners = new List<DamageMonitorListener>();
 
@@ -80,133 +72,25 @@ public class PlayerHealthUI : MonoBehaviour
 
 	void UpdateMe()
 	{
-		if (PlayerManager.LocalPlayer == null)
+		if (PlayerManager.LocalPlayerObject == null)
 		{
 			return;
 		}
 
-		if (PlayerManager.LocalPlayerScript.IsGhost)
+		if (PlayerManager.LocalPlayerScript == null || PlayerManager.LocalPlayerScript.IsNormal == false)
 		{
 			if (humanUI)
 			{
 				DisableAll();
 			}
+
 			return;
 		}
 
-
-		if (!PlayerManager.LocalPlayerScript.IsGhost && !humanUI)
+		if (PlayerManager.LocalPlayerScript.IsNormal && !humanUI)
 		{
 			EnableAlwaysVisible();
 		}
-
-		float temperature = PlayerManager.LocalPlayerScript.playerHealth.RespiratorySystem.Temperature;
-		float pressure = PlayerManager.LocalPlayerScript.playerHealth.RespiratorySystem.Pressure;
-
-		if (temperature < 110)
-		{
-			SetSpecificVisibility(true, coldAlert);
-		}
-		else
-		{
-			SetSpecificVisibility(false, coldAlert);
-		}
-
-		if (temperature > 510)
-		{
-			SetSpecificVisibility(true, heatAlert);
-		}
-		else
-		{
-			SetSpecificVisibility(false, heatAlert);
-		}
-
-
-		if (temperature > 260 && temperature < 360)
-		{
-			SetSpecificVisibility(false, temperatureAlert.gameObject);
-		}
-		else
-		{
-			SetSpecificVisibility(true, temperatureAlert.gameObject);
-			temperatureAlert.SetTemperatureSprite(temperature);
-		}
-
-		if (pressure > 50 && pressure < 325)
-		{
-			SetSpecificVisibility(false, pressureAlert.gameObject);
-		}
-		else
-		{
-			SetSpecificVisibility(true, pressureAlert.gameObject);
-			pressureAlert.SetPressureSprite(pressure);
-		}
-
-		SetSpecificVisibility(PlayerManager.LocalPlayerScript.playerHealth.RespiratorySystem.IsSuffocating, oxygenAlert);
-
-		SetSpecificVisibility(false, toxinAlert);
-
-		switch (PlayerManager.LocalPlayerScript.playerHealth.HealthStateController.HungerState)
-		{
-
-			case HungerState.Full:
-				hungerAlert.gameObject.SetActive(true);
-				hungerAlert.ChangeSprite(0);
-				break;
-			case HungerState.Normal:
-				hungerAlert.gameObject.SetActive(false);
-				hungerAlert.PushClear();
-				break;
-			case HungerState.Hungry:
-				hungerAlert.gameObject.SetActive(true);
-				hungerAlert.ChangeSprite(1);
-				break;
-			case HungerState.Malnourished:
-				hungerAlert.gameObject.SetActive(true);
-				hungerAlert.ChangeSprite(1);
-				break;
-			case HungerState.Starving:
-				hungerAlert.gameObject.SetActive(true);
-				hungerAlert.ChangeSprite(2);
-				break;
-			default:
-				hungerAlert.gameObject.SetActive(false);
-				hungerAlert.PushClear();
-				break;
-		}
-
-		switch (PlayerManager.LocalPlayerScript.playerHealth.HealthStateController.BleedingState)
-		{
-			case BleedingState.None:
-				bleedingAlert.gameObject.SetActive(false);
-				bleedingAlert.PushClear();
-				break;
-			case BleedingState.VeryLow:
-				bleedingAlert.gameObject.SetActive(true);
-				bleedingAlert.ChangeSprite(0);
-				break;
-			case BleedingState.Low:
-				bleedingAlert.gameObject.SetActive(true);
-				bleedingAlert.ChangeSprite(1);
-				break;
-			case BleedingState.Medium:
-				bleedingAlert.gameObject.SetActive(true);
-				bleedingAlert.ChangeSprite(2);
-				break;
-			case BleedingState.High:
-				bleedingAlert.gameObject.SetActive(true);
-				bleedingAlert.ChangeSprite(3);
-				break;
-			case BleedingState.UhOh:
-				bleedingAlert.gameObject.SetActive(true);
-				bleedingAlert.ChangeSprite(4);
-				break;
-			default:
-				bleedingAlert.gameObject.SetActive(false);
-				bleedingAlert.PushClear();
-				break;
-		}
-
 
 		// if (!PlayerManager.Equipment.HasInternalsEquipped() && oxygenButton.IsInteractable())
 		// {
@@ -261,7 +145,7 @@ public class PlayerHealthUI : MonoBehaviour
 						damageColor = destroyedBodyPartColor;
 						break;
 				}
-				if (IsLocalPlayer(bodyPart))
+				if (IsOwned(bodyPart))
 				{
 					bodyPartListeners[i].SetDamageColor(damageColor);
 					bodyPartListeners[i].SetBodyPartColor(bodyPartColor);
@@ -275,11 +159,9 @@ public class PlayerHealthUI : MonoBehaviour
 				}
 			}
 		}
-		bool IsLocalPlayer(BodyPart BbodyPart)
+		bool IsOwned(BodyPart bbodyPart)
 		{
-			var Player = BbodyPart.HealthMaster as PlayerHealthV2;
-			if (Player == null) return false;
-			return PlayerManager.LocalPlayerScript == Player.playerScript;
+			return bbodyPart.HealthMaster.isOwned;
 		}
 	}
 }

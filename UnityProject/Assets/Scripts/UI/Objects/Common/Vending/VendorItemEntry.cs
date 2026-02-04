@@ -15,15 +15,15 @@ namespace UI.Objects
 		public VendorItem vendorItem;
 		private GUI_Vendor vendorWindow;
 		[SerializeField]
-		private NetLabel itemName = null;
+		private NetText_label itemName = null;
 		[SerializeField]
-		private NetLabel itemCount = null;
+		private NetText_label itemCount = null;
 		[SerializeField]
 		private NetPrefabImage itemIcon = null;
 		[SerializeField]
 		private NetColorChanger itemBackground = null;
 		[SerializeField]
-		private NetLabel priceTag;
+		private NetText_label priceTag;
 
 		public void SetItem(VendorItem item, GUI_Vendor correspondingWindow)
 		{
@@ -31,27 +31,38 @@ namespace UI.Objects
 			vendorWindow = correspondingWindow;
 
 			var itemGO = vendorItem.Item;
+
 			// try get human-readable item name
-			var itemNameStr = TextUtils.UppercaseFirst(itemGO.ExpensiveName());
-
-			itemName.SetValueServer(itemNameStr);
-			itemIcon.SetValueServer(itemGO.name);
-			itemCount.SetValueServer($"({vendorItem.Stock})");
-			itemBackground.SetValueServer(vendorItem.Stock > 0 ? regularColor : emptyStockColor);
-
-			if (vendorItem.Price == 0)
+			string itemNameStr;
+			if (item.ItemName != "")
 			{
-				priceTag.SetValueServer("Free");
+				// Use the override name provided by the VendorItem whenever available.
+				itemNameStr = TextUtils.UppercaseFirst(item.ItemName);
 			}
 			else
 			{
-				priceTag.SetValueServer(vendorItem.Currency == CurrencyType.Credits
+				// If no override is specified, default to the prefab provided name
+				itemNameStr = TextUtils.UppercaseFirst(itemGO.ExpensiveName());
+			}
+
+			itemName.MasterSetValue(itemNameStr);
+			itemIcon.MasterSetValue(itemGO.name);
+			itemCount.MasterSetValue($"({vendorItem.Stock})");
+			itemBackground.MasterSetValue(vendorItem.Stock > 0 ? regularColor : emptyStockColor);
+
+			if (vendorItem.Price == 0)
+			{
+				priceTag.MasterSetValue("Free");
+			}
+			else
+			{
+				priceTag.MasterSetValue(vendorItem.Currency == CurrencyType.Credits
 						? $"{vendorItem.Price} cr"
 						: $"{vendorItem.Price} Points");
 			}
 		}
 
-		public void OnVendItemButtonPressed(ConnectedPlayer player)
+		public void OnVendItemButtonPressed(PlayerInfo player)
 		{
 			if (vendorItem == null || vendorWindow == null) return;
 

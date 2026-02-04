@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Chemistry;
+using Detective;
+using Logs;
 using UnityEngine;
 using ScriptableObjects.Atmospherics;
 using Tilemaps.Behaviours.Meta;
@@ -10,6 +14,7 @@ using Systems.Explosions;
 using Systems.Pipes;
 using Systems.Radiation;
 using Systems.DisposalPipes;
+using Reaction = Chemistry.Reaction;
 
 
 /// <summary>
@@ -32,12 +37,24 @@ public class MetaDataNode : IGasMixContainer
 	/// <summary>
 	/// Used for calculating explosion data
 	/// </summary>
-	public ExplosionNode ExplosionNode = null;
+	public ExplosionNode[] ExplosionNodes = new ExplosionNode[5];
+
+	private RadiationNode radiationNode;
 
 	/// <summary>
 	/// Used for storing useful information for the radiation system and The radiation level
 	/// </summary>
-	public RadiationNode RadiationNode = new RadiationNode();
+	public RadiationNode RadiationNode
+	{
+		get
+		{
+			if (radiationNode != null) return radiationNode;
+
+			radiationNode = new RadiationNode();
+
+			return radiationNode;
+		}
+	}
 
 	/// <summary>
 	/// Contains all electrical data for this tile
@@ -57,7 +74,12 @@ public class MetaDataNode : IGasMixContainer
 	/// <summary>
 	/// Local position of this tile in its parent matrix.
 	/// </summary>
-	public readonly Vector3Int Position;
+	public readonly Vector3Int LocalPosition;
+
+	/// <summary>
+	/// World position of this tile in its parent matrix.
+	/// </summary>
+	public Vector3 WorldPosition => LocalPosition.ToWorldInt(PositionMatrix);
 
 	/// <summary>
 	/// If this node is in a closed room, it's assigned to it by the room's number
@@ -70,9 +92,34 @@ public class MetaDataNode : IGasMixContainer
 	public NodeType Type;
 
 	/// <summary>
+	/// Occupied Type of this node.
+	/// </summary>
+	public NodeOccupiedType OccupiedType;
+
+	/// <summary>
+	/// Whether or not on round start it had a path to space, TEMP, Will 100% be out of date When using it outside of the init code
+	/// </summary>
+	public bool InItHadPathToSpace = false;
+
+
+	private GasMix gasMix;
+
+	/// <summary>
 	/// The mixture of gases currently on this node.
 	/// </summary>
-	public GasMix GasMix { get; set; }
+	public GasMix GasMixLocal
+	{
+		get
+		{
+			if (gasMix != null) return gasMix;
+
+			gasMix = GasMix.NewGasMix(GasMixes.BaseSpaceMix);
+
+			return gasMix;
+		}
+
+		set => gasMix = value;
+	}
 
 	/// <summary>
 	/// The hotspot state of this node - indicates a potential to ignite gases, and
@@ -85,6 +132,41 @@ public class MetaDataNode : IGasMixContainer
 	//Which overlays this node has on
 	private HashSet<GasSO> gasOverlayData = new HashSet<GasSO>();
 	public HashSet<GasSO> GasOverlayData => gasOverlayData;
+
+	public AppliedDetails AppliedDetails = new AppliedDetails();
+
+	private SmokeNode smokeNode;
+	public SmokeNode SmokeNode
+	{
+		get
+		{
+			if (smokeNode != null) return smokeNode;
+
+			smokeNode = new SmokeNode()
+			{
+				OnMetaDataNode = this
+			};
+
+			return smokeNode;
+		}
+	}
+
+	private FoamNode foamNode;
+	public FoamNode FoamNode
+	{
+		get
+		{
+			if (foamNode != null) return foamNode;
+
+			foamNode = new FoamNode()
+			{
+				OnMetaDataNode = this
+			};
+
+			return foamNode;
+		}
+	}
+
 
 	//Conductivity Stuff//
 
@@ -99,6 +181,17 @@ public class MetaDataNode : IGasMixContainer
 	public bool StartingSuperConduct;
 	//If this node is allowed to share temperature to surrounding nodes
 	public bool AllowedToSuperConduct;
+
+	//How long since the last wind spot particle was spawned
+	//This is here as dictionaries are a pain and for performance but costs more memory
+	public float windEffectTime = 0;
+
+	public ReagentMix ReagentsOnTile = new ReagentMix();
+
+	public HashSet<Chemistry.Reaction> possibleReactions = new HashSet<Reaction>();
+
+	public Vector3Int? ReagentOverlayTileLocation = null;
+	public Chemistry.ReagentState? ReagentStateTile = null;
 
 	public void AddGasOverlay(GasSO gas)
 	{
@@ -145,6 +238,7 @@ public class MetaDataNode : IGasMixContainer
 	public Vector2Int 	WindDirection 	= Vector2Int.zero;
 	public float		WindForce 		= 0;
 
+	public readonly Vector2[] WindData = new Vector2[(int)Enum.GetValues(typeof(PushType)).Cast<PushType>().Max() +1 ];
 	/// <summary>
 	/// Number of neighboring MetaDataNodes
 	/// </summary>
@@ -168,18 +262,19 @@ public class MetaDataNode : IGasMixContainer
 	/// <summary>
 	/// Create a new MetaDataNode on the specified local position (within the parent matrix)
 	/// </summary>
-	/// <param name="position">local position (within the matrix) the node exists on</param>
-	public MetaDataNode(Vector3Int position, ReactionManager reactionManager, Matrix matrix, MetaDataSystem InMetaDataSystem )
+	/// <param name="localPosition">local position (within the matrix) the node exists on</param>
+	public MetaDataNode(Vector3Int localPosition, ReactionManager reactionManager, Matrix matrix, MetaDataSystem InMetaDataSystem )
 	{
 		MetaDataSystem = InMetaDataSystem;
 		PositionMatrix = matrix;
-		Position = position;
+		LocalPosition = localPosition;
+
 		neighborList = new List<MetaDataNode>(4);
 		for (var i = 0; i < neighborList.Capacity; i++)
 		{
 			neighborList.Add(null);
 		}
-		GasMix = GasMix.NewGasMix(GasMixes.BaseSpaceMix);
+
 		this.reactionManager = reactionManager;
 	}
 
@@ -202,27 +297,75 @@ public class MetaDataNode : IGasMixContainer
 	/// Does this tile contain a closed airlock/shutters? Prevents gas exchange to adjacent tiles
 	/// (used for gas freezing)
 	/// </summary>
-	public bool IsIsolatedNode { get; set; }
+	public bool IsIsolatedNode => OccupiedType == NodeOccupiedType.Full;
 
 	/// <summary>
 	/// Is this tile occupied by something impassable (airtight!)
 	/// </summary>
 	public bool IsOccupied => Type == NodeType.Occupied;
 
-	public bool IsSlippery = false;
+	private bool isSlippery = false;
+
+	public bool IsSlippery
+	{
+		get
+		{
+			return isSlippery;
+		}
+		set
+		{
+			isSlippery = value;
+			ForceUpdateClient();
+		}
+	}
+	private bool _isIceSlippy = false;
+
+	public bool IsIceSlippy
+	{
+		get
+		{
+			return _isIceSlippy;
+		}
+		set
+		{
+			_isIceSlippy = value;
+			ForceUpdateClient();
+		}
+	}
+
+
+	private bool isSuperSlippery = false;
+
+	public bool IsSuperSlippery
+	{
+		get
+		{
+			return isSuperSlippery;
+		}
+		set
+		{
+			isSuperSlippery = value;
+			ForceUpdateClient();
+		}
+	}
+
+	public bool Allslippery => IsSlippery || IsIceSlippy || IsSuperSlippery;
 
 	public bool Exists => this != None;
 
-	public void AddNeighborsToList(ref List<MetaDataNode> list)
+	public void AddNeighborsToList(ref List<(MetaDataNode, bool)> list)
 	{
 		lock (neighborList)
 		{
 			foreach (MetaDataNode neighbor in neighborList)
 			{
-				if (neighbor != null && neighbor.Exists)
-				{
-					list.Add(neighbor);
-				}
+				if (neighbor == null || neighbor.Exists == false) continue;
+
+				//Bool means to block gas equalise, e.g for when closed windoor/directional passable
+				//Have to do IsOccupiedBlocked from both tiles perspective
+				var equalise = neighbor.IsOccupied == false && neighbor.IsIsolatedNode == false
+						&& IsOccupiedBlocked(neighbor) == false && neighbor.IsOccupiedBlocked(this) == false;
+				list.Add((neighbor, equalise));
 			}
 		}
 	}
@@ -276,7 +419,7 @@ public class MetaDataNode : IGasMixContainer
 					SyncNeighbors();
 					return;
 				}
-				Logger.LogErrorFormat("Failed adding neighbor {0} to node {1} at direction {2}", Category.Matrix, neighbor, this, direction);
+				Loggy.Error().Format("Failed adding neighbor {0} to node {1} at direction {2}", Category.Matrix, neighbor, this, direction);
 			}
 		}
 	}
@@ -301,14 +444,14 @@ public class MetaDataNode : IGasMixContainer
 	{
 		AtmosSimulation.RemovalAllGasOverlays(this);
 
-		GasMix = newGasMix;
+		GasMixLocal = newGasMix;
 
 		AtmosSimulation.GasVisualEffects(this);
 	}
 
 	public override string ToString()
 	{
-		return Position.ToString();
+		return LocalPosition.ToString();
 	}
 
 	private void SyncNeighbors()
@@ -324,4 +467,33 @@ public class MetaDataNode : IGasMixContainer
 			}
 		}
 	}
+
+	public void ForceUpdateClient()
+	{
+		if (CustomNetworkManager.IsServer == false) return;
+		PositionMatrix.MetaDataLayer.AddNetworkChange(LocalPosition, this);
+	}
+
+	public bool IsOccupiedBlocked(MetaDataNode neighbourNode)
+	{
+		if (OccupiedType == NodeOccupiedType.None) return false;
+		if (OccupiedType == NodeOccupiedType.Full) return true;
+
+		var direction =  neighbourNode.LocalPosition - LocalPosition;
+		var orientationEnum = Orientation.FromAsEnum(direction.To2());
+
+		var occupied = NodeOccupiedUtil.DirectionEnumToOccupied(orientationEnum);
+
+		var result = OccupiedType.HasFlag(occupied);
+
+		//Note HasFlag might not be the best way to check, could be slower than making If statement ourselves
+		return result;
+	}
+}
+
+
+public enum PushType
+{
+	Wind = 1,
+	Conveyor = 2
 }

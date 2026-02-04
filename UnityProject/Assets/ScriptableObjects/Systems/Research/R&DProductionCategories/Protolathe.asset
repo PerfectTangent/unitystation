@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Categories:
   - Stock Parts
-  - Electronics
   - Machinery
+  - Electronics
+  - Equipment
   - Tools
   - Weapons
-  - Equipment
+  - Medical Designs
   - Misc

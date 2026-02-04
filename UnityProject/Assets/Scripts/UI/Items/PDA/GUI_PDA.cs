@@ -13,7 +13,7 @@ namespace UI.Items.PDA
 	{
 		[Tooltip("Assign the breadcrumb here")]
 		[SerializeField]
-		private NetLabel breadcrumb = null;
+		private NetText_label breadcrumb = null;
 
 		[Tooltip("Put the main NetPage switcher here")]
 		public NetPageSwitcher mainSwitcher = null;
@@ -98,7 +98,7 @@ namespace UI.Items.PDA
 		/// <param name="directory"></param>
 		public void SetBreadcrumb(string directory)
 		{
-			breadcrumb.SetValueServer(directory);
+			breadcrumb.MasterSetValue(directory);
 		}
 
 		public void PlayRingtone()

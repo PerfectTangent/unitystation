@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public class HandApply : BodyPartTargetedInteraction
 {
-	private static readonly HandApply Invalid = new HandApply(null, null, null, BodyPartType.None, null, Intent.Help, false);
+	private static readonly HandApply Invalid = new HandApply(null, null, null, BodyPartType.None, null, Intent.Help, null, false);
 
 	public GameObject HandObject => UsedObject;
 
@@ -26,8 +26,8 @@ public class HandApply : BodyPartTargetedInteraction
 	/// <param name="handSlot">active hand slot that is being used.</param>
 	/// <param name="targetBodyPart">targeted body part</param>
 	protected HandApply(GameObject performer, GameObject handObject, GameObject targetObject, BodyPartType targetBodyPart,
-		ItemSlot handSlot, Intent intent, bool isAltClick, bool isHighlight = false) :
-		base(performer, handObject, targetObject, targetBodyPart, intent)
+		ItemSlot handSlot, Intent intent, Mind inMind, bool isAltClick, bool isHighlight = false) :
+		base(performer, handObject, targetObject, targetBodyPart, intent, inMind)
 	{
 		HandSlot = handSlot;
 		IsAltClick = isAltClick;
@@ -40,18 +40,20 @@ public class HandApply : BodyPartTargetedInteraction
 	/// <param name="targetObject">object targeted by the interaction</param>
 	public static HandApply ByLocalPlayer(GameObject targetObject)
 	{
-		if (PlayerManager.LocalPlayerScript.IsGhost)
+		if (PlayerManager.LocalMindScript.IsGhosting)
 		{
 			//hand apply never works when local player
 			return HandApply.Invalid;
 		}
-		return new HandApply(PlayerManager.LocalPlayer,
-			PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot()?.ItemObject,
+
+		return new HandApply(PlayerManager.LocalPlayerObject,
+			PlayerManager.LocalPlayerScript.OrNull()?.DynamicItemStorage.OrNull()?.GetActiveHandSlot()?.ItemObject,
 			targetObject,
 			UIManager.DamageZone,
-			PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot(),
+			PlayerManager.LocalPlayerScript.OrNull()?.DynamicItemStorage.OrNull()?.GetActiveHandSlot(),
 			UIManager.CurrentIntent,
-			KeyboardInputManager.IsAltPressed());
+			PlayerManager.LocalMindScript ,
+			KeyboardInputManager.IsAltActionKeyPressed());
 	}
 
 	/// <summary>
@@ -68,8 +70,8 @@ public class HandApply : BodyPartTargetedInteraction
 	/// the message processing logic. Should match SentByPlayer.Script.playerNetworkActions.activeHand.</param>
 	/// <returns>a hand apply by the client, targeting the specified object with the item in the active hand</returns>
 	public static HandApply ByClient(GameObject clientPlayer, GameObject handObject, GameObject targetObject, BodyPartType targetBodyPart,
-		ItemSlot handSlot, Intent intent, bool isAltClick)
+		ItemSlot handSlot, Intent intent, Mind inMind, bool isAltClick)
 	{
-		return new HandApply(clientPlayer, handObject, targetObject, targetBodyPart, handSlot, intent, isAltClick);
+		return new HandApply(clientPlayer, handObject, targetObject, targetBodyPart, handSlot, intent, inMind, isAltClick);
 	}
 }

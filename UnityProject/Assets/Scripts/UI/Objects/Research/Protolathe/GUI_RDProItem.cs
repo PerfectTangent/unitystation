@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Text;
+using Logs;
 using UnityEngine;
 using UI.Core.NetUI;
 using Systems.Research;
@@ -24,7 +25,7 @@ namespace UI.Objects
 		{
 			if (RDProMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_RDProductionMachine>().OnProductAddClicked.Invoke(Product);
+				containedInTab.GetComponent<GUI_RDProductionMachine>().OnProductAddClicked.Invoke(Product);
 			}
 			else
 			{
@@ -36,14 +37,14 @@ namespace UI.Objects
 		{
 			if (product == null)
 			{
-				Logger.Log("Machine Product not found", Category.Machines);
+				Loggy.Info("Machine Product not found", Category.Machines);
 				return;
 			}
 			foreach (var element in Elements)
 			{
 				if (element as NetUIElement<string> != null)
 				{
-					(element as NetUIElement<string>).SetValueServer(GetName(element));
+					(element as NetUIElement<string>).MasterSetValue(GetName(element));
 				}
 			}
 		}

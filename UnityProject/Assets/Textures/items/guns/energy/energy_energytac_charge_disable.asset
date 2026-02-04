@@ -12,9 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d1de2691495b304e9843ac3335b626d, type: 3}
   m_Name: energy_energytac_charge_disable
   m_EditorClassIdentifier: 
+  foreverID: aeed4e6ead9d2a64eac3c7d546a00fde
   Variance:
   - Frames:
-    - sprite: {fileID: 21300000, guid: fb32e98bb21a64242a8645e874588ade, type: 3}
+    - sprite: {fileID: -9772504, guid: fb32e98bb21a64242a8645e874588ade, type: 3}
+      secondDelay: 0
+  - Frames:
+    - sprite: {fileID: 1418756457, guid: fb32e98bb21a64242a8645e874588ade, type: 3}
+      secondDelay: 0
+  - Frames:
+    - sprite: {fileID: -350081006, guid: fb32e98bb21a64242a8645e874588ade, type: 3}
+      secondDelay: 0
+  - Frames:
+    - sprite: {fileID: -1409038955, guid: fb32e98bb21a64242a8645e874588ade, type: 3}
       secondDelay: 0
   IsPalette: 0
   DisplayName: 

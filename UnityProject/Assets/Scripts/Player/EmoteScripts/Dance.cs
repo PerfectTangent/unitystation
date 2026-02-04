@@ -8,26 +8,26 @@ namespace Player.EmoteScripts
 	[CreateAssetMenu(fileName = "Emote", menuName = "ScriptableObjects/RP/Emotes/Dance")]
 	public class Dance : EmoteSO
 	{
-		public override void Do(GameObject player)
+		public override void Do(GameObject actor)
 		{
-			if (allowEmoteWhileInCrit == false && CheckPlayerCritState(player) == false)
+			if (allowEmoteWhileInCrit == false && CheckPlayerCritState(actor) == false)
 			{
 				//Hacky way to run a coroutine inside an SO
-				var something = player.GetComponent<PlayerScript>();
-				something.StartCoroutine(PerformDance(player));
+				var something = actor.GetComponent<PlayerScript>();
+				something.StartCoroutine(PerformDance(actor));
 			}
 			else
 			{
-				base.Do(player);
+				base.Do(actor);
 			}
 		}
 
 		private IEnumerator PerformDance(GameObject player)
 		{
 			var directional = player.transform.GetComponent<Rotatable>();
-			var move = player.transform.GetComponent<PlayerMove>();
+			var move = player.transform.GetComponent<MovementSynchronisation>();
 
-			if (move.allowInput && !move.IsBuckled)
+			if (move.AllowInput && !move.IsBuckled)
 			{
 				Chat.AddActionMsgToChat(player, $"{youText}", $"{player.ExpensiveName()} {viewText}.");
 				directional.FaceDirection(OrientationEnum.Up_By0);

@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
+using Core;
 using Doors;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Systems.MobAIs
 {
 	public class MobObjective : MonoBehaviour
 	{
+		[NonSerialized]
+		protected UniversalObjectPhysics objectPhysics;
+		public UniversalObjectPhysics ObjectPhysics => objectPhysics;
 		protected RegisterTile mobTile;
 		protected Rotatable rotatable;
 		protected MobAI mobAI;
@@ -23,6 +28,7 @@ namespace Systems.MobAIs
 			mobTile = GetComponent<RegisterTile>();
 			rotatable = GetComponent<Rotatable>();
 			mobAI = GetComponent<MobAI>();
+			objectPhysics = GetComponent<UniversalObjectPhysics>();
 		}
 
 		//The priority that this action should be done next
@@ -38,6 +44,7 @@ namespace Systems.MobAIs
 
 		public void TryAction()
 		{
+			if (mobAI == null) return;
 			if(mobAI.IsUnconscious && AllowUnconscious == false) return;
 
 			if(mobAI.IsDead && AllowDead == false) return;
@@ -51,28 +58,11 @@ namespace Systems.MobAIs
 
 		protected void Move(Vector3Int dirToMove)
 		{
-			var dest = mobTile.LocalPositionServer + dirToMove;
-
-			if (mobTile.customNetTransform.Push(dirToMove.To2Int(), context: gameObject) == false)
-			{
-				//New doors
-				DoorMasterController tryGetDoorMaster = mobTile.Matrix.GetFirst<DoorMasterController>(dest, true);
-				if (tryGetDoorMaster)
-				{
-					tryGetDoorMaster.Bump(gameObject);
-				}
-
-				//Old doors
-				DoorController tryGetDoor = mobTile.Matrix.GetFirst<DoorController>(dest, true);
-				if (tryGetDoor)
-				{
-					tryGetDoor.MobTryOpen(gameObject);
-				}
-			}
+			objectPhysics.OrNull()?.TryTilePush(dirToMove.To2Int(), null);
 
 			if (rotatable != null)
 			{
-				rotatable.SetFaceDirectionLocalVictor(dirToMove.To2Int());
+				rotatable.SetFaceDirectionLocalVector(dirToMove.To2Int());
 			}
 		}
 

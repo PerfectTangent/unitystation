@@ -1,10 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Core;
+using Logs;
 using Mirror;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Objects;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Main API for all types of spawning (except players - see PlayerSpawn). If you ever need to spawn something, look here.
@@ -48,6 +51,12 @@ public static class Spawn
 	/// </summary>
 	public static readonly float DefaultScatterRadius = 0.1f;
 
+	public static void Clean()
+	{
+		Loggy.Info("Removed  " + CleanupUtil.RidDictionaryOfDeadElements(nameToSpawnablePrefab) + " elements from " + nameof(Spawn) + "." + nameof(nameToSpawnablePrefab), Category.MemoryCleanup);
+		_ClearPools();
+	}
+
 	private static void EnsureInit()
 	{
 		if (objectPool == null)
@@ -86,7 +95,7 @@ public static class Spawn
 			var prefab = CustomNetworkManager.Instance.GetSpawnablePrefabFromName(prefabName);
 			if (prefab == null)
 			{
-				Logger.LogErrorFormat("Could not find prefab with name {0}, please ensure it is correctly spelled.",
+				Loggy.Error().Format("Could not find prefab with name {0}, please ensure it is correctly spelled.",
 					Category.ItemSpawn,
 					prefabName);
 				return null;
@@ -130,13 +139,13 @@ public static class Spawn
 	public static SpawnResult ServerPrefab(GameObject prefab, Vector3? worldPosition = null, Transform parent = null,
 		Quaternion? localRotation = null, int count = 1, float? scatterRadius = null, bool cancelIfImpassable = false,
 		bool spawnItems = true, bool AutoOnSpawnServerHook = true,
-		PushPull sharePosition = null, bool mapspawn = false, bool PrePickRandom = false)
+		UniversalObjectPhysics sharePosition = null, bool mapspawn = false, bool PrePickRandom = false,bool spawnManualContents = false )
 	{
 		return Server(
 			SpawnInfo.Spawnable(
 				SpawnablePrefab.For(prefab, PrePickRandom),
 				SpawnDestination.At(worldPosition, parent, localRotation, cancelIfImpassable, sharePosition),
-				count, scatterRadius, spawnItems: spawnItems, mapspawn: mapspawn), AutoOnSpawnServerHook);
+				count, scatterRadius, spawnItems: spawnItems, mapspawn: mapspawn, spawnManualContents : spawnManualContents), AutoOnSpawnServerHook);
 	}
 
 	/// <summary>
@@ -205,7 +214,7 @@ public static class Spawn
 	/// <param name="cancelIfImpassable">If true, the spawn will be cancelled if the location being spawned into is totally impassable.</param>
 	/// <returns>the newly created GameObject</returns>
 	public static SpawnResult ServerPrefab(string prefabName, Vector3? worldPosition = null, Transform parent = null,
-		Quaternion? localRotation = null, int count = 1, float? scatterRadius = null, bool cancelIfImpassable = false, bool mapspawn = false )
+		Quaternion? localRotation = null, int count = 1, float? scatterRadius = null, bool cancelIfImpassable = false, bool mapspawn = false)
 	{
 		return Server(
 			SpawnInfo.Spawnable(
@@ -262,6 +271,7 @@ public static class Spawn
 			SpawnInfo.Clone(toClone, SpawnDestination.At(worldPosition, parent, localRotation)));
 	}
 
+
 	/// <summary>
 	/// Server-side only. Performs the spawn and syncs it to all clients.
 	/// </summary>
@@ -270,41 +280,81 @@ public static class Spawn
 	{
 		if (info == null)
 		{
-			Logger.LogError("Cannot spawn, info is null", Category.ItemSpawn);
+			Loggy.Error("Cannot spawn, info is null", Category.ItemSpawn);
 			return SpawnResult.Fail(info);
 		}
 
 		EnsureInit();
-		Logger.LogTraceFormat("Server spawning {0}", Category.ItemSpawn, info);
+		Loggy.Trace().Format("Server spawning {0}", Category.ItemSpawn, info);
 
 		List<GameObject> spawnedObjects = new List<GameObject>();
 		for (int i = 0; i < info.Count; i++)
 		{
+			//apply scattering if it was specified
+			if (info.ScatterRadius != null)
+			{
+				var scatterRadius = info.ScatterRadius.GetValueOrDefault(0);
+				if (scatterRadius > 0)
+				{
+					info.SpawnDestination.WorldPosition = info.SpawnDestination.WorldPosition +
+					                                      new Vector3(Random.Range(-scatterRadius, scatterRadius),
+						                                      Random.Range(-scatterRadius, scatterRadius));
+				}
+				else if (scatterRadius < 0)
+				{
+
+					Vector3 Offset= Vector3.zero;
+
+					switch (RNG.GetRandomNumber(1,9))
+					{
+						case 1:
+							Offset= Vector3.zero;
+							break;
+						case 2:
+							Offset= new Vector3(1,0,0);
+							break;
+						case 3:
+							Offset= new Vector3(-1,0,0);
+							break;
+						case 4:
+							Offset= new Vector3(0,1,0);
+							break;
+						case 5:
+							Offset= new Vector3(0,-1,0);
+							break;
+						case 6:
+							Offset= new Vector3(1,-1,0);
+							break;
+						case 7:
+							Offset= new Vector3(-1,-1,0);
+							break;
+						case 8:
+							Offset= new Vector3(-1,1,0);
+							break;
+						case 9:
+							Offset= new Vector3(1,1,0);
+							break;
+					}
+					info.SpawnDestination.WorldPosition = info.SpawnDestination.WorldPosition + Offset + new Vector3(Random.Range(-0.1875f, 0.1875f), Random.Range(-0.1875f, 0.1875f));
+				}
+			}
+
+
 			var result = info.SpawnableToSpawn.SpawnAt(info.SpawnDestination);
 
 			if (result.Successful)
 			{
-				if (info.Mapspawn == false)
+				if (info.WasMapspawn == false)
 				{
 					result.GameObject.AddComponent<RuntimeSpawned>();
 				}
+
 				spawnedObjects.Add(result.GameObject);
-				//apply scattering if it was specified
-				if (info.ScatterRadius != null)
-				{
-					var cnt = result.GameObject.GetComponent<CustomNetTransform>();
-					var scatterRadius = info.ScatterRadius.GetValueOrDefault(0);
-					if (cnt != null)
-					{
-						cnt.SetPosition(info.SpawnDestination.WorldPosition + new Vector3(
-							Random.Range(-scatterRadius, scatterRadius), Random.Range(-scatterRadius, scatterRadius)));
-					}
-				}
 
 				if (info.SpawnDestination.SharePosition != null &&
-				    info.SpawnDestination.SharePosition.parentContainer != null)
+				    info.SpawnDestination.SharePosition.ContainedInObjectContainer != null)
 				{
-					info.SpawnDestination.SharePosition.parentContainer.GetComponent<ObjectContainer>().StoreObjects(result.GameObjects);
+					info.SpawnDestination.SharePosition.ContainedInObjectContainer.StoreObjects(result.GameObjects);
 				}
 			}
 			else
@@ -342,7 +392,7 @@ public static class Spawn
 	{
 		if (info == null)
 		{
-			Logger.LogError("Cannot spawn, info is null", Category.ItemSpawn);
+			Loggy.Error("Cannot spawn, info is null", Category.ItemSpawn);
 			return SpawnResult.Fail(info);
 		}
 
@@ -367,7 +417,7 @@ public static class Spawn
 		}
 		else
 		{
-			Logger.LogErrorFormat("Cannot spawn {0} client side, spawnable does not" +
+			Loggy.Error().Format("Cannot spawn {0} client side, spawnable does not" +
 			                      " implement IClientSpawnable", Category.ItemSpawn, info);
 			return SpawnResult.Fail(info);
 		}
@@ -380,15 +430,24 @@ public static class Spawn
 	/// client-side hooks. Should only be called after object becomes networked / known by clients.
 	/// </summary>
 	/// <param name="result"></param>
-	public static void _ServerFireClientServerSpawnHooks(SpawnResult result)
+	public static void _ServerFireClientServerSpawnHooks(SpawnResult result, SpawnInfo SpawnInfoOverride = null)
 	{
 		//fire server hooks
 		foreach (var spawnedObject in result.GameObjects)
 		{
+			spawnedObject.GetComponent<RegisterTile>().OrNull()?.ChangeActiveState(true);
 			var comps = spawnedObject.GetComponentsInChildren<IServerSpawn>();
 			foreach (var comp in comps)
 			{
-				comp.OnSpawnServer(result.SpawnInfo);
+				if (SpawnInfoOverride != null)
+				{
+					comp.OnSpawnServer(SpawnInfoOverride);
+				}
+				else
+				{
+					comp.OnSpawnServer(result.SpawnInfo);
+				}
+
 			}
 		}
 	}
@@ -400,7 +459,7 @@ public static class Spawn
 	/// </summary>
 	/// <param name="instance">object whose prefab should be determined.</param>
 	/// <returns>the prefab, otherwise null if it could not be determined.</returns>
-	public static GameObject DeterminePrefab(GameObject instance)
+	public static GameObject DeterminePrefab(GameObject instance) //TODO Use forever ID
 	{
 		var tracker = instance.GetComponent<PoolPrefabTracker>();
 		if (tracker != null)

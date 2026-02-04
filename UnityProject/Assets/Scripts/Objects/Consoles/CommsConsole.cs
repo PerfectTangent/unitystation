@@ -1,6 +1,4 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
+using Systems.Clearance;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
@@ -19,6 +17,7 @@ namespace Objects.Command
 		private ItemSlot itemSlot;
 
 		public IDCard IdCard => itemSlot.Item != null ? itemSlot.Item.GetComponent<IDCard>() : null;
+		public ClearanceRestricted Restricted { get; private set; }
 
 		private void Awake()
 		{
@@ -26,6 +25,7 @@ namespace Objects.Command
 			itemStorage = GetComponent<ItemStorage>();
 			itemSlot = itemStorage.GetIndexedItemSlot(0);
 			itemSlot.OnSlotContentsChangeServer.AddListener(OnServerSlotContentsChange);
+			Restricted = GetComponent<ClearanceRestricted>();
 		}
 
 		private void OnServerSlotContentsChange()
@@ -40,10 +40,10 @@ namespace Objects.Command
 				return false;
 
 			//interaction only works if using an ID card on console
-			if (!Validations.HasComponent<IDCard>(interaction.HandObject))
+			if (!Validations.HasComponent<IDCard>(interaction.HandObject) && interaction.IsAltClick == false)
 				return false;
 
-			if (!Validations.CanFit(itemSlot, interaction.HandObject, side, true))
+			if (!Validations.CanFit(itemSlot, interaction.HandObject, side, true) && interaction.IsAltClick == false)
 				return false;
 
 			return true;
@@ -54,8 +54,10 @@ namespace Objects.Command
 			//Eject existing id card if there is one and put new one in
 			if (itemSlot.Item != null)
 			{
-				ServerRemoveIDCard(interaction.PerformerPlayerScript.connectedPlayer);
+				ServerRemoveIDCard(interaction.PerformerPlayerScript.PlayerInfo);
 			}
+
+			if (interaction.IsAltClick) return;
 
 			Inventory.ServerTransfer(interaction.HandSlot, itemSlot);
 		}
@@ -66,7 +68,7 @@ namespace Objects.Command
 		/// <param name="item"></param>
 		/// <param name="subject"></param>
 		/// <returns></returns>
-		private ItemSlot GetBestSlot(GameObject item, ConnectedPlayer subject)
+		private ItemSlot GetBestSlot(GameObject item, PlayerInfo subject)
 		{
 			if (subject == null)
 			{
@@ -80,7 +82,7 @@ namespace Objects.Command
 		/// <summary>
 		/// Spits out ID card from console and updates login details.
 		/// </summary>
-		public void ServerRemoveIDCard(ConnectedPlayer subject)
+		public void ServerRemoveIDCard(PlayerInfo subject)
 		{
 			var bestSlot = GetBestSlot(itemSlot.ItemObject, subject);
 			if (!Inventory.ServerTransfer(itemSlot, bestSlot))

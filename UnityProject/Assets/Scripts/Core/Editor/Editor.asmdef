@@ -13,7 +13,13 @@
         "Unity.ResourceManager",
         "NaughtyAttributes.Core",
         "SerializableDictionary",
-        "NewAssembly"
+        "NewAssembly",
+        "Shared",
+        "NuGetForUnity",
+        "SecureStuff",
+        "RootSillys",
+        "Chemistry",
+        "Lighting"
     ],
     "includePlatforms": [
         "Editor"

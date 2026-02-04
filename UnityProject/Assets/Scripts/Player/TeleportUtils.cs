@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using Core;
+using HealthV2;
+using Logs;
 using Systems.Ai;
 using Systems.MobAIs;
 using UnityEngine;
 using Systems.Spawns;
 using Objects;
+using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Teleport
 {
@@ -21,20 +24,22 @@ namespace Systems.Teleport
 		/// <returns>TeleportInfo, with name, position and object</returns>
 		public static IEnumerable<TeleportInfo> GetMobDestinations()
 		{
-			var playerBodies = UnityEngine.Object.FindObjectsOfType(typeof(PlayerScript));
+			var playerBodies = Object.FindObjectsOfType<Mind>(false);
 
 			if (playerBodies == null)//If list of PlayerScripts is empty dont run rest of code.
 			{
 				yield break;
 			}
 
-			var sortedStr = from name in playerBodies
+			IOrderedEnumerable<Mind> sortedStr = from name in playerBodies
 				orderby name.name
 				select name;
 
-			foreach (PlayerScript player in sortedStr)
+			foreach (Mind player in sortedStr)
 			{
-				if (player == PlayerManager.LocalPlayerScript)
+
+				//Don't add to the list the same player consulting it and ghosts.
+				if (player == PlayerManager.LocalMindScript || player.NonImportantMind)
 				{
 					continue;
 				}
@@ -42,33 +47,23 @@ namespace Systems.Teleport
 				//Gets Name of Player
 				string nameOfObject = player.name;
 
-				if (player.gameObject.name.Length == 0 || player.gameObject.name == null)
+				if (string.IsNullOrEmpty(player.gameObject.name))
 				{
 					nameOfObject = "Spectator";
 				}
 
-				string status;
-				//Gets Status of Player
-				if (player.IsGhost)
+				string status = "";
+
+				if (player.IsGhosting)
 				{
 					status = "(Ghost)";
 				}
-				else if (!player.IsGhost & player.playerHealth.IsDead)
-				{
-					status = "(Dead)";
-				}
-				else if (!player.IsGhost)
-				{
-					status = "(Alive)";
-				}
 				else
 				{
-					status = "(Cant tell if Dead/Alive or Ghost)";
+					status = "";
 				}
 
-				//Gets Position of Player
-				player.UpdateLastSyncedPosition();
-				var teleportInfo = new TeleportInfo(nameOfObject + "\n" + status, player.SyncedWorldPos, player.gameObject);
+				var teleportInfo = new TeleportInfo(nameOfObject + "\n" + status, player.CurrentlyControllingObject.AssumedWorldPosServer().RoundToInt(), player.CurrentlyControllingObject);
 
 				yield return teleportInfo;
 			}
@@ -80,7 +75,7 @@ namespace Systems.Teleport
 		/// <returns>TeleportInfo, with name, position and object</returns>
 		public static IEnumerable<TeleportInfo> GetSpawnDestinations()
 		{
-			var placeGameObjects = UnityEngine.Object.FindObjectsOfType(typeof(SpawnPoint));
+			var placeGameObjects = Object.FindObjectsOfType<SpawnPoint>();
 
 			if (placeGameObjects == null)//If list of SpawnPoints is empty dont run rest of code.
 			{
@@ -111,7 +106,7 @@ namespace Systems.Teleport
 		/// <returns>TeleportInfo, with name, position and object</returns>
 		public static IEnumerable<TeleportInfo> GetCameraDestinations()
 		{
-			if (PlayerManager.LocalPlayer.TryGetComponent<AiPlayer>(out var aiPlayer) == false) yield break;
+			if (PlayerManager.LocalPlayerObject.TryGetComponent<AiPlayer>(out var aiPlayer) == false) yield break;
 
 			var securityCameras = UnityEngine.Object.FindObjectsOfType<SecurityCamera>();
 
@@ -146,7 +141,7 @@ namespace Systems.Teleport
 		/// <returns>TeleportInfo, with name, position and object</returns>
 		public static IEnumerable<TeleportInfo> GetCameraTrackPlayerDestinations()
 		{
-			if (PlayerManager.LocalPlayer.TryGetComponent<AiPlayer>(out var aiPlayer) == false) yield break;
+			if (PlayerManager.LocalPlayerObject.TryGetComponent<AiPlayer>(out var aiPlayer) == false) yield break;
 
 			//Check for players
 			var playerScripts = UnityEngine.Object.FindObjectsOfType<PlayerScript>();
@@ -185,18 +180,25 @@ namespace Systems.Teleport
 
 		public static void TeleportLocalGhostTo(TeleportInfo teleportInfo)
 		{
-			var latestPosition = teleportInfo.gameObject.transform.position;
-			var playerPosition = PlayerManager.LocalPlayer.gameObject.GetComponent<RegisterTile>().WorldPositionClient;//Finds current player coords
+			var latestPosition = teleportInfo.gameObject.AssumedWorldPosServer();
+			var playerPosition = PlayerManager.LocalPlayerObject.AssumedWorldPosServer();//Finds current player coords
 
 			if (latestPosition != playerPosition)//Spam Prevention
 			{
-				TeleportLocalGhostTo(latestPosition);
+				TeleportGhostToWorldPosition(latestPosition);
 			}
 		}
 
 		public static void TeleportLocalGhostTo(Vector3 vector)
 		{
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdGhostPerformTeleport(vector);
+			var ghost = PlayerManager.LocalPlayerObject.GetComponent<GhostMove>();
+			ghost.CMDSetServerPosition(vector);
+		}
+
+		public static void TeleportGhostToWorldPosition(Vector3 vector)
+		{
+			var ghost = PlayerManager.LocalPlayerObject.GetComponent<GhostMove>();
+			ghost.CMDSetServerPosition(vector);
 		}
 
 		/// <summary>
@@ -217,17 +219,13 @@ namespace Systems.Teleport
 			Vector3Int originalPosition = registerTile.WorldPositionServer;
 			Vector3Int newPosition = GetTeleportPos(originalPosition, minRadius, maxRadius, tryAvoidSpace, tryAvoidImpassable, registerTile.Matrix.MatrixInfo);
 
-			if (objectToTeleport.TryGetComponent(out CustomNetTransform netTransform))
+			if (objectToTeleport.TryGetComponent(out UniversalObjectPhysics netTransform))
 			{
-				netTransform.SetPosition(newPosition);
-			}
-			else if (objectToTeleport.TryGetComponent(out PlayerSync playerSync))
-			{
-				playerSync.SetPosition(newPosition);
+				netTransform.AppearAtWorldPositionServer(newPosition);
 			}
 			else
 			{
-				Logger.LogError($"No transform on {objectToTeleport} - can't teleport!", Category.Movement);
+				Loggy.Error($"No transform on {objectToTeleport} - can't teleport!", Category.Movement);
 				return originalPosition;
 			}
 
@@ -241,7 +239,7 @@ namespace Systems.Teleport
 
 			for (int i = 0; i < 8; i++)
 			{
-				randomVector = (Vector3Int) RandomUtils.RandomAnnulusPoint(minRadius, maxRadius).To2Int();
+				randomVector = (Vector3Int) RandomUtils.RandomAnnulusPoint(minRadius, maxRadius).RoundTo2Int();
 				newPosition = centrePoint + randomVector;
 
 				if (avoidSpace && MatrixManager.IsSpaceAt(newPosition, CustomNetworkManager.IsServer, possibleMatrix))
@@ -258,6 +256,20 @@ namespace Systems.Teleport
 			}
 
 			return newPosition;
+		}
+
+		/// <summary>
+		/// Gets a random position on the x and y axis for teleportation.
+		/// Has re-reconfigurable range. All ranges must be added by one.
+		/// </summary>
+		public static Vector3Int RandomTeleportLocation(int xRange = 11, int yRange = 11)
+		{
+			//Get random x from -10 to 10
+			var xCoord = Random.Range(0, xRange) * (DMMath.Prob(50) ? -1 : 1);
+
+			//Get random y from -10 to 10 but not 0 if x is 0 so to not spawn two portals on player
+			var yCoord = Random.Range((xCoord == 0 ? 1 : 0), yRange) * (DMMath.Prob(50) ? -1 : 1);
+			return new Vector3Int(xCoord, yCoord);
 		}
 	}
 }

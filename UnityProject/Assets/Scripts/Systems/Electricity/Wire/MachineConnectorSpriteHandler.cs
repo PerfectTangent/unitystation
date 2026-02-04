@@ -10,7 +10,7 @@ namespace Objects.Electrical
 {
 	public class MachineConnectorSpriteHandler : MonoBehaviour, IServerSpawn
 	{
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		public List<PowerTypeCategory> connectables = new List<PowerTypeCategory>();
 
 		[SerializeField, BoxGroup("Sprite Handlers")]
@@ -49,6 +49,7 @@ namespace Objects.Electrical
 			RefreshSprites();
 		}
 
+		[NaughtyAttributes.Button]
 		public void RefreshSprites()
 		{
 			HashSet<IntrinsicElectronicData> connections = new HashSet<IntrinsicElectronicData>();
@@ -68,14 +69,7 @@ namespace Objects.Electrical
 				SpriteHandler spriteHandler = kvp.Value;
 				if (activeDirections.Contains(kvp.Key))
 				{
-					if (spriteHandler.CurrentSpriteIndex == -1)
-					{
-						spriteHandler.ChangeSprite(0);
-					}
-					else
-					{
-						spriteHandler.PushTexture();
-					}
+					spriteHandler.PushTexture();
 				}
 				else
 				{

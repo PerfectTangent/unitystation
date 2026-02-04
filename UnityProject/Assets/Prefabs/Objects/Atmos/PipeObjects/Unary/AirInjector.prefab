@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1580494814286032113, guid: 3937c48f98f9cd043babc5471ee77682,
@@ -100,6 +101,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2494681440875532984, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
+      propertyPath: parentID
+      value: 3937c48f98f9cd043babc5471ee77682
+      objectReference: {fileID: 0}
+    - target: {fileID: 2494681440875532984, guid: 3937c48f98f9cd043babc5471ee77682,
+        type: 3}
       propertyPath: foreverID
       value: 410303ae7958d7e4f992e056a0cbca76
       objectReference: {fileID: 0}
@@ -124,6 +130,11 @@ PrefabInstance:
       propertyPath: CurrentDirection
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5075775655067238256, guid: 3937c48f98f9cd043babc5471ee77682,
+        type: 3}
+      propertyPath: SynchroniseCurrentDirection
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6323048891065173547, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
       propertyPath: PresentSpriteSet
@@ -137,26 +148,36 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6323048891065173547, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[0]
+      propertyPath: 'SubCatalogue.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 4b2330e205cc15942aea595665baaeb4,
         type: 2}
     - target: {fileID: 6323048891065173547, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[1]
+      propertyPath: 'SubCatalogue.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: f5154611cac1810439c49d4e96d5d8e1,
         type: 2}
     - target: {fileID: 6323048891065173547, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[2]
+      propertyPath: 'SubCatalogue.Array.data[2]'
       value: 
       objectReference: {fileID: 11400000, guid: 3abcece9e48b1ee459e6c665e5f00db5,
         type: 2}
     - target: {fileID: 6931842893682907539, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
+      propertyPath: _assetId
+      value: 3066897327
+      objectReference: {fileID: 0}
+    - target: {fileID: 6931842893682907539, guid: 3937c48f98f9cd043babc5471ee77682,
+        type: 3}
       propertyPath: m_AssetId
       value: 410303ae7958d7e4f992e056a0cbca76
+      objectReference: {fileID: 0}
+    - target: {fileID: 8163608160046166977, guid: 3937c48f98f9cd043babc5471ee77682,
+        type: 3}
+      propertyPath: exportCost
+      value: 250
       objectReference: {fileID: 0}
     - target: {fileID: 8163608160046166977, guid: 3937c48f98f9cd043babc5471ee77682,
         type: 3}
@@ -176,6 +197,13 @@ PrefabInstance:
         type: 3}
     m_RemovedComponents:
     - {fileID: 3382070219491565099, guid: 3937c48f98f9cd043babc5471ee77682, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1580494814286032113, guid: 3937c48f98f9cd043babc5471ee77682,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -1323719490864838106}
   m_SourcePrefab: {fileID: 100100000, guid: 3937c48f98f9cd043babc5471ee77682, type: 3}
 --- !u!1 &885698226935283379 stripped
 GameObject:
@@ -195,6 +223,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 481d24c2187c0df4b80652ebb7e481e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
   spritehandler: {fileID: 5627899777227691113}
   SpawnOnDeconstruct: {fileID: 5905333807210643416, guid: 7bf928fbb0e621a49b8437e1e441b028,
     type: 3}
@@ -204,23 +235,28 @@ MonoBehaviour:
     Connections:
       Directions:
       - Bool: 1
+        MappedNeeded: 1
         pipeType: 1
         PortType: 3
         flagLogic: 0
       - Bool: 0
+        MappedNeeded: 0
         pipeType: 1
         PortType: 0
         flagLogic: 0
       - Bool: 0
+        MappedNeeded: 0
         pipeType: 1
         PortType: 0
         flagLogic: 0
       - Bool: 0
+        MappedNeeded: 0
         pipeType: 1
         PortType: 0
         flagLogic: 0
     CustomLogic: 0
     NetCompatible: 0
+    SelfSufficient: 0
     mixAndVolume:
       mix:
         temperature: 273.15
@@ -231,9 +267,9 @@ MonoBehaviour:
       gasMix:
         GasData:
           GasesArray: []
-        Pressure: 0
+        pressure: 0
         Volume: 2.5
-        Temperature: 0
+        temperature: 0
     MonoPipe: {fileID: 0}
   Colour: {r: 1, g: 1, b: 1, a: 1}
   spawnedFromItem: 1

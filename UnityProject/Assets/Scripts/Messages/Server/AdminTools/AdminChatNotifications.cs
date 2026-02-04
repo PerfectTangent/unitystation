@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AdminTools;
 using Messages.Server;
 using Mirror;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Messages.Server.AdminTools
@@ -31,18 +32,23 @@ namespace Messages.Server.AdminTools
 					msg.Amount, msg.ClearAll);
 				UIManager.Instance.mentorChatButtons.ClientUpdateNotifications(msg.NotificationKey, msg.TargetWindow,
 					msg.Amount, msg.ClearAll);
+				UIManager.Instance.prayerChatButtons.ClientUpdateNotifications(msg.NotificationKey, msg.TargetWindow,
+					msg.Amount, msg.ClearAll);
 			}
 			else
 			{
 				UIManager.Instance.adminChatButtons.ClearAllNotifications();
 				UIManager.Instance.mentorChatButtons.ClearAllNotifications();
-				var notiUpdate = JsonUtility.FromJson<AdminChatNotificationFullUpdate>(msg.FullUpdateJson);
+				UIManager.Instance.prayerChatButtons.ClearAllNotifications();
+				var notiUpdate = JsonConvert.DeserializeObject<AdminChatNotificationFullUpdate>(msg.FullUpdateJson);
 
 				foreach (var n in notiUpdate.notificationEntries)
 				{
 					UIManager.Instance.adminChatButtons.ClientUpdateNotifications(n.Key, n.TargetWindow,
 						n.Amount, false);
 					UIManager.Instance.mentorChatButtons.ClientUpdateNotifications(n.Key, n.TargetWindow,
+						n.Amount, false);
+					UIManager.Instance.prayerChatButtons.ClientUpdateNotifications(n.Key, n.TargetWindow,
 						n.Amount, false);
 				}
 			}
@@ -76,7 +82,7 @@ namespace Messages.Server.AdminTools
 			NetMessage msg = new NetMessage
 			{
 				IsFullUpdate = true,
-				FullUpdateJson = JsonUtility.ToJson(update)
+				FullUpdateJson = JsonConvert.SerializeObject(update)
 			};
 
 			SendTo(adminConn, msg);

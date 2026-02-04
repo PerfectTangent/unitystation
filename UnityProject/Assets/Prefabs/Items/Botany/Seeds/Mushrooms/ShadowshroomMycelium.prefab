@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2412631627275870626, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: parentID
+      value: 9d50a0a8790aa454c824ffd039c07e6f
+      objectReference: {fileID: 0}
     - target: {fileID: 2412631627275870626, guid: 9d50a0a8790aa454c824ffd039c07e6f,
         type: 3}
       propertyPath: foreverID
@@ -15,6 +21,12 @@ PrefabInstance:
     - target: {fileID: 3208750400927667784, guid: 9d50a0a8790aa454c824ffd039c07e6f,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 4f52f8ac8ff2acd4e8dc17f1703c3ca6,
+        type: 2}
+    - target: {fileID: 3208750400927667784, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 4f52f8ac8ff2acd4e8dc17f1703c3ca6,
         type: 2}
@@ -43,19 +55,24 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
         type: 3}
-      propertyPath: plantData.GrowthSpritesSOs.Array.data[0]
+      propertyPath: plantData.ReagentProduction.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: 'plantData.GrowthSpritesSOs.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: a8ffcafb958d33848adf13064e8f479b,
         type: 2}
     - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
         type: 3}
-      propertyPath: plantData.GrowthSpritesSOs.Array.data[1]
+      propertyPath: 'plantData.GrowthSpritesSOs.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 1aa3cb559c838b1488b529197aaef258,
         type: 2}
     - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
         type: 3}
-      propertyPath: plantData.GrowthSpritesSOs.Array.data[2]
+      propertyPath: 'plantData.GrowthSpritesSOs.Array.data[2]'
       value: 
       objectReference: {fileID: 11400000, guid: e2c3f172cc52a5f40a4e83862d40276d,
         type: 2}
@@ -63,6 +80,27 @@ PrefabInstance:
         type: 3}
       propertyPath: plantData.MutatesInToGameObject.Array.size
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: plantData.ReagentProduction.Array.data[0].percentage
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: plantData.ReagentProduction.Array.data[1].percentage
+      value: 0.04
+      objectReference: {fileID: 0}
+    - target: {fileID: 7943773264967317366, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: plantData.ReagentProduction.Array.data[1].ChemistryReagent
+      value: 
+      objectReference: {fileID: 11400000, guid: 068bcb587110477558045ad0cfd78237,
+        type: 2}
+    - target: {fileID: 8671100345473241211, guid: 9d50a0a8790aa454c824ffd039c07e6f,
+        type: 3}
+      propertyPath: _assetId
+      value: 202747117
       objectReference: {fileID: 0}
     - target: {fileID: 8671100345473241211, guid: 9d50a0a8790aa454c824ffd039c07e6f,
         type: 3}
@@ -146,4 +184,7 @@ PrefabInstance:
       value: This mycelium will grow into something shadowy.
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9d50a0a8790aa454c824ffd039c07e6f, type: 3}

@@ -5,17 +5,23 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2987011942256334699, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
       propertyPath: initialName
-      value: syndicate xray goggles
+      value: Syndicate x-ray goggles
       objectReference: {fileID: 0}
     - target: {fileID: 2987011942256334699, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
       propertyPath: initialDescription
-      value: A pair of xray goggles manufactured by the Syndicate.
+      value: A pair of x-ray goggles manufactured by the Syndicate.
+      objectReference: {fileID: 0}
+    - target: {fileID: 3317552745358689725, guid: 0ef8e2824e992de48821b5ee531e8261,
+        type: 3}
+      propertyPath: _assetId
+      value: 1777527479
       objectReference: {fileID: 0}
     - target: {fileID: 3317552745358689725, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
@@ -50,17 +56,17 @@ PrefabInstance:
     - target: {fileID: 3426649003253581181, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3426649003253581181, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3426649003253581181, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3426649003253581181, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
@@ -84,8 +90,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8585229615259169892, guid: 0ef8e2824e992de48821b5ee531e8261,
         type: 3}
+      propertyPath: parentID
+      value: 0ef8e2824e992de48821b5ee531e8261
+      objectReference: {fileID: 0}
+    - target: {fileID: 8585229615259169892, guid: 0ef8e2824e992de48821b5ee531e8261,
+        type: 3}
       propertyPath: foreverID
       value: ecd9f72d43455b344b46f6149418e9ca
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0ef8e2824e992de48821b5ee531e8261, type: 3}

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
@@ -17,6 +18,24 @@ PrefabInstance:
       propertyPath: initialDescription
       value: An armored hood worn by the followers of Nar'Sie.
       objectReference: {fileID: 0}
+    - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 4c27e182c1d86a149a733e90aa9c65be,
+        type: 2}
+    - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 4da43549c76f33240b88d4736e2c7183,
+        type: 2}
+    - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: a0a1f742aa32a0949ac1bdd679bdfae7,
+        type: 2}
     - target: {fileID: 879940858911987778, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
       propertyPath: Armor.Bio
@@ -56,6 +75,11 @@ PrefabInstance:
         type: 3}
       propertyPath: HeatResistance
       value: 600
+      objectReference: {fileID: 0}
+    - target: {fileID: 880922137936671746, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: _assetId
+      value: 1732407063
       objectReference: {fileID: 0}
     - target: {fileID: 880922137936671746, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
@@ -210,6 +234,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6131411715875374555, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
+      propertyPath: parentID
+      value: 3bc560c485f5ecb4491bce031cde1635
+      objectReference: {fileID: 0}
+    - target: {fileID: 6131411715875374555, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
       propertyPath: foreverID
       value: d0e6cbda5c639f54ba60b282149842aa
       objectReference: {fileID: 0}
@@ -235,7 +264,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6183623809446730291, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 00e16693bcc1d6348a2a891f79fc073e,
         type: 2}
@@ -245,5 +274,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: a0a1f742aa32a0949ac1bdd679bdfae7,
         type: 2}
+    - target: {fileID: 6407356370313720369, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: a0a1f742aa32a0949ac1bdd679bdfae7,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3bc560c485f5ecb4491bce031cde1635, type: 3}

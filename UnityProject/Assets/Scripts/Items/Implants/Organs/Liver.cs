@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Text;
-using CameraEffects;
 using Chemistry;
 using Chemistry.Components;
+using HealthV2;
+using HealthV2.Living.PolymorphicSystems.Bodypart;
+using Logs;
 using ScriptableObjects;
 using UnityEngine;
-using UnityEngine.Serialization;
-using HealthV2;
 
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class Liver : BodyPartFunctionality
 	{
@@ -43,19 +41,27 @@ namespace HealthV2
 		/// </summary>
 		[SerializeField] private float processAmount = 2f;
 
-		[SerializeField] private float drunkMultiplier = 4;
 
-		private CirculatorySystemBase circ;
+
+
 		private StringBuilder debug;
 		private List<Tuple<Reagent, float>> tempArray;
-		private ReagentContainerBody blood;
+
+
+
+		public ReagentCirculatedComponent ReagentCirculatedComponent;
+
+		public override void Awake()
+		{
+			base.Awake();
+			ReagentCirculatedComponent = this.GetComponentCustom<ReagentCirculatedComponent>();
+		}
 
 		public override void SetUpSystems()
 		{
-			circ = bodyPart.HealthMaster.GetComponent<CirculatorySystemBase>();
-			blood = RelatedPart.BloodContainer;
 			tempArray = new List<Tuple<Reagent, float>>();
 		}
+
 
 		public override void ImplantPeriodicUpdate()
 		{
@@ -63,11 +69,11 @@ namespace HealthV2
 			if (RelatedPart.TotalModified == 0) return;
 			debug = new StringBuilder();
 
-			BloodToLiver(circ.BloodPool);
+			BloodToLiver(ReagentCirculatedComponent.AssociatedSystem.BloodPool);
 			Processing();
 			ReturnReagentsToBlood();
 
-			//Logger.Log(debug.ToString(), Category.Health);
+			//Loggy.Log(debug.ToString(), Category.Health);
 		}
 
 		private void BloodToLiver(ReagentMix blood)
@@ -92,7 +98,7 @@ namespace HealthV2
 
 						if (processingContainer.IsFull)
 						{
-							Logger.LogTrace("Liver is full, please try again. or don't.", Category.Health);
+							Loggy.Trace("Liver is full, please try again. or don't.", Category.Health);
 							break;
 						}
 
@@ -121,14 +127,14 @@ namespace HealthV2
 			//debug.AppendLine("==== STAGE 2 || REMOVAL FROM LIVER ====");
 
 			float tickClearAmount = RelatedPart.TotalModified *  processAmount;
-
+			processingContainer.ReagentsChanged(true);
 			//calculate what's going to be removed, seeing as most processing will happen in the reactionset
 			lock (processingContainer.CurrentReagentMix.reagents)
 			{
 				foreach (Reagent reagent in processingContainer.CurrentReagentMix.reagents.Keys)
 				{
 					//TODO: remove check for toxins when they are more integrated with reactions, with a metabolism rate, and liver damage
-					if (Toxins.Contains(reagent) || reagent == ethanolReagent)
+					if (Toxins.Contains(reagent))
 					{
 						float amount = Mathf.Min(tickClearAmount, processingContainer.CurrentReagentMix[reagent]);
 
@@ -150,20 +156,6 @@ namespace HealthV2
 
 			tempArray.Clear();
 
-			if (processingContainer.CurrentReagentMix.reagents.Contains(ethanolReagent))
-			{
-				float doop = processingContainer.CurrentReagentMix[ethanolReagent];
-				if (doop > 0)
-				{
-					var playerEatDrinkEffects = RelatedPart.HealthMaster.GetComponent<PlayerDrunkEffects>();
-
-					if(playerEatDrinkEffects == null) return;
-
-					doop *= drunkMultiplier;
-					//Logger.Log($"Adding {doop} drunk time\n", Category.Health);
-					playerEatDrinkEffects.ServerSendMessageToClient(RelatedPart.HealthMaster.gameObject, doop);
-				}
-			}
 		}
 
 		private void ReturnReagentsToBlood()
@@ -185,8 +177,7 @@ namespace HealthV2
 			{
 				//debug.AppendLine($"{reagent.Item2}cc of {reagent.Item1}\n");
 				processingContainer.CurrentReagentMix.Remove(reagent.Item1, reagent.Item2);
-				circ.BloodPool.Add(reagent.Item1,
-					processingContainer.CurrentReagentMix.Remove(reagent.Item1, reagent.Item2));
+				ReagentCirculatedComponent.AssociatedSystem.BloodPool.Add(reagent.Item1, reagent.Item2);
 			}
 
 			tempArray.Clear();

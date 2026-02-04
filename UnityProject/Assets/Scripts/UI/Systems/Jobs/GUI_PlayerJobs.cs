@@ -4,8 +4,13 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using Core.Utils;
+using Logs;
 using Messages.Server;
+using ScriptableObjects.Characters;
+using UI.Systems.PreRound;
 
 namespace UI
 {
@@ -57,7 +62,12 @@ namespace UI
 		[Tooltip("Number of seconds to wait after selecting a job. If the player does not spawn within that time the job selection re-opens.")]
 		private float waitForSpawnTimerMax = 6;
 
-		public OccupationList EmergancyOccupationList;
+		[SerializeField] private RoundJoinAttributes attributesJoinList;
+		[SerializeField] private Toggle expirementalJobsTestToggle;
+		[SerializeField] private Transform expiermentalWarning;
+
+		public List<GUI_PlayerJobsCategory> Categories;
+
 
 		/// <summary>
 		/// Called when the player select a job selection button.
@@ -79,12 +89,33 @@ namespace UI
 			waitForSpawnTimer = waitForSpawnTimerMax;
 		}
 
+		private void BtnOk(KeyValuePair<int, CharacterAttribute> attribute)
+		{
+			if (waitForSpawnTimer > 0)
+			{
+				return; // Disallowing picking a job while another job has been selected.
+			}
+			_ = SoundManager.Play(CommonSounds.Instance.Click01);
+			screen_Jobs.SetActive(false);
+			footer.SetActive(false);
+			waitMessage.SetActive(true);
+
+			PlayerManager.LocalViewerScript.RequestJob(attribute.Key);
+			waitForSpawnTimer = waitForSpawnTimerMax;
+		}
+
 		private void ShowJobSelection()
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 			screen_Jobs.SetActive(true);
 			footer.SetActive(true);
 			waitMessage.SetActive(false);
+		}
+
+		public void BackButton()
+		{
+			this.gameObject.SetActive(false);
+			GUI_PreRoundWindow.Instance.gameObject.SetActive(true);
 		}
 
 		public void ShowFailMessage(JobRequestError failReason)
@@ -127,6 +158,8 @@ namespace UI
 		private void OnDisable()
 		{
 			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+			expirementalJobsTestToggle.isOn = false;
+			footer.DestroyAllChildren();
 		}
 
 		/// <summary>
@@ -158,76 +191,146 @@ namespace UI
 
 		public void UpdateJobsList()
 		{
-			screen_Jobs.SetActive(false);
 
-			foreach (Transform child in screen_Jobs.transform)
+			foreach (var Category in Categories)
 			{
-				Destroy(child.gameObject);
+				foreach (Transform child in Category.Child.transform)
+				{
+					Destroy(child.gameObject);
+				}
+			}
+
+
+			if (expirementalJobsTestToggle.isOn)
+			{
+				foreach (var jobAttribute in attributesJoinList.AttributesToUse)
+				{
+					ExpirementalSetupJobButton(jobAttribute);
+				}
+				screen_Jobs.SetActive(true);
+				return;
 			}
 
 			foreach (Occupation occupation in OccupationList.Instance.Occupations)
 			{
-				JobType jobType = occupation.JobType;
-
-				int active = GameManager.Instance.ClientGetOccupationsCount(jobType);
-				int available = GameManager.Instance.GetOccupationMaxCount(jobType);
-
-				GameObject occupationGO = Instantiate(buttonPrefab, screen_Jobs.transform);
-
-				var image = occupationGO.GetComponent<Image>();
-				var text = occupationGO.GetComponentInChildren<TextMeshProUGUI>();
-
-				image.color = occupation.ChoiceColor;
-				text.text = occupation.DisplayName + " (" + active + " of " + available + ")";
-				occupationGO.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
-
-				// Disabled button for full jobs
-				if (active >= available)
-				{
-					occupationGO.GetComponentInChildren<Button>().interactable = false;
-				}
-				else // Enabled button with listener for vacant jobs
-				{
-					occupationGO.GetComponent<Button>().onClick.AddListener(() => { BtnOk(jobType); });
-				}
-
-				var check = PlayerList.Instance.ClientCheckBanReturn(occupation.JobType);
-
-				if (check != null)
-				{
-					var entryTime = DateTime.ParseExact(check.dateTimeOfBan, "O", CultureInfo.InvariantCulture);
-					var totalMins = Mathf.Abs((float)(entryTime - DateTime.Now).TotalMinutes);
-
-					image.color = Color.red;
-					var msg = check.isPerma ? "Perma Banned" : $"banned for {Mathf.RoundToInt((float)check.minutes - totalMins)} minutes";
-					text.text = occupation.DisplayName + $" is {msg}";
-
-					occupationGO.GetComponent<Button>().interactable = false;
-				}
-
-				// Job window listener
-				Occupation occupationOfTrigger = occupation;
-				EventTrigger.Entry entry = new EventTrigger.Entry();
-				entry.eventID = EventTriggerType.PointerEnter;
-				entry.callback.AddListener((eventData) => { jobInfo.Job = occupationOfTrigger; });
-				occupationGO.GetComponent<EventTrigger>().triggers.Add(entry);
-
-				occupationGO.SetActive(true);
+				SetupJobButton(occupation);
 			}
 
 			screen_Jobs.SetActive(true);
 		}
+
+		private void ExpirementalSetupJobButton(KeyValuePair<int, CharacterAttribute> jobAttribute)
+		{
+			GameObject occupationGO = Instantiate(buttonPrefab, screen_Jobs.transform);
+
+			var image = occupationGO.GetComponent<Image>();
+			var text = occupationGO.GetComponentInChildren<TextMeshProUGUI>();
+			image.color = jobAttribute.Value.AttributeColorPallet.Count != 0 ?
+				jobAttribute.Value.AttributeColorPallet[0] : Color.white;
+			text.text = jobAttribute.Value.DisplayName;
+			occupationGO.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+			occupationGO.GetComponent<Button>().onClick.AddListener(() => { BtnOk(jobAttribute); });
+		}
+
+
+		private void SetupJobButton(Occupation occupation)
+		{
+			JobType jobType = occupation.JobType;
+
+			int active = GameManager.Instance.ClientGetOccupationsCount(jobType);
+			int available = GameManager.Instance.GetOccupationMaxCount(jobType);
+			GUI_PlayerJobsCategory ChosenCategory = null;
+			foreach (var Category in Categories)
+			{
+				if (occupation.JobCategory == Category.JobCategory)
+				{
+					ChosenCategory = Category;
+					break;
+				}
+			}
+
+			if (ChosenCategory?.Child?.transform == null)
+			{
+				Loggy.Error("AAAAAA");
+			}
+
+			GameObject occupationGO = Instantiate(buttonPrefab, ChosenCategory.Child.transform);
+
+			var image = occupationGO.GetComponent<Image>();
+			var text = occupationGO.GetComponentInChildren<TextMeshProUGUI>();
+
+			image.color = occupation.ChoiceColor;
+			text.text = occupation.DisplayName + " (" + active + " of " + available + ")";
+			occupationGO.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+
+			// Disabled button for full jobs
+			if (active >= available)
+			{
+				occupationGO.GetComponentInChildren<Button>().interactable = false;
+			}
+			else // Enabled button with listener for vacant jobs
+			{
+				occupationGO.GetComponent<Button>().onClick.AddListener(() => { BtnOk(jobType); });
+			}
+
+			var check = PlayerList.Instance.ClientCheckBanReturn(occupation.JobType);
+
+			if (check != null)
+			{
+				var entryTime = DateTime.ParseExact(check.dateTimeOfBan, "O", CultureInfo.InvariantCulture);
+				var totalMins = Mathf.Abs((float)(entryTime - DateTime.Now).TotalMinutes);
+
+				image.color = Color.red;
+				var msg = check.isPerma ? "Perma Banned" : $"banned for {Mathf.RoundToInt((float)check.minutes - totalMins)} minutes";
+				text.text = occupation.DisplayName + $" is {msg}";
+
+				occupationGO.GetComponent<Button>().interactable = false;
+			}
+
+			// Job window listener
+			Occupation occupationOfTrigger = occupation;
+			EventTrigger.Entry entry = new EventTrigger.Entry();
+			entry.eventID = EventTriggerType.PointerEnter;
+			entry.callback.AddListener((eventData) => { jobInfo.Job = occupationOfTrigger; });
+			occupationGO.GetComponent<EventTrigger>().triggers.Add(entry);
+
+			occupationGO.SetActive(true);
+		}
+
 		/// <summary>
 		/// Code for loading the footer, currently only containing a spectate button
 		/// </summary>
 		public void SetFooter()
 		{
-			GameObject occupationGO = Instantiate(buttonPrefab, footer.transform);
-			occupationGO.GetComponent<Image>().color = Color.white;
-			occupationGO.GetComponentInChildren<TextMeshProUGUI>().text = "Spectate";
-			occupationGO.transform.localScale = new Vector3(1.0f, 1f, 1.0f);
-			occupationGO.GetComponent<Button>().onClick.AddListener(() => { PlayerManager.LocalViewerScript.Spectate(); });
+			var occupationGo = Instantiate(buttonPrefab, footer.transform);
+			occupationGo.GetComponent<Image>().color = Color.white;
+			occupationGo.GetComponentInChildren<TextMeshProUGUI>().text = "Spectate";
+			occupationGo.GetComponent<Button>().onClick.AddListener(() => { PlayerManager.LocalViewerScript.Spectate(); });
 
+			var occupationRandom = Instantiate(buttonPrefab, footer.transform);
+			occupationRandom.GetComponent<Image>().color = Color.gray;
+			occupationRandom.GetComponentInChildren<TextMeshProUGUI>().text = "Random";
+			occupationRandom.GetComponent<Button>().onClick.AddListener(RandomJob);
+		}
+
+		public void ToggleExpierementalStuff()
+		{
+			UpdateJobsList();
+			jobInfo.gameObject.SetActive(expirementalJobsTestToggle.isOn == false);
+			expiermentalWarning.SetActive(expirementalJobsTestToggle.isOn);
+		}
+
+		private void RandomJob()
+		{
+			var possibleJobs = screen_Jobs.transform.GetComponentsInChildren<Button>().FindAll(x => x.interactable);
+			if (possibleJobs.Length == 0)
+			{
+				ModalPanelManager.Instance.Inform("No jobs available.");
+				return;
+			}
+			possibleJobs.PickRandom().onClick.Invoke();
 		}
 	}
+
+
 }

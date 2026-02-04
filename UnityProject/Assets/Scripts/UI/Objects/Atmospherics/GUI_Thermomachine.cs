@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Logs;
 using UnityEngine;
 using UI.Core.NetUI;
 using Systems.Electricity;
@@ -9,7 +10,7 @@ namespace UI.Objects.Atmospherics
 	public class GUI_Thermomachine : NetTab
 	{
 		[SerializeField]
-		private NetLabel temperatureData = null;
+		private NetText_label temperatureData = null;
 
 		[SerializeField]
 		private NetSlider onOffSwitch = null;
@@ -17,7 +18,7 @@ namespace UI.Objects.Atmospherics
 		private HeaterFreezer heaterFreezer;
 		private HeaterFreezer HeaterFreezer => heaterFreezer ??= Provider.GetComponent<HeaterFreezer>();
 
-		public void OnTabOpenedHandler(ConnectedPlayer connectedPlayer)
+		public void OnTabOpenedHandler(PlayerInfo connectedPlayer)
 		{
 			var state = HeaterFreezer.ApcPoweredDevice.State == PowerState.Off ? "No Power" :
 				HeaterFreezer.IsOn ? "On" : "Off";
@@ -29,9 +30,8 @@ namespace UI.Objects.Atmospherics
 			stringBuilder.AppendLine($"Target Temp: {HeaterFreezer.TargetTemperature}");
 			stringBuilder.AppendLine($"Max Temp: {HeaterFreezer.MaxTemperature}");
 
-			temperatureData.Value = stringBuilder.ToString();
-
-			onOffSwitch.Value = (HeaterFreezer.IsOn ? 1 * 100 : 0).ToString();
+			temperatureData.MasterSetValue(stringBuilder.ToString());
+			onOffSwitch.MasterSetValue( (HeaterFreezer.IsOn ? 1 * 100 : 0).ToString());
 		}
 
 		public void PowerChange()

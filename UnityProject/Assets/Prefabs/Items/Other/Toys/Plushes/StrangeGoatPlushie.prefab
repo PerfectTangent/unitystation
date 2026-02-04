@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 89206780398788833, guid: 75421751b31ee7f49b1adb8b70cd2375,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 67086c6e57b6f88419c30cad2d3d8f21,
         type: 3}
+    - target: {fileID: 169216062924189193, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: _assetId
+      value: 1598470372
+      objectReference: {fileID: 0}
     - target: {fileID: 169216062924189193, guid: 75421751b31ee7f49b1adb8b70cd2375,
         type: 3}
       propertyPath: m_AssetId
@@ -89,16 +95,53 @@ PrefabInstance:
       value: Despite its cuddly appearance and plush nature, it will beat you up
         all the same. Goats never change.
       objectReference: {fileID: 0}
+    - target: {fileID: 369438315475188959, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: d04dacf1f9454af49b04d14cf507e228,
+        type: 2}
+    - target: {fileID: 369438315475188959, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: d04dacf1f9454af49b04d14cf507e228,
+        type: 2}
+    - target: {fileID: 6236086576208570426, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 7269613952178807973}
     - target: {fileID: 6236086576208570426, guid: 75421751b31ee7f49b1adb8b70cd2375,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: d04dacf1f9454af49b04d14cf507e228,
         type: 2}
+    - target: {fileID: 6236086576208570426, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: d04dacf1f9454af49b04d14cf507e228,
+        type: 2}
+    - target: {fileID: 6590914017311023056, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: parentID
+      value: 75421751b31ee7f49b1adb8b70cd2375
+      objectReference: {fileID: 0}
     - target: {fileID: 6590914017311023056, guid: 75421751b31ee7f49b1adb8b70cd2375,
         type: 3}
       propertyPath: foreverID
       value: 144df93ae5cdd7143a8be2ee292ffd72
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 75421751b31ee7f49b1adb8b70cd2375, type: 3}
+--- !u!212 &7269613952178807973 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 89206780398788833, guid: 75421751b31ee7f49b1adb8b70cd2375,
+    type: 3}
+  m_PrefabInstance: {fileID: 7340364123394180164}
+  m_PrefabAsset: {fileID: 0}

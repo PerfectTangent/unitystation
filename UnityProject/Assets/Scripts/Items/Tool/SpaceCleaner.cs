@@ -5,6 +5,8 @@ using UnityEngine;
 using Mirror;
 using Chemistry.Components;
 using AddressableReferences;
+using Chemistry;
+using Logs;
 using Messages.Server.SoundMessages;
 
 
@@ -16,9 +18,7 @@ public class SpaceCleaner : NetworkBehaviour, ICheckedInteractable<AimApply>
 
 	private float travelTime => 1f / travelDistance;
 
-	[SerializeField]
-	[Range(1,50)]
-	private int reagentsPerUse = 1;
+	[SerializeField] [Range(1, 50)] private int reagentsPerUse = 1;
 
 	private ReagentContainer reagentContainer;
 
@@ -33,6 +33,7 @@ public class SpaceCleaner : NetworkBehaviour, ICheckedInteractable<AimApply>
 		{
 			return true;
 		}
+
 		return false;
 	}
 
@@ -47,47 +48,53 @@ public class SpaceCleaner : NetworkBehaviour, ICheckedInteractable<AimApply>
 		}
 
 		Vector2 startPos = gameObject.AssumedWorldPosServer();
-		Vector2 targetPos = new Vector2(Mathf.RoundToInt(interaction.WorldPositionTarget.x), Mathf.RoundToInt(interaction.WorldPositionTarget.y));
+		Vector2 targetPos = new Vector2(Mathf.RoundToInt(interaction.WorldPositionTarget.x),
+			Mathf.RoundToInt(interaction.WorldPositionTarget.y));
 		List<Vector3Int> positionList = CheckPassableTiles(startPos, targetPos);
-		StartCoroutine(Fire(positionList));
+		StartCoroutine(Fire(positionList, interaction.TargetBodyPart));
 
-		Effect.PlayParticleDirectional( this.gameObject, interaction.TargetVector );
+		Effect.PlayParticleDirectional(this.gameObject, interaction.TargetVector);
 
 		AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: 1);
 		SoundManager.PlayNetworkedAtPos(Spray2, startPos, audioSourceParameters, sourceObj: interaction.Performer);
 
-		interaction.Performer.Pushable()?.NewtonianMove((-interaction.TargetVector).NormalizeToInt(), speed: 1f);
+		interaction.PerformerPlayerScript.ObjectPhysics.NewtonianPush((-interaction.TargetVector).NormalizeToInt(),
+			speed: 1f);
 	}
 
-	private IEnumerator Fire(List<Vector3Int> positionList)
+	private IEnumerator Fire(List<Vector3Int> positionList, BodyPartType bodyPartAim)
 	{
-		for (int i = 0; i < positionList.Count; i++)
+		if (reagentContainer != null && reagentContainer.ReagentMixTotal > 0.1)
 		{
-			SprayTile(positionList[i]);
-			yield return WaitFor.Seconds(travelTime);
+			var Taking = reagentContainer.TakeReagents(reagentsPerUse);
+			Taking.Divide(positionList.Count);
+			for (int i = 0; i < positionList.Count; i++)
+			{
+				SprayTile(positionList[i], Taking.Clone(), bodyPartAim);
+				yield return WaitFor.Seconds(travelTime);
+			}
 		}
 	}
 
-	void SprayTile(Vector3Int worldPos)
+	void SprayTile(Vector3Int worldPos, ReagentMix ToReact, BodyPartType bodyPartAim  )
 	{
 		MatrixInfo matrixInfo = MatrixManager.AtPoint(worldPos, true);
 		Vector3Int localPos = MatrixManager.WorldToLocalInt(worldPos, matrixInfo);
-		if (reagentContainer != null && reagentContainer.ReagentMixTotal > 0.1)
+
+		if (reagentContainer.MajorMixReagent?.name == "SpaceCleaner")
 		{
-			if (reagentContainer.MajorMixReagent.name == "SpaceCleaner")
-			{
-				matrixInfo.MetaDataLayer.Clean(worldPos, localPos, false);
-			}
-			else if (reagentContainer.MajorMixReagent.name == "Water")
-			{
-				matrixInfo.MetaDataLayer.Clean(worldPos, localPos, true);
-			}
-			else
-			{
-				MatrixManager.ReagentReact(reagentContainer.TakeReagents(reagentsPerUse), worldPos);
-			}
+			matrixInfo.MetaDataLayer.Clean(worldPos, localPos, false);
+		}
+		else if (reagentContainer.MajorMixReagent?.name == "Water")
+		{
+			matrixInfo.MetaDataLayer.Clean(worldPos, localPos, true);
+		}
+		else
+		{
+			MatrixManager.ReagentReact(ToReact, worldPos, bodyPartAim : bodyPartAim);
 		}
 	}
+
 	private List<Vector3Int> CheckPassableTiles(Vector2 startPos, Vector2 targetPos)
 	{
 		List<Vector3Int> passableTiles = new List<Vector3Int>();
@@ -98,8 +105,10 @@ public class SpaceCleaner : NetworkBehaviour, ICheckedInteractable<AimApply>
 			{
 				return passableTiles;
 			}
+
 			passableTiles.Add(positionList[i]);
 		}
+
 		return passableTiles;
 	}
 }

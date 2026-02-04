@@ -15,15 +15,16 @@ namespace Items.Atmospherics
 			var pipe = GetPipeObject();
 			if (pipe == null) return;
 
-			var spawn = Spawn.ServerPrefab(pipe.gameObject, registerItem.WorldPositionServer, localRotation: this.rotatable.ByDegreesToQuaternion(this.rotatable.CurrentDirection));
+			var spawn = Spawn.ServerPrefab(pipe.gameObject, registerItem.WorldPositionServer, localRotation: this.rotatable.ByDegreesToQuaternion(this.rotatable.CurrentDirection, Quaternion.identity));
 
 			var monoPipe = spawn.GameObject.GetComponent<MonoPipe>();
 
 
-			monoPipe.directional.FaceDirection(this.rotatable.CurrentDirection);
+
 
 
 			monoPipe.SetColour(Colour);
+			monoPipe.directional.FaceDirection(this.rotatable.CurrentDirection);
 			monoPipe.SetUpPipes();
 
 
@@ -43,7 +44,7 @@ namespace Items.Atmospherics
 		{
 			if (pipeObject != null)
 			{
-				return pipeObject.pipeData.Connections.Copy();
+				return pipeObject.pipeData.RotatedConnections.Copy();
 			}
 
 			return null;

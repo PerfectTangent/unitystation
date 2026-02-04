@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1973002661359593264, guid: 489cb478de43746cda8af4fd63be9282,
@@ -26,6 +27,11 @@ PrefabInstance:
         type: 3}
       propertyPath: armoredBodyParts.Array.data[4].armoringBodyPartType
       value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2909197017712554513, guid: 489cb478de43746cda8af4fd63be9282,
+        type: 3}
+      propertyPath: _assetId
+      value: 4080770104
       objectReference: {fileID: 0}
     - target: {fileID: 2909197017712554513, guid: 489cb478de43746cda8af4fd63be9282,
         type: 3}
@@ -100,6 +106,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 3397443007502491847, guid: 489cb478de43746cda8af4fd63be9282,
         type: 3}
+      propertyPath: exportCost
+      value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 3397443007502491847, guid: 489cb478de43746cda8af4fd63be9282,
+        type: 3}
       propertyPath: initialName
       value: botanist's jumpskirt
       objectReference: {fileID: 0}
@@ -107,6 +118,11 @@ PrefabInstance:
         type: 3}
       propertyPath: initialDescription
       value: It's a jumpskirt designed to protect against minor plant-related hazards.
+      objectReference: {fileID: 0}
+    - target: {fileID: 8174322744686822344, guid: 489cb478de43746cda8af4fd63be9282,
+        type: 3}
+      propertyPath: parentID
+      value: 489cb478de43746cda8af4fd63be9282
       objectReference: {fileID: 0}
     - target: {fileID: 8174322744686822344, guid: 489cb478de43746cda8af4fd63be9282,
         type: 3}
@@ -130,7 +146,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8193882076658244640, guid: 489cb478de43746cda8af4fd63be9282,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: b12d1372422e9874c81ff03621e78c1d,
         type: 2}
@@ -140,5 +156,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: d30460bfe7f72ed438d16fb7107d3aaa,
         type: 2}
+    - target: {fileID: 8975007657035133986, guid: 489cb478de43746cda8af4fd63be9282,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: d30460bfe7f72ed438d16fb7107d3aaa,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 489cb478de43746cda8af4fd63be9282, type: 3}

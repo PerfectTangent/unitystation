@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 583878553009238015, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+        type: 3}
+      propertyPath: _assetId
+      value: 1339411725
+      objectReference: {fileID: 0}
     - target: {fileID: 583878553009238015, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
         type: 3}
       propertyPath: m_AssetId
@@ -24,7 +30,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4582266827605979207, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
         type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 6401590140333134453}
+    - target: {fileID: 4582266827605979207, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+        type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: bb005794cd4452a4da89af86370532f1,
+        type: 2}
+    - target: {fileID: 4582266827605979207, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: bb005794cd4452a4da89af86370532f1,
         type: 2}
@@ -46,6 +63,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 31ea1fd913623ca4b949e675592fbd7a,
         type: 3}
+    - target: {fileID: 5383599927911376084, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+        type: 3}
+      propertyPath: parentID
+      value: 7ff56f8e13078c1419de4821c2b5ecfd
+      objectReference: {fileID: 0}
     - target: {fileID: 5383599927911376084, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
         type: 3}
       propertyPath: foreverID
@@ -97,5 +119,41 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 24eb38dbe012a814889153d4a6a5780c,
         type: 3}
+    - target: {fileID: 9164275193069937127, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+        type: 3}
+      propertyPath: SnapToGridOnStart
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 958661576671160487, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7970560139935700495}
   m_SourcePrefab: {fileID: 100100000, guid: 7ff56f8e13078c1419de4821c2b5ecfd, type: 3}
+--- !u!1 &3115763747908928600 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 958661576671160487, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+    type: 3}
+  m_PrefabInstance: {fileID: 2769910588102028543}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &7970560139935700495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3115763747908928600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ed94c89426884e758facbd072bbf0ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::Objects.Wallmounts.WallmountSpriteBehavior
+--- !u!212 &6401590140333134453 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 9126464732157001354, guid: 7ff56f8e13078c1419de4821c2b5ecfd,
+    type: 3}
+  m_PrefabInstance: {fileID: 2769910588102028543}
+  m_PrefabAsset: {fileID: 0}

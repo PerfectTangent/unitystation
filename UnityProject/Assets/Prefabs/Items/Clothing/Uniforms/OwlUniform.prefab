@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1580212734361834469, guid: de234d793cfd842599c9c8726207f217,
@@ -13,6 +14,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: d48a0066896a0c94aa8d1ffe306116dc,
         type: 2}
+    - target: {fileID: 1580212734361834469, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: d48a0066896a0c94aa8d1ffe306116dc,
+        type: 2}
+    - target: {fileID: 1734639913420629007, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: parentID
+      value: de234d793cfd842599c9c8726207f217
+      objectReference: {fileID: 0}
     - target: {fileID: 1734639913420629007, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
       propertyPath: foreverID
@@ -35,7 +47,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1789387693666696167, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: c608f77f5ef79114dbd706e50a4217a9,
         type: 2}
@@ -106,6 +118,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4700669166950225366, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
+      propertyPath: _assetId
+      value: 3436370759
+      objectReference: {fileID: 0}
+    - target: {fileID: 4700669166950225366, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
       propertyPath: m_AssetId
       value: 3c8d2434c10f26c42baf079157919c47
       objectReference: {fileID: 0}
@@ -117,6 +134,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
+      propertyPath: exportCost
+      value: 30
+      objectReference: {fileID: 0}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
       propertyPath: initialName
       value: owl uniform
       objectReference: {fileID: 0}
@@ -125,5 +147,26 @@ PrefabInstance:
       propertyPath: initialDescription
       value: A soft brown jumpsuit made of synthetic feathers and strong conviction.
       objectReference: {fileID: 0}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 0db123258ff8e7846959e53f247a22fc,
+        type: 2}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: e4253b4110417024f861705a738c25e7,
+        type: 2}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: d48a0066896a0c94aa8d1ffe306116dc,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: de234d793cfd842599c9c8726207f217, type: 3}

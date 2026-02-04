@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
+using Logs;
 using UnityEngine;
 using UnityEngine.Serialization;
 using Mirror;
 using Systems.Electricity;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Electrical
 {
@@ -41,7 +44,7 @@ namespace Objects.Electrical
 
 		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (!Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Wirecutter)) return false;
 			if (interaction.TargetObject != gameObject) return false;
 			return true;
@@ -50,7 +53,7 @@ namespace Objects.Electrical
 		public void ServerPerformInteraction(PositionalHandApply interaction)
 		{
 			//wirecutters can be used to cut this cable
-			Vector3Int worldPosInt = interaction.WorldPositionTarget.To2Int().To3Int();
+			Vector3Int worldPosInt = interaction.WorldPositionTarget.RoundTo2Int().To3Int();
 			var matrixInfo = MatrixManager.AtPoint(worldPosInt, true);
 			var localPosInt = MatrixManager.WorldToLocalInt(worldPosInt, matrixInfo);
 			var matrix = matrixInfo?.Matrix;
@@ -76,7 +79,7 @@ namespace Objects.Electrical
 					CB.Present.GetComponent<CableInheritance>()?.Smoke.Stop();
 				}
 			}
-			GetComponent<CustomNetTransform>().DisappearFromWorldServer();
+			GetComponent<UniversalObjectPhysics>().DisappearFromWorld();
 			SelfDestruct = true;
 			//gameObject.GetComponentInChildren<SpriteRenderer>().enabled = false;
 			//ElectricalSynchronisation.StructureChange = true;
@@ -205,7 +208,7 @@ namespace Objects.Electrical
 		{
 			if (this != null && !BeingDestroyed)
 			{
-				if (wireConnect.InData.WireEndA != Connection.NA | wireConnect.InData.WireEndB != Connection.NA)
+				if (wireConnect.InData.WireEndA != Connection.NA || wireConnect.InData.WireEndB != Connection.NA)
 				{
 					var searchVec = wireConnect.registerTile.LocalPosition;
 					if (wireConnect.SpriteHandler == null)
@@ -253,7 +256,7 @@ namespace Objects.Electrical
 
 		public void FindOverlapsAndCombine()
 		{
-			if (WireEndA == Connection.Overlap | WireEndB == Connection.Overlap)
+			if (WireEndA == Connection.Overlap || WireEndB == Connection.Overlap)
 			{
 				List<IntrinsicElectronicData> Econns = new List<IntrinsicElectronicData>();
 
@@ -302,7 +305,7 @@ namespace Objects.Electrical
 		{
 			if (REWireEndA == REWireEndB)
 			{
-				Logger.LogWarningFormat("Wire connection both starts ({0}) and ends ({1}) in the same place!", Category.Electrical, REWireEndA, REWireEndB);
+				Loggy.Warning().Format("Wire connection both starts ({0}) and ends ({1}) in the same place!", Category.Electrical, REWireEndA, REWireEndB);
 				return;
 			}
 			if (RECableType != WiringColor.unknown)
@@ -327,7 +330,7 @@ namespace Objects.Electrical
 			SR.sprite = CableSprites.Sprites[spriteIndex];
 			if (SR.sprite == null)
 			{
-				Logger.LogError("SetSprite: Couldn't find wire sprite, sprite value didn't return anything!", Category.Electrical);
+				Loggy.Error("SetSprite: Couldn't find wire sprite, sprite value didn't return anything!", Category.Electrical);
 			}
 		}
 

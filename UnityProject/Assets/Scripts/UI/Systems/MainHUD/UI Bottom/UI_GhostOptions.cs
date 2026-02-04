@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using NaughtyAttributes;
@@ -9,7 +10,9 @@ using UI.Windows;
 using Systems.Teleport;
 using AdminCommands;
 using Effects;
+using Messages.Client.GhostRoles;
 using Strings;
+using Systems.GhostRoles;
 
 
 namespace UI.Systems.Ghost
@@ -33,14 +36,15 @@ namespace UI.Systems.Ghost
 		private void OnEnable()
 		{
 			TeleportWindow.onTeleportRequested += TeleportUtils.TeleportLocalGhostTo;
-			TeleportWindow.onTeleportToVector += TeleportUtils.TeleportLocalGhostTo;
+			TeleportWindow.onTeleportToVectorWorld += TeleportUtils.TeleportGhostToWorldPosition;
 			DetermineGhostHearText();
+			RequestAvailableGhostRolesMessage.SendMessage();
 		}
 
 		private void OnDisable()
 		{
 			TeleportWindow.onTeleportRequested -= TeleportUtils.TeleportLocalGhostTo;
-			TeleportWindow.onTeleportToVector -= TeleportUtils.TeleportLocalGhostTo;
+			TeleportWindow.onTeleportToVectorWorld -= TeleportUtils.TeleportGhostToWorldPosition;
 		}
 
 		public void JumpToMob()
@@ -61,7 +65,7 @@ namespace UI.Systems.Ghost
 
 		public void ReenterCorpse()
 		{
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdGhostCheck();
+			PlayerManager.LocalMindScript.CmdGhostCheck();
 		}
 
 		public void Teleport()
@@ -78,13 +82,13 @@ namespace UI.Systems.Ghost
 
 		public void Respawn()
 		{
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdRespawnPlayer();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdRespawnPlayer();
 			Camera.main.GetComponent<CameraEffects.CameraEffectControlScript>().EnsureAllEffectsAreDisabled();
 		}
 
 		public void ToggleAllowCloning()
 		{
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdToggleAllowCloning();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdToggleAllowCloning();
 		}
 
 		public void ToggleGhostHearRange()
@@ -93,12 +97,34 @@ namespace UI.Systems.Ghost
 			DetermineGhostHearText();
 		}
 
-		public void NewGhostRoleAvailable(GhostRoleData role)
+		public void NewGhostRoleAvailable(GhostRoleData role, GhostRoleClient clientrole)
 		{
+			if (gameObject.activeSelf == false) return;
 			ghostRoleSpriteHandler.SetSpriteSO(role.Sprite, networked: false);
 			if (roleBtnAnimating) return; // Drop rapid subsequent notifications
 
+			if (clientrole != null)
+			{
+				clientrole.OnTimerExpired += UpdateIcon;
+			}
+
+
 			StartCoroutine(GhostRoleNotify(role));
+		}
+
+		public void UpdateIcon()
+		{
+
+			if (GhostRoleManager.Instance.clientAvailableRoles.Count == 0)
+			{
+				ghostRoleSpriteHandler.SetCatalogueIndexSprite(0, networked: false);
+				roleBtnAnimating = false;
+				return;
+			}
+
+			var firstOrDefault = GhostRoleManager.Instance.clientAvailableRoles.OrderByDescending(x => x.Key).FirstOrDefault();
+			var data = firstOrDefault.Value;
+			NewGhostRoleAvailable(GhostRoleManager.Instance.GhostRoles[data.RoleListIndex], data);
 		}
 
 		private void DetermineGhostHearText()
@@ -115,7 +141,6 @@ namespace UI.Systems.Ghost
 			ghostRoleAnimator.TriggerAnimation();
 
 			yield return WaitFor.Seconds(5);
-			ghostRoleSpriteHandler.ChangeSprite(0, networked: false);
 
 			roleBtnAnimating = false;
 		}
@@ -123,7 +148,7 @@ namespace UI.Systems.Ghost
 		public void AdminGhostInventoryDrop()
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			if (PlayerManager.PlayerScript != null)
+			if (PlayerManager.LocalPlayerScript != null)
 			{
 				AdminCommandsManager.Instance.CmdAdminGhostDropItem();
 			}
@@ -132,7 +157,7 @@ namespace UI.Systems.Ghost
 		public void AdminGhostInvSmash()
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			if (PlayerManager.PlayerScript != null)
+			if (PlayerManager.LocalPlayerScript != null)
 			{
 				AdminCommandsManager.Instance.CmdAdminGhostSmashItem();
 			}

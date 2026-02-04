@@ -1,15 +1,17 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using NaughtyAttributes;
 using UnityEngine;
-using System.Linq;
-using Random = System.Random;
+using Health.Objects;
+using Logs;
 
 namespace HealthV2
 {
 	public partial class BodyPart
 	{
+
+		public bool CanNotBeHealedByExternalHealingPack = false;
+
 		/// <summary>
 		/// The armor of the clothing covering a part of the body, ignoring selfArmor.
 		/// </summary>
@@ -41,10 +43,6 @@ namespace HealthV2
 		[Tooltip("Does damaging this body part affect the creature's overall health?")]
 		public bool DamageContributesToOverallHealth = true;
 
-		/// <summary>
-		/// Affects how much damage contributes to the efficiency of the body part, currently unimplemented
-		/// </summary>
-		[HideInInspector] public float DamageEfficiencyMultiplier = 1;
 
 		/// <summary>
 		/// Modifier that multiplicatively reduces the efficiency of the body part based on damage
@@ -120,6 +118,8 @@ namespace HealthV2
 			0
 		};
 
+		public DamageWeaknesses damageWeaknesses { get; } = new DamageWeaknesses();
+
 		/// <summary>
 		/// The total damage this body part has taken that is not from lack of blood reagent
 		/// and not including cellular (clone) damage
@@ -162,6 +162,23 @@ namespace HealthV2
 			}
 		}
 
+		public float TotalDamageWithoutOxyRadStam
+		{
+			get
+			{
+				float TDamage = 0;
+				for (int i = 0; i < Damages.Length; i++)
+				{
+					if ((int) DamageType.Oxy == i) continue;
+					if ((int) DamageType.Radiation == i) continue;
+					if ((int) DamageType.Stamina == i) continue;
+					TDamage += Damages[i];
+				}
+
+				return TDamage;
+			}
+		}
+
 		/// <summary>
 		/// The total damage this body part has taken
 		/// </summary>
@@ -181,23 +198,181 @@ namespace HealthV2
 		}
 
 		/// <summary>
+		/// Triggers when a body part receives damage.
+		/// It has the attack type, damage type and the amount of damage as parameters for the callback
+		/// </summary>
+		public event Action<BodyPartDamageData> OnDamageTaken;
+
+		public BodyPartDamageData LastDamageData { get; private set; } = new BodyPartDamageData();
+
+
+		public const float DMG_Environment_Multiplier = 1.5f;
+
+		/// <summary>
 		/// Adjusts the appropriate damage type by the given damage amount and updates body part
 		/// functionality based on its new health total
 		/// </summary>
 		/// <param name="damage">Damage amount</param>
 		/// <param name="damageType">The type of damage</param>
-		public void AffectDamage(float damage, int damageType)
+		private void AffectDamage(float damage, int damageType)
 		{
 			if (damage == 0) return;
+
+			if (float.IsNaN(damage) || float.IsInfinity(damage)  )
+			{
+				Loggy.Error("oh no/..!!!! NAN /Abnormal number as damage > " + damage );
+				return;
+			}
 			float toDamage = Damages[damageType] + damage;
 
 			if (toDamage < 0) toDamage = 0;
+			if (damageType != (int) DamageType.Radiation)
+			{
+				if (toDamage > (maxHealth * 3))
+				{
+					toDamage = maxHealth * 3;
+				}
+			}
+
 
 			Damages[damageType] = toDamage;
 			health = maxHealth - TotalDamage;
 			RecalculateEffectiveness();
 			UpdateSeverity();
 		}
+
+
+		public TemperatureAlert ExposeTemperature(float environmentalTemperature, float divideBy)
+		{
+			bool alertTypeHigherTemperature = false;
+			if (SelfArmor.TemperatureOutsideSafeRange(environmentalTemperature))
+			{
+				float min = SelfArmor.TemperatureProtectionInK.x;
+				float max = SelfArmor.TemperatureProtectionInK.y;
+
+				foreach (var armour in ClothingArmors)
+				{
+					if (armour.InvalidValuesInTemperature() == false)
+					{
+						min = Mathf.Min(min, armour.TemperatureProtectionInK.x);
+						max = Mathf.Max(max, armour.TemperatureProtectionInK.y);
+					}
+				}
+
+				if (environmentalTemperature < min)
+				{
+					//NOTE It's clamped maximum one for minimum
+					//so, Half Temperature of the minimum threshold that's when the maximum damage will kick in
+					TakeDamage(null,   (DMG_Environment_Multiplier*Mathf.Clamp((min-environmentalTemperature)/(min/2f), 0f,1f))/divideBy, AttackType.Internal, DamageType.Burn, true);
+					return TemperatureAlert.TooCold;
+				}
+				else if (environmentalTemperature > max)
+				{
+
+					var mid = SelfArmor.GetMiddleTemperature();
+					var hotRange =  (max - mid ); //To get how much hot protection it has
+
+					//so, Double of the maximum temperature that's when the maximum damage Will start kicking
+					TakeDamage(null, DMG_Environment_Multiplier*Mathf.Clamp((environmentalTemperature-max)/hotRange, 0f,0.30f), AttackType.Internal, DamageType.Burn, true);
+					return TemperatureAlert.TooHot;
+				}
+			}
+
+			if (SelfArmor.TemperatureNearingLimits(environmentalTemperature, out alertTypeHigherTemperature))
+			{
+				bool NotNearingLimit = true;
+				foreach (var armour in ClothingArmors)
+				{
+					if (armour.InvalidValuesInTemperature() == false)
+					{
+						NotNearingLimit = armour.TemperatureNearingLimits(environmentalTemperature, out alertTypeHigherTemperature);
+						if (NotNearingLimit == false)
+						{
+							return TemperatureAlert.None;
+						}
+					}
+				}
+
+
+				if (alertTypeHigherTemperature)
+				{
+					return TemperatureAlert.Hot;
+				}
+				else
+				{
+					return TemperatureAlert.Cold;
+				}
+			}
+			return TemperatureAlert.None;
+		}
+
+		public PressureAlert ExposePressure(float environmentalPressure, float divideBy)
+		{
+			bool alertTypeHigherPressure = false;
+
+			if (SelfArmor.PressureOutsideSafeRange(environmentalPressure))
+			{
+
+				float min = SelfArmor.PressureProtectionInKpa.x;
+				float max = SelfArmor.PressureProtectionInKpa.y;
+
+				foreach (var armour in ClothingArmors)
+				{
+					if (armour.InvalidValuesInPressure() == false)
+					{
+						min = Mathf.Min(min, armour.PressureProtectionInKpa.x);
+						max = Mathf.Max(max, armour.PressureProtectionInKpa.y);
+					}
+				}
+
+				if (environmentalPressure < min)
+				{
+					//NOTE It's clamped maximum one for minimum
+					//so, Half Pressure of the minimum threshold that's when the maximum damage will kick in
+					TakeDamage(null,   (DMG_Environment_Multiplier*Mathf.Clamp((min - environmentalPressure)/(min/2f), 0f,1f))/divideBy, AttackType.Internal, DamageType.Brute, true);
+					return PressureAlert.PressureTooLow;
+
+				}
+				else if (environmentalPressure > max)
+				{
+					//Alert UI here
+
+					var mid = SelfArmor.GetMiddlePressure();
+					var PressureRange =  (max - mid ); //To get how much PressureRange protection it has
+
+					//so, Double of the maximum Pressure that's when the maximum damage Will start kicking
+					TakeDamage(null, DMG_Environment_Multiplier*Mathf.Clamp((environmentalPressure-max)/PressureRange, 0f,0.30f), AttackType.Internal, DamageType.Brute, true);
+					return PressureAlert.PressureTooHigher;
+				}
+			}
+
+			if (SelfArmor.PressureNearingLimits(environmentalPressure, out alertTypeHigherPressure))
+			{
+				bool NotNearingLimit = true;
+				foreach (var armour in ClothingArmors)
+				{
+					if (armour.InvalidValuesInPressure() == false)
+					{
+						NotNearingLimit = armour.PressureNearingLimits(environmentalPressure, out alertTypeHigherPressure);
+						if (NotNearingLimit == false)
+						{
+							return PressureAlert.None;
+						}
+					}
+				}
+
+				if (alertTypeHigherPressure)
+				{
+					return PressureAlert.PressureHigher;
+				}
+				else
+				{
+					return PressureAlert.PressureLow;
+				}
+			}
+			return PressureAlert.None;
+		}
+
 
 		/// <summary>
 		/// Applies damage to this body part. Damage will be divided among it and sub organs depending on their
@@ -210,15 +385,36 @@ namespace HealthV2
 		/// <param name="organDamageSplit">Should the damage be divided amongst the contained organs or applied to a random one</param>
 		public void TakeDamage(GameObject damagedBy, float damage, AttackType attackType, DamageType damageType,
 								bool organDamageSplit = false, bool DamageSubOrgans = true, float armorPenetration = 0,
-								double traumaDamageChance = 100, TraumaticDamageTypes tramuticDamageType = TraumaticDamageTypes.NONE)
+								double traumaDamageChance = 100, TraumaticDamageTypes tramuticDamageType = TraumaticDamageTypes.NONE, bool invokeOnDamageEvent = true)
 		{
+			if (damage == 0) return;
 			float damageToLimb = Armor.GetTotalDamage(
 				SelfArmor.GetDamage(damage, attackType, armorPenetration),
 				attackType,
 				ClothingArmors,
 				armorPenetration
 			);
+			if (damageToLimb > 0)
+			{
+				damageToLimb = damageWeaknesses.CalculateAppliedDamage(damageToLimb, damageType);
+			}
+
+			LastDamageData = new BodyPartDamageData()
+			{
+				DamageAmount = damageToLimb,
+				DamagedBy = damagedBy,
+				AttackType = attackType,
+				DamageType = damageType,
+				OrganDamageSplit = organDamageSplit,
+				DamageSubOrgans = DamageSubOrgans,
+				ArmorPenetration = armorPenetration,
+				TramuticDamageType = tramuticDamageType,
+				TraumaDamageChance = traumaDamageChance,
+				InvokeOnDamageEvent = invokeOnDamageEvent
+			};
+
 			AffectDamage(damageToLimb, (int) damageType);
+			if (invokeOnDamageEvent) OnDamageTaken?.Invoke(LastDamageData);
 
 			// May be changed to individual damage
 			// May also want it so it can miss sub organs
@@ -226,36 +422,6 @@ namespace HealthV2
 			{
 				DamageOrgans(damage, attackType, damageType, organDamageSplit, armorPenetration);
 			}
-
-			if(damage < damageThreshold) return; //Do not apply traumas if the damage is not serious.
-			if(damageType == DamageType.Brute) //Check damage type to avoid bugs where you can blow someone's head off with a shoe.
-			{
-				if (attackType == AttackType.Melee || attackType == AttackType.Laser || attackType == AttackType.Energy)
-				{
-					if (tramuticDamageType != TraumaticDamageTypes.NONE && DMMath.Prob(traumaDamageChance))
-					{
-						//TODO: move this to an utility, its hard to read! - picks a random enum from the ones already flagged
-						Random random = new Random();
-						TraumaticDamageTypes[] typeToSelectFrom = Enum.GetValues(typeof(TraumaticDamageTypes)).Cast<TraumaticDamageTypes>().Where(x => tramuticDamageType.HasFlag(x)).ToArray();
-						TraumaticDamageTypes selectedType = typeToSelectFrom[random.Next(1, typeToSelectFrom.Length)];
-						ApplyTraumaDamage(selectedType);
-					}
-					CheckBodyPartIntegrity();
-				}
-			}
-
-			if(attackType == AttackType.Bomb)
-			{
-				TakeBluntDamage();
-				DismemberBodyPartWithChance();
-			}
-
-			if (damageType == DamageType.Burn || attackType == AttackType.Fire ||
-			    attackType == AttackType.Laser || attackType == AttackType.Energy)
-			{
-				ApplyTraumaDamage(TraumaticDamageTypes.BURN);
-			}
-
 		}
 
 		private void DamageOrgans(float damage, AttackType attackType, DamageType damageType, bool organDamageSplit, float armorPenetration)
@@ -274,13 +440,13 @@ namespace HealthV2
 			{
 				foreach (var organ in containBodyParts)
 				{
-					organ.AffectDamage(subDamage / containBodyParts.Count, (int) damageType);
+					organ.TakeDamage(null, subDamage / containBodyParts.Count , attackType , damageType);
 				}
 			}
 			else
 			{
 				var organBodyPart = containBodyParts.PickRandom(); //It's not like you can aim for Someone's liver can you
-				organBodyPart.AffectDamage(subDamage, (int) damageType);
+				organBodyPart.TakeDamage(null, subDamage, attackType , damageType);
 			}
 		}
 
@@ -290,7 +456,7 @@ namespace HealthV2
 		public void HealDamage(GameObject healingItem, float healAmt,
 			DamageType damageTypeToHeal)
 		{
-			AffectDamage(-healAmt, (int) damageTypeToHeal);
+			TakeDamage(healingItem, -healAmt, AttackType.Internal, damageTypeToHeal, DamageSubOrgans  : false);
 		}
 
 		/// <summary>
@@ -299,7 +465,7 @@ namespace HealthV2
 		public void HealDamage(GameObject healingItem, float healAmt,
 			int damageTypeToHeal)
 		{
-			AffectDamage(-healAmt, damageTypeToHeal);
+			HealDamage(healingItem, healAmt, (DamageType) damageTypeToHeal);
 		}
 
 
@@ -334,13 +500,10 @@ namespace HealthV2
 		{
 			if (RadiationStacks == 0) return;
 			var ProcessingRadiation = RadiationStacks * 0.01f;
-			if (ProcessingRadiation > 2 && ProcessingRadiation < 0.05f)
-			{
-				ProcessingRadiation = 2;
-			}
+			if (ProcessingRadiation is < 2 and > 0.05f) ProcessingRadiation = 2;
 
-			AffectDamage(-ProcessingRadiation, (int) DamageType.Radiation);
-			AffectDamage(ProcessingRadiation * 0.1f, (int) DamageType.Tox);
+			HealDamage(null,ProcessingRadiation, DamageType.Radiation);
+			TakeDamage(null, ProcessingRadiation * 0.1f, AttackType.Internal , DamageType.Tox, DamageSubOrgans : false, tramuticDamageType: TraumaticDamageTypes.IRRADIATION); //This Should bypass all armour
 		}
 
 		/// <summary>
@@ -356,7 +519,6 @@ namespace HealthV2
 			if (severity <= 0)
 			{
 				Severity = DamageSeverity.None;
-				currentPierceDamageLevel = TraumaDamageLevel.NONE;
 			}
 			// If the limb is under 10% damage
 			else if (severity < 0.1)
@@ -402,5 +564,29 @@ namespace HealthV2
 		{
 			UIManager.PlayerHealthUI.SetBodyTypeOverlay(this);
 		}
+
+		public float GetDamage(DamageType damageType)
+		{
+			return Damages[(int) damageType];
+		}
+
+		public void SetMaxHealth(float newMaxHealth)
+		{
+			maxHealth = newMaxHealth;
+		}
 	}
+}
+
+public class BodyPartDamageData
+{
+	public GameObject DamagedBy = null;
+	public float DamageAmount = 0f;
+	public AttackType AttackType = AttackType.Melee;
+	public DamageType DamageType = DamageType.Brute;
+	public bool OrganDamageSplit = false;
+	public bool DamageSubOrgans = true;
+	public float ArmorPenetration = 0;
+	public double TraumaDamageChance = 100;
+	public TraumaticDamageTypes TramuticDamageType = TraumaticDamageTypes.NONE;
+	public bool InvokeOnDamageEvent = true;
 }

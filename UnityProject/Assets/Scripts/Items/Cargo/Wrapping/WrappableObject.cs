@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Core;
+using Logs;
 using UnityEngine;
 using Objects;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Items.Cargo.Wrapping
 {
@@ -58,7 +61,7 @@ namespace Items.Cargo.Wrapping
 					result = festivePackagePrefab;
 					break;
 				default:
-					Logger.LogError($"Tried to wrap {gameObject} with unknown type of paper", Category.Cargo);
+					Loggy.Error($"Tried to wrap {gameObject} with unknown type of paper", Category.Cargo);
 					result = normalPackagePrefab;
 					break;
 			}
@@ -68,7 +71,7 @@ namespace Items.Cargo.Wrapping
 			var wrap = toSpawn.GetComponent<WrappedObject>();
 			wrap.SetContent(gameObject);
 			GetComponent<ObjectContainer>().TransferObjectsTo(wrap);
-			GetComponent<PushPull>().parentContainer = wrap.GetComponent<PushPull>();
+			GetComponent<UniversalObjectPhysics>().StoreTo(wrap);
 			wrap.SetContainerTypeSprite(spriteType);
 
 			Inventory.ServerConsume(paper.ItemSlot, neededPaperAmount);

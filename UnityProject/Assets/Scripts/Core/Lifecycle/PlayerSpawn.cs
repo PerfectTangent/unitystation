@@ -1,15 +1,95 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
+using AdminCommands;
+using Core;
+using HealthV2;
+using JetBrains.Annotations;
+using Logs;
 using UnityEngine;
 using Mirror;
-using Systems;
 using Systems.Spawns;
 using Managers;
 using Messages.Server;
 using Messages.Server.LocalGuiMessages;
 using Newtonsoft.Json;
-using UI.CharacterCreator;
 using Player;
+using Systems;
+using Systems.Character;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
+
+/// <summary>
+/// This interface will be called after the client has rejoined and has all scenes loaded!
+/// </summary>
+public interface IOnPlayerRejoin
+{
+	/// <summary>
+	/// Called on server when the player rejoins the game (interface called on the player object)
+	/// </summary>
+	/// <param name="mind">The mind of the player rejoining</param>
+	public void OnPlayerRejoin(Mind mind);
+}
+
+/// <summary>
+/// This interface will be called when a player Takes control of a body  e.g Ghost re-entering body
+/// </summary>
+public interface IOnControlPlayer
+{
+	/// <summary>
+	/// Called on server when the player transfers into a new body (interface called on the new player object)
+	/// </summary>
+	/// <param name="account">The mind of the player being transferred</param>
+	public void OnServerPlayerTransfer(PlayerInfo account);
+}
+
+
+/// <summary>
+/// This interface will be called when a player is transferred into a new body (but not on rejoin, use above instead)
+/// </summary>
+public interface IOnPlayerPossess
+{
+	/// <summary>
+	/// Called on server when the player transfers into a new body (interface called on the new player object)
+	/// </summary>
+	/// <param name="mind">The mind of the player being transferred</param>
+	public void OnServerPlayerPossess(Mind mind);
+}
+
+
+/// <summary>
+/// This interface will be called when a player Ghosts, Or any other time they start controlling a different object
+/// </summary>
+public interface IOnPlayerLeaveBody
+{
+	/// <summary>
+	/// Called on server when the player leaves a body (interface called on the old player object)
+	/// </summary>
+	/// <param name="account">The mind of the player leaving the body</param>
+	public void OnPlayerLeaveBody(PlayerInfo account);
+}
+
+/// <summary>
+/// This interface will be called when a player is transferred out of their body
+/// </summary>
+public interface IOnPlayerLosePossess
+{
+	/// <summary>
+	/// Called on server when the player leaves a body (interface called on the old player object)
+	/// </summary>
+	/// <param name="account">The mind of the player leaving the body</param>
+	public void OnPlayerLosePossession(Mind Mind);
+}
+
+
+public interface IClientPlayerLeaveBody
+{
+	public void ClientOnPlayerLeaveBody();
+}
+
+
+public interface IClientPlayerTransferProcess
+{
+	public void ClientOnPlayerTransferProcess();
+}
 
 /// <summary>
 /// Main API for dealing with spawning players and related things.
@@ -17,539 +97,568 @@ using Player;
 /// </summary>
 public static class PlayerSpawn
 {
-	public class SpawnEventArgs : EventArgs { public GameObject player; }
-	public delegate void SpawnHandler(object sender, SpawnEventArgs args);
-	public static event SpawnHandler SpawnEvent;
+	public static event Action<Mind> OnNewMindSpawnEvent;
+	public static event Action<GameObject> OnBodySpawnedEvent;
 
-	/// <summary>
-	/// Server-side only. For use when a player has only joined (as a JoinedViewer) and
-	/// is not in control of any mobs. Spawns the joined viewer as the indicated occupation and transfers control to it.
-	/// Note that this doesn't take into account game mode or antags, it just spawns whatever is requested.
-	/// </summary>
-	/// <param name="request">holds the request data</param>
-	/// <param name="joinedViewer">viewer who should control the player</param>
-	/// <param name="occupation">occupation to spawn as</param>
-	/// <param name="characterSettings">settings to use for the character</param>
-	/// <returns>the game object of the spawned player</returns>
-	public static GameObject ServerSpawnPlayer(PlayerSpawnRequest request, JoinedViewer joinedViewer, Occupation occupation, CharacterSettings characterSettings, bool showBanner = true, Vector3Int?
-		spawnPos = null, Mind existingMind = null, NetworkConnectionToClient conn = null)
-	{
-		if(ValidateCharacter(request) == false)
-		{
-			return null;
-		}
-
-		if (conn == null)
-		{
-			conn = joinedViewer.connectionToClient;
-		}
-
-
-		// TODO: add a nice cutscene/animation for the respawn transition
-		var newPlayer = ServerSpawnInternal(conn, occupation, characterSettings, existingMind, showBanner: showBanner, spawnPos: spawnPos);
-		if (newPlayer != null && occupation.IsCrewmember)
-		{
-			CrewManifestManager.Instance.AddMember(newPlayer.GetComponent<PlayerScript>(), occupation.JobType);
-		}
-
-		if (SpawnEvent != null)
-		{
-			SpawnEventArgs args = new SpawnEventArgs() { player = newPlayer };
-			SpawnEvent.Invoke(null, args);
-		}
-
-		return newPlayer;
-	}
-
-	private static bool ValidateCharacter(PlayerSpawnRequest request)
-	{
-		var isOk = true;
-		var message = "";
-
-		//Disable this until we fix skin tone checks.
-		/*
-		if(ServerValidations.HasIllegalSkinTone(request.CharacterSettings))
-		{
-			message += " Invalid player skin tone.";
-			isOk = false;
-		}
-
-
-		if(ServerValidations.HasIllegalCharacterName(request.CharacterSettings.Name))
-		{
-			message += " Invalid player character name.";
-			isOk = false;
-		}
-		*/
-		if(ServerValidations.HasIllegalCharacterAge(request.CharacterSettings.Age))
-		{
-			message += " Invalid character age.";
-			isOk = false;
-		}
-
-		if (isOk == false)
-		{
-			message += " Please change and resave character.";
-			ValidateFail(request.JoinedViewer, request.UserID, message);
-		}
-
-		return isOk;
-	}
-
-	private static void ValidateFail(JoinedViewer joinedViewer, string userId, string message)
-	{
-		PlayerList.Instance.ServerKickPlayer(userId, message, false, 1, false);
-		if(joinedViewer.isServer || joinedViewer.isLocalPlayer)
-		{
-			joinedViewer.Spectate();
-		}
-	}
-
-	/// <summary>
-	/// Server-side only. For use when a player has only joined (as a JoinedViewer) and
-	/// is not in control of any mobs. Spawns the joined viewer as the indicated occupation and transfers control to it.
-	/// Note that this doesn't take into account game mode or antags, it just spawns whatever is requested.
-	/// </summary>
-	/// <param name="spawnRequest">details of the requested spawn</param>
-	/// <returns>the game object of the spawned player</returns>
-	public static GameObject ServerSpawnPlayer(PlayerSpawnRequest spawnRequest)
-	{
-		return ServerSpawnPlayer(spawnRequest, spawnRequest.JoinedViewer, spawnRequest.RequestedOccupation,
-			spawnRequest.CharacterSettings);
-	}
-
-	/// <summary>
-	/// For use when player is connected and dead.
-	/// Respawns the mind's character and transfers their control to it.
-	/// </summary>
-	/// <param name="forMind"></param>
-	/// <param name="spawnPos">Override for spawn pos, null to spawn at normal spawnpoint</param>
-	public static void ServerRespawnPlayer(Mind forMind, Vector3Int? spawnPos = null)
-
-	{
-		//get the settings from the mind
-		var occupation = forMind.occupation;
-		var oldBody = forMind.GetCurrentMob();
-		var connection = oldBody.GetComponent<NetworkIdentity>().connectionToClient;
-		var settings = oldBody.GetComponent<PlayerScript>().characterSettings;
-
-		var player = oldBody.Player();
-		var oldGhost = forMind.ghost;
-
-		ServerSpawnInternal(connection, occupation, settings, forMind, spawnPos, willDestroyOldBody: oldGhost != null);
-
-		if (oldGhost)
-		{
-			_ = Despawn.ServerSingle(oldGhost.gameObject);
-		}
-	}
-
-	/// <summary>
-	/// For use when a player is alive or dead and you want to clone their body and transfer their control to it.
-	///
-	/// Clones a given mind's current body to a new body and transfers control of the mind's connection to that new body.
-	/// </summary>
-	/// <param name="forMind"></param>
-	/// <param name="worldPosition"></param>
-	public static GameObject ServerClonePlayer(Mind forMind, Vector3Int worldPosition)
-	{
-		//TODO: Can probably remove characterSettings from cloningrecord
-		//determine previous occupation / settings
-		var oldBody = forMind.GetCurrentMob();
-		var occupation = forMind.occupation;
-		var connection = oldBody.GetComponent<NetworkIdentity>().connectionToClient;
-		var settings = oldBody.GetComponent<PlayerScript>().characterSettings;
-
-		return ServerSpawnInternal(connection, occupation, settings, forMind, worldPosition, false, showBanner: false);
-	}
 
 	//Time to start spawning players at arrivals
-	private static readonly DateTime ARRIVALS_SPAWN_TIME = new DateTime().AddHours(12).AddMinutes(2);
+	private static readonly DateTime ArrivalsSpawnTime = new DateTime().AddHours(12).AddMinutes(2);
 
-	/// <summary>
-	/// Spawns a new player character and transfers the connection's control into the new body.
-	/// If existingMind is null, creates the new mind and assigns it to the new body.
-	///
-	/// Fires server and client side player spawn hooks.
-	/// </summary>
-	/// <param name="connection">connection to give control to the new player character</param>
-	/// <param name="occupation">occupation of the new player character</param>
-	/// <param name="characterSettings">settings of the new player character</param>
-	/// <param name="existingMind">existing mind to transfer to the new player, if null new mind will be created
-	/// and assigned to the new player character</param>
-	/// <param name="spawnPos">world position to spawn at</param>
-	/// <param name="spawnItems">If spawning a player, should the player spawn without the defined initial equipment for their occupation?</param>
-	/// <param name="willDestroyOldBody">if true, indicates the old body is going to be destroyed rather than pooled,
-	/// thus we shouldn't send any network message which reference's the old body's ID since it won't exist.</param>
-	///
-	/// <returns>the spawned object</returns>
-	private static GameObject ServerSpawnInternal(NetworkConnectionToClient connection, Occupation occupation, CharacterSettings characterSettings,
-		Mind existingMind, Vector3Int? spawnPos = null, bool spawnItems = true, bool willDestroyOldBody = false, bool showBanner = true)
+	private static Vector3Int GetSpawnPointForOccupation(Occupation occupation)
 	{
-		//determine where to spawn them
-		if (spawnPos == null)
+		Transform spawnTransform;
+		if (occupation == null)
 		{
-			Transform spawnTransform;
-			//Spawn normal location for special jobs or if less than 2 minutes passed
-			if (GameManager.Instance.stationTime < ARRIVALS_SPAWN_TIME || occupation.LateSpawnIsArrivals == false)
-			{
-				spawnTransform = SpawnPoint.GetRandomPointForJob(occupation.JobType);
-			}
-			else
-			{
-				spawnTransform = SpawnPoint.GetRandomPointForLateSpawn();
-				//Fallback to assistant spawn location if none found for late join
-				if (spawnTransform == null && occupation.JobType != JobType.NULL)
-				{
-					spawnTransform = SpawnPoint.GetRandomPointForJob(JobType.ASSISTANT);
-				}
-			}
-
-			if (spawnTransform == null)
-			{
-				Logger.LogErrorFormat(
-					"Unable to determine spawn position for connection {0} occupation {1}. Cannot spawn player.",
-					Category.EntitySpawn,
-					connection.address, occupation.DisplayName);
-				return null;
-			}
-
-			spawnPos = spawnTransform.transform.position.CutToInt();
+			spawnTransform = SpawnPoint.GetRandomPointForJob(JobType.ASSISTANT);
+			return spawnTransform != null ? spawnTransform.position.CutToInt() : Vector3Int.zero;
 		}
 
-		//create the player object
-		var newPlayer = ServerCreatePlayer(spawnPos.GetValueOrDefault(), occupation.SpecialPlayerPrefab);
-		var newPlayerScript = newPlayer.GetComponent<PlayerScript>();
-
-		//get the old body if they have one.
-		var oldBody = existingMind?.GetCurrentMob();
-
-		//transfer control to the player object
-		ServerTransferPlayer(connection, newPlayer, oldBody, Event.PlayerSpawned, characterSettings, willDestroyOldBody);
-
-		if (existingMind == null)
+		//Spawn normal location for special jobs or if less than 2 minutes passed
+		if (GameManager.Instance.RoundTime < ArrivalsSpawnTime || occupation.LateSpawnIsArrivals == false)
 		{
-			//create the mind of the player
-			Mind.Create(newPlayer, occupation);
+			spawnTransform = SpawnPoint.GetRandomPointForJob(occupation.JobType);
 		}
 		else
 		{
-			//transfer the mind to the new body
-			existingMind.SetNewBody(newPlayerScript);
-		}
-
-
-		var ps = newPlayer.GetComponent<PlayerScript>();
-		var connectedPlayer = PlayerList.Instance.Get(connection);
-		connectedPlayer.Name = ps.playerName;
-		connectedPlayer.Job = ps.mind.occupation.JobType;
-		UpdateConnectedPlayersMessage.Send();
-
-		//fire all hooks
-		var info = SpawnInfo.Player(occupation, characterSettings, CustomNetworkManager.Instance.humanPlayerPrefab,
-			SpawnDestination.At(spawnPos), spawnItems: spawnItems);
-		Spawn._ServerFireClientServerSpawnHooks(SpawnResult.Single(info, newPlayer));
-
-		if (occupation != null && showBanner)
-		{
-			SpawnBannerMessage.Send(
-				newPlayer,
-				occupation.DisplayName,
-				occupation.SpawnSound.AssetAddress,
-				occupation.TextColor,
-				occupation.BackgroundColor,
-				occupation.PlaySound);
-		}
-		if (info.SpawnItems)
-		{
-			newPlayer.GetComponent<DynamicItemStorage>()?.SetUpOccupation(occupation);
-		}
-
-
-		return newPlayer;
-	}
-
-	/// <summary>
-	/// Use this when a player is currently a ghost and wants to reenter their body.
-	/// </summary>
-	/// <param name="forConnection">connection to transfer control to</param>
-	/// TODO: Remove need for this parameter
-	/// <param name="forConnection">object forConnection is currently in control of</param>
-	/// <param name="forMind">mind to transfer control back into their body</param>
-	public static void ServerGhostReenterBody(NetworkConnectionToClient forConnection, GameObject fromObject, Mind forMind)
-	{
-		var body = forMind.GetCurrentMob();
-		var oldGhost = forMind.ghost;
-		var ps = body.GetComponent<PlayerScript>();
-		var mind = ps.mind;
-		var occupation = mind.occupation;
-		var settings = ps.characterSettings;
-		ServerTransferPlayer(forConnection, body, fromObject, Event.PlayerSpawned, settings, oldGhost != null);
-		body.GetComponent<PlayerScript>().playerNetworkActions.ReenterBodyUpdates();
-
-		if (oldGhost)
-		{
-			_ = Despawn.ServerSingle(oldGhost.gameObject);
-		}
-	}
-
-	/// <summary>
-	/// Use this when a player rejoins the game and already has a logged-out body in the game.
-	/// Transfers their control back to the body.
-	/// </summary>
-	/// <param name="viewer"></param>
-	/// <param name="body">to transfer into</param>
-	public static void ServerRejoinPlayer(JoinedViewer viewer, GameObject body)
-	{
-		var ps = body.GetComponent<PlayerScript>();
-		var settings = ps.characterSettings;
-		ServerTransferPlayer(viewer.connectionToClient, body, viewer.gameObject, Event.PlayerRejoined, settings);
-		ps = body.GetComponent<PlayerScript>();
-		ps.playerNetworkActions.ReenterBodyUpdates();
-		ps.mind.ResendSpellActions();
-	}
-
-	/// <summary>
-	/// Spawns a ghost for the indicated mind's body and transfers the connection's control to it.
-	/// </summary>
-	/// <param name="conn"></param>
-	/// <param name="oldBody"></param>
-	/// <param name="characterSettings"></param>
-	/// <param name="occupation"></param>
-	/// <returns></returns>
-	public static void ServerSpawnGhost(Mind forMind)
-	{
-		if (forMind == null)
-		{
-			Logger.LogError("Mind was null for ServerSpawnGhost", Category.Ghosts);
-			return;
-		}
-		//determine where to spawn the ghost
-		var body = forMind.GetCurrentMob();
-
-		if (body == null)
-		{
-			Logger.LogError("Body was null for ServerSpawnGhost", Category.Ghosts);
-			return;
-		}
-
-		var settings = body.GetComponent<PlayerScript>().characterSettings;
-		var connection = body.GetComponent<NetworkIdentity>().connectionToClient;
-		var registerTile = body.GetComponent<RegisterTile>();
-		if (registerTile == null)
-		{
-			Logger.LogErrorFormat("Cannot spawn ghost for body {0} because it has no registerTile", Category.Ghosts,
-				body.name);
-			return;
-		}
-
-		Vector3Int spawnPosition = TransformState.HiddenPos;
-		var objBeh = body.GetComponent<ObjectBehaviour>();
-		if (objBeh != null) spawnPosition = objBeh.AssumedWorldPositionServer();
-
-		if (spawnPosition == TransformState.HiddenPos)
-		{
-			//spawn ghost at occupation location if we can't determine where their body is
-			Transform spawnTransform = SpawnPoint.GetRandomPointForJob(forMind.occupation.JobType, true);
-			if (spawnTransform == null)
+			spawnTransform = SpawnPoint.GetRandomPointForLateSpawn();
+			//Fallback to assistant spawn location if none found for late join
+			if (spawnTransform == null && occupation.JobType != JobType.NULL)
 			{
-				Logger.LogErrorFormat("Unable to determine spawn position for occupation {1}. Cannot spawn ghost.", Category.Ghosts,
-					forMind.occupation.DisplayName);
-				return;
+				spawnTransform = SpawnPoint.GetRandomPointForJob(JobType.ASSISTANT);
+			}
+		}
+
+		if (spawnTransform == null)
+		{
+			Loggy.Error().Format(
+				"Unable to determine spawn position for  occupation {0}. Cannot spawn player.",
+				Category.EntitySpawn, occupation.DisplayName);
+			return Vector3Int.zero;
+		}
+
+		return spawnTransform.transform.position.CutToInt();
+	}
+
+	public static Mind NewSpawnCharacterV2(PlayerInfo account, Occupation requestedOccupation, CharacterSheet character, bool OnlyMind = false)
+	{
+		try
+		{
+			if (character == null)
+			{
+				character = CharacterSheet.GenerateRandomCharacter();
 			}
 
-			spawnPosition = spawnTransform.transform.position.CutToInt();
+			var mind = NewSpawnCharacterV2(requestedOccupation, character, OnlyMind : OnlyMind);
+			TransferAccountToSpawnedMind(account, mind);
+			OnNewMindSpawnEvent?.Invoke(mind);
+			return mind;
 		}
-
-		var matrixInfo = MatrixManager.AtPoint(spawnPosition, true);
-		var parentTransform = matrixInfo.Objects;
-
-		//using parentTransform.rotation rather than Quaternion.identity because objects should always
-		//be upright w.r.t.  localRotation, NOT world rotation
-		var ghost = UnityEngine.Object.Instantiate(CustomNetworkManager.Instance.ghostPrefab, spawnPosition, parentTransform.rotation,
-			parentTransform);
-
-		forMind.Ghosting(ghost);
-
-		ServerTransferPlayer(connection, ghost, body, Event.GhostSpawned, settings);
-
-
-		//fire all hooks
-		var info = SpawnInfo.Ghost(forMind.occupation, settings, CustomNetworkManager.Instance.ghostPrefab,
-			SpawnDestination.At(spawnPosition, parentTransform));
-		Spawn._ServerFireClientServerSpawnHooks(SpawnResult.Single(info, ghost));
-
-		var isAdmin = PlayerList.Instance.IsAdmin(forMind.ghost.connectedPlayer);
-		if (isAdmin)
+		catch (Exception e)
 		{
-			var adminItemStorage = AdminManager.Instance.GetItemSlotStorage(forMind.ghost.connectedPlayer);
-			adminItemStorage.ServerAddObserverPlayer(ghost);
+			Loggy.Error(e.ToString());
+			return null;
 		}
-
-		//Set ghost sprite
-		ghost.GetComponent<GhostSprites>().SetGhostSprite(isAdmin);
 	}
 
-	/// <summary>
-	/// Spawns as a ghost for spectating the Round
-	/// </summary>
-	public static void ServerSpawnGhost(JoinedViewer joinedViewer, CharacterSettings characterSettings)
+
+	public static Mind NewSpawnCharacterV2(Occupation requestedOccupation, CharacterSheet character,
+		bool nonImportantMind = false, bool OnlyMind = false)
 	{
-		//Hard coding to assistant
-		Vector3Int spawnPosition = SpawnPoint.GetRandomPointForJob(JobType.ASSISTANT).transform.position.CutToInt();
-
-		//Get spawn location
-		var matrixInfo = MatrixManager.AtPoint(spawnPosition, true);
-		var parentTransform = matrixInfo.Objects;
-		var newPlayer = UnityEngine.Object.Instantiate(CustomNetworkManager.Instance.ghostPrefab, spawnPosition, parentTransform.rotation, parentTransform);
-
-		//Create the mind without a job refactor this to make it as a ghost mind
-		Mind.Create(newPlayer);
-		ServerTransferPlayer(joinedViewer.connectionToClient, newPlayer, null, Event.GhostSpawned, characterSettings);
-
-		var isAdmin = PlayerList.Instance.IsAdmin(PlayerList.Instance.Get(joinedViewer.connectionToClient));
-		newPlayer.GetComponent<GhostSprites>().SetGhostSprite(isAdmin);
-	}
-
-	/// <summary>
-	/// Spawns an assistant dummy
-	/// </summary>
-	public static void ServerSpawnDummy(Transform spawnTransform = null)
-	{
-		if(spawnTransform == null)
-			spawnTransform = SpawnPoint.GetRandomPointForJob(JobType.ASSISTANT);
-		if (spawnTransform != null)
+		//TODO: This is hard-coded for now and shouldn't be here.
+		if (IsValidForBorgName(requestedOccupation))
+			character.Name = StringManager.GetRandomGenericBorgSerialNumberName();
+		//Validate?
+		var mind = SpawnMind(character, nonImportantMind);
+		if (OnlyMind == false)
 		{
-			var dummy = ServerCreatePlayer(spawnTransform.position.RoundToInt());
-
-			CharacterSettings randomSettings = CharacterSettings.RandomizeCharacterSettings(RaceSOSingleton.Instance.Races.PickRandom().name);
-
-			ServerTransferPlayer(null, dummy, null, Event.PlayerSpawned, randomSettings);
-
-
-			//fire all hooks
-			var info = SpawnInfo.Player(OccupationList.Instance.Get(JobType.ASSISTANT), randomSettings, CustomNetworkManager.Instance.humanPlayerPrefab,
-				SpawnDestination.At(spawnTransform.gameObject));
-			Spawn._ServerFireClientServerSpawnHooks(SpawnResult.Single(info, dummy));
+			SpawnAndApplyRole(mind, requestedOccupation, character, SpawnType.NewSpawn);
 		}
+		return mind;
 	}
 
-	/// <summary>
-	/// Server-side only. Creates the player object on the server side and fires server-side
-	/// spawn hooks. Doesn't transfer control to the client yet. Client side hooks should be fired after client has been
-	/// informed of the spawn
-	/// </summary>
-	/// <param name="spawnWorldPosition">world pos to spawn at</param>
-	/// <param name="occupation">occupation to spawn as</param>
-	/// <param name="characterSettings">settings to use for the character</param>
-	/// <param name="playerPrefab">prefab to spawn for the player</param>
-	/// <returns></returns>
-	private static GameObject ServerCreatePlayer(Vector3Int spawnWorldPosition, GameObject playerPrefab = null)
+	private static bool IsValidForBorgName(Occupation requestedOccupation)
 	{
+		if (requestedOccupation is null) return false;
+		return requestedOccupation.DisplayName == "Cyborg";
+	}
+
+	public static GameObject RespawnPlayer(Mind mind, Occupation requestedOccupation, CharacterSheet character)
+	{
+		return SpawnAndApplyRole(mind, requestedOccupation, character, SpawnType.ReSpawn);
+	}
+
+
+	public static GameObject RespawnPlayerAt(Mind mind, Occupation requestedOccupation, CharacterSheet character,
+		Vector3? worldPos)
+	{
+		var body = SpawnAndApplyRole(mind, requestedOccupation, character, SpawnType.ReSpawn)
+			.GetComponent<UniversalObjectPhysics>();
+		if (worldPos != null)
+		{
+			body.AppearAtWorldPositionServer(worldPos.Value);
+		}
+
+		return body.gameObject;
+	}
+
+
+	//sets the SpawnType to Clone ( Character and with no Clothing  ) and Sets the position of the spawned body to the specified Position, Doesn't apply damage
+	public static GameObject ClonePlayerAt(Mind mind, Occupation requestedOccupation, CharacterSheet character,
+		Vector3? worldPos)
+	{
+		var body = SpawnAndApplyRole(mind, requestedOccupation, character, SpawnType.Clone)
+			.GetComponent<UniversalObjectPhysics>();
+		if (worldPos != null)
+		{
+			body.AppearAtWorldPositionServer(worldPos.Value);
+		}
+
+		return body.gameObject;
+	}
+
+
+	public enum SpawnType
+	{
+		NewSpawn,
+		ReSpawn,
+		Clone
+	}
+
+
+	private static GameObject SpawnAndApplyRole(Mind mind, Occupation requestedOccupation,
+		CharacterSheet character, SpawnType spawnType)
+	{
+		GameObject bodyPrefab = CustomNetworkManager.Instance.humanPlayerPrefab;
+
+		if (requestedOccupation.OrNull()?.SpecialPlayerPrefab != null)
+		{
+			bodyPrefab = requestedOccupation.SpecialPlayerPrefab;
+		}
+
+
+		if (requestedOccupation.OrNull()?.BetterCustomProperties.FirstOrDefault(x => x is IGetPlayerPrefab) is
+		    IGetPlayerPrefab overwriteBody)
+		{
+			bodyPrefab = overwriteBody.GetPlayerPrefab();
+			if (bodyPrefab == null)
+			{
+				return mind.gameObject;
+			}
+		}
+
+
+		if (requestedOccupation != null)
+		{
+			var data = requestedOccupation.BetterCustomProperties.OfType<IModifyCharacterSettings>();
+
+			foreach (var modifycharacter in data)
+			{
+				character = modifycharacter.ModifyingCharacterSheet(character);
+			}
+		}
+
+		var body = SpawnPlayerBody(bodyPrefab);
+
+		try
+		{
+			mind.ApplyOccupation(requestedOccupation); //Probably shouldn't be here?
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
+		try
+		{
+			//Setup body with custom stuff
+			ApplyNewSpawnRoleToBody(body, requestedOccupation, character, spawnType);
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
+		try
+		{
+			mind.SetPossessingObject(body);
+			mind.StopGhosting();
+			OnBodySpawnedEvent?.Invoke(body);
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
+		//get the old body if they have one.
+		// var oldBody = existingMind.OrNull()?.GetCurrentMob();
+
+		//transfer control to the player object
+		//ServerTransferPlayer(connection, newPlayer, oldBody, Event.PlayerSpawned, toUseCharacterSettings, existingMind);
+
+		return body;
+	}
+
+	private static GameObject SpawnPlayerBody(GameObject bodyPrefab)
+	{
+		//create the player object
+
 		//player is only spawned on server, we don't sync it to other players yet
-		var spawnPosition = spawnWorldPosition;
-		var matrixInfo = MatrixManager.AtPoint(spawnPosition, true);
-		var parentTransform = matrixInfo.Objects;
+		var spawnPosition = Vector3Int.zero;
 
-		if (playerPrefab == null)
+		if (bodyPrefab == null)
 		{
-			playerPrefab = CustomNetworkManager.Instance.humanPlayerPrefab;
+			bodyPrefab = CustomNetworkManager.Instance.humanPlayerPrefab;
 		}
+
+
+		var matrixInfo = MatrixManager.AtPoint(Vector3.zero, true);
+		var parentTransform = matrixInfo.Objects;
 
 		//using parentTransform.rotation rather than Quaternion.identity because objects should always
 		//be upright w.r.t.  localRotation, NOT world rotation
-		var player = UnityEngine.Object.Instantiate(playerPrefab, spawnPosition, parentTransform.rotation,
+		var player = UnityEngine.Object.Instantiate(bodyPrefab, Vector3.zero,
+			parentTransform.rotation,
 			parentTransform);
 
+		player.AddComponent<RuntimeSpawned>();
+		//fire all hooks
+		var info = SpawnInfo.Ghost(null, bodyPrefab,
+			SpawnDestination.At(Vector3.zero, parentTransform));
+
+		NetworkServer.Spawn(player);
+		Spawn._ServerFireClientServerSpawnHooks(SpawnResult.Single(info, player));
+		player.GetComponent<UniversalObjectPhysics>().ForceSetLocalPosition(spawnPosition.ToLocal(matrixInfo.Matrix),
+			Vector2.zero, false, matrixInfo.Id, true, 0);
 		return player;
 	}
 
-	public static void ServerTransferPlayerToNewBody(NetworkConnectionToClient conn, GameObject newBody, GameObject oldBody,
-		Event eventType, CharacterSettings characterSettings, bool willDestroyOldBody = false)
+	private static void ApplyNewSpawnRoleToBody(GameObject body, Occupation requestedOccupation,
+		CharacterSheet character, SpawnType spawnType)
 	{
-		ServerTransferPlayer(conn, newBody, oldBody, eventType, characterSettings, willDestroyOldBody);
+		//Character attributes
+
+		var physics = body.GetComponent<UniversalObjectPhysics>();
+
+		//Character attributes
+
+
+		//Character attributes
+		var name = requestedOccupation.OrNull()?.JobType != JobType.AI ? character.Name : character.AiName;
+		body.name = name;
+
+
+		var PlayerScript = body.GetComponent<PlayerScript>();
+		if (PlayerScript)
+		{
+			PlayerScript.PlayerScriptVisible.SetcharacterSettings(character);
+		}
+
+		try
+		{
+			//Character attributes
+			var playerSprites = body.GetComponent<PlayerSprites>();
+			if (playerSprites)
+			{
+				// This causes body parts to be made for the species, will cause death if body parts are needed and
+				// CharacterSettings is null
+				var toUseCharacterSettings = character;
+
+				if (requestedOccupation != null)
+				{
+					toUseCharacterSettings = requestedOccupation.UseCharacterSettings ? character : null;
+					if (requestedOccupation.OrNull().CustomSpeciesOverwrite != null)
+					{
+						character.Species = requestedOccupation.CustomSpeciesOverwrite.name;
+						playerSprites.RaceOverride = requestedOccupation.CustomSpeciesOverwrite.name;
+					}
+
+					if (requestedOccupation != null)
+					{
+						if (requestedOccupation.UseCharacterSettings == false)
+						{
+							playerSprites.CharacterSheetOverride = requestedOccupation.UseCharacterSettings;
+						}
+					}
+				}
+
+				playerSprites.OnCharacterSettingsChange(toUseCharacterSettings);
+			}
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
+		try
+		{
+			//determine where to spawn them
+			physics.AppearAtWorldPositionServer(GetSpawnPointForOccupation(requestedOccupation));
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+
+			physics.AppearAtWorldPositionServer(SpawnPoint.GetRandomPointForLateSpawn().transform.position);
+		}
+
+		try
+		{
+			var Health = body.GetComponentCustom<LivingHealthMasterBase>();
+			if (requestedOccupation != null)
+			{
+				foreach (var Mutation in requestedOccupation.StartingMutations)
+				{
+					foreach (var Bodypart in Health.BodyPartList)
+					{
+						var BodyPartMutations = Bodypart.GetComponentCustom<BodyPartMutations>();
+						if (BodyPartMutations.CapableMutations.Contains(Mutation))
+						{
+							BodyPartMutations.AddMutation(Mutation);
+						}
+					}
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
+		if (requestedOccupation != null)
+		{
+			switch (spawnType)
+			{
+				case SpawnType.NewSpawn:
+					body.GetComponent<DynamicItemStorage>().OrNull()?.SetUpOccupation(requestedOccupation);
+
+					if (requestedOccupation.IsCrewmember)
+					{
+						CrewManifestManager.Instance.AddMember(body.GetComponent<PlayerScript>(),
+							requestedOccupation.JobType);
+					}
+
+					SpawnBannerMessage.Send(
+						body,
+						requestedOccupation.DisplayName,
+						requestedOccupation.SpawnSound.AssetAddress,
+						requestedOccupation.TextColor,
+						requestedOccupation.BackgroundColor,
+						requestedOccupation.PlaySound);
+
+					break;
+				case SpawnType.ReSpawn:
+					body.GetComponent<DynamicItemStorage>().OrNull()?.SetUpOccupation(requestedOccupation);
+					SpawnBannerMessage.Send(
+						body,
+						requestedOccupation.DisplayName,
+						requestedOccupation.SpawnSound.AssetAddress,
+						requestedOccupation.TextColor,
+						requestedOccupation.BackgroundColor,
+						requestedOccupation.PlaySound);
+
+					break;
+				case SpawnType.Clone:
+					break;
+			}
+		}
+	}
+
+	private static Mind SpawnMind(CharacterSheet character, bool NonImportantMind = false)
+	{
+		var matrixInfo = MatrixManager.AtPoint(Vector3.zero, true);
+		var parentTransform = matrixInfo.Objects;
+
+		//using parentTransform.rotation rather than Quaternion.identity because objects should always
+		//be upright w.r.t.  localRotation, NOT world rotation
+		var ghost = UnityEngine.Object.Instantiate(CustomNetworkManager.Instance.ghostPrefab, Vector3.zero,
+			parentTransform.rotation,
+			parentTransform);
+
+		//fire all hooks
+		var info = SpawnInfo.Ghost(character, CustomNetworkManager.Instance.ghostPrefab,
+			SpawnDestination.At(Vector3.zero, parentTransform));
+
+		NetworkServer.Spawn(ghost);
+		Spawn._ServerFireClientServerSpawnHooks(SpawnResult.Single(info, ghost));
+
+		ghost.name = character.Name;
+		var mind = ghost.GetComponent<Mind>();
+
+		mind.NonImportantMind = NonImportantMind;
+
+		var ghosty = ghost.GetComponent<PlayerScript>();
+
+		mind.Ghost();
+		mind.SetGhost(ghosty);
+		mind.CurrentCharacterSettings = character;
+		ghosty.PlayerScriptVisible.SetcharacterSettings(character);
+		ghosty.PlayerScriptVisible.SyncPlayerName(character.Name, character.Name);
+		ghosty.PlayerScriptVisible.SyncVisibleName(character.Name, character.Name);
+
+		return mind;
 	}
 
 	/// <summary>
-	/// Server-side only. Transfers control of a player object to the indicated connection.
+	/// Transfers an account/connected player to a mind and sets up the ghost and stuff, And triggers the player into body stuff
 	/// </summary>
-	/// <param name="conn">The client's NetworkConnection. If logged out the playerlist will return an invalid connectedplayer</param>
-	/// <param name="newBody">The character gameobject to be transfered into.</param>
-	/// <param name="oldBody">The old body of the character.</param>
-	/// <param name="eventType">Event type for the player sync.</param>
-	/// <param name="characterSettings">settings, ignored if transferring to an existing player body</param>
-	/// <param name="willDestroyOldBody">if true, indicates the old body is going to be destroyed rather than pooled,
-	/// thus we shouldn't send any network message which reference's the old body's ID since it won't exist.</param>
-	private static void ServerTransferPlayer(NetworkConnectionToClient conn, GameObject newBody, GameObject oldBody,
-		Event eventType, CharacterSettings characterSettings, bool willDestroyOldBody = false)
+	/// <param name="account"></param>
+	/// <param name="newMind"></param>
+	public static void TransferAccountToSpawnedMind(PlayerInfo account, Mind newMind)
 	{
-		if (oldBody)
+		var isAdmin = AdminCommandsManager.HasPermission(account, TAG.ADMIN_GHOST_INVENTORY, false);
+		if (account.Mind != null && isAdmin) //Has old mind
 		{
-			var oldPlayerNetworkActions = oldBody.GetComponent<PlayerNetworkActions>();
+			var adminItemStorage = AdminManager.Instance.GetItemSlotStorage(account);
+			adminItemStorage.ServerRemoveObserverPlayer(account.Mind.gameObject);
+			account.Mind.GetComponent<GhostSprites>().SetGhostSprite(false);
+		}
+
+		TransferAccountOccupyingMind(account, account.Mind, newMind);
+
+		if (isAdmin)
+		{
+			var adminItemStorage = AdminManager.Instance.GetItemSlotStorage(account);
+			adminItemStorage.ServerAddObserverPlayer(newMind.gameObject);
+		}
+
+		newMind.GetComponent<GhostSprites>().SetGhostSprite(isAdmin);
+	}
+
+	private static void TransferAccountOccupyingMind(PlayerInfo account, Mind from, Mind to)
+	{
+		if (from != null && from != to)
+		{
+			from.InternalSetControllingObject(null);
+
+			var oldPlayerNetworkActions = from.GetComponent<PlayerNetworkActions>();
 			if (oldPlayerNetworkActions)
 			{
 				oldPlayerNetworkActions.RpcBeforeBodyTransfer();
 			}
 
+			var netIdentity = from.GetComponent<NetworkIdentity>();
+			PlayerSpawn.TransferOwnershipFromToConnection(account, netIdentity, null);
+
+
 			//no longer can observe their inventory
-			oldBody.GetComponent<DynamicItemStorage>()?.ServerRemoveObserverPlayer(oldBody);
+			from.GetComponent<DynamicItemStorage>()?.ServerRemoveObserverPlayer(from.gameObject);
+
+			var leaveInterfaces = from.GetComponents<IOnPlayerLeaveBody>();
+			foreach (var leaveInterface in leaveInterfaces)
+			{
+				leaveInterface.OnPlayerLeaveBody(account);
+			}
+
+			from.AccountLeavingMind(account);
 		}
 
-		var netIdentity = newBody.GetComponent<NetworkIdentity>();
-		if (netIdentity.connectionToClient != null)
+		if (to)
 		{
-			CustomNetworkManager.Instance.OnServerDisconnect(netIdentity.connectionToClient);
+			var netIdentity = to.GetComponent<NetworkIdentity>();
+			if (netIdentity.connectionToClient != null && to.connectionToClient != account.Connection)
+			{
+				CustomNetworkManager.Instance.OnServerDisconnect(netIdentity.connectionToClient);
+			}
+
+			PlayerSpawn.TransferOwnershipFromToConnection(account, null, netIdentity);
+
+			//can observe their new inventory
+			var dynamicItemStorage = to.GetComponent<DynamicItemStorage>();
+			if (dynamicItemStorage != null)
+			{
+				dynamicItemStorage.ServerAddObserverPlayer(to.gameObject);
+				PlayerPopulateInventoryUIMessage.Send(dynamicItemStorage,
+					to.gameObject); //TODO should we be using the players body as game object???
+			}
+
+			// If the player is inside a container, send a ClosetHandlerMessage.
+			// The ClosetHandlerMessage will attach the container to the transfered player.
+			var playerObjectBehavior = to.GetComponent<UniversalObjectPhysics>();
+			if (playerObjectBehavior && playerObjectBehavior.ContainedInObjectContainer)
+			{
+				FollowCameraMessage.Send(to.gameObject, playerObjectBehavior.ContainedInObjectContainer.gameObject);
+			}
+
+			ControlAndLoseControlMessage.Send(to.gameObject, to.gameObject, from.OrNull()?.gameObject);
+			var transfers = to.GetComponents<IOnControlPlayer>();
+
+			foreach (var transfer in transfers)
+			{
+				transfer.OnServerPlayerTransfer(account);
+			}
+
+			to.AccountEnteringMind(account);
 		}
 
-		var connectedPlayer = PlayerList.Instance.Get(conn);
-		if (connectedPlayer == ConnectedPlayer.Invalid) //this isn't an online player
+		if (account.Connection is LocalConnectionToClient) //Server host  client
 		{
-			PlayerList.Instance.UpdateLoggedOffPlayer(newBody, oldBody);
-			NetworkServer.Spawn(newBody);
+			PlayerManager.SetMind(to?.GetComponent<Mind>());
+		}
+
+		UpdateMind.SendTo(account.Connection, to);
+	}
+
+	/// <summary>
+	/// Is used for internal stuff mainly, Used for a signing authority from and to  objects For an a player
+	/// </summary>
+	/// <param name="account"></param>
+	/// <param name="from"></param>
+	/// <param name="to"></param>
+	[Server]
+	public static void TransferOwnershipFromToConnection(PlayerInfo account, NetworkIdentity from, NetworkIdentity to)
+	{
+		if (account != null)
+		{
+			Loggy.Info($"Attempting to transfer ownership for {account.Username}.");
 		}
 		else
 		{
-			PlayerList.Instance.UpdatePlayer(conn, newBody);
-			NetworkServer.ReplacePlayerForConnection(conn, newBody);
-			//NOTE: With mirror upgrade 04 Feb 2020, it appears we no longer need to do what has been
-			//commented out below. Below appears to have been an attempt to give authority back to server
-			//But it's implicitly given such authority by the ReplacePlayerForConnection call - that call
-			//now removes authority for the player's old object
-			// if (oldBody)
-			// {
-			// 	NetworkServer.ReplacePlayerForConnection(new NetworkConnectionToClient(0), oldBody);
-			// }
-			TriggerEventMessage.SendTo(newBody, eventType);
-
-			//can observe their new inventory
-			var dynamicItemStorage = newBody.GetComponent<DynamicItemStorage>();
-			if (dynamicItemStorage != null)
-			{
-				dynamicItemStorage.ServerAddObserverPlayer(newBody);
-				PlayerPopulateInventoryUIMessage.Send(dynamicItemStorage, newBody);
-			}
-
+			Loggy.Error("What are you doing? Why is PlayerInfo null?");
+			return;
 		}
 
-		// If the player is inside a container, send a ClosetHandlerMessage.
-		// The ClosetHandlerMessage will attach the container to the transfered player.
-		var playerObjectBehavior = newBody.GetComponent<ObjectBehaviour>();
-		if (playerObjectBehavior && playerObjectBehavior.parentContainer)
+		try
 		{
-			FollowCameraMessage.Send(newBody, playerObjectBehavior.parentContainer.gameObject);
+			if (from)
+			{
+				if (account.Connection != null && from.connectionToClient == account.Connection)
+				{
+					Loggy.Info($"[{account.Username}] - Removing client authority from {from.netId}.");
+					from.RemoveClientAuthority();
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
 		}
 
-		if (characterSettings != null)
+		try
 		{
-			var playerScript = newBody.GetComponent<PlayerScript>();
-			playerScript.characterSettings = characterSettings;
-			playerScript.playerName = playerScript.PlayerState != PlayerScript.PlayerStates.Ai ? characterSettings.Name : characterSettings.AiName;
-			newBody.name = playerScript.playerName;
-			var playerSprites = newBody.GetComponent<PlayerSprites>();
-			if (playerSprites)
+			if (to)
 			{
-				playerSprites.OnCharacterSettingsChange(characterSettings);
+				if (account.Connection == null)
+				{
+					Loggy.Error($"Attempted to transfer an account ({account.Username}) with a null connection!!!");
+					return;
+				}
+
+				account.Connection.observing.Add(to);
+				//TODO because sometimes it cannot be a Observing for some reason , And that causes the ownership message to fail
+				Loggy.Info($"[{account.Username}] - Removing client authority from {to.netId}.");
+				to.RemoveClientAuthority();
+				to.AssignClientAuthority(account.Connection);
+
+
+				// Because it doesn't want to send the unique ownership data to the client so Have to force it to regenerate
+				to.observers.Remove(account.Connection.connectionId);
+				to.AddPlayerObserver(account.Connection);
+				Loggy.Info($"[{account.Username}] - Adding client authority to {to.netId}.");
 			}
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
 		}
 	}
 }

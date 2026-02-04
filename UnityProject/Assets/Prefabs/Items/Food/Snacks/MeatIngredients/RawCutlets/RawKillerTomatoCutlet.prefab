@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -7361434531945702689, guid: eae3273562cc275408dc688bd15d2c87,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2387593487581218529, guid: 4fb14979a0317e2478532ac15ba7b72e,
         type: 3}
+    - target: {fileID: 3467980982926270619, guid: eae3273562cc275408dc688bd15d2c87,
+        type: 3}
+      propertyPath: parentID
+      value: eae3273562cc275408dc688bd15d2c87
+      objectReference: {fileID: 0}
     - target: {fileID: 3467980982926270619, guid: eae3273562cc275408dc688bd15d2c87,
         type: 3}
       propertyPath: foreverID
@@ -86,6 +92,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7570043172600205634, guid: eae3273562cc275408dc688bd15d2c87,
         type: 3}
+      propertyPath: _assetId
+      value: 3944696174
+      objectReference: {fileID: 0}
+    - target: {fileID: 7570043172600205634, guid: eae3273562cc275408dc688bd15d2c87,
+        type: 3}
       propertyPath: m_AssetId
       value: 4ddca802468be984d8a31c723f045b3d
       objectReference: {fileID: 0}
@@ -95,4 +106,7 @@ PrefabInstance:
       value: raw killer tomato cutlet
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eae3273562cc275408dc688bd15d2c87, type: 3}

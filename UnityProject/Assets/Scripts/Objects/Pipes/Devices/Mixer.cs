@@ -12,7 +12,7 @@ namespace Objects.Atmospherics
 		public SpriteHandler spriteHandlerOverlay = null;
 
 		public int MaxPressure = 9999;
-		private float TransferMoles = 500f;
+		public float TransferMoles = 10000f;
 
 		public float ToTakeFromInputOne = 0.5f;
 		public float ToTakeFromInputTwo = 0.5f;
@@ -71,8 +71,8 @@ namespace Objects.Atmospherics
 				return;
 			}
 
-			var InputOne = pipeData.Connections.GetFlagToDirection(FlagLogic.InputOne)?.Connected;
-			var InputTwo = pipeData.Connections.GetFlagToDirection(FlagLogic.InputTwo)?.Connected;
+			var InputOne = pipeData.RotatedConnections.GetFlagToDirection(FlagLogic.InputOne)?.Connected;
+			var InputTwo = pipeData.RotatedConnections.GetFlagToDirection(FlagLogic.InputTwo)?.Connected;
 
 			if (InputOne == null || InputTwo == null) return;
 

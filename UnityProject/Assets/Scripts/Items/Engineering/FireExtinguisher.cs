@@ -30,7 +30,7 @@ public class FireExtinguisher : NetworkBehaviour,
 
 	private float TravelTime => 1f / travelDistance;
 
-	bool safety = true;
+	[SyncVar] public bool safety = true;
 	private DateTime clientLastInteract = DateTime.Now;
 
 	private enum SpriteState
@@ -51,11 +51,11 @@ public class FireExtinguisher : NetworkBehaviour,
 		safety = !safety;
 		if (safety)
 		{
-			spriteHandler.ChangeSprite((int) SpriteState.SafetyOn);
+			spriteHandler.SetCatalogueIndexSprite((int) SpriteState.SafetyOn);
 		}
 		else
 		{
-			spriteHandler.ChangeSprite((int) SpriteState.SafetyOff);
+			spriteHandler.SetCatalogueIndexSprite((int) SpriteState.SafetyOff);
 		}
 	}
 
@@ -63,6 +63,8 @@ public class FireExtinguisher : NetworkBehaviour,
 	{
 		if (!DefaultWillInteract.Default(interaction, side)
 		    || (!IsCoolDown() && !isServer)) return false;
+
+		if (safety) return false;
 		return true;
 	}
 
@@ -72,7 +74,7 @@ public class FireExtinguisher : NetworkBehaviour,
 
 
 		Vector2 startPos = gameObject.AssumedWorldPosServer();
-		Vector2 targetPos = interaction.WorldPositionTarget.To2Int();
+		Vector2 targetPos = interaction.WorldPositionTarget.RoundTo2Int();
 		List<Vector3Int> positionList = CheckPassableTiles(startPos, targetPos);
 		StartCoroutine(Fire(positionList));
 
@@ -89,7 +91,7 @@ public class FireExtinguisher : NetworkBehaviour,
 		AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: 1);
 		SoundManager.PlayNetworkedAtPos(SpraySound, startPos, audioSourceParameters, sourceObj: interaction.Performer);
 
-		interaction.Performer.Pushable()?.NewtonianMove((-interaction.TargetVector).NormalizeToInt());
+		interaction.PerformerPlayerScript.ObjectPhysics.NewtonianPush((-interaction.TargetVector).NormalizeToInt(), 4);
 	}
 
 	#endregion Interaction;

@@ -12,7 +12,7 @@ namespace Tiles
 	public class PlaceableTile : MonoBehaviour, ICheckedInteractable<PositionalHandApply>
 	{
 		[NonSerialized]
-		public LayerTypeSelection layerTypeSelection = LayerTypeSelection.Underfloor | LayerTypeSelection.Effects;
+		public LayerTypeSelection layerTypeSelection = LayerTypeSelection.AllUnderFloor | LayerTypeSelection.Effects;
 
 		[FormerlySerializedAs("entries")]
 		[Tooltip("Defines each possible way this item can be placed as a tile.")]
@@ -27,7 +27,7 @@ namespace Tiles
 
 		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.HandObject != gameObject) return false;
 
 			//it's annoying to place something when you're trying to pick up instead to add to your current stack,
@@ -116,27 +116,27 @@ namespace Tiles
 			switch (reason)
 			{
 				case ActionInterruptionType.ChangeToPerformerActiveSlot:
-					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 						$"You lack the materials to finish placing {placeableTileEntry.layerTile.DisplayName}");
 					break;
 				case ActionInterruptionType.PerformerUnconscious:
-					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 						$"You dream of placing {placeableTileEntry.layerTile.DisplayName}");
 					break;
 				case ActionInterruptionType.WelderOff:
-					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 						$"You need the welder to be on to finish this");
 					break;
 				case ActionInterruptionType.PerformerOrTargetMoved:
-					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 						$"Cannot place {placeableTileEntry.layerTile.DisplayName}, you or your target moved too much");
 					break;
 				case ActionInterruptionType.TargetDespawn:
-					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 						$"Placing {placeableTileEntry.layerTile.DisplayName} has become a tall order, seeing as the conceptual physical placement space has ceased to exist");
 					break;
 				case ActionInterruptionType.PerformerDirection:
-					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+					Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 						$"You have looked away from placing {placeableTileEntry.layerTile.DisplayName}");
 					break;
 			}
@@ -153,7 +153,7 @@ namespace Tiles
 			}
 			else
 			{
-				Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.connectedPlayer,
+				Chat.AddExamineMsgFromServer(interaction.PerformerPlayerScript.PlayerInfo,
 					$"You lack the materials to finish placing {placeableTileEntry.layerTile.DisplayName}");
 			}
 		}

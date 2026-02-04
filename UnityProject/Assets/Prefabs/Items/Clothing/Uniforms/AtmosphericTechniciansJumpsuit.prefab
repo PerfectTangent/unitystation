@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1580212734361834469, guid: de234d793cfd842599c9c8726207f217,
@@ -13,6 +14,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: f85225fa4643dab4d91422f12f05f515,
         type: 2}
+    - target: {fileID: 1580212734361834469, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: f85225fa4643dab4d91422f12f05f515,
+        type: 2}
+    - target: {fileID: 1734639913420629007, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: parentID
+      value: de234d793cfd842599c9c8726207f217
+      objectReference: {fileID: 0}
     - target: {fileID: 1734639913420629007, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
       propertyPath: foreverID
@@ -35,13 +47,13 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1789387693666696167, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 435f420401deca14aac8d5093cb4c315,
         type: 2}
     - target: {fileID: 1789387693666696167, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
-      propertyPath: allClothingData.Array.data[1]
+      propertyPath: 'allClothingData.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 51b06da942cc6b84fb8ddbf7cff5f975,
         type: 2}
@@ -127,6 +139,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4700669166950225366, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
+      propertyPath: _assetId
+      value: 2948297108
+      objectReference: {fileID: 0}
+    - target: {fileID: 4700669166950225366, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
       propertyPath: m_AssetId
       value: 7836d5b8852b74938820fb198f01e5ba
       objectReference: {fileID: 0}
@@ -147,6 +164,24 @@ PrefabInstance:
       value: It's a jumpsuit worn by atmospheric technicians. It has minor protection
         from fire.
       objectReference: {fileID: 0}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 32ebc8b23b934a34aafbb07d5472b9a4,
+        type: 2}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 14fad3ce8fd694a4791d95868a3c8055,
+        type: 2}
+    - target: {fileID: 5063610172518221568, guid: de234d793cfd842599c9c8726207f217,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: f85225fa4643dab4d91422f12f05f515,
+        type: 2}
     - target: {fileID: 8215174308799955191, guid: de234d793cfd842599c9c8726207f217,
         type: 3}
       propertyPath: armoredBodyParts.Array.data[0].armor.Rad
@@ -238,4 +273,7 @@ PrefabInstance:
       value: 60
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: de234d793cfd842599c9c8726207f217, type: 3}

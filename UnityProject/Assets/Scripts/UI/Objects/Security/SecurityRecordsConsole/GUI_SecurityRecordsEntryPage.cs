@@ -13,30 +13,30 @@ namespace UI.Objects.Security
 		private SecurityRecord record;
 		private GUI_SecurityRecords securityRecordsTab;
 		[SerializeField]
-		private NetLabel nameText = null;
+		private NetText_label nameText = null;
 		[SerializeField]
-		private NetLabel idText = null;
+		private NetText_label idText = null;
 		[SerializeField]
-		private NetLabel sexText = null;
+		private NetText_label sexText = null;
 		[SerializeField]
-		private NetLabel ageText = null;
+		private NetText_label ageText = null;
 		[SerializeField]
-		private NetLabel speciesText = null;
+		private NetText_label speciesText = null;
 		[SerializeField]
-		private NetLabel rankText = null;
+		private NetText_label rankText = null;
 		[SerializeField]
-		private NetLabel fingerprintText = null;
+		private NetText_label fingerprintText = null;
 		[SerializeField]
 		private EmptyItemList crimesList = null;
 		[SerializeField]
-		private NetLabel statusButtonText = null;
+		private NetText_label statusButtonText = null;
 		[SerializeField]
-		private NetLabel idNameText = null;
+		private NetText_label idNameText = null;
 		[SerializeField]
 		private GameObject popupWindow = null;
 		[SerializeField]
 		private InputFieldFocus popupWindowEditField = null;
-		private NetLabel currentlyEditingField;
+		private NetText_label currentlyEditingField;
 		private SecurityRecordCrime currentlyEditingCrime;
 
 		public NetSpriteImage head;
@@ -71,7 +71,7 @@ namespace UI.Objects.Security
 			ClosePopup();
 		}
 
-		public void RemoveID(ConnectedPlayer player)
+		public void RemoveID(PlayerInfo player)
 		{
 			securityRecordsTab.RemoveId(player);
 			securityRecordsTab.UpdateIdText(idNameText);
@@ -79,7 +79,7 @@ namespace UI.Objects.Security
 
 		public void UpdateEntry()
 		{
-			if (!CustomNetworkManager.Instance._isServer)
+			if (!CustomNetworkManager.IsServer)
 			{
 				return;
 			}
@@ -89,14 +89,14 @@ namespace UI.Objects.Security
 				return;
 			}
 
-			nameText.SetValueServer(record.EntryName);
-			idText.SetValueServer(record.ID);
-			sexText.SetValueServer(record.Sex);
-			ageText.SetValueServer(record.Age);
-			speciesText.SetValueServer(record.Species);
-			rankText.SetValueServer(record.Rank);
-			fingerprintText.SetValueServer(record.Fingerprints);
-			statusButtonText.SetValueServer(record.Status.ToString());
+			nameText.MasterSetValue(record.EntryName);
+			idText.MasterSetValue(record.ID);
+			sexText.MasterSetValue(record.Sex);
+			ageText.MasterSetValue(record.Age);
+			speciesText.MasterSetValue(record.Species);
+			rankText.MasterSetValue(record.Rank);
+			fingerprintText.MasterSetValue(record.Fingerprints);
+			statusButtonText.MasterSetValue(record.Status.ToString());
 
 			var characterSettings = record.characterSettings;
 
@@ -157,7 +157,7 @@ namespace UI.Objects.Security
 					record.Status = SecurityStatus.None;
 					break;
 			}
-			statusButtonText.SetValueServer(record.Status.ToString());
+			statusButtonText.MasterSetValue(record.Status.ToString());
 		}
 
 		/// <summary>
@@ -166,7 +166,7 @@ namespace UI.Objects.Security
 		/// 2. Client confirms edit in popup, popup closes locally.
 		/// 3. Server sets fields with values from popup.
 		/// </summary>
-		public void OpenPopup(NetLabel fieldToEdit)
+		public void OpenPopup(NetText_label fieldToEdit)
 		{
 			popupWindow.SetActive(true);
 			if (fieldToEdit != null)
@@ -179,7 +179,7 @@ namespace UI.Objects.Security
 		/// Set field to edit in popup.
 		/// Used for info entry (name, age, etc.)
 		/// </summary>
-		public void SetEditingField(NetLabel fieldToEdit)
+		public void SetEditingField(NetText_label fieldToEdit)
 		{
 			currentlyEditingField = fieldToEdit;
 		}
@@ -187,7 +187,7 @@ namespace UI.Objects.Security
 		/// <summary>
 		/// Set Editing field for crime entry.
 		/// </summary>
-		public void SetEditingField(NetLabel fieldToEdit, SecurityRecordCrime crimeToEdit)
+		public void SetEditingField(NetText_label fieldToEdit, SecurityRecordCrime crimeToEdit)
 		{
 			currentlyEditingField = fieldToEdit;
 			currentlyEditingCrime = crimeToEdit;
@@ -200,7 +200,7 @@ namespace UI.Objects.Security
 		/// <param name="value">String to set in field.</param>
 		public void ConfirmPopup(string value)
 		{
-			currentlyEditingField.SetValueServer(value);
+			currentlyEditingField.MasterSetValue(value);
 			string nameBeforeIndex = currentlyEditingField.name.Split('~')[0];
 			switch (nameBeforeIndex)
 			{
@@ -260,7 +260,10 @@ namespace UI.Objects.Security
 		public void DeleteRecord()
 		{
 			CrewManifestManager.Instance.SecurityRecords.Remove(record);
+			record.status = SecurityStatus.None;
 			securityRecordsTab.OpenRecords();
+			CrewManifestManager.Instance.OrNull()?.DeleteSecurityRecord(record);
+
 		}
 
 		private void UpdateCrimesList()

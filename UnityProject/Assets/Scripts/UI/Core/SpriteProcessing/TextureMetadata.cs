@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using Logs;
+using SecureStuff;
 using UnityEngine;
 
 namespace UI.Core.SpriteProcessing
@@ -32,7 +34,7 @@ namespace UI.Core.SpriteProcessing
 		{
 			if (texture.isReadable == false)
 			{
-				Logger.LogWarning(
+				Loggy.Warning(
 					$"Texture \"{texture.name}\" is not read enabled. Using default sprite metadata",
 					Category.Sprites);
 				return SpriteMetadata.Default;

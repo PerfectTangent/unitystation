@@ -1,12 +1,13 @@
 
+using ScriptableObjects;
 using UnityEngine;
 
 /// <summary>
 /// Base class for the trait system. Defines a particular
 /// trait than an item can have (assigned in ItemAttributes)
 /// </summary>
-[CreateAssetMenu(fileName = "ItemTrait", menuName = "Traits/ItemTrait")]
-public class ItemTrait : ScriptableObject
+[CreateAssetMenu(fileName = "ItemTrait", menuName = "ScriptableObjects/Items/ItemTrait")]
+public class ItemTrait : SOTracker
 {
 	// Is used in editor, so "unused" warning is ignored.
 	#pragma warning disable CS0414

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Items.Others;
 using UnityEngine;
 using NaughtyAttributes;
 using Systems.Spells;
@@ -27,13 +28,13 @@ namespace Antagonists
 
 		public int StartingSpellCount => startingSpellCount;
 
-		public override void AfterSpawn(ConnectedPlayer player)
+		public override void AfterSpawn(Mind player)
 		{
 			GiveRandomSpells(player);
 
 			if (assignRandomNameOnSpawn)
 			{
-				player.Script.SetPermanentName(GetRandomWizardName());
+				player.SetPermanentName(GetRandomWizardName());
 			}
 
 			SetPapers(player);
@@ -44,17 +45,17 @@ namespace Antagonists
 			return $"{wizardFirstNames.GetRandom()} {wizardLastNames.GetRandom()}";
 		}
 
-		public static string GetIdentityPaperText(ConnectedPlayer player)
+		public static string GetIdentityPaperText(Mind player)
 		{
 			return $"<size=36>CERTIFICATE OF IDENTITY</size>\n\n\n" +
 			       $"This slip is to certify that the bearer,\n" +
-			       $"<u><b>{player.Script.playerName}</b></u>\n" +
+			       $"<u><b>{player.CurrentCharacterSettings.Name}</b></u>\n" +
 			       "is a member of the Wizard Federation.\n\n\n\n\n\n\n\n\n\n\n\n" +
 			       "Signed: <u><i>Tarkhol Mintizheth</i></u>, Wizard Fedaration Chief Recruiter\n\n" +
 			       "<size=16>This certificate remains property of the Wizard Federation</size>";
 		}
 
-		private void GiveRandomSpells(ConnectedPlayer player)
+		private void GiveRandomSpells(Mind player)
 		{
 			if (StartingSpellCount < 1) return;
 
@@ -62,19 +63,30 @@ namespace Antagonists
 
 			foreach (WizardSpellData randomSpell in GetRandomWizardSpells())
 			{
-				Spell spell = randomSpell.AddToPlayer(player.Script);
-				player.Script.mind.AddSpell(spell);
+				AddSpellToPlayer(randomSpell, player);
 				playerMsg.Append($"<b>{randomSpell.Name}</b>, ");
 			}
 
 			playerMsg.RemoveLast(", ").Append(".");
 
-			Chat.AddExamineMsgFromServer(player.GameObject, playerMsg.ToString());
+			Chat.AddExamineMsgFromServer(player.gameObject, playerMsg.ToString());
 		}
 
-		private void SetPapers(ConnectedPlayer player)
+		public static void AddSpellToPlayer(WizardSpellData randomSpell, Mind player)
 		{
-			IEnumerable<ItemSlot> idSlots = player.Script.DynamicItemStorage.GetNamedItemSlots(NamedSlot.id);
+			Spell spell = randomSpell.AddToPlayer(player);
+			player.AddSpell(spell);
+		}
+
+		public static void AddSpellToPlayer(SpellData randomSpell, Mind player)
+		{
+			Spell spell = randomSpell.AddToPlayer(player);
+			player.AddSpell(spell);
+		}
+
+		private void SetPapers(Mind player)
+		{
+			IEnumerable<ItemSlot> idSlots = player.Body.DynamicItemStorage.GetNamedItemSlots(NamedSlot.id);
 			foreach (var idSlot in idSlots)
 			{
 				if (idSlot.IsOccupied && idSlot.ItemObject.TryGetComponent<Paper>(out var papersPlease))
@@ -85,7 +97,7 @@ namespace Antagonists
 
 
 
-			IEnumerable<ItemSlot> storage02s = player.Script.DynamicItemStorage.GetPocketsSlots();
+			IEnumerable<ItemSlot> storage02s = player.Body.DynamicItemStorage.GetPocketsSlots();
 			foreach (var storage02 in storage02s)
 			{
 				if (storage02.IsOccupied && storage02.ItemObject.TryGetComponent<Paper>(out var helpPaper))
@@ -107,6 +119,21 @@ namespace Antagonists
 		private IEnumerable<SpellData> GetRandomWizardSpells()
 		{
 			return SpellList.Instance.Spells.Where(s => s is WizardSpellData).PickRandom(StartingSpellCount);
+		}
+
+		public static IEnumerable<SpellData> GetRandomWizardSpells(int numberOfSpells)
+		{
+			return SpellList.Instance.Spells.Where(s => s is WizardSpellData).PickRandom(numberOfSpells);
+		}
+
+		public static SpellData GetRandomWizardSpell()
+		{
+			return SpellList.Instance.Spells.Where(s => s is WizardSpellData).PickRandom();
+		}
+
+		public static SpellData GetRandomNonRobeSpecificWizardSpell()
+		{
+			return SpellList.Instance.Spells.Where(s => s is WizardSpellData { RequiresWizardGarb: false }).PickRandom();
 		}
 	}
 }

@@ -3,11 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using Items;
+using Items.PDA;
 using UnityEngine;
 using Mirror;
 using Objects.Atmospherics;
 using Systems.Clothing;
 using Messages.Server;
+using Systems.Clearance;
 
 /// <summary>
 /// Component which manages all the equipment on a player.
@@ -53,18 +55,9 @@ public class Equipment : NetworkBehaviour
 		UnregisisterInternals();
 	}
 
-	public void NotifyPlayer(NetworkConnection recipient)
-	{
-		foreach (var clothingItem in clothingItems)
-		{
-			PlayerAppearanceMessage.SendTo(gameObject, (int) clothingItem.Key, recipient,
-				clothingItem.Value.GameObjectReference, true, false);
-		}
-	}
-
 	public void SetReference(int index, GameObject _Item)
 	{
-		PlayerAppearanceMessage.SendToAll(gameObject, index, _Item);
+		PlayerAppearance.Process(gameObject, index, _Item);
 	}
 
 	private void InitInternals()
@@ -169,35 +162,30 @@ public class Equipment : NetworkBehaviour
 	/// <returns>Unknown if an identity couldn't be found.</returns>
 	public string GetPlayerNameByEquipment()
 	{
-		if (IsOccupied(idSlot))
+		string HighestIdentity = "Unknown";
+		bool? isPDA = null;
+
+		var clearanceObjects = ClearanceRestricted.GrabClearanceObject(script.gameObject);
+		foreach (var clearanceObject in clearanceObjects)
 		{
-			foreach (var itemSlot in idSlot)
+			if (clearanceObject == null)
 			{
-				if (itemSlot.Item.TryGetComponent<IDCard>(out var idCard))
-				{
-					if (string.IsNullOrEmpty(idCard.RegisteredName) == false)
-					{
-						return idCard.RegisteredName;
-					}
-				}
+				HighestIdentity = "Unknown";
+				continue;
+			}
+			if (clearanceObject.TryGetComponent<IDCard>(out var card))
+			{
+				HighestIdentity = card.RegisteredName;
+				return HighestIdentity;
+			}
+			else if (clearanceObject.TryGetComponent<PDALogic>(out var pda))
+			{
+				HighestIdentity = pda.RegisteredPlayerName;
 			}
 		}
 
-		if (IsOccupied(idSlot))
-		{
-			foreach (var itemSlot in idSlot)
-			{
-				if (itemSlot.Item.TryGetComponent<Items.PDA.PDALogic>(out var pda))
-				{
-					if (string.IsNullOrEmpty(pda.RegisteredPlayerName) == false)
-					{
-						return pda.RegisteredPlayerName;
-					}
-				}
-			}
-		}
 
-		return "Unknown";
+		return HighestIdentity;
 	}
 
 	#endregion Identity

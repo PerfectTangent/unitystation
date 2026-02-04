@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 479374489354486641, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: _assetId
+      value: 118295789
+      objectReference: {fileID: 0}
     - target: {fileID: 479374489354486641, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
       propertyPath: m_AssetId
@@ -22,6 +28,41 @@ PrefabInstance:
       propertyPath: initialName
       value: silver door
       objectReference: {fileID: 0}
+    - target: {fileID: 3542702998424444105, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: e1ceb5c4ae2540a4aa11b4361cd7deda,
+        type: 2}
+    - target: {fileID: 3542702998424444105, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: e1ceb5c4ae2540a4aa11b4361cd7deda,
+        type: 2}
+    - target: {fileID: 3542702998424444105, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: c3e4400043dee504eadc4d65a32db581,
+        type: 2}
+    - target: {fileID: 3542702998424444105, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[2]'
+      value: 
+      objectReference: {fileID: 11400000, guid: f6d704d1c1b42ee4499efab138b5356a,
+        type: 2}
+    - target: {fileID: 3542702998424444105, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[3]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 512a3bd201abe814d86ca59a1ca71f2c,
+        type: 2}
+    - target: {fileID: 4903062517644232794, guid: d6882bf1e96328b4189c858524c259b6,
+        type: 3}
+      propertyPath: parentID
+      value: d6882bf1e96328b4189c858524c259b6
+      objectReference: {fileID: 0}
     - target: {fileID: 4903062517644232794, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
       propertyPath: foreverID
@@ -31,7 +72,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 7601254696451705150, guid: 1d1ceb2e8af428048be580a4c790559f,
+      objectReference: {fileID: 21300000, guid: 28b6494b06c1e3640a7cb6e619017714,
         type: 3}
     - target: {fileID: 8078043400501678596, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
@@ -66,17 +107,17 @@ PrefabInstance:
     - target: {fileID: 8317990795859112137, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8317990795859112137, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8317990795859112137, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8317990795859112137, guid: d6882bf1e96328b4189c858524c259b6,
         type: 3}
@@ -104,4 +145,7 @@ PrefabInstance:
       value: icons/obj/doors/mineral/mineral_doors_silver
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d6882bf1e96328b4189c858524c259b6, type: 3}

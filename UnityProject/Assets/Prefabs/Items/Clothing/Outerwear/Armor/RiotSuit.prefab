@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 855803449108065293, guid: e606c25f8104ffa4e94b68151182a216,
@@ -239,6 +240,24 @@ PrefabInstance:
         to protect against melee attacks. Helps the wearer resist shoving in close
         quarters.
       objectReference: {fileID: 0}
+    - target: {fileID: 3495234765619245072, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 609dfa608fc1ae24e9c6f905ca6e7149,
+        type: 2}
+    - target: {fileID: 3495234765619245072, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 4e06be7b54a73544da85f2045d0b9ba9,
+        type: 2}
+    - target: {fileID: 3495234765619245072, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: e5eac83f95c56514ab8cdeaa1fbbf817,
+        type: 2}
     - target: {fileID: 3791466462619397166, guid: e606c25f8104ffa4e94b68151182a216,
         type: 3}
       propertyPath: m_Sprite
@@ -342,12 +361,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4033042375367942854, guid: e606c25f8104ffa4e94b68151182a216,
         type: 3}
+      propertyPath: _assetId
+      value: 4023531454
+      objectReference: {fileID: 0}
+    - target: {fileID: 4033042375367942854, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
       propertyPath: m_AssetId
       value: 0cbcbdb33f79d8147854f04a0ce18a71
       objectReference: {fileID: 0}
     - target: {fileID: 7145545764318209269, guid: e606c25f8104ffa4e94b68151182a216,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: e5eac83f95c56514ab8cdeaa1fbbf817,
+        type: 2}
+    - target: {fileID: 7145545764318209269, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: e5eac83f95c56514ab8cdeaa1fbbf817,
         type: 2}
@@ -368,16 +398,28 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7931175119129480439, guid: e606c25f8104ffa4e94b68151182a216,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 6dd2d3fb2023cd0448b8a70b78fee2ee,
         type: 2}
+    - target: {fileID: 7986767595912221471, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
+      propertyPath: parentID
+      value: e606c25f8104ffa4e94b68151182a216
+      objectReference: {fileID: 0}
     - target: {fileID: 7986767595912221471, guid: e606c25f8104ffa4e94b68151182a216,
         type: 3}
       propertyPath: foreverID
       value: 0cbcbdb33f79d8147854f04a0ce18a71
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3921521694364753778, guid: e606c25f8104ffa4e94b68151182a216,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2241781122983834624}
   m_SourcePrefab: {fileID: 100100000, guid: e606c25f8104ffa4e94b68151182a216, type: 3}
 --- !u!1 &8047502545042658809 stripped
 GameObject:
@@ -399,4 +441,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   runningSpeedDebuff: 0.5
   walkingSpeedDebuff: 0
+  SpeedDebuffRemoved: 0
   slot: 0

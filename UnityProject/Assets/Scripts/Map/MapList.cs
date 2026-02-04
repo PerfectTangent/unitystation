@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
+using SecureStuff;
 using UnityEngine.SceneManagement;
 
 [Serializable]
@@ -34,26 +36,26 @@ public class MapList
 		{
 			mapsToChooseFrom = highPopMaps;
 		}
-		
+
 		// Check that we can actually load the scene.
-		mapsToChooseFrom = mapsToChooseFrom.Where(map => SceneUtility.GetBuildIndexByScenePath(map) > -1).ToList();
+		mapsToChooseFrom = mapsToChooseFrom.Where(map => SceneUtility.GetBuildIndexByScenePath(map) > -1 || 	AccessFile.Exists(map, true,FolderType.Maps)).ToList();
 
 		if (mapsToChooseFrom.Count == 0)
 		{
-			Logger.LogError($"No maps with playerCount: {playerCount} were found, trying to pick any map now.");
-			
+			Loggy.Error($"No maps with playerCount: {playerCount} were found, trying to pick any map now.");
+
 			var allMaps = new List<string>();
 			allMaps.AddRange(lowPopMaps);
 			allMaps.AddRange(medPopMaps);
 			allMaps.AddRange(highPopMaps);
 
 			// Check that we can actually load the scene.
-			mapsToChooseFrom = allMaps.Where(map => SceneUtility.GetBuildIndexByScenePath(map) > -1).ToList();
+			mapsToChooseFrom = allMaps.Where(map => SceneUtility.GetBuildIndexByScenePath(map) > -1 ||	AccessFile.Exists(map, true,FolderType.Maps)).ToList();
 		}
 
 		if (mapsToChooseFrom.Count == 0)
 		{
-			Logger.LogError("No valid maps found! Make sure theres a map inside the Maps.json that is also in the build settings");
+			Loggy.Error("No valid maps found! Make sure theres a map inside the Maps.json that is also in the build settings");
 		}
 
 		return mapsToChooseFrom.PickRandom();

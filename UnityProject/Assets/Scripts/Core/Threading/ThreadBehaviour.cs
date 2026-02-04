@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Logs;
 using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -29,6 +30,7 @@ namespace Core.Threading
 		public bool midTick;
 
 		public string threadName;
+
 
 		private void Awake()
 		{
@@ -65,8 +67,8 @@ namespace Core.Threading
 				}
 				catch (Exception e)
 				{
-					Logger.LogError(e.ToString(), Category.Threading);
-					throw;
+					Loggy.Error(e.ToString(), Category.Threading);
+					midTick = false;
 				}
 
 				ticker++;
@@ -82,13 +84,26 @@ namespace Core.Threading
 			Profiler.BeginThreadProfiling("Unitystation", threadName);
 			while (running && threadMode == ThreadMode.Threaded && midTick == false)
 			{
+#if UNITY_EDITOR
+				if (PauseStateChangedEditor.IsPaused && threadMode == ThreadMode.Threaded)
+				{
+					Thread.Sleep(5000);
+				}
+#endif
+
+
 				try
 				{
 					RunTick();
 				}
 				catch (Exception e)
 				{
-					ThreadLogger.AddLog(e.ToString(), Category.Threading);
+					ThreadLoggy.QueueLog( LogLevel.Error, e.ToString(), Category.Threading);
+					midTick = false;
+					if (threadMode == ThreadMode.Threaded)
+					{
+						Thread.Sleep(10000); //Resume after a 10s
+					}
 				}
 
 				Thread.Sleep(tickDelay);
@@ -110,7 +125,7 @@ namespace Core.Threading
 				workingThread = new Thread (ThreadLoop);
 				workingThread.Start();
 				currentThreads.Add(this);
-				Logger.LogFormat("<b>{0}</b> Started", Category.Threading, GetType().Name);
+				Loggy.Info().Format("<b>{0}</b> Started", Category.Threading, GetType().Name);
 			}
 			else if (threadMode == ThreadMode.MainThread)
 			{
@@ -133,7 +148,7 @@ namespace Core.Threading
 				workingThread = null;
 			}
 			currentThreads.Remove(this);
-			Logger.LogFormat("<b>{0}</b> Stopped", Category.Threading, GetType().Name);
+			Loggy.Info().Format("<b>{0}</b> Stopped", Category.Threading, GetType().Name);
 			running = false;
 		}
 

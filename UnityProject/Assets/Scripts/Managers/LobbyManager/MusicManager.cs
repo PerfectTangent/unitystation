@@ -3,28 +3,20 @@ using System.Collections.Generic;
 using System.Collections;
 using System.Threading.Tasks;
 using AddressableReferences;
+using Logs;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using Messages.Server.SoundMessages;
+using Shared.Util;
 using UnityEngine.Audio;
+using Util;
 
 namespace Audio.Containers
 {
 	public class MusicManager : MonoBehaviour
 	{
 		private static MusicManager musicManager;
-		public static MusicManager Instance
-		{
-			get
-			{
-				if (musicManager == null)
-				{
-					musicManager = FindObjectOfType<MusicManager>();
-				}
-
-				return musicManager;
-			}
-		}
+		public static MusicManager Instance => FindUtils.LazyFindObject(ref musicManager);
 
 		public string currentNetworkedSong = "";
 
@@ -82,7 +74,7 @@ namespace Audio.Containers
 			var audioSource = await AudioManager.GetAddressableAudioSourceFromCache(new List<AddressableAudioSource>{audioClips.GetRandomClip()});
 			if(audioSource == null)
 			{
-				Logger.LogError("MusicManager failed to load a song, is Addressables loaded?", Category.Audio);
+				Loggy.Error("MusicManager failed to load a song, is Addressables loaded?", Category.Audio);
 				return null;
 			}
 			musicAudioSource.clip = audioSource.AudioSource.clip;
@@ -101,7 +93,7 @@ namespace Audio.Containers
 		{
 			if(addressableAudioSource == null)
 			{
-				Logger.LogError("MusicManager failed to load a song, is Addressables loaded?", Category.Audio);
+				Loggy.Error("MusicManager failed to load a song, is Addressables loaded?", Category.Audio);
 				return null;
 			}
 
@@ -109,7 +101,7 @@ namespace Audio.Containers
 				return null;
 
 			addressableAudioSource = await AudioManager.GetAddressableAudioSourceFromCache(addressableAudioSource);
-		
+
 			if (isMusicPlaying())
 			{
 				await AudioManager.Instance.FadeMixerGroup("Music_Volume", 1000f, 0f);
@@ -153,7 +145,7 @@ namespace Audio.Containers
 		{
 			if (Instance.musicAudioSource != null
 			    && Instance.musicAudioSource.isPlaying
-			    || (SunVox.sv_end_of_song((int) Slot.Music) != 0))
+			    || (SunVox.SunVox.sv_end_of_song((int) Slot.Music) != 0))
 			{
 				return true;
 			}

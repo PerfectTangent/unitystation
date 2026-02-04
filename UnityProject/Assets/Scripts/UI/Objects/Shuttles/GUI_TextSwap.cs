@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,19 +25,19 @@ namespace UI.Objects.Shuttles
 		{
 			if (shuttleControlScript == null || textToSet == null)
 			{
-				Logger.LogError("TextSwap script reference failure!", Category.UI);
+				Loggy.Error("TextSwap script reference failure!", Category.UI);
 				enabled = false;
 				return;
 			}
 
-			UIType keyToCheck = shuttleControlScript.matrixMove.uiType;
+			UIType keyToCheck = UIType.Syndicate;
 			if (textSetupDict.ContainsKey(keyToCheck))
 			{
 				textToSet.text = textSetupDict[keyToCheck].Replace("\\n", "\n");
 			}
 			else
 			{
-				Logger.LogWarning("No Key for UIType found in TextSwap. Leaving Text alone", Category.UI);
+				Loggy.Warning("No Key for UIType found in TextSwap. Leaving Text alone", Category.UI);
 			}
 		}
 	}

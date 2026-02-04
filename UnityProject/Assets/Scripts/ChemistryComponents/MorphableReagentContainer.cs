@@ -117,7 +117,7 @@ namespace Chemistry.Components
 		[Client]
 		private void DisableVisualisation()
 		{
-			mainSpriteHandler.SetSprite(defaultSprite);
+			mainSpriteHandler.SetSpriteNonNetworked(defaultSprite);
 			if (fillVisual && fillVisual.fillSpriteRender)
 				fillVisual.fillSpriteRender.gameObject.SetActive(true);
 
@@ -128,7 +128,7 @@ namespace Chemistry.Components
 				item.ServerSetArticleDescription(item.InitialDescription);
 
 				// set default name
-				item.ServerSetArticleName(item.InitialName);
+				item.ServerSetArticleName(item.ArticleName);
 			}
 		}
 	}

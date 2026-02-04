@@ -35,20 +35,20 @@ public static class PlayerUtils
 	{
 		if (CustomNetworkManager.IsServer == false) return;
 
-		foreach ( ConnectedPlayer player in PlayerList.Instance.InGamePlayers )
+		foreach ( PlayerInfo player in PlayerList.Instance.InGamePlayers )
 		{
 			var ps = player.Script;
 			if (ps.IsDeadOrGhost) continue;
 
-			if (ps.mind != null &&
-			    ps.mind.occupation != null &&
-			    ps.mind.occupation.JobType == JobType.CLOWN)
+			if (ps.Mind != null &&
+			    ps.Mind.occupation != null &&
+			    ps.Mind.occupation.JobType == JobType.CLOWN)
 			{
 				// love clown
 				ps.playerMove.Uncuff();
 
 				ps.playerHealth.ResetDamageAll();
-				ps.registerTile.ServerStandUp();
+				ps.RegisterPlayer.ServerStandUp();
 
 
 				foreach (var itemSlot in player.Script.DynamicItemStorage.GetNamedItemSlots(NamedSlot.leftHand))
@@ -63,7 +63,7 @@ public static class PlayerUtils
 			}
 			else
 			{
-				if (ps.PlayerSync.IsMovingServer)
+				if (ps.PlayerSync.IsMoving)
 				{
 					var plantPos = ps.WorldPos + ps.CurrentDirection.ToLocalVector3();
 					Spawn.ServerPrefab("Banana peel", plantPos, cancelIfImpassable: true);

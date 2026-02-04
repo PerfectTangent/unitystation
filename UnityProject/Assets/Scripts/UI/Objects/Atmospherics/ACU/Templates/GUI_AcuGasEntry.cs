@@ -10,15 +10,15 @@ namespace UI.Objects.Atmospherics.Acu
 	public class GUI_AcuGasEntry : DynamicEntry
 	{
 		[SerializeField]
-		private NetLabel label = default;
+		private NetText_label label = default;
 
 		public void SetValues(string metricName, float ratio, float moles, AcuStatus molStatus)
 		{
 			var percentString = $"{ratio, 10:P}";
 			var molString = GUI_Acu.ColorStringByStatus($"{moles, 8:N}", molStatus);
 
-			label.SetValueServer($"| {metricName, -18} | {percentString, -13} | {molString, -34} |");
-			label.SetValueServer($"| {metricName, -18} | {percentString, -13} | {molString, -34} |");
+			label.MasterSetValue($"| {metricName, -18} | {percentString, -13} | {molString, -34} |");
+			label.MasterSetValue($"| {metricName, -18} | {percentString, -13} | {molString, -34} |");
 		}
 	}
 }

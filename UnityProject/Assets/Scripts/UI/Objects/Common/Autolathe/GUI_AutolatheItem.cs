@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Text;
+using Logs;
 using UnityEngine;
 using UI.Core.NetUI;
 using Objects.Machines;
@@ -23,7 +24,7 @@ namespace UI.Objects
 		{
 			if (AutolatheMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_Autolathe>().OnProductAddClicked.Invoke(Product);
+				containedInTab.GetComponent<GUI_Autolathe>().OnProductAddClicked.Invoke(Product);
 			}
 			else
 			{
@@ -35,7 +36,7 @@ namespace UI.Objects
 		{
 			if (product == null)
 			{
-				Logger.Log("ExoFab Product not found", Category.Machines);
+				Loggy.Info("ExoFab Product not found", Category.Machines);
 				return;
 			}
 
@@ -43,7 +44,7 @@ namespace UI.Objects
 			{
 				if (element as NetUIElement<string> != null)
 				{
-					(element as NetUIElement<string>).SetValueServer(GetName(element));
+					(element as NetUIElement<string>).MasterSetValue(GetName(element));
 				}
 			}
 		}

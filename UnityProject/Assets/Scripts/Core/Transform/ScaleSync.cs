@@ -1,21 +1,30 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
 using Mirror;
+using SecureStuff;
 using UnityEngine;
-using UnityEngine.Networking;
-
 
 namespace Scripts.Core.Transform
 {
 
     public class ScaleSync : NetworkBehaviour
     {
-	    [SyncVar(hook = nameof(SyncScale))]
-	    private Vector3 scaleTransform = new Vector3(1f, 1f, 1f);
+	    [SyncVar(hook = nameof(SyncScale)), SerializeField]
+	    [PlayModeOnly] private Vector3 scaleTransform = new Vector3(1f, 1f, 1f);
+
+	    public Vector3 ScaleTransform => scaleTransform;
+
 
 	    public override void OnStartClient()
 	    {
-		    SyncScale(transform.localScale, scaleTransform);
+		    if (CustomNetworkManager.IsServer)
+		    {
+			    SyncScale(transform.localScale, transform.localScale);
+		    }
+		    else
+		    {
+			    SyncScale(transform.localScale, scaleTransform);
+		    }
+
 		    base.OnStartClient();
 	    }
 

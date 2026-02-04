@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 89206780398788833, guid: 75421751b31ee7f49b1adb8b70cd2375,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: a11e60576bb65544eafc463b5e84bb17,
         type: 3}
+    - target: {fileID: 169216062924189193, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: _assetId
+      value: 426368196
+      objectReference: {fileID: 0}
     - target: {fileID: 169216062924189193, guid: 75421751b31ee7f49b1adb8b70cd2375,
         type: 3}
       propertyPath: m_AssetId
@@ -89,16 +95,53 @@ PrefabInstance:
       value: A small stuffed doll of the elder goddess Nar'Sie. Who thought this
         was a good children's toy?
       objectReference: {fileID: 0}
+    - target: {fileID: 369438315475188959, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: d5dc4d118b6a41b4ea21950d11d65992,
+        type: 2}
+    - target: {fileID: 369438315475188959, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: d5dc4d118b6a41b4ea21950d11d65992,
+        type: 2}
+    - target: {fileID: 6236086576208570426, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 6450293109917019751}
     - target: {fileID: 6236086576208570426, guid: 75421751b31ee7f49b1adb8b70cd2375,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: d5dc4d118b6a41b4ea21950d11d65992,
         type: 2}
+    - target: {fileID: 6236086576208570426, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: d5dc4d118b6a41b4ea21950d11d65992,
+        type: 2}
+    - target: {fileID: 6590914017311023056, guid: 75421751b31ee7f49b1adb8b70cd2375,
+        type: 3}
+      propertyPath: parentID
+      value: 75421751b31ee7f49b1adb8b70cd2375
+      objectReference: {fileID: 0}
     - target: {fileID: 6590914017311023056, guid: 75421751b31ee7f49b1adb8b70cd2375,
         type: 3}
       propertyPath: foreverID
       value: 2fcddfc14a1f4d445bf54f8041bcaffb
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 75421751b31ee7f49b1adb8b70cd2375, type: 3}
+--- !u!212 &6450293109917019751 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 89206780398788833, guid: 75421751b31ee7f49b1adb8b70cd2375,
+    type: 3}
+  m_PrefabInstance: {fileID: 6393113042195385990}
+  m_PrefabAsset: {fileID: 0}

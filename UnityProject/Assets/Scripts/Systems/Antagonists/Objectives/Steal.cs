@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using System;
+using Logs;
+using SecureStuff;
 
 namespace Antagonists
 {
@@ -17,11 +19,23 @@ namespace Antagonists
 		/// </summary>
 		[SerializeField]
 		private SerializableDictionary<GameObject, StealData> ItemPool = null;
+		public SerializableDictionary<GameObject, StealData> ItemPools => new (ItemPool);
+
+		/// <summary>
+		/// Whether multiple people can target the same item
+		/// </summary>
+		[SerializeField]
+		private bool uniqueTargets = true;
 
 		/// <summary>
 		/// The item to steal
 		/// </summary>
 		private string ItemName;
+
+		/// <summary>
+		/// The item to steal
+		/// </summary>
+		private string ItemID;
 
 		/// <summary>
 		/// The number of items needed to complete the objective
@@ -31,11 +45,16 @@ namespace Antagonists
 		/// <summary>
 		/// Make sure there's at least one item which hasn't been targeted
 		/// </summary>
-		protected override bool IsPossibleInternal(PlayerScript candidate)
+		protected override bool IsPossibleInternal(Mind candidate)
 		{
+			if (uniqueTargets == false)
+			{
+				return true;
+			}
+
 			// Get all items from the item pool which haven't been targeted already
-			int itemCount = ItemPool.Where( itemDict =>
-				!AntagManager.Instance.TargetedItems.Contains(itemDict.Key)).Count();
+			int itemCount = ItemPool.Count(
+				itemDict => !AntagManager.Instance.TargetedItems.Contains(itemDict.Key));
 			return (itemCount > 0);
 		}
 
@@ -45,18 +64,25 @@ namespace Antagonists
 		protected override void Setup()
 		{
 			// Get all items from the item pool which haven't been targeted already
-			var possibleItems = ItemPool.Where( itemDict =>
-				!AntagManager.Instance.TargetedItems.Contains(itemDict.Key)).ToList();
+			var possibleItems = uniqueTargets ? ItemPool.Where( itemDict =>
+				!AntagManager.Instance.TargetedItems.Contains(itemDict.Key)).ToList() : ItemPool.ToList();
+
+			var itemsToRemove = new List<KeyValuePair<GameObject, StealData>>();
 
 			foreach (var item in possibleItems)
 			{
 				if(item.Value.BlacklistedOccupations.Contains(Owner.occupation) == false) continue;
+				itemsToRemove.Add(item);
+			}
+
+			foreach (var item in itemsToRemove)
+			{
 				possibleItems.Remove(item);
 			}
 
 			if (possibleItems.Count == 0)
 			{
-				Logger.LogWarning("Unable to find any suitable items to steal! Giving free objective", Category.Antags);
+				Loggy.Warning("Unable to find any suitable items to steal! Giving free objective", Category.Antags);
 				description = "Free objective";
 				Complete = true;
 				return;
@@ -66,7 +92,7 @@ namespace Antagonists
 			var itemEntry = possibleItems.PickRandom();
 			if (itemEntry.Key == null)
 			{
-				Logger.LogError($"Objective steal item target failed because the item chosen is somehow destroyed." +
+				Loggy.Error($"Objective steal item target failed because the item chosen is somehow destroyed." +
 				                " Definitely a programming bug. ", Category.Antags);
 				return;
 			}
@@ -75,7 +101,7 @@ namespace Antagonists
 
 			if (string.IsNullOrEmpty(ItemName))
 			{
-				Logger.LogError($"Objective steal item target failed because the InitialName has not been" +
+				Loggy.Error($"Objective steal item target failed because the InitialName has not been" +
 				                $" set on this objects ItemAttributes. " +
 				                $"Item: {itemEntry.Key.Item().gameObject.name}", Category.Antags);
 				return;
@@ -84,11 +110,43 @@ namespace Antagonists
 			AntagManager.Instance.TargetedItems.Add(itemEntry.Key);
 			// TODO randomise amount based on range/weightings?
 			description = $"Steal {Amount} {ItemName}";
+
+			ItemID = itemEntry.Key.Item().GetComponent<IHaveForeverID>()?.ForeverID;
+		}
+
+		protected override void SetupInGame()
+		{
+			// Pick a random item and add it to the targeted list
+			GameObject item = null;
+			item = CustomNetworkManager.Instance.ForeverIDLookupSpawnablePrefabs[attributes[0].ItemID];
+			Amount = attributes[1].Number;
+
+			if (item == null)
+				return;
+
+			if (item.ExpensiveName() == null)
+			{
+				ItemName = "NULLNAME";
+				Loggy.Error($"[Steal/SetupInGame] Can`t find name of item {item}");
+			} else
+			{
+				ItemName = item.ExpensiveName();
+			}
+			AntagManager.Instance.TargetedItems.Add(item);
+			// TODO randomise amount based on range/weightings?
+			description = $"Steal {Amount} {ItemName}";
+
+			ItemID = item.GetComponent<IHaveForeverID>()?.ForeverID;
+		}
+
+		public override string GetDescription()
+		{
+			return description;
 		}
 
 		protected override bool CheckCompletion()
 		{
-			return CheckStorageFor(ItemName, Amount);
+			return CheckStorageFor(ItemName, Amount, ItemID);
 		}
 	}
 

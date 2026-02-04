@@ -1,18 +1,20 @@
-﻿using System.Collections.Generic;
+﻿using System;
 using UnityEngine;
 using Mirror;
 using Chemistry.Components;
-using Systems.Botany;
 using Chemistry;
-using Objects.Botany;
+using Core.Physics;
+using HealthV2;
 using Items;
+using Objects.Botany;
 using Items.Botany;
 using Items.Food;
+using Logs;
+using Scripts.Core.Transform;
 
 namespace Systems.Botany
 {
 	//Used when spawning the food
-	[RequireComponent(typeof(CustomNetTransform))]
 	[RequireComponent(typeof(ReagentContainer))]
 	[DisallowMultipleComponent]
 	public class GrownFood : NetworkBehaviour
@@ -33,13 +35,52 @@ namespace Systems.Botany
 		[SerializeField]
 		private Edible edible = default;
 
-		[SyncVar(hook = nameof(SyncSize))]
-		public float sizeScale = 1;
+		[SerializeField] private ScaleSync scaleSync;
 
-		public void SyncSize(float oldScale, float newScale)
+		private ItemAttributesV2 ItemAttributesV2;
+		private UniversalObjectPhysics UniversalObjectPhysics;
+		private Integrity Integrity;
+		private ScaleSync ScaleSync;
+
+		[SyncVar(hook = nameof(SyncSlippery))]
+		public bool HasSlippery = false;
+
+		[SyncVar(hook = nameof(SyncBlueSpaceActivity))]
+		public bool HasBlueSpaceActivity = false;
+
+		public void SyncBlueSpaceActivity(bool oldScale, bool newScale)
 		{
-			sizeScale = newScale;
-			SpriteSizeAdjustment.transform.localScale = new Vector3((sizeScale), (sizeScale), (sizeScale));
+			HasBlueSpaceActivity = newScale;
+
+			if (newScale)
+			{
+				ItemAttributesV2.AddTrait(CommonTraits.Instance.BluespaceActivity);
+			}
+			else
+			{
+				ItemAttributesV2.RemoveTrait(CommonTraits.Instance.BluespaceActivity);
+			}
+		}
+
+		public void SyncSlippery(bool oldScale, bool newScale)
+		{
+			HasSlippery = newScale;
+
+			if (newScale)
+			{
+				ItemAttributesV2.AddTrait(CommonTraits.Instance.Slippery);
+			}
+			else
+			{
+				ItemAttributesV2.RemoveTrait(CommonTraits.Instance.Slippery);
+			}
+		}
+
+
+		public void SyncSize( float newScale)
+		{
+			if (isServer == false) return;
+			ScaleSync.SetScale(new Vector3(newScale, newScale, newScale));
 		}
 
 		public PlantData GetPlantData()
@@ -57,41 +98,125 @@ namespace Systems.Botany
 			return _plantData;
 		}
 
-		/*private void Awake()
+
+		public void Awake()
 		{
-			if (SpriteSizeAdjustment.sprite.texture == null)
-			{
-				Debug.LogError("Attempted awake on food, failed to find texture", this);
-				return;
-			}
-			var spritesheet = new SpriteSheetAndData { Texture = SpriteSizeAdjustment.sprite.texture };
-			spritesheet.setSprites();
-			Sprite.spriteData = SpriteFunctions.SetupSingleSprite(spritesheet);
-			Sprite.PushTexture();
-		}*/
+			ItemAttributesV2 = this.GetComponentCustom<ItemAttributesV2>();
+
+			UniversalObjectPhysics = this.GetComponentCustom<UniversalObjectPhysics>();
+
+			Integrity = this.GetComponentCustom<Integrity>();
+			ScaleSync = this.GetComponentCustom<ScaleSync>();
+		}
 
 		public void Start()
 		{
-			SyncSize(sizeScale, sizeScale);
+			if (isServer == false)return;
+			if (reagentContainer.ReagentMixTotal == 0)
+			{
+				if (SeedPacket.GetComponent<SeedPacket>() == null)
+				{
+					return;
+				}
+				SetUpFood( SeedPacket.GetComponent<SeedPacket>().plantData, PlantTrayModification.None, null);
+			}
 		}
 
 		/// <summary>
 		/// Called when plant creates food
 		/// </summary>
-		public void SetUpFood(PlantData newPlantData, PlantTrayModification modification)
+		public void SetUpFood(PlantData newPlantData, PlantTrayModification modification, bool? IncreasesMutationChanceState, PlantData.StatMutationType StatMutationTypeModifyer = PlantData.StatMutationType.Normal)
 		{
-			plantData = PlantData.MutateNewPlant(newPlantData, modification);
-			SyncSize(sizeScale, 0.5f + (newPlantData.Potency / 200f));
+
+			plantData = PlantData.MutateNewPlant(newPlantData, modification, IncreasesMutationChanceState);
+			SyncSize( 0.5f + (newPlantData.Potency / 200f));
 			SetupChemicalContents();
 			if (edible != null)
 			{
 				SetupEdible();
 			}
+
+			foreach (var Tray in plantData.PlantTrays)
+			{
+
+				switch (Tray)
+				{
+					case PlantTrays.Bluespace_Activity:
+						SyncBlueSpaceActivity(true, true);
+						//Teleporting stuff
+						break;
+					case PlantTrays.Hypodermic_Needles:
+						ItemAttributesV2.OnMelee += OnPrickle;
+						break;
+					case PlantTrays.Slippery_Skin:
+						//Slippery Skin
+						SyncSlippery(true, true);
+						break;
+					case PlantTrays.Densified_Chemicals:
+						reagentContainer.Multiply(2);
+						// Double reagents
+						break;
+					case PlantTrays.Liquid_Content:
+						UniversalObjectPhysics.OnImpact.AddListener(OnImpact);
+						ItemAttributesV2.OnSlipOn += OnSlipOn;
+						//so, Causes the plant to squash when thrown or slipped on, applying the reagents inside on the target and destroying the plant.
+						break;
+					case PlantTrays.Separated_Chemicals:
+						reagentContainer.StopReactions = true;
+						// Basically no reaction in plant
+						break;
+
+					case PlantTrays.Fire_Resistance:
+						Integrity.Resistances.FireProof = true;
+						Integrity.Resistances.Flammable = false;
+						Integrity.Resistances.LavaProof = true;
+						break;
+
+				}
+
+			}
+
+		}
+
+		public void OnSlipOn(UniversalObjectPhysics WhoseSlipping)
+		{
+			reagentContainer.Spill(transform.position.RoundToInt(), reagentContainer.ReagentMixTotal);
+		}
+
+		public void OnImpact(UniversalObjectPhysics Impact, Vector2 Force)
+		{
+			reagentContainer.Spill(transform.position.RoundToInt(), reagentContainer.ReagentMixTotal);
 		}
 
 		public void SetPlantData(PlantData newData)
 		{
 			plantData = newData;
+		}
+
+
+
+		public int hitCount;
+		public void OnPrickle(GameObject gameObject, GameObject victim)
+		{
+			if (hitCount >= 4) return;
+
+			var LHB = victim.GetComponent<LivingHealthMasterBase>();
+			if (LHB.reagentPoolSystem == null) return;
+
+			int hitsRemaining = 4 - hitCount;
+
+			float portion = reagentContainer.ReagentMixTotal / hitsRemaining;
+
+			var InjectingReagents = reagentContainer.TakeReagents(portion);
+
+			LHB.reagentPoolSystem.BloodPool.Add(InjectingReagents);
+
+			hitCount++;
+
+			if (hitCount >= 4)
+			{
+				_ = Despawn.ServerSingle(gameObject);
+			}
 		}
 
 		/// <summary>
@@ -102,12 +227,12 @@ namespace Systems.Botany
 			ReagentMix CurrentReagentMix = new ReagentMix();
 			foreach (var reagentAndAmount in plantData.ReagentProduction)
 			{
-				CurrentReagentMix.Add(reagentAndAmount.ChemistryReagent, reagentAndAmount.Amount);
+				CurrentReagentMix.Add(reagentAndAmount.ChemistryReagent, reagentAndAmount.percentage);
 			}
 
 			reagentContainer.Add(CurrentReagentMix);
 
-			reagentContainer.Multiply( plantData.Potency / 100f * 2.5f ); //40 Potency = * 1
+			reagentContainer.Multiply( plantData.Potency / 100f * 15f );
 		}
 
 		/// <summary>

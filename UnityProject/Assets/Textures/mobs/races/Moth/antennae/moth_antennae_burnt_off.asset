@@ -12,21 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d1de2691495b304e9843ac3335b626d, type: 3}
   m_Name: moth_antennae_burnt_off
   m_EditorClassIdentifier: 
+  foreverID: dbe331e47a7a188478d2e35e6cec0450
   Variance:
   - Frames:
-    - sprite: {fileID: -4616857830103487508, guid: 8ff8e7e18b6f408478ea2c113892eefe,
+    - sprite: {fileID: -4616857830103487508, guid: 9bbf3ffc444b6954b948484515fa37e0,
         type: 3}
       secondDelay: 0
   - Frames:
-    - sprite: {fileID: 5161100255408332391, guid: 8ff8e7e18b6f408478ea2c113892eefe,
+    - sprite: {fileID: 5161100255408332391, guid: 9bbf3ffc444b6954b948484515fa37e0,
         type: 3}
       secondDelay: 0
   - Frames:
-    - sprite: {fileID: 975306259490213914, guid: 8ff8e7e18b6f408478ea2c113892eefe,
+    - sprite: {fileID: 975306259490213914, guid: 9bbf3ffc444b6954b948484515fa37e0,
         type: 3}
       secondDelay: 0
   - Frames:
-    - sprite: {fileID: 6301235990203530324, guid: 8ff8e7e18b6f408478ea2c113892eefe,
+    - sprite: {fileID: 6301235990203530324, guid: 9bbf3ffc444b6954b948484515fa37e0,
         type: 3}
       secondDelay: 0
   IsPalette: 0

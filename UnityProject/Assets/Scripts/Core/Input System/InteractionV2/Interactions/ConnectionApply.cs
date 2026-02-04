@@ -6,7 +6,7 @@
 public class ConnectionApply : TargetedInteraction
 {
 	public static readonly ConnectionApply Invalid = new ConnectionApply(null, null,
-		null, Connection.NA, Connection.NA, Vector2.zero, null, Intent.Help);
+		null, Connection.NA, Connection.NA, Vector2.zero, null, Intent.Help, null);
 
 	private readonly ItemSlot handSlot;
 
@@ -21,10 +21,15 @@ public class ConnectionApply : TargetedInteraction
 
 	private readonly Vector2 targetPosition;
 
-	/// <summary>Target world position calculated from matrix local position.</summary>
+	/// <summary>
+	/// Targeted world position deduced from target vector and performer position.
+	/// </summary>
 	public Vector2 WorldPositionTarget => (Vector2)targetPosition.To3().ToWorld(Performer.RegisterTile().Matrix);
 
-	/// <summary>Requested local position target.</summary>
+	/// <summary>
+	/// Vector pointing from the performer to the targeted position. Set to Vector2.zero if aiming at self.
+	/// </summary>
+	///
 	public Vector2 TargetPosition => targetPosition;
 
 
@@ -48,8 +53,8 @@ public class ConnectionApply : TargetedInteraction
 	/// <param name="worldPositionTarget">position of target tile (world space)</param>
 	/// <param name="handSlot">active hand slot that is being used</param>
 	private ConnectionApply(GameObject performer, GameObject handObject, GameObject targetObject, Connection startPoint, Connection endPoint, Vector2 targetPosition,
-		ItemSlot handSlot, Intent intent) :
-		base(performer, handObject, targetObject, intent)
+		ItemSlot handSlot, Intent intent, Mind inMind) :
+		base(performer, handObject, targetObject, intent, inMind)
 	{
 		this.targetPosition = targetPosition;
 		this.connectionPointA = startPoint;
@@ -67,7 +72,8 @@ public class ConnectionApply : TargetedInteraction
 	/// <returns></returns>
 	public static ConnectionApply ByLocalPlayer(GameObject targetObject, Connection wireEndA, Connection wireEndB, Vector3? IntargetVector)
 	{
-		if (PlayerManager.LocalPlayerScript.IsGhost) return Invalid;
+		if (PlayerManager.LocalPlayerScript.IsNormal == false) return Invalid;
+
 		Vector3 targetVec;
 		if (IntargetVector != null)
 		{
@@ -75,20 +81,22 @@ public class ConnectionApply : TargetedInteraction
 		}
 		else
 		{
-			targetVec = MouseUtils.MouseToWorldPos().ToLocal(PlayerManager.LocalPlayer.RegisterTile().Matrix);
+			targetVec = MouseUtils.MouseToWorldPos().ToLocal(PlayerManager.LocalPlayerObject.RegisterTile().Matrix);
 		}
 
 
 
 		return new ConnectionApply(
-			PlayerManager.LocalPlayer,
+			PlayerManager.LocalPlayerObject,
 			PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot().ItemObject,
 			targetObject,
 			wireEndA,
 			wireEndB,
-			targetVec,PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot(),
+			targetVec,
+			PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot(),
 
-			UIManager.CurrentIntent
+			UIManager.CurrentIntent,
+			PlayerManager.LocalMindScript
 		);
 	}
 
@@ -102,7 +110,7 @@ public class ConnectionApply : TargetedInteraction
 	/// <param name="handSlot">active hand slot that is being used</param>
 	/// <returns></returns>
 	public static ConnectionApply ByClient(GameObject clientPlayer, GameObject handObject, GameObject targetObject, Connection startPoint, Connection endPoint, Vector2 targetVec,
-		ItemSlot handSlot, Intent intent)
+		ItemSlot handSlot, Intent intent, Mind inMind)
 	{
 		return new ConnectionApply(
 			clientPlayer,
@@ -112,7 +120,8 @@ public class ConnectionApply : TargetedInteraction
 			endPoint,
 			targetVec,
 			handSlot,
-			intent
+			intent,
+			inMind
 		);
 	}
 }

@@ -3,9 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using HealthV2;
 using Items;
+using Items.Implants.Organs;
 using UnityEngine;
 
-public class DoubleHandController : MonoBehaviour
+public class DoubleHandController : MonoBehaviour, IUIHandAreasSelectable
 {
 
 	public bool LeftHandActive;
@@ -26,18 +27,18 @@ public class DoubleHandController : MonoBehaviour
 
 
 	//0 - Hide both hands, 1 - hide left hand, 2 - hide right hand, something else - hide none
-	public void HideHands(HiddenHandValue Selection)
+	public void HideHands(HandsController.HiddenHandValue Selection)
 	{
 		switch (Selection)
 		{
-			case HiddenHandValue.bothHands:
+			case HandsController.HiddenHandValue.bothHands:
 				LeftHand.SetActive(false);
 				RightHand.SetActive(false);
 				break;
-			case HiddenHandValue.leftHand:
+			case HandsController.HiddenHandValue.leftHand:
 				LeftHand.SetActive(false);
 				break;
-			case HiddenHandValue.rightHand:
+			case HandsController.HiddenHandValue.rightHand:
 				RightHand.SetActive(false);
 				break;
 			default:
@@ -130,7 +131,7 @@ public class DoubleHandController : MonoBehaviour
 		return false;
 	}
 
-	public UI_Hands GetHand(NamedSlot namedSlot)
+	public UI_DynamicItemSlot GetHand(NamedSlot namedSlot)
 	{
 		switch (namedSlot)
 		{
@@ -178,15 +179,28 @@ public class DoubleHandController : MonoBehaviour
 		}
 	}
 
-	public void Deactivate(NamedSlot NamedSlot)
+	public void DeSelect(NamedSlot NamedSlot)
 	{
 		if (NamedSlot == NamedSlot.leftHand)
 		{
-			LeftHandOverlay.SetActive(false);
+			LeftHandOverlay.OrNull()?.SetActive(false);
 		}
 		else
 		{
-			RightHandOverlay.SetActive(false);
+			RightHandOverlay.OrNull()?.SetActive(false);
+		}
+	}
+
+	public void SwapHand()
+	{
+		RelatedHandsController.activeDoubleHandController?.DeSelect(RelatedHandsController.ActiveHand);
+		if (RelatedHandsController.ActiveHand == NamedSlot.leftHand && this.GetHand(NamedSlot.rightHand) != null)
+		{
+			this.ActivateRightHand();
+		}
+		else if (RelatedHandsController.ActiveHand == NamedSlot.rightHand && this.GetHand(NamedSlot.leftHand) != null)
+		{
+			this.ActivateLeftHand();
 		}
 	}
 

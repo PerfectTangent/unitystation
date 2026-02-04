@@ -12,7 +12,7 @@ namespace AdminTools
 		public GUI_Notification playerNotification = null;
 		public GUI_Notification prayerNotification = null;
 		public GUI_Notification adminLogNotification = null;
-		[SerializeField] private AdminChatWindows adminChatWindows = null;
+		[SerializeField] public AdminChatWindows adminChatWindows = null;
 		[SerializeField] private Button adminChatButton = null;
 		[SerializeField] private Button mentorChatButton = null;
 		[SerializeField] private Button playerChatButton = null;
@@ -113,8 +113,8 @@ namespace AdminTools
 			{
 				foreach (var n in playerNotification?.notifications)
 				{
-					if (PlayerList.Instance.GetByUserID(n.Key) == null
-						|| PlayerList.Instance.GetByUserID(n.Key).Connection == null) continue;
+					if (PlayerList.Instance.TryGetOnlineByUserID(n.Key, out var player) == false
+							|| player.Connection == null) continue;
 
 					update.notificationEntries.Add(new AdminChatNotificationEntry
 					{
@@ -129,8 +129,8 @@ namespace AdminTools
 			{
 				foreach (var n in mentorNotification?.notifications)
 				{
-					if (PlayerList.Instance.GetByUserID(n.Key) == null
-						|| PlayerList.Instance.GetByUserID(n.Key).Connection == null) continue;
+					if (PlayerList.Instance.TryGetOnlineByUserID(n.Key, out var player) == false
+							|| player.Connection == null) continue;
 
 					update.notificationEntries.Add(new AdminChatNotificationEntry
 					{
@@ -145,8 +145,8 @@ namespace AdminTools
 			{
 				foreach (var n in prayerNotification?.notifications)
 				{
-					if (PlayerList.Instance.GetByUserID(n.Key) == null
-						|| PlayerList.Instance.GetByUserID(n.Key).Connection == null) continue;
+					if (PlayerList.Instance.TryGetOnlineByUserID(n.Key, out var player) == false
+							|| player.Connection == null) continue;
 
 					update.notificationEntries.Add(new AdminChatNotificationEntry
 					{
@@ -161,8 +161,8 @@ namespace AdminTools
 			{
 				foreach (var n in adminLogNotification?.notifications)
 				{
-					if (PlayerList.Instance.GetByUserID(n.Key) == null
-						|| PlayerList.Instance.GetByUserID(n.Key).Connection == null) continue;
+					if (PlayerList.Instance.TryGetOnlineByUserID(n.Key, out var player) == false
+							|| player.Connection == null) continue;
 
 					update.notificationEntries.Add(new AdminChatNotificationEntry
 					{
@@ -231,6 +231,14 @@ namespace AdminTools
 					{
 						prayerNotification?.RemoveNotification(notificationKey);
 						if (amt == 0) return;
+					}
+					if (adminChatWindows.SelectedWindow == AdminChatWindow.PrayerWindow)
+					{
+						if (adminChatWindows.playerPrayerWindow?.SelectedPlayer != null
+							&& adminChatWindows.playerPrayerWindow?.SelectedPlayer.uid == notificationKey)
+						{
+							break;
+						}
 					}
 					prayerNotification?.AddNotification(notificationKey, amt);
 					break;

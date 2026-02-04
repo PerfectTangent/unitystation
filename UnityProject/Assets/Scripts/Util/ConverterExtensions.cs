@@ -1,190 +1,61 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
+using Logs;
+using TMPro;
 using UnityEngine;
 using Random = System.Random;
-
+using PlayerMoveDirection = MovementSynchronisation.PlayerMoveDirection;
 
 public static class ConverterExtensions
 {
-	public static Vector2 To2(this Vector3 other)
-	{
-		return new Vector2(other.x, other.y);
-	}
-
-	public static Vector3 To3(this Vector2 other)
-	{
-		return new Vector3(other.x, other.y, 0);
-	}
-
-
-	public static Vector3 ToNonInt3(this Vector3Int other)
-	{
-		return new Vector3(other.x, other.y, other.z);
-	}
-
-
-	public static Vector3Int RoundToInt(this Vector3 other)
-	{
-		return Vector3Int.RoundToInt(other);
-	}
-
-	public static Vector3Int RoundToInt(this Vector2 other)
-	{
-		return Vector3Int.RoundToInt(other);
-	}
-
-	/// <summary>Round to int while cutting z-axis</summary>
-	public static Vector3Int CutToInt(this Vector3 other)
-	{
-		return Vector3Int.RoundToInt((Vector2) other);
-	}
-
-	/// <summary>Round to int</summary>
-	public static Vector2Int To2Int(this Vector2 other)
-	{
-		return Vector2Int.RoundToInt(other);
-	}
-
-	/// <summary>Round to int while cutting z-axis</summary>
-	public static Vector2Int To2Int(this Vector3 other)
-	{
-		return Vector2Int.RoundToInt(other);
-	}
-
-	/// <summary>Convert V3Int to V2Int</summary>
-	public static Vector2Int To2Int(this Vector3Int other)
-	{
-		return Vector2Int.RoundToInt((Vector3) other);
-	}
-
-	/// <summary>Convert V2Int to V3Int</summary>
-	public static Vector3Int To3Int(this Vector2Int other)
-	{
-		return Vector3Int.RoundToInt((Vector2) other);
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector2Int Normalize(this Vector2Int other)
-	{
-		return new Vector2Int(Mathf.Clamp(other.x, -1, 1), Mathf.Clamp(other.y, -1, 1));
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// Z is always 0!
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector2Int NormalizeToInt(this Vector2 other)
-	{
-		return new Vector2Int(Mathf.Clamp(Mathf.RoundToInt(other.x), -1, 1),
-			Mathf.Clamp(Mathf.RoundToInt(other.y), -1, 1));
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector2Int NormalizeTo2Int(this Vector3Int other)
-	{
-		return new Vector2Int(Mathf.Clamp(other.x, -1, 1), Mathf.Clamp(other.y, -1, 1));
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector2Int NormalizeTo2Int(this Vector3 other)
-	{
-		return new Vector2Int(Mathf.Clamp(Mathf.RoundToInt(other.x), -1, 1),
-			Mathf.Clamp(Mathf.RoundToInt(other.y), -1, 1));
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// Z is always 0!
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector3Int Normalize(this Vector3Int other)
-	{
-		return new Vector3Int(Mathf.Clamp(other.x, -1, 1), Mathf.Clamp(other.y, -1, 1), 0);
-	}
-
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// Z is always 0!
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector3Int NormalizeToInt(this Vector3 other)
-	{
-		return new Vector3Int(Mathf.Clamp(Mathf.RoundToInt(other.x), -1, 1),
-			Mathf.Clamp(Mathf.RoundToInt(other.y), -1, 1),
-			0);
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// Z is always 0!
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector3Int NormalizeTo3Int(this Vector2 other)
-	{
-		return new Vector3Int(Mathf.Clamp(Mathf.RoundToInt(other.x), -1, 1),
-			Mathf.Clamp(Mathf.RoundToInt(other.y), -1, 1),
-			0);
-	}
-
-	/// <summary>
-	/// Clamp vector so it's either -1, 0, or 1 on X and Y axes.
-	/// Z is always 0!
-	/// </summary>
-	/// <param name="other"></param>
-	/// <returns></returns>
-	public static Vector3Int NormalizeTo3Int(this Vector2Int other)
-	{
-		return new Vector3Int(Mathf.Clamp(other.x, -1, 1), Mathf.Clamp(other.y, -1, 1), 0);
-	}
-
 	public static Vector3 ToLocal(this Vector3 worldPos, Matrix matrix)
 	{
-		return MatrixManager.WorldToLocal(worldPos, MatrixManager.Get(matrix));
+		return MatrixManager.WorldToLocal(worldPos, matrix.MatrixInfo);
 	}
 
 	public static Vector3 ToLocal(this Vector3 worldPos)
 	{
 		return MatrixManager.WorldToLocal(worldPos,
-			MatrixManager.AtPoint(Vector3Int.RoundToInt(worldPos), CustomNetworkManager.Instance._isServer));
+			MatrixManager.AtPoint(Vector3Int.RoundToInt(worldPos), CustomNetworkManager.IsServer));
+	}
+
+	public static Vector3 DirectionLocalToWorld(this Vector3 localDirection, Matrix matrix)
+	{
+		return MatrixManager.DirectionLocalToWorld(localDirection, matrix.MatrixInfo);
+	}
+
+
+	public static Vector3 DirectionWorldToLocal(this Vector3 worldDirection, Matrix matrix)
+	{
+		return MatrixManager.DirectionWorldToLocal(worldDirection, matrix.MatrixInfo);
 	}
 
 
 	public static Vector3 ToWorld(this Vector3 localPos, Matrix matrix)
 	{
-		return MatrixManager.LocalToWorld(localPos, MatrixManager.Get(matrix));
+		return MatrixManager.LocalToWorld(localPos, matrix.MatrixInfo);
 	}
 
 	public static Vector3 ToWorld(this Vector3Int localPos, Matrix matrix)
 	{
-		return MatrixManager.LocalToWorld(localPos, MatrixManager.Get(matrix));
+		return MatrixManager.LocalToWorld(localPos, matrix.MatrixInfo);
 	}
+
+	public static Vector3 ToWorld(this Vector3Int localPos, MatrixInfo matrix)
+	{
+		return MatrixManager.LocalToWorld(localPos, matrix);
+	}
+
 
 	public static Vector3Int ToLocalInt(this Vector3 worldPos, Matrix matrix)
 	{
-		return MatrixManager.WorldToLocalInt(worldPos, MatrixManager.Get(matrix));
+		return MatrixManager.WorldToLocalInt(worldPos, matrix.MatrixInfo);
 	}
 
 	public static Vector3Int ToWorldInt(this Vector3 localPos, Matrix matrix)
 	{
-		return MatrixManager.LocalToWorldInt(localPos, MatrixManager.Get(matrix));
+		return MatrixManager.LocalToWorldInt(localPos, matrix.MatrixInfo);
 	}
 
 	public static Vector3 ToLocal(this Vector3 worldPos, MatrixInfo matrixInfo)
@@ -209,25 +80,209 @@ public static class ConverterExtensions
 
 	public static Vector3 ToLocal(this Vector3Int worldPos, Matrix matrix)
 	{
-		return MatrixManager.WorldToLocal(worldPos, MatrixManager.Get(matrix));
+		return MatrixManager.WorldToLocal(worldPos, matrix.MatrixInfo);
 	}
 
 	public static Vector3 ToLocal(this Vector3Int worldPos)
 	{
 		return MatrixManager.WorldToLocal(worldPos,
-			MatrixManager.AtPoint(Vector3Int.RoundToInt(worldPos), CustomNetworkManager.Instance._isServer));
+			MatrixManager.AtPoint(Vector3Int.RoundToInt(worldPos), CustomNetworkManager.IsServer));
 	}
+
+	public static Vector3Int ToWorldInt(this Vector3Int worldPos, Matrix matrix)
+	{
+		return MatrixManager.LocalToWorldInt(worldPos, matrix.MatrixInfo);
+	}
+
+
+	public static MatrixInfo GetMatrixAtWorld(this Vector3 World)
+	{
+		return MatrixManager.AtPoint(Vector3Int.RoundToInt(World), CustomNetworkManager.IsServer);
+	}
+
+
+	public static OrientationEnum ToOrientationEnum(this Vector3 vector)
+	{
+		float angle = Mathf.Atan2(vector.y, vector.x) * Mathf.Rad2Deg;
+
+		if (angle < 0)
+		{
+			angle += 360;
+		}
+
+		if (angle >= 45 && angle < 135)
+		{
+			return OrientationEnum.Up_By0;
+		}
+		else if (angle >= 135 && angle < 225)
+		{
+			return OrientationEnum.Left_By90;
+		}
+		else if (angle >= 225 && angle < 315)
+		{
+			return OrientationEnum.Down_By180;
+		}
+		else
+		{
+			return OrientationEnum.Right_By270;
+		}
+	}
+
+	public static bool IsDiagonal(this PlayerMoveDirection direction) =>
+		direction switch
+		{
+			PlayerMoveDirection.Down => false,
+			PlayerMoveDirection.Up => false,
+			PlayerMoveDirection.Left => false,
+			PlayerMoveDirection.Right => false,
+			_ => true
+		};
+
+	/// <summary>
+	/// Converts an ordinal direction into a cardinal direction.
+	/// </summary>
+	/// <param name="direction">The direction to convert.</param>
+	/// <param name="vertical">Should it return the vertical direction.</param>
+	public static PlayerMoveDirection ToNonDiagonal(this PlayerMoveDirection direction, bool vertical) =>
+		direction switch
+		{
+			PlayerMoveDirection.Down_Left => vertical ? PlayerMoveDirection.Down : PlayerMoveDirection.Left,
+			PlayerMoveDirection.Down_Right => vertical ? PlayerMoveDirection.Down : PlayerMoveDirection.Right,
+			PlayerMoveDirection.Up_Left => vertical ? PlayerMoveDirection.Up : PlayerMoveDirection.Left,
+			PlayerMoveDirection.Up_Right => vertical ? PlayerMoveDirection.Up : PlayerMoveDirection.Right,
+			_ => PlayerMoveDirection.Down
+		};
+
+	/// <summary>
+	/// Converts a direction enum to its Vector2Int equivalent.
+	/// </summary>
+	public static Vector2Int ToVector(this PlayerMoveDirection direction) =>
+		direction switch
+		{
+			PlayerMoveDirection.Up_Left => new Vector2Int(-1, 1),
+			PlayerMoveDirection.Up => Vector2Int.up,
+			PlayerMoveDirection.Up_Right => Vector2Int.one,
+
+			PlayerMoveDirection.Left => Vector2Int.left,
+			PlayerMoveDirection.Right => Vector2Int.right,
+
+			PlayerMoveDirection.Down_Left => new Vector2Int(-1, -1),
+			PlayerMoveDirection.Down => Vector2Int.down,
+			PlayerMoveDirection.Down_Right => new Vector2Int(1, -1),
+			_ => Vector2Int.zero
+		};
 
 	//======== | Cool serialisation stuff | =========
 
-	public static Color UncompresseToColour(this string SerialiseData)
+	public static string PalletToString(List<Color> Pallet)
+	{
+		if (Pallet == null) return "";
+		StringBuilder ToReturn = new StringBuilder();
+		foreach (var Colour in Pallet)
+		{
+			ToReturn.Append('◉');
+			ToReturn.Append(Colour.r.ToString());
+			ToReturn.Append(',');
+			ToReturn.Append(Colour.g.ToString());
+			ToReturn.Append(',');
+			ToReturn.Append(Colour.b.ToString());
+			ToReturn.Append(',');
+			ToReturn.Append(Colour.a.ToString());
+		}
+
+		return ToReturn.ToString();
+	}
+
+	public static List<Color> StringToPallet(string stringPallet)
+	{
+
+		List<Color> ToReturn = new List<Color>();
+		if (string.IsNullOrEmpty(stringPallet)) return ToReturn;
+
+		var Loop = stringPallet.Split('◉');
+		foreach (var StringColour in Loop)
+		{
+			var colour = Color.white;
+			var RGBA = StringColour.Split(',');
+			for (int i = 0; i < RGBA.Length; i++)
+			{
+				switch (i)
+				{
+					case 0:
+						colour.r = float.Parse(RGBA[i]);
+						break;
+					case 1:
+						colour.g = float.Parse(RGBA[i]);
+						break;
+					case 2:
+						colour.b = float.Parse(RGBA[i]);
+						break;
+					case 3:
+						colour.a = float.Parse(RGBA[i]);
+						break;
+				}
+			}
+			ToReturn.Add(colour);
+		}
+
+		return ToReturn;
+	}
+
+
+
+
+	public static  Vector3 RoundToArbitraryDepth(this Vector3 Vector3data, int NumberOfDigits)
+	{
+		return new Vector3((float) Math.Round(Vector3data.x, NumberOfDigits),
+			(float) Math.Round(Vector3data.y, NumberOfDigits),
+			(float) Math.Round(Vector3data.z, NumberOfDigits));
+	}
+
+	public static  string ToSerialiseString(this Vector3 Vector3data)
+	{
+		return $"{Vector3data.x},{Vector3data.y},{Vector3data.z}";
+	}
+
+	public static  Vector3 ToVector3(this string SerialiseData)
+	{
+		Vector3 TheColour = Vector3.zero;
+		string[] XYZ = SerialiseData.Split(',');
+		TheColour.x = float.Parse(XYZ[0]);
+		TheColour.y = float.Parse(XYZ[1]);
+		TheColour.z = float.Parse(XYZ[2]);
+
+		return TheColour;
+	}
+
+
+
+	public static Color ToColour(this string SerialiseData)
 	{
 		Color TheColour = Color.white;
-		TheColour.r = ((int) SerialiseData[0] / 255f);
-		TheColour.g = ((int) SerialiseData[1] / 255f);
-		TheColour.b = ((int) SerialiseData[2] / 255f);
-		TheColour.a = ((int) SerialiseData[3] / 255f);
+		string[] rgbaValues = SerialiseData.Split(',');
+		TheColour.r = (int.Parse(rgbaValues[0]) / 255f) ;
+		TheColour.g = (int.Parse(rgbaValues[1]) / 255f) ;
+		TheColour.b = (int.Parse(rgbaValues[2]) / 255f) ;
+		TheColour.a = (int.Parse(rgbaValues[3]) / 255f) ;
 		return TheColour;
+	}
+
+
+	public static Color UncompresseToColour(this string SerialiseData)
+	{
+		if (string.IsNullOrEmpty(SerialiseData) ||  SerialiseData.Length != 4)
+		{
+			return Color.white;
+		}
+		else
+		{
+			Color TheColour = Color.white;
+			TheColour.r = ((int) SerialiseData[0] / 255f);
+			TheColour.g = ((int) SerialiseData[1] / 255f);
+			TheColour.b = ((int) SerialiseData[2] / 255f);
+			TheColour.a = ((int) SerialiseData[3] / 255f);
+			return TheColour;
+		}
 	}
 
 	public static string ToStringCompressed(this Color SetColour)
@@ -253,27 +308,154 @@ public static class ConverterExtensions
 		       GetRandomNumber(minimum, maximum); //the * Minus number will do the other side Making it full 360
 	}
 
-	public static Vector2Int ToLocalVector2Int(this OrientationEnum In)
+	public static OrientationEnum RemoveDirectionsTogether(this OrientationEnum This, OrientationEnum Other)
 	{
-		return ToLocalVector3(In).To2Int();
+		var NewValue = This.To360Z() - Other.To360Z();
+		if (NewValue >= 360)
+		{
+			NewValue -= 360;
+		}
+		else if (NewValue < 0)
+		{
+			NewValue += 360;
+		}
+
+		return NewValue.Angle360ToOrientationEnum();
 	}
 
-	public static Vector3 ToLocalVector3(this OrientationEnum In)
+	public static OrientationEnum AddDirectionsTogether(this OrientationEnum This, OrientationEnum Other)
 	{
-		switch (In)
+		var NewValue = This.To360Z() + Other.To360Z();
+		if (NewValue >= 360)
+		{
+			NewValue -= 360;
+		}
+		else if (NewValue < 0)
+		{
+			NewValue += 360;
+		}
+
+		return NewValue.Angle360ToOrientationEnum();
+	}
+
+
+
+	public static Vector2Int ToLocalVector2Int(this OrientationEnum @in)
+	{
+		return ToLocalVector3(@in).RoundTo2Int();
+	}
+
+
+	public static List<TMP_Dropdown.OptionData> GetSelected(this TMP_Dropdown DropDown)
+	{
+		if (DropDown.MultiSelect == false)
+		{
+			return new List<TMP_Dropdown.OptionData>() {DropDown.options[DropDown.value]};
+		}
+		else
+		{
+			var Values = new List<TMP_Dropdown.OptionData>();
+			for (int i = 0; i < DropDown.options.Count; ++i)
+			{
+				if ((DropDown.value & (1 << i)) != 0)
+				{
+					Values.Add(DropDown.options[i]);
+				}
+			}
+
+			return Values;
+		}
+	}
+
+	/// <summary>
+	/// Takes an <see cref="OrientationEnum"/> and returns a unit <see cref="Vector3"/> direction.
+	/// </summary>
+	public static byte ToPipeRotate(this OrientationEnum @in) =>
+		@in switch
+		{
+			OrientationEnum.Up_By0 => 0,
+			OrientationEnum.Right_By270 => 1,
+			OrientationEnum.Down_By180 => 2,
+			OrientationEnum.Left_By90 => 3,
+			_ => 0
+		};
+
+
+	/// <summary>
+	/// Takes an <see cref="OrientationEnum"/> and returns a unit <see cref="Vector3"/> direction.
+	/// </summary>
+	public static Vector3 ToLocalVector3(this OrientationEnum @in) =>
+		@in switch
+		{
+			OrientationEnum.Up_By0 => Vector3.up,
+			OrientationEnum.Right_By270 => Vector3.right,
+			OrientationEnum.Down_By180 => Vector3.down,
+			OrientationEnum.Left_By90 => Vector3.left,
+			_ => Vector3.zero
+		};
+
+	public static OrientationEnum ToOpposite(this OrientationEnum @in) =>
+		@in switch
+		{
+			OrientationEnum.Up_By0 => OrientationEnum.Down_By180,
+			OrientationEnum.Right_By270 => OrientationEnum.Left_By90,
+			OrientationEnum.Down_By180 => OrientationEnum.Up_By0,
+			OrientationEnum.Left_By90 => OrientationEnum.Right_By270,
+			_ => OrientationEnum.Default
+		};
+
+
+	public static Quaternion ToQuaternion(this OrientationEnum dir)
+	{
+		var outQuaternion = new Quaternion();
+
+		switch (dir)
 		{
 			case OrientationEnum.Up_By0:
-				return Vector3.up;
+				outQuaternion.eulerAngles = new Vector3(0, 0, 0f);
+				break;
 			case OrientationEnum.Right_By270:
-				return Vector3.right;
+				outQuaternion.eulerAngles = new Vector3(0, 0, -90f);
+				break;
 			case OrientationEnum.Down_By180:
-				return Vector3.down;
+				outQuaternion.eulerAngles = new Vector3(0, 0, -180f);
+				break;
 			case OrientationEnum.Left_By90:
-				return Vector3.left;
-
+				outQuaternion.eulerAngles = new Vector3(0, 0, -270f);
+				break;
 		}
-		return Vector3.zero;
+
+		return outQuaternion;
+	}
+
+	public static OrientationEnum Angle360ToOrientationEnum(this float angle)
+	{
+		// Normalize the angle to be within the range [0, 360)
+		angle = (angle + 360) % 360;
+
+		// Define the ranges for each cardinal direction
+		if (angle >= 315 || angle < 45)
+			return OrientationEnum.Up_By0;
+		else if (angle >= 45 && angle < 135)
+			return OrientationEnum.Left_By90;
+		else if (angle >= 135 && angle < 225)
+			return OrientationEnum.Down_By180;
+		else
+			return OrientationEnum.Right_By270;
 	}
 
 
+	/// <summary>
+	/// Takes a unit <see cref="Vector2Int"/> direction with a single axis set to 1 or -1 and returns the equivalent
+	/// <see cref="OrientationEnum"/>.
+	/// </summary>
+	public static OrientationEnum ToOrientationEnum(this Vector2Int direction) =>
+		direction switch
+		{
+			{ y: -1 } => OrientationEnum.Down_By180,
+			{ x: -1 } => OrientationEnum.Left_By90,
+			{ y: 1 } => OrientationEnum.Up_By0,
+			{ x: 1 } => OrientationEnum.Right_By270,
+			_ => OrientationEnum.Down_By180
+		};
 }

@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
+using SecureStuff;
+using UI.Systems.Character;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
 public class MobSpawnControlScript : NetworkBehaviour
 {
-	public List<MobSpawnScript> MobSpawners = new List<MobSpawnScript>();
+	public List<LegacyMobSpawnScript> MobSpawners = new List<LegacyMobSpawnScript>();
+
+	public List<PlayerBlueprint> MobSpawnersNew = new List<PlayerBlueprint>();
 
 	public bool DetectViaMatrix;
 
@@ -16,7 +20,7 @@ public class MobSpawnControlScript : NetworkBehaviour
 
 	private const float PlayerCheckTime = 1f;
 
-	[Server]
+	[Server, VVNote(VVHighlight.SafeToModify100)]
 	public void SpawnMobs()
 	{
 		if (SpawnedMobs) return;
@@ -29,20 +33,34 @@ public class MobSpawnControlScript : NetworkBehaviour
 				Spawner.SpawnMob();
 			}
 		}
+
+		foreach (var Spawner in MobSpawnersNew)
+		{
+			if (Spawner != null)
+			{
+				Spawner.Spawn();
+			}
+		}
 	}
 
-	[ContextMenu("Rebuild mob spawner list")]
+	[ContextMenu("Rebuild mob spawner list"), VVNote(VVHighlight.SafeToModify100), NaughtyAttributes.Button]
 	void RebuildMobSpawnerList()
 	{
 		MobSpawners.Clear();
-		foreach (Transform t in transform.parent)
+		MobSpawnersNew.Clear();
+		foreach (var mobSpawner in transform.GetComponentInParent<ObjectLayer>().GetComponentsInChildren<LegacyMobSpawnScript>())
 		{
-			var mobSpawner = t.GetComponent<MobSpawnScript>();
-			if (mobSpawner != null)
-			{
-				MobSpawners.Add(mobSpawner);
-			}
+			MobSpawners.Add(mobSpawner);
 		}
+
+
+		foreach (var PlayerBlueprint in transform.GetComponentInParent<ObjectLayer>().GetComponentsInChildren<PlayerBlueprint>())
+		{
+			MobSpawnersNew.Add(PlayerBlueprint);
+		}
+
+
+
 		#if UNITY_EDITOR
 		EditorUtility.SetDirty(gameObject);
 		#endif
@@ -76,7 +94,7 @@ public class MobSpawnControlScript : NetworkBehaviour
 			var script = player.Script;
 			if (script == null) return;
 
-			if (!script.IsGhost && script.registerTile.Matrix == gameObject.GetComponent<RegisterObject>().Matrix)
+			if (script.IsNormal && script.RegisterPlayer.Matrix == gameObject.GetComponent<RegisterObject>().Matrix)
 			{
 				SpawnMobs();
 				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);

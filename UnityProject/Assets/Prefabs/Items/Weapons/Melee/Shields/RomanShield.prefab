@@ -5,8 +5,19 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3346008558528864777, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: allowRepair
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3346008558528864777, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: repairTrait
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 3554597231095268504, guid: 5f9896c0cca80e14f8144be44d05e0a0,
         type: 3}
       propertyPath: initialName
@@ -34,6 +45,30 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 77ecde85fd38d304fad66f46c37a34eb,
         type: 2}
+    - target: {fileID: 3554597231095268504, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 9b36b08421e896c498843be81439fcc8,
+        type: 2}
+    - target: {fileID: 3554597231095268504, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 0077de08a450c704cb7938826f2a9dae,
+        type: 2}
+    - target: {fileID: 3554597231095268504, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 77ecde85fd38d304fad66f46c37a34eb,
+        type: 2}
+    - target: {fileID: 3554597231095268504, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 9b36b08421e896c498843be81439fcc8,
+        type: 2}
     - target: {fileID: 3839345559943878822, guid: 5f9896c0cca80e14f8144be44d05e0a0,
         type: 3}
       propertyPath: m_Sprite
@@ -44,6 +79,11 @@ PrefabInstance:
         type: 3}
       propertyPath: initialIntegrity
       value: 65
+      objectReference: {fileID: 0}
+    - target: {fileID: 3904014449823356494, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: _assetId
+      value: 1445378735
       objectReference: {fileID: 0}
     - target: {fileID: 3904014449823356494, guid: 5f9896c0cca80e14f8144be44d05e0a0,
         type: 3}
@@ -116,6 +156,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 9b36b08421e896c498843be81439fcc8,
         type: 2}
+    - target: {fileID: 7133687355514949757, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 9b36b08421e896c498843be81439fcc8,
+        type: 2}
     - target: {fileID: 7802048611900235560, guid: 5f9896c0cca80e14f8144be44d05e0a0,
         type: 3}
       propertyPath: clothData
@@ -128,14 +174,22 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7802048611900235560, guid: 5f9896c0cca80e14f8144be44d05e0a0,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 37d1d80e76e32564aaa78f01e900da90,
         type: 2}
+    - target: {fileID: 7999329761268803479, guid: 5f9896c0cca80e14f8144be44d05e0a0,
+        type: 3}
+      propertyPath: parentID
+      value: 5f9896c0cca80e14f8144be44d05e0a0
+      objectReference: {fileID: 0}
     - target: {fileID: 7999329761268803479, guid: 5f9896c0cca80e14f8144be44d05e0a0,
         type: 3}
       propertyPath: foreverID
       value: 1004a7237ebbcbe4b874170b8f17d186
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5f9896c0cca80e14f8144be44d05e0a0, type: 3}

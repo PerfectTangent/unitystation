@@ -13,19 +13,20 @@ MonoBehaviour:
   m_Name: Clown
   m_EditorClassIdentifier: 
   jobType: 12
+  jobCategory: 7
   isCrewmember: 1
   lateSpawnIsArrivals: 1
   inventoryPopulator: {fileID: 11400000, guid: b3d4574084ed3407bb66a87f17a880f4, type: 2}
   useStandardPopulator: 1
+  useCharacterSettings: 1
+  CustomSpeciesOverwrite: {fileID: 0}
   limit: 1
   priority: 99
-  allowedAccess: 180000004c00000022000000
-  allowedLowPopAccess: 
-  issuedClearance: 5a000000290000000d000000
-  issuedLowPopClearance: 5a000000290000000d000000
+  issuedClearance: 5a0000000d00000029000000
+  issuedLowPopClearance: 
   spells: []
   progress: 65
-  choiceColor: {r: 0.8666667, g: 0.8666667, b: 0.8666667, a: 1}
+  choiceColor: {r: 0.9740491, g: 0, b: 1, a: 1}
   previewSprite: {fileID: 21300000, guid: b4d07e97509a349408a91d89a773b5dc, type: 3}
   displayName: Clown
   difficulty: 1
@@ -42,16 +43,22 @@ MonoBehaviour:
   customProperties:
     m_keys: []
     m_values: 
+  BetterCustomProperties: []
   isTargeteable: 1
   playSound: 1
   spawnSound:
-    SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/AmbientTracks/SpawnSounds/departments/Service_Spawn.prefab
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   textColor: {r: 0.86666673, g: 0.86666673, b: 0.86666673, a: 1}
   backgroundColor: {r: 1, g: 0, b: 0, a: 0}
   specialPlayerPrefab: {fileID: 0}
+  StartingMutations:
+  - {fileID: 11400000, guid: 37836285d262552459c7aa1a562ccce8, type: 2}
+  references:
+    version: 2
+    RefIds: []

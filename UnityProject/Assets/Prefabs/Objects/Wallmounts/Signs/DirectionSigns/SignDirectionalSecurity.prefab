@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1210846040600401038, guid: d95c8124beb3ec54ab012b6142cf1977,
@@ -13,6 +14,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: e606b25401e0fdc42a7ccb8fce46d92b,
         type: 2}
+    - target: {fileID: 1210846040600401038, guid: d95c8124beb3ec54ab012b6142cf1977,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: e606b25401e0fdc42a7ccb8fce46d92b,
+        type: 2}
+    - target: {fileID: 2828519069101837110, guid: d95c8124beb3ec54ab012b6142cf1977,
+        type: 3}
+      propertyPath: _assetId
+      value: 881256050
+      objectReference: {fileID: 0}
     - target: {fileID: 2828519069101837110, guid: d95c8124beb3ec54ab012b6142cf1977,
         type: 3}
       propertyPath: m_AssetId
@@ -26,13 +38,13 @@ PrefabInstance:
     - target: {fileID: 3907091649879794020, guid: d95c8124beb3ec54ab012b6142cf1977,
         type: 3}
       propertyPath: initialDescription
-      value: A direction sign, pointing out which way the Security department is.
+      value: A sign pointing the way to the security department.
       objectReference: {fileID: 0}
     - target: {fileID: 5907885132315318851, guid: d95c8124beb3ec54ab012b6142cf1977,
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300000, guid: 2227f8d5b7316964f8eaafca9dc7e50b,
+      objectReference: {fileID: 21300006, guid: 2227f8d5b7316964f8eaafca9dc7e50b,
         type: 3}
     - target: {fileID: 5907885132315318851, guid: d95c8124beb3ec54ab012b6142cf1977,
         type: 3}
@@ -81,8 +93,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7344477038852931613, guid: d95c8124beb3ec54ab012b6142cf1977,
         type: 3}
+      propertyPath: parentID
+      value: d95c8124beb3ec54ab012b6142cf1977
+      objectReference: {fileID: 0}
+    - target: {fileID: 7344477038852931613, guid: d95c8124beb3ec54ab012b6142cf1977,
+        type: 3}
       propertyPath: foreverID
       value: 6625231b86f6b0f44bff6b1ad4bc3cf8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d95c8124beb3ec54ab012b6142cf1977, type: 3}

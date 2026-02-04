@@ -1,4 +1,4 @@
-﻿using System.IO;
+﻿using SecureStuff;
 using UnityEngine;
 
 /// <summary>
@@ -10,7 +10,7 @@ namespace Core.Cam
 {
 	public class CaptureScreen : MonoBehaviour
 	{
-		public Camera cam;
+		public UnityEngine.Camera cam;
 
 		public int width;
 		public int height;
@@ -27,7 +27,7 @@ namespace Core.Cam
 			//specifc use cases that does not require taking an entire picture of the screen.
 			if(cam == null)
 			{
-				cam = Camera.main;
+				cam = UnityEngine.Camera.main;
 			}
 		}
 
@@ -43,15 +43,7 @@ namespace Core.Cam
 				result.ReadPixels(rect, 0, 0);
 
 				byte[] byteArray = result.EncodeToPNG();
-				if(Directory.Exists(Application.persistentDataPath + Path))
-				{
-					File.WriteAllBytes(Application.persistentDataPath + Path + "/" + FileName, byteArray);
-				}
-				else
-				{
-					Directory.CreateDirectory(Application.persistentDataPath + Path);
-					File.WriteAllBytes(Application.persistentDataPath + Path + "/" + FileName, byteArray);
-				}
+				AccessFile.Write( byteArray, Path + "/" + FileName, FolderType.Data);
 
 				RenderTexture.ReleaseTemporary(texture);
 				cam.targetTexture = null;

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 279572960244344164, guid: eff2d697846b24640887f98c04808460,
@@ -17,6 +18,11 @@ PrefabInstance:
       propertyPath: initialDescription
       value: A belt-equipped defibrillator that can be rapidly deployed. Must be
         worn on the belt to function.
+      objectReference: {fileID: 0}
+    - target: {fileID: 331174054823786418, guid: eff2d697846b24640887f98c04808460,
+        type: 3}
+      propertyPath: _assetId
+      value: 3340312505
       objectReference: {fileID: 0}
     - target: {fileID: 331174054823786418, guid: eff2d697846b24640887f98c04808460,
         type: 3}
@@ -99,6 +105,11 @@ PrefabInstance:
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 2040211371404266445, guid: eff2d697846b24640887f98c04808460,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 2214400896457561221, guid: eff2d697846b24640887f98c04808460,
         type: 3}
       propertyPath: m_Sprite
@@ -111,7 +122,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2875602828899599032, guid: eff2d697846b24640887f98c04808460,
         type: 3}
-      propertyPath: Populater.DeprecatedContents.Array.data[0]
+      propertyPath: 'Populater.DeprecatedContents.Array.data[0]'
       value: 
       objectReference: {fileID: 2190103733779182413, guid: 4634078d1e96deb4fa978803fcb8efe9,
         type: 3}
@@ -121,6 +132,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: e1f63e2ec8183a14fbfcd1065499e8ae,
         type: 2}
+    - target: {fileID: 5785642984007823745, guid: eff2d697846b24640887f98c04808460,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: e1f63e2ec8183a14fbfcd1065499e8ae,
+        type: 2}
+    - target: {fileID: 6752617059949823595, guid: eff2d697846b24640887f98c04808460,
+        type: 3}
+      propertyPath: parentID
+      value: eff2d697846b24640887f98c04808460
+      objectReference: {fileID: 0}
     - target: {fileID: 6752617059949823595, guid: eff2d697846b24640887f98c04808460,
         type: 3}
       propertyPath: foreverID
@@ -128,9 +150,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8877902139051033192, guid: eff2d697846b24640887f98c04808460,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 28c35652403a86848a31a9a426179a25,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: eff2d697846b24640887f98c04808460, type: 3}

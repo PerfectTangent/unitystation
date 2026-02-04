@@ -5,25 +5,17 @@ using UnityEngine;
 using AddressableReferences;
 using Audio.Containers;
 using Initialisation;
+using Logs;
 using Messages.Server.SoundMessages;
+using Shared.Util;
+using Util;
 
 namespace Audio.Managers
 {
 	public class SoundAmbientManager : MonoBehaviour, IInitialise
 	{
 		private static SoundAmbientManager soundAmbientManager;
-		public static SoundAmbientManager Instance
-		{
-			get
-			{
-				if (soundAmbientManager == null)
-				{
-					soundAmbientManager = FindObjectOfType<SoundAmbientManager>();
-				}
-
-				return soundAmbientManager;
-			}
-		}
+		public static SoundAmbientManager Instance => FindUtils.LazyFindObject(ref soundAmbientManager);
 
 		/// <summary>
 		/// Cache of audioSources on the Manager
@@ -66,12 +58,16 @@ namespace Audio.Managers
 
 		public static void PlayAudio(string assetAddress)
 		{
+			if(string.IsNullOrEmpty(assetAddress))
+			{
+				Loggy.Error("Cannot play ambient noise because asset address is empty or null");
+				return;
+			}
 			var audioSource = new AddressableAudioSource(assetAddress);
 
 			if (Instance.playingSource.ContainsKey(audioSource))
 			{
-				SoundManager.Stop(Instance.playingSource[audioSource]);
-				Instance.playingSource.Remove(audioSource);
+				SoundManager.ClientStop(Instance.playingSource[audioSource], true);
 			}
 
 			var guid = Guid.NewGuid().ToString();
@@ -88,7 +84,7 @@ namespace Audio.Managers
 
 			if (Instance.playingSource.ContainsKey(source))
 			{
-				SoundManager.Stop(Instance.playingSource[source]);
+				SoundManager.ClientStop(Instance.playingSource[source], true);
 				Instance.playingSource.Remove(source);
 			}
 
@@ -104,15 +100,19 @@ namespace Audio.Managers
 			if (Instance.playingSource.ContainsKey(audioSource) == false) return;
 
 			audioSource.AudioSource.loop = false;
-			SoundManager.Stop(Instance.playingSource[audioSource]);
+			SoundManager.ClientStop(Instance.playingSource[audioSource], true);
 		}
 
 		public static void StopAudio(AddressableAudioSource audioSource)
 		{
-			if (audioSource == null || Instance.playingSource.ContainsKey(audioSource) == false) return;
+			if (audioSource == null  || Instance.playingSource.ContainsKey(audioSource) == false) return;
 
-			audioSource.AudioSource.loop = false;
-			SoundManager.Stop(Instance.playingSource[audioSource]);
+			if (audioSource.AudioSource != null)
+			{
+				audioSource.AudioSource.loop = false;
+			}
+
+			SoundManager.ClientStop(Instance.playingSource[audioSource], true);
 		}
 
 		/// <summary>
@@ -122,7 +122,7 @@ namespace Audio.Managers
 		{
 			foreach (var audioSource in Instance.playingSource)
 			{
-				SoundManager.Stop(audioSource.Value);
+				SoundManager.ClientStop(audioSource.Value, true);
 			}
 		}
 	}

@@ -9,6 +9,8 @@ using UnityEngine;
 using AddressableReferences;
 using Messages.Server.SoundMessages;
 using HealthV2;
+using Items.Implants.Organs;
+using NaughtyAttributes;
 using Random = UnityEngine.Random;
 using WebSocketSharp;
 
@@ -27,6 +29,13 @@ public class DrinkableContainer : Consumable
 	private ReagentContainer container;
 	private ItemAttributesV2 itemAttributes;
 	private RegisterItem item;
+	public bool SetFixedTransfer = false;
+	public bool MaxTransfer = true;
+	private bool ShowTransfer => SetFixedTransfer || MaxTransfer;
+
+	[ShowIf(nameof(ShowTransfer))]
+	public int FixedORMAXTransferAmount = 5;
+
 
 	private static readonly StandardProgressActionConfig ProgressConfig
 		= new StandardProgressActionConfig(StandardProgressActionType.Restrain);
@@ -38,7 +47,7 @@ public class DrinkableContainer : Consumable
 		item = GetComponent<RegisterItem>();
 	}
 
-	public override void TryConsume(GameObject feederGO, GameObject eaterGO)
+	public override void TryConsume(GameObject feederGO, GameObject eaterGO, bool projectileFed = false)
 	{
 		if (!container)
 			return;
@@ -76,7 +85,7 @@ public class DrinkableContainer : Consumable
 			{
 				ConsumableTextUtils.SendGenericForceFeedMessage(feeder, eater, HungerState.Hungry, name, "drink");
 				Drink(eater, feeder);
-			}).ServerStartProgress(eater.registerTile, 3f, feeder.gameObject);
+			}).ServerStartProgress(eater.RegisterPlayer, 3f, feeder.gameObject);
 			return;
 		}
 		else
@@ -87,8 +96,19 @@ public class DrinkableContainer : Consumable
 
 	public virtual void Drink(PlayerScript eater, PlayerScript feeder)
 	{
-		// Start drinking reagent mix
 		var drinkAmount = container.TransferAmount;
+		// Start drinking reagent mix
+		if (SetFixedTransfer)
+		{
+			drinkAmount = FixedORMAXTransferAmount;
+		}
+
+		if (MaxTransfer)
+		{
+			drinkAmount = Mathf.Min(drinkAmount, FixedORMAXTransferAmount);
+		}
+
+
 
 		List<Stomach> stomachs = eater.playerHealth.GetStomachs();
 		foreach (Stomach currentStomach in stomachs)
@@ -118,7 +138,7 @@ public class DrinkableContainer : Consumable
 		// Play sound
 		if (item && drinkSound != null)
 		{
-			AudioSourceParameters audioSourceParameters = new AudioSourceParameters(RandomPitch, spatialBlend: 1f);
+			AudioSourceParameters audioSourceParameters = new AudioSourceParameters(RandomPitch, spatialBlend: 2f);
 			SoundManager.PlayNetworkedAtPos(drinkSound, eater.WorldPos, audioSourceParameters, sourceObj: eater.gameObject);
 		}
 	}

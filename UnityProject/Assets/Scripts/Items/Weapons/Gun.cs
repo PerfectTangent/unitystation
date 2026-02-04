@@ -1,58 +1,149 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Serialization;
 using Mirror;
-using Items;
 using AddressableReferences;
-using Messages.Server;
+using HealthV2;
+using Logs;
 using Messages.Server.SoundMessages;
 using Weapons.Projectiles;
 using NaughtyAttributes;
 using Player;
-using Player.Movement;
+using Weapons.WeaponAttachments;
+using Random = UnityEngine.Random;
+
+//TODO: All of this needs to be fixed:
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Code cleanup:
+// - Update xml comments
+// - Remove code comments that are no longer relevant
+// - Add new code comments
+// - Redo logs, also re-add the logs that were removed when shotqueue was ripped out but probably shouldnt have been
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Feature fixes/implementation:
+// - Reimplement burstfire
+// - Redo mag/pin spawning behaviour
+// - Redo gun init behaviour
+// - Redo recoil implementation from shotqueue removal
+// - Redo shot cooldown behaviour from shotqueue removal, new impl needs to support things for burstfire
+// - Fix the ability to shoot over crit players and dead bodies
+// - Fix or Redo mag behaviour thats no longer needed or broken from shotqueue removal
+// - Update the way progress bars are done for firing pins
+// - Many weapons still dont have their projectile behaviours done
+// - Consider making recoil differ based on projectile
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// UX:
+// - Redo examine messages
+// - Redo action messages and add more of them
+// - Consider adding hovertooltip messages
+// - Consider adding mag retention reloads (probably not)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Balance:
+// - Do a balance pass on all firearms after the above problems have been fixed
+
+// Dont make this list any longer, please...
 
 namespace Weapons
 {
 	/// <summary>
-	///  Allows an object to behave like a gun and fire shots. Server authoritative with client prediction.
+	///  Allows an object to behave like a gun and fire shots. Server authoritative.
 	/// </summary>
 	[RequireComponent(typeof(Pickupable))]
 	[RequireComponent(typeof(ItemStorage))]
-	public class Gun : NetworkBehaviour, IPredictedCheckedInteractable<AimApply>, ICheckedInteractable<HandActivate>,
-		ICheckedInteractable<InventoryApply>, IServerInventoryMove, IServerSpawn, IExaminable
+	public class Gun : NetworkBehaviour, ICheckedInteractable<AimApply>, ICheckedInteractable<HandActivate>,
+		ICheckedInteractable<InventoryApply>, ICheckedInteractable<ContextMenuApply>, IRightClickable,
+		IServerInventoryMove, IServerSpawn, IExaminable, ISuicide
 	{
-		/// <summary>
-		/// Prefab to be spawned within on roundstart
-		/// </summary>
-		[SerializeField, Tooltip("The prefab to be spawned within the weapon on roundstart")]
+		[Header("Weapon Config")] public bool AllowSuicide;
+
+		[SerializeField, Tooltip("The firing pin initally inside the gun")]
+		private GameObject pinPrefab = null;
+
+		[SerializeField] protected bool useFiringPin = true;
+
+		[SerializeField] protected bool allowPinSwap = true;
+
+		[Tooltip("The time in seconds before this weapon can fire again.")]
+		public float FireDelay = 0.5f;
+
+		[SerializeField, SyncVar(hook = nameof(SyncIsSuppressed)), Tooltip("If the gun displays a shooter message")]
+		private bool isSuppressed;
+
+		public bool IsSuppressed => isSuppressed;
+
+		[Tooltip("Firemode of this weapon")] public WeaponType WeaponType;
+
+		[HorizontalLine]
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		[Header("Recoil Config")]
+
+		//TODO connect these with the actual shooting of a projectile
+		[Tooltip("The max recoil angle this weapon can reach with sustained fire")]
+		public float MaxRecoilVariance;
+
+		//This needs to be moved to projectiles
+		[Tooltip("The speed of the projectile")]
+		public int ProjectileVelocity;
+
+		[Tooltip("Describes the recoil behavior of the camera when this gun is fired"),
+		 SyncVar(hook = nameof(SyncCameraRecoilConfig))]
+		public CameraRecoilConfig CameraRecoilConfig;
+
+		[HorizontalLine]
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		[Header("Mag/Ammo Config")]
+		[SerializeField, Tooltip("Mag prefab to be spawned within on roundstart")]
 		protected GameObject ammoPrefab = null;
 
-		/// <summary>
-		/// Optional ejected casing override, will default to the standard casing if left null and will only be used if SpawnsCasing is true
-		/// </summary>
+		[FormerlySerializedAs("AmmoType"), Tooltip("The category of ammo this weapon can fire")]
+		public AmmoType ammoType;
+
 		[SerializeField, Tooltip("Optional casing override, defaults to standard casing when null")]
 		private GameObject casingPrefabOverride = null;
 
-		/// <summary>
-		/// If false prevents players from removing the magazine from their weapon.
-		/// </summary>
+		[Tooltip("If the weapon should spawn casings ")]
+		public bool SpawnsCasing = true;
+
+		[HideIf(nameof(SmartGun)), Tooltip("Enables internal mag behaviours (for things like revolvers or shotguns)")]
+		public bool MagInternal = false;
+
+		[HideIf(nameof(MagInternal)), Tooltip("If the gun should eject an empty mag automatically")]
+		public bool SmartGun = false;
+
 		[SerializeField, Tooltip("If the player is allowed to remove a loaded mag")]
 		private bool allowMagazineRemoval = true;
 
-		/// <summary>
-		/// The type of ammo this weapon will allow, this is a string and not an enum for diversity
-		/// </summary>
-		[FormerlySerializedAs("AmmoType"), Tooltip("The type of ammo this weapon will use")]
-		public AmmoType ammoType;
+		[HorizontalLine]
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		[Header("Attachment Config")]
+		[SerializeField, Tooltip("List of attachments to spawn on the weapon")]
+		private List<GameObject> attachmentPrefabs = default;
+
+		[SerializeField, EnumFlags] public AttachmentType allowedAttachments;
+
+		[HorizontalLine]
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		[Header("Addressable Audio")]
+		public AddressableAudioSource loadMagSound;
+
+		public AddressableAudioSource unloadMagSound;
+		public AddressableAudioSource FiringSoundA = null;
+		public AddressableAudioSource SuppressedSoundA;
+		public AddressableAudioSource DryFireSound;
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		//server-side object indicating the player holding the weapon (null if none)
-		protected GameObject serverHolder;
+		protected GameObject ServerHolder;
 		private RegisterTile shooterRegisterTile;
-
-		protected StandardProgressActionConfig ProgressConfig
-			= new StandardProgressActionConfig(StandardProgressActionType.ItemTransfer);
 
 		/// <summary>
 		/// The current magazine for this weapon, null means empty
@@ -66,168 +157,54 @@ namespace Weapons
 		public PinBase FiringPin =>
 			pinSlot.Item != null ? pinSlot.Item.GetComponent<PinBase>() : null;
 
-		/// <summary>
-		/// The firing pin to initally spawn within the gun
-		/// </summary>
-		[SerializeField, Tooltip("The firing pin initally inside the gun")]
-		private GameObject pinPrefab = null;
+		protected const float PinRemoveTime = 10f;
 
-		/// <summary>
-		/// The suppressor that will initally spawn attached to the gun provided the gun is suppressable
-		/// </summary>
-		[SerializeField, Tooltip("The suppressor initally attached to the gun (if there is one)")]
-		private GameObject suppressorPrefab = default;
-
-		/// <summary>
-		/// Checks if the weapon should spawn weapon casings
-		/// </summary>
-		[Tooltip("If the weapon should spawn casings ")]
-		public bool SpawnsCasing = true;
-
-		/// <summary>
-		/// Whether the gun uses an internal magazine.
-		/// </summary>
-		[HideIf(nameof(SmartGun)), Tooltip("Effects if the gun will use an internal mag")]
-		public bool MagInternal = false;
-
-		/// <summary>
-		/// If the gun should eject it's magazine automatically (external-magazine-specific)
-		/// </summary>
-		[HideIf(nameof(MagInternal)), Tooltip("If the gun should eject an empty mag automatically")]
-		public bool SmartGun = false;
+		protected StandardProgressActionConfig ProgressConfig
+			= new(StandardProgressActionType.ItemTransfer);
 
 		/// <summary>
 		/// The the current recoil variance this weapon has reached
 		/// </summary>
-		[NonSerialized]
-		public float CurrentRecoilVariance;
+		[NonSerialized] public float CurrentRecoilVariance;
 
 		/// <summary>
-		/// The countdown untill we can shoot again (seconds)
+		/// If we are currently waiting on a shot cooldown to elapse
 		/// </summary>
-		[NonSerialized]
-		public double FireCountDown;
+		[NonSerialized] public bool ShotCooldown = false;
 
-		/// <summary>
-		/// The name of the sound this gun makes when shooting
-		/// </summary>
-		[Tooltip("The name of the sound the gun uses when shooting (must be in soundmanager")]
-		public AddressableAudioSource FiringSoundA = null;
+		[NaughtyAttributes.ReadOnly] public ItemSlot magSlot;
+		[NaughtyAttributes.ReadOnly] private ItemSlot pinSlot;
 
-		/// <summary>
-		/// The name of the sound this gun makes when shooting
-		/// </summary>
-		[Tooltip("The name of the sound the gun uses when shooting with a suppressor attached (must be in soundmanager")]
-		public AddressableAudioSource SuppressedSoundA;
+		private ItemStorage itemStorage;
 
-		/// <summary>
-		/// The sound the gun makes while trying to fire without ammo.
-		/// </summary>
-		[Tooltip("The sound the gun uses when trying to fire without ammo.")]
-		public AddressableAudioSource DryFireSound;
+		//Note that this is only populated on the server
+		private readonly List<WeaponAttachment> weaponAttachments = new();
 
-		/// <summary>
-		/// The time in seconds before this weapon can fire again.
-		/// </summary>
-		[Tooltip("The time in seconds before this weapon can fire again.")]
-		public double FireDelay = 0.5;
-
-		/// <summary>
-		/// If suicide shooting should be prevented (for when user inadvertently drags over themselves during a burst)
-		/// </summary>
-		[Tooltip("If suicide shots should be prevented (if the user accidentally mouses over themselves during a shot")]
-		public bool AllowSuicide;
-
-		//TODO connect these with the actual shooting of a projectile
-		/// <summary>
-		/// The max recoil angle this weapon can reach with sustained fire
-		/// </summary>
-		public float MaxRecoilVariance;
-
-		/// <summary>
-		/// The traveling speed for this weapons projectile
-		/// </summary>
-		[Tooltip("The speed of the projectile")]
-		public int ProjectileVelocity;
-
-		/// <summary>
-		/// Describes the recoil behavior of the camera when this gun is fired
-		/// </summary>
-		[Tooltip("Describes the recoil behavior of the camera when this gun is fired"), SyncVar(hook = nameof(SyncCameraRecoilConfig))]
-		public CameraRecoilConfig CameraRecoilConfig;
-
-		/// <summary>
-		/// The firemode this weapon will use (burst,semi,auto)
-		/// </summary>
-		[Tooltip("The firemode this weapon will use")]
-		public WeaponType WeaponType;
-
-		/// <summary>
-		/// Bool that dictates if players can switch out the firing pin
-		/// </summary>
-		[SerializeField]
-		protected bool allowPinSwap = true;
-
-		/// <summary>
-		/// Used only in server, the queued up shots that need to be performed when the weapon FireCountDown hits 0.
-		/// </summary>
-		private Queue<QueuedShot> queuedShots;
-
-		/// <summary>
-		/// We don't want to eject the magazine or reload as soon as the client says its time to do those things - if the client is
-		/// firing a burst, they might shoot the whole magazine then eject it and reload before server is done processing the last shot.
-		/// Instead, these vars are set when the client says to eject or load a new magazine, and the server will only process
-		/// the actual unload / load (updating MagNetID) once the shot queue is empty.
-		/// </summary>
-		private bool queuedUnload = false;
-		private uint queuedLoadMagNetID = NetId.Invalid;
-
-		private RegisterTile registerTile;
-		[ReadOnly] public ItemSlot magSlot;
-		[ReadOnly] public ItemSlot pinSlot;
-		[ReadOnly] public ItemSlot suppressorSlot;
-
-		protected const float PinRemoveTime = 10f;
-
-		/// <summary>
-		/// If true, displays a message whenever a gun is shot
-		/// </summary>
-		[SerializeField, SyncVar(hook = nameof(SyncIsSuppressed)), Tooltip("If the gun displays a shooter message")]
-		private bool isSuppressed;
-		public bool IsSuppressed => isSuppressed;
-
-		/// <summary>
-		/// Enables or disables the behaviour related to applying and removing suppressors from the gun
-		/// </summary>
-		[SerializeField, Tooltip("If suppressors can be applied or removed")]
-		private bool isSuppressible = default;
+		private readonly List<ItemSlot> weaponAttachmentSlots = new();
 
 		#region Init Logic
 
 		private void Awake()
 		{
-			//init weapon with missing settings
-			GetComponent<ItemAttributesV2>().AddTrait(CommonTraits.Instance.Gun);
-			ItemStorage itemStorage = GetComponent<ItemStorage>();
+			itemStorage = GetComponent<ItemStorage>();
 			magSlot = itemStorage.GetIndexedItemSlot(0);
 			pinSlot = itemStorage.GetIndexedItemSlot(1);
-			suppressorSlot = itemStorage.GetIndexedItemSlot(2);
-			registerTile = GetComponent<RegisterTile>();
-			queuedShots = new Queue<QueuedShot>();
+
+			var slots = itemStorage.GetItemSlots().ToList();
+			for (int i = 0; i < slots.Count; i++)
+			{
+				if (i < 1)
+				{
+					continue;
+				}
+
+				weaponAttachmentSlots.Add(itemStorage.GetIndexedItemSlot(i));
+			}
+
 			if (pinSlot == null || magSlot == null || itemStorage == null)
 			{
-				Logger.LogWarning($"{gameObject.name} missing components, may cause issues", Category.Firearms);
+				Loggy.Warning($"{gameObject.name} missing components, may cause issues", Category.Firearms);
 			}
-		}
-
-		private void OnEnable()
-		{
-			UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
-		}
-
-		private void OnDisable()
-		{
-			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 		}
 
 		public virtual void OnSpawnServer(SpawnInfo info)
@@ -243,50 +220,75 @@ namespace Weapons
 			//Default recoil if one has not been set already
 			if (CameraRecoilConfig == null || CameraRecoilConfig.Distance == 0f)
 			{
-				var Recoil = new CameraRecoilConfig
+				var recoil = new CameraRecoilConfig
 				{
 					Distance = 0.2f,
 					RecoilDuration = 0.05f,
 					RecoveryDuration = 0.6f
 				};
-				SyncCameraRecoilConfig(CameraRecoilConfig, Recoil);
+				SyncCameraRecoilConfig(CameraRecoilConfig, recoil);
 			}
 
 			if (ammoPrefab == null)
 			{
-				Logger.LogError($"{gameObject.name} magazine prefab was null, cannot auto-populate.", Category.Firearms);
+				Loggy.Error($"{gameObject.name} magazine prefab was null, cannot auto-populate.",
+					Category.Firearms);
 				return;
 			}
 
-			//populate with a full external mag on spawn
-			Logger.LogTraceFormat("Auto-populate external magazine for {0}", Category.Firearms, name);
+			//populate with a full mag on spawn
+			Loggy.Trace().Format("Auto-populate magazine for {0}", Category.Firearms, name);
 			Inventory.ServerAdd(Spawn.ServerPrefab(ammoPrefab).GameObject, magSlot);
 
-			if (pinPrefab == null)
+			if (useFiringPin)
 			{
-				Logger.LogError($"{gameObject.name} firing pin prefab was null, cannot auto-populate.", Category.Firearms);
-				return;
+				if (pinPrefab == null)
+				{
+					Loggy.Error($"{gameObject.name} firing pin prefab was null, cannot auto-populate.",
+						Category.Firearms);
+					return;
+				}
+
+				Inventory.ServerAdd(Spawn.ServerPrefab(pinPrefab).GameObject, pinSlot);
+				FiringPin.gunComp = this;
 			}
 
-			Inventory.ServerAdd(Spawn.ServerPrefab(pinPrefab).GameObject, pinSlot);
-			FiringPin.gunComp = this;
-
-			if (suppressorPrefab != null && isSuppressed && isSuppressible)
+			foreach (var prefab in attachmentPrefabs)
 			{
-				Inventory.ServerAdd(Spawn.ServerPrefab(suppressorPrefab).GameObject, suppressorSlot);
+				if (prefab == null)
+				{
+					Loggy.Error($"{gameObject.name} has null prefab in attachmentPrefab list", Category.Firearms);
+					continue;
+				}
+
+				var slot = weaponAttachmentSlots.FirstOrDefault(slot => slot.Item == null);
+
+				if (slot == null)
+				{
+					Loggy.Error($"{gameObject.name} had no free attachment slot to add {prefab.name}",
+						Category.Firearms);
+					continue;
+				}
+
+				Inventory.ServerAdd(Spawn.ServerPrefab(prefab).GameObject, slot);
+				var attachment = slot.ItemObject.GetComponent<WeaponAttachment>();
+				weaponAttachments.Add(attachment);
+				attachment.AttachBehaviour(this);
 			}
 		}
 
-		public void OnInventoryMoveServer(InventoryMove info)
+		public virtual void OnInventoryMoveServer(InventoryMove info)
 		{
+			if (gameObject != info.MovedObject.gameObject) return;
+
 			if (info.ToPlayer != null)
 			{
-				serverHolder = info.ToPlayer.gameObject;
-				shooterRegisterTile = serverHolder.GetComponent<RegisterTile>();
+				ServerHolder = info.ToPlayer.gameObject;
+				shooterRegisterTile = ServerHolder.GetComponent<RegisterTile>();
 			}
 			else
 			{
-				serverHolder = null;
+				ServerHolder = null;
 				shooterRegisterTile = null;
 			}
 		}
@@ -298,13 +300,13 @@ namespace Weapons
 		public virtual bool WillInteract(HandActivate interaction, NetworkSide side)
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
-			if (side == NetworkSide.Server && DefaultWillInteract.Default(interaction, side)) return true;
 
 			//try ejecting the mag if external
-			if (CurrentMagazine != null && allowMagazineRemoval && !MagInternal && side == NetworkSide.Client)
+			if (CurrentMagazine != null && allowMagazineRemoval && !MagInternal)
 			{
 				return true;
 			}
+
 			return false;
 		}
 
@@ -312,7 +314,7 @@ namespace Weapons
 		{
 			if (CurrentMagazine != null && allowMagazineRemoval && !MagInternal)
 			{
-				ServerHandleUnloadRequest();
+				ServerUnloadMagazine();
 			}
 		}
 
@@ -327,10 +329,9 @@ namespace Weapons
 			//only reload if the gun is the target and item being used on us is in hand slot
 			if (interaction.TargetObject == gameObject && interaction.IsFromHandSlot)
 			{
-				if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Suppressor) ||
-					Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Wirecutter) ||
-					Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.FiringPin)  ||
-					interaction.IsAltClick)
+				if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.WeaponAttachable) ||
+				    Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Wirecutter) ||
+				    Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.FiringPin))
 				{
 					return true;
 				}
@@ -339,10 +340,11 @@ namespace Weapons
 					MagazineBehaviour mag = interaction.UsedObject.GetComponent<MagazineBehaviour>();
 					if (mag)
 					{
-						return TryReload(mag.gameObject);
+						return CanReload(mag.gameObject);
 					}
 				}
 			}
+
 			return false;
 		}
 
@@ -355,235 +357,51 @@ namespace Weapons
 					MagazineBehaviour mag = interaction.UsedObject.GetComponent<MagazineBehaviour>();
 					if (mag)
 					{
-						ServerHandleReloadRequest(mag.gameObject);
+						ServerReloadMagazine(mag.gameObject);
+						return;
 					}
-					else if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Suppressor) && !isSuppressed && isSuppressible)
+
+					if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.WeaponAttachable))
 					{
-						SyncIsSuppressed(isSuppressed, true);
-						Inventory.ServerTransfer(interaction.FromSlot, suppressorSlot);
+						AttachmentInteraction(interaction);
+						return;
 					}
-					else
-					{
-						PinInteraction(interaction);
-					}
-				}
-				else if (isSuppressed && isSuppressible && suppressorSlot.Item != null)
-				{
-					SyncIsSuppressed(isSuppressed, false);
-					Inventory.ServerTransfer(suppressorSlot, interaction.FromSlot);
+
+					PinInteraction(interaction);
 				}
 			}
 		}
 
-		#endregion
-
-		#region AimApply
-
-		public virtual bool WillInteract(AimApply interaction, NetworkSide side)
+		protected void AttachmentInteraction(InventoryApply interaction)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
-
-			if (CurrentMagazine == null)
+			if (interaction.UsedObject.TryGetComponent<WeaponAttachment>(out var attachment))
 			{
-				PlayEmptySfx();
-				if (side == NetworkSide.Server)
+				//Check theres a free slot, check the attachment is allowed on this weapon
+				//Check if either duplicate attachments are allowed or no existing attachments are of the same type
+				//Call the attachments check function and then see if the attachment gets added to the weapon
+				var slot = weaponAttachmentSlots.FirstOrDefault(slot => slot.Item == null);
+				if (slot != null && allowedAttachments.HasFlag(attachment.AttachmentType) &&
+				    (attachment.AllowDuplicateAttachments ||
+				     weaponAttachments.Any(att => att.AttachmentType.Equals(attachment.AttachmentType)) == false) &&
+				    attachment.AttachCheck(this) && Inventory.ServerTransfer(interaction.FromSlot, slot))
 				{
-					Logger.LogTrace("Server rejected shot - No magazine being loaded", Category.Firearms);
-				}
-				return false;
-			}
-
-			if (FiringPin == null)
-			{
-				if (interaction.Performer == PlayerManager.LocalPlayer)
-				{
-					Chat.AddExamineMsgToClient("The " + gameObject.ExpensiveName() + "'s trigger is locked. It doesn't have a firing pin installed!");
-				}
-				Logger.LogTrace("Rejected shot - no firing pin", Category.Firearms);
-				return false;
-			}
-
-			//note: fire count down is only checked local player side, as server processes all the shots in a queue
-			//anyway so client cannot exceed that firing rate no matter what. If we validate firing rate server
-			//side at the moment of interaction, it will reject client's shots because of lag between server / client
-			//firing countdown
-			if (side == NetworkSide.Server || FireCountDown <= 0)
-			{
-				if (CurrentMagazine.ClientAmmoRemains <= 0)
-				{
-					if (SmartGun && allowMagazineRemoval) // smartGun is forced off when using an internal magazine
-					{
-						ServerHandleUnloadRequest();
-						OutOfAmmoSfx();
-					}
-					else
-					{
-						PlayEmptySfx();
-					}
-					if (side == NetworkSide.Server)
-					{
-						Logger.LogTrace("Server rejected shot - out of ammo", Category.Firearms);
-					}
-					return false;
-				}
-
-				if (CurrentMagazine.containedBullets[0] != null)
-				{
-					if (interaction.MouseButtonState == MouseButtonState.PRESS)
-					{
-						return true;
-					}
-					else
-					{
-						//being held, only can shoot if this is an automatic
-						return WeaponType == WeaponType.FullyAutomatic;
-					}
-				}
-			}
-
-			if (side == NetworkSide.Server)
-			{
-				Logger.LogTraceFormat("Server rejected shot - unknown reason. MouseButtonState {0} ammo remains {1} weapon type {2}", Category.Firearms,
-					interaction.MouseButtonState, CurrentMagazine.ClientAmmoRemains, WeaponType);
-			}
-			return false;
-		}
-
-		public virtual void ClientPredictInteraction(AimApply interaction)
-		{
-			//do we need to check if this is a suicide (want to avoid the check because it involves a raycast).
-			//case 1 - we are beginning a new shot, need to see if we are shooting ourselves
-			//case 2 - we are firing an automatic and are currently shooting ourselves, need to see if we moused off
-			//	ourselves.
-			var isSuicide = false;
-			if (interaction.MouseButtonState == MouseButtonState.PRESS ||
-					(WeaponType != WeaponType.SemiAutomatic && AllowSuicide))
-			{
-				isSuicide = interaction.IsAimingAtSelf;
-				AllowSuicide = isSuicide;
-			}
-
-			if (FiringPin != null)
-			{
-				FiringPin.gunComp = this;
-				FiringPin.ClientBehaviour(interaction, isSuicide);
-			}
-		}
-
-		//nothing to rollback
-		public void ServerRollbackClient(AimApply interaction) { }
-
-		public virtual void ServerPerformInteraction(AimApply interaction)
-		{
-			//do we need to check if this is a suicide (want to avoid the check because it involves a raycast).
-			//case 1 - we are beginning a new shot, need to see if we are shooting ourselves
-			//case 2 - we are firing an automatic and are currently shooting ourselves, need to see if we moused off
-			//	ourselves.
-			var isSuicide = false;
-			if (interaction.MouseButtonState == MouseButtonState.PRESS ||
-					(WeaponType != WeaponType.SemiAutomatic && AllowSuicide))
-			{
-				isSuicide = interaction.IsAimingAtSelf;
-				AllowSuicide = isSuicide;
-			}
-
-			if (FiringPin != null)
-			{
-				FiringPin.ServerBehaviour(interaction, isSuicide);
-			}
-		}
-
-		#endregion
-
-		public virtual string Examine(Vector3 pos)
-		{
-			StringBuilder exam = new StringBuilder();
-			exam.AppendLine($"{WeaponType} - Fires {ammoType} ammunition")
-				.AppendLine(CurrentMagazine != null ? $"{CurrentMagazine.ServerAmmoRemains} rounds loaded" : "It's empty!")
-				.AppendLine(FiringPin != null ? $"It has a {FiringPin.gameObject.ExpensiveName()} installed" : "It doesn't have a firing pin installed, it won't fire");
-			return exam.ToString();
-		}
-
-		#region Weapon Firing Mechanism
-
-		private void UpdateMe()
-		{
-			//don't process if we are server and the gun is not held by anyone
-			if (isServer && serverHolder == null) return;
-
-			//if we are client, make sure we've initialized
-			if (!isServer && !PlayerManager.LocalPlayer) return;
-
-			//if we are client, only process this if we are holding it
-			if (!isServer)
-			{
-				if (PlayerManager.LocalPlayerScript.DynamicItemStorage.OrNull()?.GetActiveHandSlot() == null) return;
-
-				var heldItem = PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot().ItemObject;
-				if (gameObject != heldItem) return;
-			}
-
-			//update the time until the next shot can happen
-			if (FireCountDown > 0)
-			{
-				FireCountDown -= Time.deltaTime;
-				//prevents the next projectile taking miliseconds longer than it should
-				if (FireCountDown < 0)
-				{
-					FireCountDown = 0;
-				}
-			}
-
-			//remaining logic is server side only
-
-			//this will only be executed on the server since only the server
-			//maintains the queued actions
-			if (queuedShots.Count > 0 && FireCountDown <= 0)
-			{
-				//fire the next shot in the queue
-				DequeueAndProcessServerShot();
-			}
-
-			if (queuedUnload && queuedShots.Count == 0 && !MagInternal)
-			{
-				// done processing shot queue,
-				// perform the queued unload action, causing all clients and server to update their version of this Weapon
-				// due to the syncvar hook
-				// there should not be an unload action for internal magazines
-				Inventory.ServerDrop(magSlot);
-				queuedUnload = false;
-			}
-
-			if (queuedLoadMagNetID != NetId.Invalid && queuedShots.Count == 0)
-			{
-				if (CurrentMagazine == null)
-				{
-					Logger.LogWarning($"Why is {nameof(CurrentMagazine)} null for {this}?", Category.Firearms);
-				}
-
-				//done processing shot queue, perform the reload, causing all clients and server to update their version of this Weapon
-				//due to the syncvar hook
-				if (MagInternal)
-				{
-					var clip = NetworkIdentity.spawned[queuedLoadMagNetID];
-					MagazineBehaviour clipComp = clip.GetComponent<MagazineBehaviour>();
-					string message = CurrentMagazine.LoadFromClip(clipComp);
-					Chat.AddExamineMsg(serverHolder, message);
-					queuedLoadMagNetID = NetId.Invalid;
+					weaponAttachments.Add(attachment);
+					attachment.AttachBehaviour(this);
+					Chat.AddExamineMsgFromServer(ServerHolder,
+						$"You attach the {interaction.UsedObject.ExpensiveName()} onto the {gameObject.ExpensiveName()}");
 				}
 				else
 				{
-					var magazine = NetworkIdentity.spawned[queuedLoadMagNetID];
-					var fromSlot = magazine.GetComponent<Pickupable>().ItemSlot;
-					Inventory.ServerTransfer(fromSlot, magSlot);
-					queuedLoadMagNetID = NetId.Invalid;
+					Chat.AddExamineMsgFromServer(ServerHolder,
+						$"The {interaction.UsedObject.ExpensiveName()} won't fit on the {gameObject.ExpensiveName()}");
 				}
 			}
 		}
 
-
 		protected void PinInteraction(InventoryApply interaction)
 		{
+			if (useFiringPin == false) return;
+
 			if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Wirecutter) && allowPinSwap)
 			{
 				PinRemoval(interaction);
@@ -631,43 +449,265 @@ namespace Weapons
 					$"You begin removing the {FiringPin.gameObject.ExpensiveName()} from {gameObject.ExpensiveName()}",
 					$"{interaction.Performer.ExpensiveName()} begins removing the {FiringPin.gameObject.ExpensiveName()} from {gameObject.ExpensiveName()}.");
 
-				AudioSourceParameters audioSourceParameters = new AudioSourceParameters(UnityEngine.Random.Range(0.8f, 1.2f));
-				SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.WireCutter, interaction.Performer.AssumedWorldPosServer(), audioSourceParameters, sourceObj: serverHolder);
+				AudioSourceParameters audioSourceParameters =
+					new AudioSourceParameters(Random.Range(0.8f, 1.2f));
+				SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.WireCutter,
+					interaction.Performer.AssumedWorldPosServer(), audioSourceParameters, sourceObj: ServerHolder);
 			}
 		}
 
-		/// <summary>
-		/// clientside method that checks if the player can reload
-		/// </summary>
-		/// <param name="ammo">gameobject of the magazine</param>
-		private bool TryReload(GameObject ammo)
+		#endregion
+
+		#region ContextMenu
+
+		public RightClickableResult GenerateRightClickOptions()
 		{
-			MagazineBehaviour magazine = ammo.GetComponent<MagazineBehaviour>();
-			if (CurrentMagazine == null || (MagInternal && magazine.magType == MagType.Clip))
+			var result = RightClickableResult.Create();
+
+			if (!WillInteract(ContextMenuApply.ByLocalPlayer(gameObject, null), NetworkSide.Client)) return result;
+
+			foreach (var slot in weaponAttachmentSlots)
 			{
-				//RELOAD
-				// If the item used on the gun is a magazine, check type and reload
-				if (ammoType == magazine.ammoType)
+				if (slot.ItemObject == null)
+				{
+					continue;
+				}
+
+				var att = slot.ItemObject.GetComponent<WeaponAttachment>();
+				if (att != null)
+				{
+					//If an attachment is already stored and we dont have the flag, assume its intended to be iremovable
+					if (allowedAttachments.HasFlag(att.AttachmentType))
+					{
+						var interaction = ContextMenuApply.ByLocalPlayer(gameObject, att.InteractionKey);
+						result.AddElement(att.InteractionKey, () => ContextMenuOptionClicked(interaction));
+					}
+				}
+			}
+
+			return result;
+		}
+
+		private void ContextMenuOptionClicked(ContextMenuApply interaction)
+		{
+			InteractionUtils.RequestInteract(interaction, this);
+		}
+
+		public bool WillInteract(ContextMenuApply interaction, NetworkSide side)
+		{
+			return DefaultWillInteract.Default(interaction, side);
+		}
+
+		public void ServerPerformInteraction(ContextMenuApply interaction)
+		{
+			if (ServerHolder != interaction.Performer) return;
+
+			foreach (var attachment in weaponAttachments)
+			{
+				if (interaction.RequestedOption == attachment.InteractionKey)
+				{
+					if (attachment.DetachCheck(this) && TransferHandOrFloor(interaction,
+						    itemStorage.GetSlotFromItem(attachment.gameObject)))
+					{
+						weaponAttachments.Remove(attachment);
+						attachment.DetachBehaviour(this);
+						Chat.AddExamineMsgFromServer(ServerHolder,
+							$"You detach the {attachment.gameObject.ExpensiveName()} from the {gameObject.ExpensiveName()}");
+						return;
+					}
+				}
+			}
+		}
+
+		private bool TransferHandOrFloor(ContextMenuApply interaction, ItemSlot targetslot)
+		{
+			ItemSlot hand = interaction.PerformerPlayerScript.DynamicItemStorage.GetBestHand();
+			if (Inventory.ServerTransfer(targetslot, hand) == false)
+			{
+				return Inventory.ServerDrop(targetslot);
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+		#endregion
+
+		#region AimApply
+
+		public virtual bool WillInteract(AimApply interaction, NetworkSide side)
+		{
+			if (!DefaultWillInteract.Default(interaction, side)) return false;
+
+			//Melee behaviour for things like bayonets
+			if (interaction.Intent == Intent.Harm &&
+			    BayonetCheck(interaction.Performer.RegisterTile().LocalPosition.To2(), interaction.TargetPosition))
+			{
+				return false;
+			}
+
+			if (CurrentMagazine == null)
+			{
+				PlayEmptySfx();
+				if (side == NetworkSide.Server)
+				{
+					Loggy.Trace("Server rejected shot - No magazine being loaded", Category.Firearms);
+				}
+
+				return false;
+			}
+
+			if (useFiringPin && FiringPin == null)
+			{
+				if (interaction.Performer == PlayerManager.LocalPlayerObject)
+				{
+					Chat.AddExamineMsgToClient("The " + gameObject.ExpensiveName() +
+					                           "'s trigger is locked. It doesn't have a firing pin installed!");
+				}
+
+				Loggy.Trace("Rejected shot - no firing pin", Category.Firearms);
+				return false;
+			}
+
+
+			if (ShotCooldown == false)
+			{
+				if (interaction.MouseButtonState == MouseButtonState.PRESS)
 				{
 					return true;
 				}
-				if (ammoType != magazine.ammoType)
+				else
 				{
-					Chat.AddExamineMsgToClient("You try to load the wrong ammo into your weapon");
-					return false;
+					//being held, only can shoot if this is an automatic
+					return WeaponType == WeaponType.FullyAutomatic;
 				}
 			}
-			else if (ammoType == magazine.ammoType)
-			{
-				Chat.AddExamineMsgToClient("Your weapon is already loaded, you can't fit more Magazines in it, silly!");
-				return false;
-			}
+
 			return false;
 		}
 
+		//.magnitude leaves out small area in the outer corner of tiles diagonal to the player pos
+		//Doing it this way prevents that
+		private bool BayonetCheck(Vector2 playerPos, Vector2 targetPos)
+		{
+			const float checkRange = 1.5f;
+			if (playerPos.x >= targetPos.x - checkRange && playerPos.x <= targetPos.x + checkRange)
+			{
+				if (playerPos.y >= targetPos.y - checkRange && playerPos.y <= targetPos.y + checkRange)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		private IEnumerator DelayGun()
+		{
+			ShotCooldown = true;
+			yield return WaitFor.Seconds(FireDelay);
+			ShotCooldown = false;
+		}
+
+		public virtual void ServerPerformInteraction(AimApply interaction)
+		{
+			if (CurrentMagazine.ServerAmmoRemains <= 0)
+			{
+				if (SmartGun && allowMagazineRemoval) // smartGun is forced off when using an internal magazine
+				{
+					ServerUnloadMagazine();
+					OutOfAmmoSfx();
+				}
+				else
+				{
+					PlayEmptySfx();
+				}
+
+				StartCoroutine(DelayGun());
+				return;
+			}
+
+			//do we need to check if this is a suicide (want to avoid the check because it involves a raycast).
+			//case 1 - we are beginning a new shot, need to see if we are shooting ourselves
+			//case 2 - we are firing an automatic and are currently shooting ourselves, need to see if we moused off
+			//	ourselves.
+			var isSuicide = false;
+			if (interaction.MouseButtonState == MouseButtonState.PRESS ||
+			    (WeaponType != WeaponType.SemiAutomatic && AllowSuicide))
+			{
+				if (Manager3D.Is3D == false)
+				{
+					isSuicide = interaction.IsAimingAtSelf;
+					AllowSuicide = isSuicide;
+				}
+			}
+
+			if (useFiringPin)
+			{
+				if (FiringPin != null)
+				{
+					FiringPin.ServerBehaviour(interaction, isSuicide);
+				}
+			}
+			else
+			{
+				ServerShoot(interaction.Performer, interaction.TargetVector.normalized, interaction.TargetBodyPart,
+					isSuicide);
+			}
+
+			if (interaction.Intent == Intent.Harm && interaction.UsedObject == gameObject)
+			{
+				List<ItemSlot> hands = interaction.PerformerPlayerScript.DynamicItemStorage.GetHandSlots();
+				hands.Remove(interaction.PerformerPlayerScript.DynamicItemStorage.GetActiveHandSlot());
+				foreach (var hand in hands)
+				{
+					if (hand.ItemObject != null && hand.ItemObject.TryGetComponent<Gun>(out var gun)
+					                            && gun.WillInteract(interaction, NetworkSide.Server))
+					{
+						gun.ServerPerformInteraction(interaction);
+					}
+				}
+			}
+		}
+
+		#endregion
+
+		public virtual string Examine(Vector3 pos)
+		{
+			StringBuilder exam = new StringBuilder();
+			exam.AppendLine($"{WeaponType} - Fires {ammoType.ToString().Replace("_", "")} ammunition")
+				.AppendLine(CurrentMagazine != null
+					? $"{CurrentMagazine.ServerAmmoRemains} rounds loaded"
+					: "It's empty!");
+
+			if (useFiringPin)
+			{
+				exam.AppendLine(FiringPin != null
+					? $"It has a {FiringPin.gameObject.ExpensiveName()} installed"
+					: "It doesn't have a firing pin installed, it won't fire");
+			}
+
+			exam.AppendLine(allowedAttachments != 0
+				? $"It is compatible with {FormatAttachmentString()} attachments"
+				: "It cannot use any attachments.");
+			return exam.ToString();
+		}
+
+		//allowedAttachments.ToString() returns something similar to "foo, bar, baz"
+		//this replaces the last instance of a comma (if there is one) with 'and', e.g "foo, bar and baz"
+		public string FormatAttachmentString()
+		{
+			var attachRaw = allowedAttachments.ToString();
+			var indexLast = attachRaw.LastIndexOf(',');
+			return indexLast != -1 ? attachRaw.Remove(indexLast, 1).Insert(indexLast, " and") : attachRaw;
+		}
+
+		#region Weapon Firing Mechanism
+
 		/// <summary>
-		/// Perform an actual shot on the server, putting the request to shoot into our queue
-		/// and informing all clients of the shot once the shot is processed
+		/// Handles validation, spawning projectiles, recoil, physics kickback and spawning casings
+		/// Calling this directly will bypass firing pin validation, FiringPin.ServerBehaviour should generally be used instead
 		/// </summary>
 		/// <param name="shotBy">gameobject of the player performing the shot</param>
 		/// <param name="target">normalized target vector(actual trajectory will differ due to accuracy)</param>
@@ -677,187 +717,185 @@ namespace Weapons
 		public void ServerShoot(GameObject shotBy, Vector2 target,
 			BodyPartType damageZone, bool isSuicideShot)
 		{
-			var finalDirection = ApplyRecoil(target);
-			//don't enqueue the shot if the player is no longer able to shoot
-			PlayerScript shooter = shotBy.GetComponent<PlayerScript>();
-			if (!Validations.CanInteract(shooter, NetworkSide.Server))
+			//don't process the shot if the player is no longer able to interact
+			PlayerScript shooterScript = shotBy.GetComponent<PlayerScript>();
+			if (!Validations.CanInteract(shooterScript, NetworkSide.Server))
 			{
-				Logger.LogTrace("Server rejected shot: shooter cannot interact", Category.Firearms);
+				Loggy.Trace("Server rejected shot: shooter cannot interact", Category.Firearms);
 				return;
 			}
-			//simply enqueue the shot
-			//but only enqueue the shot if we have not yet queued up all the shots in the magazine
-			if (CurrentMagazine != null && queuedShots.Count < CurrentMagazine.ServerAmmoRemains)
+
+			// check if we can still input and are not ghost, blob, etc
+			MovementSynchronisation shooterMovementSync = shotBy.GetComponent<MovementSynchronisation>();
+			if (shooterMovementSync.AllowInput == false || shooterScript.IsNormal == false)
 			{
-				queuedShots.Enqueue(new QueuedShot(shotBy, finalDirection, damageZone, isSuicideShot));
+				Loggy.Info("A player tried to shoot when not allowed or when they were a ghost.", Category.Exploits);
+				Loggy.Warning("A shot was attempted when shooter is a ghost or is not allowed to shoot.",
+					Category.Firearms);
+				return;
 			}
-		}
 
-		/// <summary>
-		/// Gets the next shot from the queue (if there is one) and performs the server-side shot (which will
-		/// perform damage calculation when the bullet hits stuff), informing all
-		/// clients to display the shot.
-		/// </summary>
-		[Server]
-		private void DequeueAndProcessServerShot()
-		{
-			if (queuedShots.Count > 0)
+
+			if (CurrentMagazine == null || CurrentMagazine.ServerAmmoRemains <= 0 ||
+			    CurrentMagazine.containedBullets[0] == null)
 			{
-				QueuedShot nextShot = queuedShots.Dequeue();
+				Loggy.Trace("Player tried to shoot when there was no ammo.", Category.Exploits);
+				Loggy.Warning("A shot was attempted when there is no ammo.", Category.Firearms);
+				return;
+			}
 
-				// check if we can still shoot
-				PlayerMove shooter = nextShot.shooter.GetComponent<PlayerMove>();
-				PlayerScript shooterScript = nextShot.shooter.GetComponent<PlayerScript>();
-				if (!shooter.allowInput || shooterScript.IsGhost)
-				{
-					Logger.Log("A player tried to shoot when not allowed or when they were a ghost.", Category.Exploits);
-					Logger.LogWarning("A shot was attempted when shooter is a ghost or is not allowed to shoot.", Category.Firearms);
-					return;
-				}
+			if (ShotCooldown)
+			{
+				Loggy.Trace("Player tried to shoot too fast.", Category.Exploits);
+				Loggy.Warning("Shot attempted to fire whilst still cooling down.",
+					Category.Exploits);
+				return;
+			}
 
+			GameObject toShoot = CurrentMagazine.containedBullets[0];
+			int quantity = CurrentMagazine.containedProjectilesFired[0];
 
-				if (CurrentMagazine == null || CurrentMagazine.ServerAmmoRemains <= 0 || CurrentMagazine.containedBullets[0] == null)
-				{
-					Logger.LogTrace("Player tried to shoot when there was no ammo.", Category.Exploits);
-					Logger.LogWarning("A shot was attempted when there is no ammo.", Category.Firearms);
-					return;
-				}
+			if (toShoot == null)
+			{
+				Loggy.Error("Shot was attempted but no projectile or quantity was found to use", Category.Firearms);
+				return;
+			}
 
-				if (FireCountDown > 0)
-				{
-					Logger.LogTrace("Player tried to shoot too fast.", Category.Exploits);
-					Logger.LogWarning("Shot was attempted to be dequeued when the fire count down is not yet at 0.", Category.Exploits);
-					return;
-				}
+			var finalDirection = ApplyRecoil(target);
+			//perform the actual server side shooting, creating the bullet that does actual damage
+			ServerSpawnShots(shotBy, finalDirection, damageZone, isSuicideShot, toShoot,
+				quantity);
 
-				GameObject toShoot = CurrentMagazine.containedBullets[0];
-				int quantity = CurrentMagazine.containedProjectilesFired[0];
+			StartCoroutine(DelayGun());
+			//trigger a hotspot caused by gun firing
+			shooterRegisterTile.Matrix.ReactionManager.ExposeHotspotWorldPosition(
+				shooterMovementSync.gameObject.TileWorldPosition(), 500);
 
-				if (toShoot == null)
-				{
-					Logger.LogError("Shot was attempted but no projectile or quantity was found to use", Category.Firearms);
-					return;
-				}
-
-				//perform the actual server side shooting, creating the bullet that does actual damage
-				DisplayShot(nextShot.shooter, nextShot.finalDirection, nextShot.damageZone, nextShot.isSuicide, toShoot.name, quantity);
-
-				//trigger a hotspot caused by gun firing
-				shooterRegisterTile.Matrix.ReactionManager.ExposeHotspotWorldPosition(nextShot.shooter.TileWorldPosition(), 500);
-
-				//tell all the clients to display the shot
-				ShootMessage.SendToAll(nextShot.finalDirection, nextShot.damageZone, nextShot.shooter, this.gameObject, nextShot.isSuicide, toShoot.name, quantity);
-
-				if (isSuppressed == false && nextShot.isSuicide == false)
-				{
-					Chat.AddActionMsgToChat(serverHolder,
+			if (isSuppressed == false && isSuicideShot == false)
+			{
+				Chat.AddActionMsgToChat(ServerHolder,
 					$"You fire your {gameObject.ExpensiveName()}",
-					$"{serverHolder.ExpensiveName()} fires their {gameObject.ExpensiveName()}");
-				}
+					$"{ServerHolder.ExpensiveName()} fires their {gameObject.ExpensiveName()}");
+			}
 
-				//kickback
-				shooterScript.pushPull.Pushable.NewtonianMove((-nextShot.finalDirection).NormalizeToInt());
+			//kickback
+			shooterScript.ObjectPhysics.NewtonianPush((-finalDirection).NormalizeToInt(), 1);
 
-				if (SpawnsCasing)
+			if (SpawnsCasing)
+			{
+				if (casingPrefabOverride == null)
 				{
-					if (casingPrefabOverride == null)
-					{
-						//no casing override set, use normal casing prefab
-						casingPrefabOverride = CustomNetworkManager.Instance.GetSpawnablePrefabFromName("BulletCasing");
-					}
-					Spawn.ServerPrefab(casingPrefabOverride, nextShot.shooter.transform.position, nextShot.shooter.transform.parent);
+					//no casing override set, use normal casing prefab
+					casingPrefabOverride = CustomNetworkManager.Instance.GetSpawnablePrefabFromName("BulletCasing");
 				}
+
+				Spawn.ServerPrefab(casingPrefabOverride, shooterScript.transform.position,
+					shooterScript.transform.parent);
 			}
 		}
 
 		/// <summary>
-		/// Perform and display the shot locally (i.e. only on this instance of the game). Does not
-		/// communicate anything to other players (unless this is the server, in which case the server
-		/// will determine the effects of the bullet). Does not do any validation. This should only be invoked
-		/// when displaying the results of a shot (i.e. after receiving a ShootMessage or after this client performs a shot)
-		/// or when server is determining the outcome of the shot.
+		/// Spawns projectile(s), and handles firing sfx, additional recoil for next shot on automatic weapons and muzzle flash
 		/// </summary>
 		/// <param name="shooter">gameobject of the shooter</param>
 		/// <param name="finalDirection">direction the shot should travel (accuracy deviation should already be factored into this)</param>
 		/// <param name="damageZone">targeted damage zone</param>
 		/// <param name="isSuicideShot">if this is a suicide shot (aimed at shooter)</param>
-		/// <param name="projectileName">the name of the projectile that should be spawned</param>
-		/// <param name="quantity">the amount of projectiles to spawn when displaying the shot</param>
-		public void DisplayShot(GameObject shooter, Vector2 finalDirection,
-			BodyPartType damageZone, bool isSuicideShot, string projectileName, int quantity)
+		/// <param name="projectile">prefab of the projectile that should be spawned</param>
+		/// <param name="quantity">the amount of projectiles to spawn when spawning the shots</param>
+		private void ServerSpawnShots(GameObject shooter, Vector2 finalDirection,
+			BodyPartType damageZone, bool isSuicideShot, GameObject projectile, int quantity)
 		{
 			if (!MatrixManager.IsInitialized) return;
 
 			//if this is our gun (or server), last check to ensure we really can shoot
-			if (isServer || PlayerManager.LocalPlayer == shooter)
+			if (isServer || PlayerManager.LocalPlayerObject == shooter)
 			{
 				if (CurrentMagazine.ClientAmmoRemains <= 0)
 				{
 					if (isServer)
 					{
-						Logger.LogTrace("Server rejected shot - out of ammo", Category.Firearms);
+						Loggy.Trace("Server rejected shot - out of ammo", Category.Firearms);
 					}
+
 					return;
 				}
-				CurrentMagazine.ExpendAmmo();
 			}
 			//TODO: If this is not our gun, simply display the shot, don't run any other logic
-			if (shooter == PlayerManager.LocalPlayer)
-			{
-				//this is our gun so we need to update our predictions
-				FireCountDown += FireDelay;
-				//add additional recoil after shooting for the next round
-				AppendRecoil();
 
-				Camera2DFollow.followControl.Recoil(-finalDirection, CameraRecoilConfig);
-			}
+			//add additional recoil after shooting for the next round
+			AppendRecoil();
+
 
 			if (isSuicideShot)
 			{
-				GameObject projectile = Spawn.ClientPrefab(projectileName,
+				GameObject newprojectile = Spawn.ServerPrefab(projectile,
 					shooter.transform.position, parent: shooter.transform.parent).GameObject;
-				Projectile projectileComponent = projectile.GetComponent<Projectile>();
-				projectileComponent.Suicide(shooter, this, damageZone);
+				Projectile projectileComponent = newprojectile.GetComponent<Projectile>();
+				projectileComponent.Suicide(shooter, this, CurrentMagazine, damageZone);
 			}
 			else
 			{
 				for (int n = 0; n < quantity; n++)
 				{
-					GameObject projectile = Spawn.ClientPrefab(projectileName,
+					GameObject newprojectile = Spawn.ServerPrefab(projectile,
 						shooter.transform.position, parent: shooter.transform.parent).GameObject;
-					Projectile projectileComponent = projectile.GetComponent<Projectile>();
-					Vector2 finalDirectionOverride = CalcDirection(finalDirection, n);
-					projectileComponent.Shoot(finalDirectionOverride, shooter, this, damageZone);
+					Projectile projectileComponent = newprojectile.GetComponent<Projectile>();
+					Vector2 finalDirectionOverride = CalcProjectileDirections(finalDirection, n);
+					projectileComponent.Shoot(finalDirectionOverride, shooter, this, CurrentMagazine, damageZone);
 				}
 			}
+
+			//if this is our gun (or server), last check to ensure we really can shoot
+			if (isServer || PlayerManager.LocalPlayerObject == shooter)
+			{
+				CurrentMagazine.ExpendAmmo();
+			}
+
+
 			if (isSuppressed && SuppressedSoundA != null)
 			{
-				_ = SoundManager.PlayAtPosition(SuppressedSoundA, shooter.transform.position, shooter);
+				SoundManager.PlayNetworkedAtPos(SuppressedSoundA, shooter.transform.position);
 			}
 			else
 			{
-				_ = SoundManager.PlayAtPosition(FiringSoundA, shooter.transform.position, shooter);
+				SoundManager.PlayNetworkedAtPos(FiringSoundA, shooter.transform.position);
 			}
-			shooter.GetComponent<PlayerSprites>().ShowMuzzleFlash();
+
+			var identity = shooter.GetComponent<NetworkIdentity>();
+			RPCShowMuzzleFlash(identity);
+			if (identity.OrNull()?.connectionToClient != null)
+			{
+				if (isServer && shooter == PlayerManager.LocalPlayerObject)
+				{
+					Camera2DFollow.followControl.Recoil(-finalDirection, CameraRecoilConfig);
+				}
+
+				RPCShowRecoil(identity.connectionToClient, finalDirection);
+			}
 		}
 
-		private Vector2 CalcDirection(Vector2 direction, int iteration)
+		[TargetRpc]
+		public void RPCShowRecoil(NetworkConnection target, Vector2 finalDirection)
+		{
+			Camera2DFollow.followControl.Recoil(-finalDirection, CameraRecoilConfig);
+		}
+
+		[ClientRpc]
+		public void RPCShowMuzzleFlash(NetworkIdentity target)
+		{
+			target.GetComponent<PlayerSprites>().ShowMuzzleFlash();
+		}
+
+		private Vector2 CalcProjectileDirections(Vector2 direction, int iteration)
 		{
 			if (iteration == 0) return direction;
 
-			// trying to get clientside prediction work with random spread
-			// is far too difficult/expensive, so set spread it is
+			//This is for shotgun spread and similar multi-projectile weapons
 			float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-			float angleVariance = iteration/1f;
-			float angleDeviation;
-			if (iteration % 2 == 0)
-			{
-				angleDeviation = angleVariance; //even
-			}
-			else
-			{
-				angleDeviation = -angleVariance; //odd
-			}
+			float angleVariance = iteration / 1f;
+			float angleDeviation = iteration % 2 == 0 ? angleVariance : -angleVariance;
+
 			float newAngle = (angle + angleDeviation) * Mathf.Deg2Rad;
 			Vector2 vec2 = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle)).normalized;
 			return vec2;
@@ -868,75 +906,105 @@ namespace Weapons
 		#region Weapon Loading and Unloading
 
 		/// <summary>
-		/// Invoked when server receives a request to load a new magazine. Queues up the reload to occur
-		/// when the shot queue is empty.
+		/// clientside method that checks if the player can reload
 		/// </summary>
-		/// <param name="mag">gameobject of the magazine we are trying to load</param>
-		[Server]
-		public void ServerHandleReloadRequest(GameObject mag)
+		/// <param name="ammo">gameobject of the magazine</param>
+		private bool CanReload(GameObject ammo)
 		{
-			uint networkID = mag.gameObject.GetComponent<NetworkIdentity>().netId;
-			if (queuedLoadMagNetID != NetId.Invalid)
+			MagazineBehaviour magazine = ammo.GetComponent<MagazineBehaviour>();
+			if (CurrentMagazine == null || (MagInternal && magazine.magType == MagType.Clip))
 			{
-				//can happen if client is spamming CmdLoadWeapon
-				Logger.LogWarning("Player tried to queue a load action while a load action was already queued, ignoring the second load.", Category.Firearms);
+				// If the item used on the gun is a magazine, check ammo type and reload
+				if (ammoType == magazine.ammoType)
+				{
+					return true;
+				}
+				else
+				{
+					Chat.AddExamineMsgToClient("You try to load the wrong ammo into your weapon.");
+					return false;
+				}
+			}
+			else if (ammoType == magazine.ammoType)
+			{
+				Chat.AddExamineMsgToClient("Your weapon is already loaded, you can't fit more Magazines in it, silly!");
+				return false;
+			}
+
+			return false;
+		}
+
+		[Server]
+		public void ServerReloadMagazine(GameObject mag)
+		{
+			if (CurrentMagazine == null)
+			{
+				Loggy.Warning($"Why is {nameof(CurrentMagazine)} null for {this}?", Category.Firearms);
+			}
+
+			if (MagInternal)
+			{
+				var clip = mag;
+				MagazineBehaviour clipComp = clip.GetComponent<MagazineBehaviour>();
+				string message = CurrentMagazine.LoadFromClip(clipComp);
+				Chat.AddExamineMsgFromServer(ServerHolder, message);
 			}
 			else
 			{
-				queuedLoadMagNetID = networkID;
+				LoadMagSound();
+				var magazine = mag;
+				var fromSlot = magazine.GetComponent<Pickupable>().ItemSlot;
+				Inventory.ServerTransfer(fromSlot, magSlot);
 			}
 		}
 
-		/// <summary>
-		/// Invoked when server recieves a request to unload the current magazine. Queues up the unload to occur
-		/// when the shot queue is empty.
-		/// </summary>
-		public void ServerHandleUnloadRequest()
+		[Server]
+		public void ServerUnloadMagazine()
 		{
-			if (queuedUnload)
+			if (MagInternal == true)
 			{
-				//this can happen if client is spamming CmdUnloadWeapon
-				Logger.LogWarning("Player tried to queue an unload action while an unload action was already queued. Ignoring the second unload.", Category.Firearms);
+				return;
 			}
-			else if (queuedLoadMagNetID != NetId.Invalid)
-			{
-				Logger.LogWarning("Player tried to queue an unload action while a load action was already queued. Ignoring the unload.", Category.Firearms);
-			}
-			else
-			{
-				queuedUnload = true;
-			}
+
+			UnloadMagSound();
+			Inventory.ServerDrop(magSlot);
 		}
 
 		#endregion
 
 		#region Weapon Sounds
 
+		//This is for smart guns only
 		private void OutOfAmmoSfx()
 		{
-			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.GunEmptyAlarm, transform.position, sourceObj: serverHolder);
+			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.GunEmptyAlarm, transform.position,
+				sourceObj: ServerHolder);
 		}
 
 		public void PlayEmptySfx()
 		{
-			SoundManager.PlayNetworkedAtPos(DryFireSound, transform.position, sourceObj: serverHolder);
+			SoundManager.PlayNetworkedAtPos(DryFireSound, transform.position, sourceObj: ServerHolder);
+		}
+
+		public void LoadMagSound()
+		{
+			SoundManager.PlayNetworkedAtPos(loadMagSound, gameObject.AssumedWorldPosServer());
+		}
+
+		public void UnloadMagSound()
+		{
+			SoundManager.PlayNetworkedAtPos(unloadMagSound, transform.position, sourceObj: ServerHolder);
 		}
 
 		#endregion
 
 		#region Weapon Network Supporting Methods
 
-		/// <summary>
-		/// Syncs suppressed bool.
-		/// </summary>
-		private void SyncIsSuppressed(bool oldValue, bool newValue)
+		public void SyncIsSuppressed(bool oldValue, bool newValue)
 		{
 			isSuppressed = newValue;
 		}
 
-		/// <summary>
-		/// Syncs the recoil config.
-		/// </summary>
 		public void SyncCameraRecoilConfig(CameraRecoilConfig oldValue, CameraRecoilConfig newValue)
 		{
 			CameraRecoilConfig = newValue;
@@ -950,16 +1018,16 @@ namespace Weapons
 		public Vector2 ApplyRecoil(Vector2 target)
 		{
 			float angle = Mathf.Atan2(target.y, target.x) * Mathf.Rad2Deg;
-			float angleVariance = MagSyncedRandomFloat(-CurrentRecoilVariance, CurrentRecoilVariance);
-			Logger.LogTraceFormat("angleVariance {0}", Category.Firearms, angleVariance);
+			float angleVariance = RecoilVarianceRandomFloat(-CurrentRecoilVariance, CurrentRecoilVariance);
+			Loggy.Trace().Format("angleVariance {0}", Category.Firearms, angleVariance);
 			float newAngle = angle * Mathf.Deg2Rad + angleVariance;
 			Vector2 vec2 = new Vector2(Mathf.Cos(newAngle), Mathf.Sin(newAngle)).normalized;
 			return vec2;
 		}
 
-		private float MagSyncedRandomFloat(float min, float max)
+		private float RecoilVarianceRandomFloat(float min, float max)
 		{
-			return (float)(CurrentMagazine.CurrentRng() * (max - min) + min);
+			return Random.value * (max - min) + min;
 		}
 
 		private void AppendRecoil()
@@ -967,36 +1035,36 @@ namespace Weapons
 			if (CurrentRecoilVariance < MaxRecoilVariance)
 			{
 				//get a random recoil
-				float randRecoil = MagSyncedRandomFloat(CurrentRecoilVariance, MaxRecoilVariance);
-				Logger.LogTraceFormat("randRecoil {0}", Category.Firearms, randRecoil);
-				CurrentRecoilVariance += randRecoil;
-				//make sure the recoil is not too high
-				if (CurrentRecoilVariance > MaxRecoilVariance)
-				{
-					CurrentRecoilVariance = MaxRecoilVariance;
-				}
+				float randRecoil = RecoilVarianceRandomFloat(CurrentRecoilVariance, MaxRecoilVariance);
+				Loggy.Trace().Format("randRecoil {0}", Category.Firearms, randRecoil);
+				CurrentRecoilVariance = Math.Min(CurrentRecoilVariance + randRecoil, MaxRecoilVariance);
 			}
 		}
 
 		#endregion
-	}
 
-	/// <summary>
-	/// Represents a shot that has been queued up to fire when the weapon is next able to. Only used on server side.
-	/// </summary>
-	struct QueuedShot
-	{
-		public readonly GameObject shooter;
-		public readonly Vector2 finalDirection;
-		public readonly BodyPartType damageZone;
-		public readonly bool isSuicide;
-
-		public QueuedShot(GameObject shooter, Vector2 finalDirection, BodyPartType damageZone, bool isSuicide)
+		public bool CanSuicide(GameObject performer)
 		{
-			this.shooter = shooter;
-			this.finalDirection = finalDirection;
-			this.damageZone = damageZone;
-			this.isSuicide = isSuicide;
+			if (AllowSuicide == false) return false;
+			return CurrentMagazine != null && CurrentMagazine.ServerAmmoRemains != 0;
+		}
+
+		public IEnumerator OnSuicide(GameObject performer)
+		{
+			yield return SuicideAction(performer);
+		}
+
+		/// <summary>
+		/// Because each gun can have it's own functionality related to death (example : russian roulette with a revolver)
+		/// this functionality is split in a virtual function that all scripts that inherit from the gun class can modify.
+		/// </summary>
+		protected virtual IEnumerator SuicideAction(GameObject performer)
+		{
+			ServerShoot(performer, performer.RegisterTile().LocalPosition.ToLocal(), BodyPartType.Head,
+				true);
+			var health = performer.GetComponent<LivingHealthMasterBase>();
+			health.ApplyDamageAll(performer, health.MaxHealth / 2, AttackType.Bullet, DamageType.Brute);
+			yield return null;
 		}
 	}
 

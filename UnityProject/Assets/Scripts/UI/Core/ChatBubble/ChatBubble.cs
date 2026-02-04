@@ -4,12 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using InGameGizmos;
+using Logs;
 using TMPro;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
-public class ChatBubble : MonoBehaviour
+public class ChatBubble : MonoBehaviour, IDisposable
 {
+
+	public Transform content;
+	public Transform Pool;
+
+
 	[SerializeField] private Transform target;
 	public Transform Target => target;
 	private Camera cam;
@@ -20,17 +26,14 @@ public class ChatBubble : MonoBehaviour
 	[SerializeField] [Tooltip("The font used when the player is an abominable clown.")]
 	private TMP_FontAsset fontClown = null;
 
-	[SerializeField] private TextMeshProUGUI bubbleText = null;
 
 	[SerializeField]
 	[Tooltip(
 		"The maximum length of text inside a single text bubble. Longer texts will display multiple bubbles sequentially.")]
 	[Range(1, 200)]
-	private int maxMessageLength = 70;
+	private int maxMessageLength = 64;
 
-	[SerializeField] private GameObject chatBubble = null;
-
-	class BubbleMsg
+	public class BubbleMsg
 	{
 		public float maxTime;
 		public string msg;
@@ -89,26 +92,15 @@ public class ChatBubble : MonoBehaviour
 	/// </summary>
 	private static float displayTimeMultiplierPerSecond = 0.09f;
 
-	/// <summary>
-	/// Multiplies the elapse of display time. A value of 1.5 would make time elapse 1.5 times as fast. 1 is normal speed.
-	/// </summary>
-	private float displayTimeMultiplier;
 
-	/// <summary>
-	/// The current size of the chat bubble determined by vocalization. Will be scaled by the zoomMultiplier.
-	/// </summary>
-	private float bubbleSize = 2;
-
-	[SerializeField]
-	[Tooltip(
-		"The size multiplier of the chat bubble when the player has typed in all caps or ends the sentence with !!.")]
-	[Range(1, 100)]
-	private float bubbleSizeCaps = 1.2f;
-
-	[SerializeField] [Tooltip("The size multipler of the chat bubble when starts the sentence with #.")] [Range(1, 100)]
-	private float bubbleSizeWhisper = 0.5f;
 
 	private CancellationTokenSource cancelSource;
+
+
+	public SubChatBubble BubblePrefab;
+
+	public List<SubChatBubble> ActiveBubbles = new List<SubChatBubble>();
+	public List<SubChatBubble> PooledBubbles = new List<SubChatBubble>();
 
 	/// <summary>
 	/// Calculates the time required to display the message queue.
@@ -141,12 +133,12 @@ public class ChatBubble : MonoBehaviour
 	private void OnEnable()
 	{
 		cam = Camera.main;
-		UpdateManager.Add(CallbackType.FIXED_UPDATE, UpdateMe);
+		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
 	}
 
 	private void OnDisable()
 	{
-		UpdateManager.Remove(CallbackType.FIXED_UPDATE, UpdateMe);
+		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 	}
 
 	public void AppendToBubble(string newMessage, ChatModifier chatModifier = ChatModifier.None)
@@ -169,7 +161,11 @@ public class ChatBubble : MonoBehaviour
 		QueueMessages(msg, chatModifier);
 
 		cancelSource = new CancellationTokenSource();
-		if (!showingDialogue) StartCoroutine(ShowDialogue(cancelSource.Token));
+		if (showingDialogue == false)
+		{
+			showingDialogue = true;
+			StartCoroutine(ShowDialogue(cancelSource.Token));
+		}
 	}
 
 	private void QueueMessages(string msg, ChatModifier chatModifier = ChatModifier.None)
@@ -209,206 +205,129 @@ public class ChatBubble : MonoBehaviour
 			msgQueue.Enqueue(new BubbleMsg {maxTime = TimeToShow(msg.Length), msg = msg, modifier = chatModifier});
 		}
 
-		// Progress quickly through the queue if there is a lot of text left.
-		displayTimeMultiplier = 1 + TimeToShow(msgQueue) * displayTimeMultiplierPerSecond;
 	}
 
-	IEnumerator ShowDialogue(CancellationToken cancelToken)
+
+
+	private IEnumerator ShowDialogue(CancellationToken cancelToken)
 	{
 		showingDialogue = true;
+
 		if (msgQueue.Count == 0)
 		{
 			yield return WaitFor.EndOfFrame;
 			yield break;
 		}
 
-		DoBubble:
-
-		BubbleMsg msg = msgQueue.Dequeue();
-
-		//Sets the chat text to instant from player prefs, 1 == true
-		msg.instantText = PlayerPrefs.GetInt(PlayerPrefKeys.ChatBubbleInstant) == 1;
-
-		bubbleSize = PlayerPrefs.GetFloat(PlayerPrefKeys.ChatBubbleSize);
-
-		if (msg.instantText)
+		while (msgQueue.Count > 0 || ActiveBubbles.Count > 0)
 		{
-			SetBubbleParameters(msg.msg, msg.modifier);
-		}
-		else
-		{
-			//Sets the chat character pop in speed from player prefs
-			msg.characterPopInSpeed = PlayerPrefs.GetFloat(PlayerPrefKeys.ChatBubblePopInSpeed);
-
-			//See if the show time needs updating for speed
-			CheckShowTime(msg);
-		}
-
-		while (showingDialogue)
-		{
-			if (cancelToken.IsCancellationRequested)
+			while (msgQueue.Count == 0 && ActiveBubbles.Count > 0)
 			{
-				yield break;
+				yield return null;
 			}
 
-			yield return WaitFor.EndOfFrame;
-
-			msg.elapsedTime += Time.deltaTime;
-
-			if (msg.instantText == false)
+			var NumberMaxShow = PlayerPrefs.GetInt(PlayerPrefKeys.ChatBubbleNumber, 2);
+			while (ActiveBubbles.Count >= NumberMaxShow)
 			{
-				ShowCharacter(msg);
+				yield return null;
 			}
 
-			if (msg.elapsedTime * displayTimeMultiplier >= msg.maxTime && msg.elapsedTime >= displayTimeMin)
+
+
+			while (ActiveBubbles.Count > 0 && ActiveBubbles[^1].FinishedDisplaying == false)
 			{
-				if (msgQueue.Count == 0)
-				{
-					ReturnToPool();
-				}
-				else
-				{
-					goto DoBubble;
-				}
+				yield return null;
+			}
+
+			if (msgQueue.Count > 0)
+			{
+				BubbleMsg msg = msgQueue.Dequeue();
+				var Bubble = GetSubChatBubble();
+				Bubble.transform.SetParent(content);
+				Bubble.transform.SetSiblingIndex(Bubble.transform.parent.childCount -1);
+				Bubble.DoShowDialogue(cancelToken, msg);
+				ActiveBubbles.Add(Bubble);
 			}
 		}
 
-		yield return WaitFor.EndOfFrame;
+		showingDialogue = false;
+		ReturnToPool();
 	}
 
-	/// <summary>
-	/// Pops in characters from the message over time
-	/// </summary>
-	private void ShowCharacter(BubbleMsg msg)
+
+	public SubChatBubble GetSubChatBubble()
 	{
-		while (msg.elapsedTime > 0f)
+		if (PooledBubbles.Count > 0)
 		{
-			if (msg.characterIndex > msg.msg.Length - 1) break;
-
-			msg.elapsedTime -= msg.characterPopInSpeed;
-			var currentCharacter = msg.msg[msg.characterIndex];
-
-			if (char.IsWhiteSpace(currentCharacter))
-			{
-				msg.elapsedTime -= msg.characterPopInSpeed * 2f;
-			}
-			else if (char.IsPunctuation(currentCharacter))
-			{
-				msg.elapsedTime -= msg.characterPopInSpeed * 3f;
-			}
-
-			var text = msg.msg.Substring(0, msg.characterIndex + 1);
-			var newText = new StringBuilder();
-
-			//God Save Our Eyes
-			if ((msg.modifier & ChatModifier.Clown) == ChatModifier.Clown &&
-			    PlayerPrefs.GetInt(PlayerPrefKeys.ChatBubbleClownColour) == 1)
-			{
-				for (int i = 0; i < text.Length; i++)
-				{
-					newText.Append($"<color=#{RandomUtils.CreateRandomBrightColorString()}>{text[i]}</color>");
-				}
-			}
-			else
-			{
-				newText.Append(text);
-			}
-
-			if (msg.buffered && msg.characterIndex < msg.msg.Length - 1)
-			{
-				//Add the rest of the character but invisible to make bubble correct size
-				//and keep the characters in the same place (helps reading)
-				newText.Append($"<color=#00000000>{msg.msg.Substring(msg.characterIndex + 1)}</color>");
-			}
-
-			SetBubbleParameters(newText.ToString(), msg.modifier);
-
-			msg.characterIndex++;
+			var bubble = PooledBubbles[0];
+			PooledBubbles.RemoveAt(0);
+			bubble.gameObject.SetActive(true);
+			return bubble;
 		}
-	}
 
-	private void CheckShowTime(BubbleMsg msg)
-	{
-		var timeLeft = msg.maxTime - (msg.msg.Length * msg.characterPopInSpeed);
-		var additionalTime = PlayerPrefs.GetFloat(PlayerPrefKeys.ChatBubbleAdditionalTime);
-
-		if (timeLeft >= additionalTime) return;
-
-		//Set max time to the needed amount
-		msg.maxTime = additionalTime - timeLeft;
+		var bubble2 = Instantiate(BubblePrefab, this.gameObject.transform);
+		bubble2.ChatBubble = this;
+		return bubble2;
 	}
 
 	void UpdateMe()
     {
 	    if (target != null)
 	    {
-		    Vector3 viewPos = cam.WorldToScreenPoint(target.position);
+		    Vector3 viewPos = manualWorldToScreenPoint(target.gameObject.AssumedWorldPosServer() + new Vector3(-0.03125f, 0.5625f, 0));
 		    transform.position = viewPos;
 	    }
     }
 
-    /// <summary>
-    /// Sets the text, style and size of the bubble to match the message's modifier.
-    /// </summary>
-    /// <param name="msg"> Player's chat message </param>
-    private void SetBubbleParameters(string msg, ChatModifier modifiers)
-    {
-	    bubbleSize = PlayerPrefs.GetFloat(PlayerPrefKeys.ChatBubbleSize);
-	    bubbleText.fontStyle = FontStyles.Normal;
-	    bubbleText.font = fontDefault;
+	Vector3 manualWorldToScreenPoint(Vector3 wp) {
+		// calculate view-projection matrix
 
-	    // Determine type
-	    if ((modifiers & ChatModifier.Emote) == ChatModifier.Emote)
-	    {
-		    bubbleText.fontStyle = FontStyles.Italic;
-		    // TODO Differentiate emoting from whispering (e.g. rectangular box instead of speech bubble)
-	    }
-	    else if ((modifiers & ChatModifier.Whisper) == ChatModifier.Whisper)
-	    {
-		    bubbleSize = bubbleSize * bubbleSizeWhisper;
-		    bubbleText.fontStyle = FontStyles.Italic;
-		    // TODO Differentiate emoting from whispering (e.g. dotted line around text)
+		var worldToCameraMatrix  = Matrix4x4.Inverse(Matrix4x4.TRS(
+			cam.transform.position,
+			cam.transform.rotation,
+			new Vector3(1, 1, -1)
+		) );
 
-	    }
-	    else if((modifiers & ChatModifier.Sing) == ChatModifier.Sing)
-	    {
-		    bubbleSize = bubbleSize * bubbleSizeCaps;
-		    bubbleText.fontStyle = FontStyles.Italic;
-	    }
-	    else if ((modifiers & ChatModifier.Yell) == ChatModifier.Yell)
-	    {
-		    bubbleSize = bubbleSize * bubbleSizeCaps;
-		    bubbleText.fontStyle = FontStyles.Bold;
-	    }
+		Matrix4x4 mat = cam.projectionMatrix * worldToCameraMatrix;
 
-	    if ((modifiers & ChatModifier.Clown) == ChatModifier.Clown)
-	    {
-		    bubbleText.font = fontClown;
-		    bubbleText.UpdateFontAsset();
-	    }
+		// multiply world point by VP matrix
+		Vector4 temp = mat * new Vector4(wp.x, wp.y, wp.z, 1f);
 
-	    // Apply values
-	    UpdateChatBubbleSize();
-	    bubbleText.text = msg;
-	    chatBubble.SetActive(true);
-    }
-
-    /// <summary>
-    /// Updates the scale of the chat bubble
-    /// </summary>
-    private void UpdateChatBubbleSize()
-    {
-	    transform.localScale = new Vector3(bubbleSize, bubbleSize, 1);
-    }
+		if (temp.w == 0f) {
+			// point is exactly on camera focus point, screen point is undefined
+			// unity handles this by returning 0,0,0
+			return Vector3.zero;
+		} else {
+			// convert x and y from clip space to window coordinates
+			temp.x = (temp.x/temp.w + 1f)*.5f * cam.pixelWidth;
+			temp.y = (temp.y/temp.w + 1f)*.5f * cam.pixelHeight;
+			return new Vector3(temp.x, temp.y, wp.z);
+		}
+	}
 
     public void ReturnToPool()
     {
 	    if(cancelSource != null) cancelSource.Cancel();
 
-	    bubbleText.text = "";
-	    chatBubble.SetActive(false);
+	    //bubbleText.text = "";
+	    //chatBubble.SetActive(false);
 	    gameObject.SetActive(false);
 	    showingDialogue = false;
 	    target = null;
+    }
+
+    public void Dispose()
+    {
+	    cancelSource?.Dispose();
+    }
+
+    public static void SetPreferenceNummberBubbles(int NummberBubbles)
+    {
+	    PlayerPrefs.SetInt(PlayerPrefKeys.ChatBubbleNumber, NummberBubbles);
+    }
+
+    public static int GetPreferenceNummberBubbles()
+    {
+	    return PlayerPrefs.GetInt(PlayerPrefKeys.ChatBubbleNumber, 3);
     }
 }

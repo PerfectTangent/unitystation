@@ -1,17 +1,22 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core.Lighting;
 using Initialisation;
+using Logs;
 using TileManagement;
 using Tiles;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Tilemaps;
 
 
 [ExecuteInEditMode]
 public class Layer : MonoBehaviour
 {
-	public SubsystemManager subsystemManager;
+	public MatrixSystemManager SubsystemManager { get; private set; }
+
+	[HideInInspector] public UnityEvent onTileMapChanges;
 
 	public LayerType LayerType;
 	protected Tilemap tilemap;
@@ -31,24 +36,19 @@ public class Layer : MonoBehaviour
 
 	public TilemapDamage TilemapDamage { get; private set; }
 
-	public BoundsInt Bounds => boundsCache;
-	private BoundsInt boundsCache;
-
-	private Coroutine recalculateBoundsHandle;
-
 	/// <summary>
 	/// Current offset from our initially mapped orientation. This is used by tiles within the tilemap
 	/// to determine what sprite to display. This could be retrieved directly from MatrixMove but
 	/// it's faster to cache it here and update when rotation happens.
 	/// </summary>
-	public RotationOffset RotationOffset { get; private set; }
+	public Quaternion RotationOffset { get; private set; }
 
 	/// <summary>
 	/// Cached matrixmove that we exist in, null if we don't have one
 	/// </summary>
 	private MatrixMove matrixMove;
 
-	public Matrix matrix;
+	public Matrix Matrix { get; private set; }
 
 	public Vector3Int WorldToCell(Vector3 pos) => tilemap.WorldToCell(pos);
 	public Vector3Int LocalToCell(Vector3 pos) => tilemap.LocalToCell(pos);
@@ -59,32 +59,14 @@ public class Layer : MonoBehaviour
 	//Used to make sure two overlays dont conflict before being set, cleared on the update
 	public HashSet<Vector3> overlayStore = new HashSet<Vector3>();
 
-	public MetaTileMap metaTileMap;
+	[NonSerialized] public MetaTileMap metaTileMap;
 
 	public void Awake()
 	{
-		matrix = GetComponentInParent<Matrix>();
+		Matrix = GetComponentInParent<Matrix>();
 		tilemap = GetComponent<Tilemap>();
 		TilemapDamage = GetComponent<TilemapDamage>();
-		subsystemManager = GetComponentInParent<SubsystemManager>();
-		RecalculateBounds();
-	}
-
-	/// <summary>
-	/// In case there are lots of sudden changes, recalculate bounds once a frame
-	/// instead of doing it for every changed tile
-	/// </summary>
-	private IEnumerator RecalculateBoundsNextFrame()
-	{
-		//apparently waiting for next frame doesn't work when looking at Scene view! //TODO use editor routines for this functionality
-		yield return WaitFor.Seconds(0.015f);
-		RecalculateBounds();
-	}
-
-	public virtual void RecalculateBounds()
-	{
-		boundsCache = tilemap.cellBounds;
-		this.TryStopCoroutine(ref recalculateBoundsHandle);
+		SubsystemManager = GetComponentInParent<MatrixSystemManager>();
 	}
 
 	private void Start()
@@ -101,7 +83,7 @@ public class Layer : MonoBehaviour
 
 		if (MatrixManager.Instance == null)
 		{
-			Logger.LogError("Matrix Manager is missing from the scene", Category.Matrix);
+			Loggy.Error("Matrix Manager is missing from the scene", Category.Matrix);
 		}
 
 		InitFromMatrix();
@@ -109,7 +91,7 @@ public class Layer : MonoBehaviour
 
 	public void InitFromMatrix()
 	{
-		RotationOffset = RotationOffset.Same;
+		RotationOffset = Quaternion.identity;
 
 		if (this == null) return;
 		matrixMove = transform?.root?.GetComponent<MatrixMove>();
@@ -117,25 +99,32 @@ public class Layer : MonoBehaviour
 
 		if (matrixMove != null)
 		{
-			Logger.LogTraceFormat("{0} layer initializing from matrix", Category.Matrix, matrixMove);
-			matrixMove.MatrixMoveEvents.OnRotate.AddListener(OnRotate);
+			Loggy.Trace().Format("{0} layer initializing from matrix", Category.Matrix, matrixMove);
+			matrixMove.NetworkedMatrixMove.OnRotate90 += (OnRotate90);
 			//initialize from current rotation
-			OnRotate(MatrixRotationInfo.FromInitialRotation(matrixMove, NetworkSide.Client, RotationEvent.Register));
+			OnRotate90(matrixMove.NetworkedMatrixMove.previousDirectionFacing);
 		}
 	}
 
-	private void OnRotate(MatrixRotationInfo info)
+	private void OnDestroy()
 	{
-		if (info.IsEnding || info.IsObjectBeingRegistered)
+		if (matrixMove.OrNull()?.NetworkedMatrixMove.OrNull() != null)
 		{
-			RotationOffset = info.RotationOffsetFromInitial;
-			Logger.LogTraceFormat("{0} layer redrawing with offset {1}", Category.Matrix, info.MatrixMove,
-				RotationOffset);
-			if (tilemap != null)
-			{
-				tilemap.RefreshAllTiles();
-			}
+			matrixMove.NetworkedMatrixMove.OnRotate90 -= (OnRotate90);
 		}
+
+	}
+
+	private void OnRotate90(OrientationEnum OrientationEnum)
+	{
+		return;
+		//TODO look in to why tables don't Rotate for properly, Otherwise this doesn't seem to do anything and costs performance
+		// if (CustomNetworkManager.IsHeadless) return;
+		// RotationOffset = matrixMove.NetworkedMatrixMove.TargetTransform.rotation;
+		// if (tilemap != null)
+		// {
+		// 	tilemap.RefreshAllTiles();
+		// }
 	}
 
 	public virtual void SetTile(Vector3Int position, GenericTile tile, Matrix4x4 transformMatrix, Color color)
@@ -143,27 +132,39 @@ public class Layer : MonoBehaviour
 		InternalSetTile(position, tile);
 		tilemap.SetColor(position, color);
 		tilemap.SetTransformMatrix(position, transformMatrix);
+
+		onTileMapChanges.Invoke();
+
+
+		//Client stuff, never spawn this on the server. (IsServer is technically a client in some cases so only return this on headless)
+		if (CustomNetworkManager.IsHeadless) return;
+		if (tile is not SimpleTile c) return; //Not a tile that has the data we need
+		if (c.CanBeHighlightedThroughScanners == false || c.HighlightObject == null) return;
+		var spawnHighlight = Spawn.ClientPrefab(c.HighlightObject, MatrixManager.LocalToWorld(position, Matrix),
+			this.transform); //Spawn highlight object ontop of tile
+		if (spawnHighlight.Successful == false ||
+		    spawnHighlight.GameObject.TryGetComponent<HighlightScan>(out var scan) == false)
+			return; //If this fails for whatever reason, return
+		c.AssoicatedSpawnedObjects.Add(spawnHighlight
+			.GameObject); //Add it to a list that the tile will keep track off for when OnDestroy() happens
+		scan.Setup(c.sprite); //setup the highlight sprite rendere
 	}
 
 	public bool RemoveTile(Vector3Int position)
 	{
 		var tileRemoved = false;
-		tileRemoved = InternalSetTile(position, null);
+		tileRemoved = tilemap.HasTile(position);
+		tilemap.SetTile(position, null);
+		onTileMapChanges.Invoke();
 		return tileRemoved;
 	}
 
 	/// <summary>
 	/// Set tile and invoke tile changed event.
 	/// </summary>
-	protected bool InternalSetTile(Vector3Int position, GenericTile tile)
+	protected void InternalSetTile(Vector3Int position, GenericTile tile)
 	{
-		var hasTile = tilemap.HasTile(position);
 		tilemap.SetTile(position, tile);
-		if (recalculateBoundsHandle == null)
-		{
-			this.RestartCoroutine(RecalculateBoundsNextFrame(), ref recalculateBoundsHandle);
-		}
-		return hasTile;
 	}
 
 	public LayerTile GetTile(Vector3Int position)
@@ -188,5 +189,6 @@ public class Layer : MonoBehaviour
 	{
 		tilemap.ClearAllEditorPreviewTiles();
 	}
+
 #endif
 }

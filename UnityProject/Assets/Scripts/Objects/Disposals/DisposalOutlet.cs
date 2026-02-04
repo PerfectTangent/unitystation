@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using AddressableReferences;
+using Core;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Disposals
 {
@@ -78,7 +80,7 @@ namespace Objects.Disposals
 
 		private void UpdateSpriteState()
 		{
-			baseSpriteHandler.ChangeSprite((int) (IsOperating ? SpriteState.Operating : SpriteState.Idle));
+			baseSpriteHandler.SetCatalogueIndexSprite((int) (IsOperating ? SpriteState.Operating : SpriteState.Idle));
 		}
 
 		private void UpdateSpriteOrientation()
@@ -86,16 +88,16 @@ namespace Objects.Disposals
 			switch (rotatable.CurrentDirection)
 			{
 				case OrientationEnum.Up_By0:
-					baseSpriteHandler.ChangeSpriteVariant(1);
+					baseSpriteHandler.SetSpriteVariant(1);
 					break;
 				case OrientationEnum.Down_By180:
-					baseSpriteHandler.ChangeSpriteVariant(0);
+					baseSpriteHandler.SetSpriteVariant(0);
 					break;
 				case OrientationEnum.Left_By90:
-					baseSpriteHandler.ChangeSpriteVariant(3);
+					baseSpriteHandler.SetSpriteVariant(3);
 					break;
 				case OrientationEnum.Right_By270:
-					baseSpriteHandler.ChangeSpriteVariant(2);
+					baseSpriteHandler.SetSpriteVariant(2);
 					break;
 			}
 		}
@@ -141,7 +143,7 @@ namespace Objects.Disposals
 		public void ServerReceiveAndEjectContainer(DisposalVirtualContainer virtualContainer)
 		{
 			receivedContainers.Add(virtualContainer);
-			virtualContainer.GetComponent<ObjectBehaviour>().parentContainer = objectBehaviour;
+			virtualContainer.GetComponent<UniversalObjectPhysics>().StoreTo(objectContainer);
 			if (IsOperating == false)
 			{
 				StartCoroutine(RunEjectionSequence());

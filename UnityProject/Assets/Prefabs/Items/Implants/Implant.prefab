@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1011433845357754, guid: a7abba22164ce49f0bf9b9b219f39298, type: 3}
@@ -33,15 +34,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4527534762131918, guid: a7abba22164ce49f0bf9b9b219f39298, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4527534762131918, guid: a7abba22164ce49f0bf9b9b219f39298, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4527534762131918, guid: a7abba22164ce49f0bf9b9b219f39298, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4527534762131918, guid: a7abba22164ce49f0bf9b9b219f39298, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -57,6 +58,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 114738972662350094, guid: a7abba22164ce49f0bf9b9b219f39298,
         type: 3}
+      propertyPath: _assetId
+      value: 4279135065
+      objectReference: {fileID: 0}
+    - target: {fileID: 114738972662350094, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
       propertyPath: m_AssetId
       value: 1162a9966a460f940a18b4d183b04c30
       objectReference: {fileID: 0}
@@ -64,7 +70,7 @@ PrefabInstance:
         type: 3}
       propertyPath: customNetTransform
       value: 
-      objectReference: {fileID: 1274871764999701192}
+      objectReference: {fileID: 0}
     - target: {fileID: 114776788309089574, guid: a7abba22164ce49f0bf9b9b219f39298,
         type: 3}
       propertyPath: CurrentsortingGroup
@@ -72,12 +78,17 @@ PrefabInstance:
       objectReference: {fileID: 4940620596253206870}
     - target: {fileID: 499351249353511896, guid: a7abba22164ce49f0bf9b9b219f39298,
         type: 3}
+      propertyPath: exportCost
+      value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 499351249353511896, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
       propertyPath: initialTraits.Array.size
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 499351249353511896, guid: a7abba22164ce49f0bf9b9b219f39298,
         type: 3}
-      propertyPath: initialTraits.Array.data[0]
+      propertyPath: 'initialTraits.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: d859938ed34564a4a932f3beb902e34c,
         type: 2}
@@ -93,10 +104,38 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6393191727481188567, guid: a7abba22164ce49f0bf9b9b219f39298,
         type: 3}
+      propertyPath: parentID
+      value: a7abba22164ce49f0bf9b9b219f39298
+      objectReference: {fileID: 0}
+    - target: {fileID: 6393191727481188567, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
       propertyPath: foreverID
       value: 1162a9966a460f940a18b4d183b04c30
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1011433845357754, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 832554512957402842}
+    - targetCorrespondingSourceObject: {fileID: 1011433845357754, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1644590815055589727}
+    - targetCorrespondingSourceObject: {fileID: 1011433845357754, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2314801526373061764}
+    - targetCorrespondingSourceObject: {fileID: 1011433845357754, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2719098251223779414}
+    - targetCorrespondingSourceObject: {fileID: 1011433845357754, guid: a7abba22164ce49f0bf9b9b219f39298,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8113072997116454967}
   m_SourcePrefab: {fileID: 100100000, guid: a7abba22164ce49f0bf9b9b219f39298, type: 3}
 --- !u!1 &1163316686972202776 stripped
 GameObject:
@@ -104,6 +143,49 @@ GameObject:
     type: 3}
   m_PrefabInstance: {fileID: 1164032867585741730}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &832554512957402842
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1163316686972202776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea3b715ac32a0014787603458c14c14c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
+  RelatedPart: {fileID: 0}
+--- !u!114 &1644590815055589727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1163316686972202776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d72619b419eb784d89be0849c02177b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
+  RelatedPart: {fileID: 0}
+  CapableMutations:
+  - {fileID: 11400000, guid: 11fc1b84d220b6742a4912446b0e7e2b, type: 2}
+  - {fileID: 11400000, guid: 85b46608a403da74892b9bb16d3b712c, type: 2}
+  - {fileID: 11400000, guid: ebd5df789d07f8141ab3534b7fa87618, type: 2}
+  - {fileID: 11400000, guid: 4ee12f11044a2b742867f1431ca8bf77, type: 2}
+  StartingMutations: []
+  ActiveMutationsSO: []
+  Stability: 0
+  SecondsForSpeciesMutation: 150
+  PlayerHealthData: {fileID: 0}
+  TOMutateBodyPart: {fileID: 0}
 --- !u!114 &2314801526373061764
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -116,7 +198,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d00aa48aecf7df349b24873e7b46a340, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isCybernetic: 0
   OrganStorage: {fileID: 2719098251223779414}
+  isOpenAir: 0
+  CommonComponents: {fileID: 0}
   playerSprites: {fileID: 0}
   IsBleeding: 0
   limbLossBleedingValue: 3.5
@@ -128,39 +213,24 @@ MonoBehaviour:
       Orders: 00000000000000000000000000000000
     BodyTypes: []
   RelatedPresentSprites: []
+  DeathOnRemoval: 0
+  ClothingHide: 0
+  SetCustomisationData: 
+  ItemAttributes: {fileID: 0}
   SpritePrefab: {fileID: 8495837738996047739, guid: 7f846789e62ac004499611e9c1417efa,
     type: 3}
   BodyPartItemSprite: {fileID: 4999823976648774815}
   BodyPartItemInheritsSkinColor: 0
-  BodySpriteSet: 0
   LobbyCustomisation: {fileID: 0}
   optionalOrgans: []
   OptionalReplacementOrgan: []
   IsSurface: 0
-  DeathOnRemoval: 0
-  ClothingHide: 0
-  SetCustomisationData: 
   TotalModified: 1
   SurgeryProcedureBase:
   - {fileID: 11400000, guid: b6fd9e69eadae4148bbd6a85d785f16a, type: 2}
   - {fileID: 11400000, guid: 3a60d21cb4e18b14ba0387530f2dccd5, type: 2}
   - {fileID: 11400000, guid: 3bd3c430ab0ee0647bdc059d2bc31329, type: 2}
-  isBloodCirculated: 1
-  CanGetHungry: 1
-  HasNaturalToxicity: 1
-  isBloodReagentConsumed: 1
-  requiredReagent: {fileID: 11400000, guid: 72991f100b5704f5fb63c9629fcdeb6c, type: 2}
-  wasteReagent: {fileID: 11400000, guid: 2a39c514112f198858f2c7407b75d8c4, type: 2}
-  BloodContainer: {fileID: 8113072997116454967}
-  bloodReagentConsumedPercentageb: 0.5
-  bloodThroughput: 1.7857143
-  Nutriment: {fileID: 11400000, guid: 068bcb587110477558045ad0cfd78237, type: 2}
-  HealingNutrimentMultiplier: 2
-  ReagentMetabolism: 0.2
-  NaturalToxinReagent: {fileID: 11400000, guid: 6c3a3878e8878972ea633a27c6d0ba12,
-    type: 2}
-  ToxinGeneration: 0.001
-  HungerState: 1
+  CanNotBeHealedByExternalHealingPack: 0
   SelfArmor:
     Melee: 0
     Bullet: 0
@@ -172,7 +242,11 @@ MonoBehaviour:
     Acid: 0
     Magic: 0
     Bio: 0
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   SubOrganBodyPartArmour:
     Melee: 100
     Bullet: 90
@@ -184,25 +258,15 @@ MonoBehaviour:
     Acid: 100
     Magic: 100
     Bio: 0
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   SubOrganDamageIncreasePoint: 80
   DamageContributesToOverallHealth: 1
-  DamageEfficiencyMultiplier: 1
   maxHealth: 100
   Severity: 50
-  BodyPartReadableName: '[Default Part Name]'
-  BoneFracturedLvlThreeDesc: This {readableName} is suffering Hairline Fracture.
-  BoneFracturedLvlTwoDesc: This {readableName} is suffering Compound Fracture. It
-    is completely snapped in half.
-  maximumInternalBleedDamage: 100
-  minMaxInternalBleedingBloodLoss: {x: 2, y: 4}
-  minMaxExternalBleedingValues: {x: 2, y: 14}
-  bodyPartColorWhenCharred: {r: 0, g: 0, b: 0, a: 1}
-  GibChance: 15
-  spillChanceWhenCutPresent: 0.5
-  CanBleedInternally: 0
-  CanBeBroken: 0
-  gibsEntireBodyOnRemoval: 0
 --- !u!114 &2719098251223779414
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -221,11 +285,14 @@ MonoBehaviour:
     type: 2}
   itemStoragePopulator: {fileID: 0}
   forceSpawnContents: 1
-  dropItemsOnDespawn: 0
+  ManuallySpawnContent: 1
+  dropItemsOnDespawn: 1
   UesAddlistPopulater: 0
   Populater:
     SlotContents: []
     DeprecatedContents: []
+  SetSlotItemNotRemovableOnStartUp: 0
+  initialignoreRoundstartGrabObjects: 0
   ashPrefab: {fileID: 2957035178188790827, guid: 9ac6968a3f3ed54428662c9aae5a4b32,
     type: 3}
 --- !u!114 &8113072997116454967
@@ -240,10 +307,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fed226d36f0fdcd40a51a7bfbf8fb6d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ReactionSounds: 1
   maxCapacity: 30
+  DEBUGReagent: {fileID: 0}
+  DEBUGAmount: 0
+  StopReactions: 0
   reactionSet: {fileID: 11400000, guid: 9635f48a9fe17f742aee13832a4ed6c2, type: 2}
   AdditionalReactions: []
-  canPourOut: 1
   initialReagentMix:
     temperature: 273.15
     reagents:
@@ -252,26 +322,25 @@ MonoBehaviour:
     reagentKeys: []
   destroyOnEmpty: 0
   ContentsSet: 0
+  menuOptions: -1
+  currentReagentMix:
+    temperature: 0
+    reagents:
+      m_keys: []
+      m_values: []
+    reagentKeys: []
+  spriteHandler: {fileID: 0}
   UseStandardExamine: 1
   ExamineAmount: 0
   ExamineContent: 0
   traitWhitelist: []
   reagentWhitelist: []
-  transferMode: 0
+  transferMode: 4
+  onlyAllowSyringeFilling: 0
+  SyringePulling: 0
   possibleTransferAmounts: []
   transferAmount: 20
---- !u!114 &1274871764999701192 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 114341119007412586, guid: a7abba22164ce49f0bf9b9b219f39298,
-    type: 3}
-  m_PrefabInstance: {fileID: 1164032867585741730}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1163316686972202776}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  transferSound: []
 --- !u!210 &4940620596253206870 stripped
 SortingGroup:
   m_CorrespondingSourceObject: {fileID: 6104600676241079028, guid: a7abba22164ce49f0bf9b9b219f39298,

@@ -6,7 +6,9 @@ using UnityEngine.Events;
 using UnityEngine.Serialization;
 using Mirror;
 using Core.Editor.Attributes;
-using Systems.ObjectConnection;
+using Logs;
+using NaughtyAttributes;
+using Shared.Systems.ObjectConnection;
 using Systems.Explosions;
 using ScriptableObjects;
 using Objects.Engineering;
@@ -18,21 +20,21 @@ using UnityEditor;
 namespace Systems.Electricity
 {
 	[ExecuteInEditMode]
-	public class APCPoweredDevice : NetworkBehaviour, IServerDespawn, IEmpAble, IMultitoolSlaveable
+	public class APCPoweredDevice : NetworkBehaviour, IServerDespawn, IEmpAble, IMultitoolSlaveable, IServerSpawn
 	{
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		[FormerlySerializedAs("MinimumWorkingVoltage")]
 		private float minimumWorkingVoltage = 190;
 
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		[FormerlySerializedAs("ExpectedRunningVoltage")]
 		private float expectedRunningVoltage = 240;
 
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		[FormerlySerializedAs("MaximumWorkingVoltage")]
 		private float maximumWorkingVoltage = 300;
 
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		[Tooltip("Category of this powered device. " +
 				"Different categories work like a set of breakers, so you can turn off lights and keep machines working.")]
 		private DeviceType deviceType = DeviceType.None;
@@ -43,39 +45,45 @@ namespace Systems.Electricity
 
 		public bool IsSelfPowered => isSelfPowered;
 
-		[SerializeField, PrefabModeOnly]
+
+		[SerializeField]
+		[Tooltip("Does this device **not** need to be linked to an APC to pass tests?")]
+		private bool mappingNotNeedToLink = false;
+
+		public bool MappingNotNeedToLink => mappingNotNeedToLink;
+
+		[SerializeField, FormerlySerializedAs("wattusage") ]
 		[Tooltip("Watts consumed per update when running at 240v")]
+		private float initialwattusage = 0.01f;
+
+
 		private float wattusage = 0.01f;
 
-		public float Wattusage {
+		public float Wattusage
+		{
 			get => wattusage;
-			set {
+			set
+			{
 				wattusage = value;
-				resistance = 240 / (value / 240);
+				Resistance = 240 / (value / 240);
 			}
 		}
 
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		[FormerlySerializedAs("Resistance")]
 		[FormerlySerializedAs("resistance")]
 		private float InitialResistance = 99999999;
 
+		[NonSerialized]
+		public float Resistance = 99999999;
 
-		private float resistance = 99999999;
-
-
-		public float Resistance {
-			get => resistance;
-			set => resistance = value;
-		}
-
-		[HideInInspector] public APC RelatedAPC;
+		public APC RelatedAPC;
 		private IAPCPowerable Powered;
 
-		[PrefabModeOnly]
+
 		public bool AdvancedControlToScript;
 
-		[PrefabModeOnly]
+
 		public bool StateUpdateOnClient = true;
 
 		[SyncVar(hook = nameof(UpdateSynchronisedState))]
@@ -86,8 +94,7 @@ namespace Systems.Electricity
 		/// <summary>
 		/// 1 PowerState is the old state, 2 PowerState is the new state
 		/// </summary>
-		[NonSerialized]
-		public UnityEvent<Tuple<PowerState, PowerState>> OnStateChangeEvent = new UnityEvent<Tuple<PowerState, PowerState>>();
+		public event Action<PowerState, PowerState> OnStateChangeEvent;
 
 		[SyncVar(hook = nameof(UpdateSynchronisedVoltage))]
 		private float recordedVoltage = 0;
@@ -101,16 +108,20 @@ namespace Systems.Electricity
 
 		private bool isEMPed = false;
 
+		public UnityEvent OnDeviceLinked = new UnityEvent();
+		public UnityEvent OnDeviceUnLinked = new UnityEvent();
+
+
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
 		#region Lifecycle
 
 		private void Awake()
 		{
+			wattusage = initialwattusage;
 #if UNITY_EDITOR
 		disconnectedImg = AssetDatabase.LoadAssetAtPath<Texture>("Assets/Textures/EditorAssets/disconnected.png");
 
 #endif
-			if (Application.isPlaying == false) return;
-			EnsureInit();
 		}
 
 		private void Start()
@@ -119,29 +130,43 @@ namespace Systems.Electricity
 
 			if (Wattusage > 0)
 			{
-				resistance = 240 / (Wattusage / 240);
+				Resistance = 240 / (Wattusage / 240);
 			}
+			EnsureInit();
 		}
 
 		private void EnsureInit()
 		{
 			if (this == null) return;
 			if (Powered != null) return;
-			resistance = InitialResistance;
+			Resistance = InitialResistance;
 			Powered = GetComponent<IAPCPowerable>();
 			registerTile = GetComponent<RegisterTile>();
 			if (isSelfPowered)
 			{
-				if (AdvancedControlToScript)
-				{
-					recordedVoltage = expectedRunningVoltage;
-					Powered?.PowerNetworkUpdate(expectedRunningVoltage);
-				}
-				else
-				{
-					Powered?.StateUpdate(PowerState.On);
-				}
+				SelfPoweredUpdate();
 			}
+		}
+
+		private void OnDestroy()
+		{
+			OnDeviceLinked?.RemoveAllListeners();
+			OnDeviceUnLinked?.RemoveAllListeners();
+		}
+
+		private void SelfPoweredUpdate()
+		{
+			if (AdvancedControlToScript)
+			{
+				recordedVoltage = expectedRunningVoltage;
+				Powered?.PowerNetworkUpdate(expectedRunningVoltage);
+			}
+			else
+			{
+				Powered?.StateUpdate(PowerState.On);
+			}
+
+			OnStateChangeEvent?.Invoke(PowerState.Off, PowerState.On);
 		}
 
 		public override void OnStartClient()
@@ -157,7 +182,7 @@ namespace Systems.Electricity
 			}
 		}
 
-		public override void OnStartServer()
+		public void OnSpawnServer(SpawnInfo info)
 		{
 			EnsureInit();
 			if (AdvancedControlToScript)
@@ -167,7 +192,7 @@ namespace Systems.Electricity
 			else
 			{
 				UpdateSynchronisedState(state, state);
-				OnStateChangeEvent.Invoke(new Tuple<PowerState, PowerState>(PowerState.Off, state));
+				OnStateChangeEvent?.Invoke(PowerState.Off, state);
 			}
 		}
 
@@ -179,11 +204,11 @@ namespace Systems.Electricity
 		IMultitoolMasterable IMultitoolSlaveable.Master => RelatedAPC;
 		bool IMultitoolSlaveable.RequireLink => isSelfPowered == false;
 
-		bool IMultitoolSlaveable.TrySetMaster(PositionalHandApply interaction, IMultitoolMasterable master)
+		bool IMultitoolSlaveable.TrySetMaster(GameObject performer, IMultitoolMasterable master)
 		{
 			if (blockApcChange)
 			{
-				Chat.AddExamineMsgFromServer(interaction.Performer,
+				Chat.AddExamineMsgFromServer(performer,
 						$"You try to set the {gameObject.ExpensiveName()}'s APC connection but it seems to be locked!");
 				return false;
 			}
@@ -248,7 +273,7 @@ namespace Systems.Electricity
 
 				if (newState == state) return;
 
-				OnStateChangeEvent.Invoke(new Tuple<PowerState, PowerState>(state, newState));
+				OnStateChangeEvent?.Invoke(state, newState);
 
 				state = newState;
 				Powered?.StateUpdate(state);
@@ -260,7 +285,7 @@ namespace Systems.Electricity
 			EnsureInit();
 			if (oldVoltage != newVoltage)
 			{
-				Logger.LogTraceFormat("{0}({1}) state changing {2} to {3}", Category.Electrical, name, transform.position.To2Int(), oldVoltage, newVoltage);
+				Loggy.Trace().Format("{0}({1}) state changing {2} to {3}", Category.Electrical, name, transform.position.RoundTo2Int(), oldVoltage, newVoltage);
 			}
 
 			recordedVoltage = newVoltage;
@@ -273,35 +298,23 @@ namespace Systems.Electricity
 			{
 				if (isSelfPowered)
 				{
-					Powered?.PowerNetworkUpdate(expectedRunningVoltage);
+					Powered.PowerNetworkUpdate(expectedRunningVoltage);
 				}
 				else
 				{
-					Powered?.PowerNetworkUpdate(newVoltage);
+					Powered.PowerNetworkUpdate(newVoltage);
 				}
 			}
 		}
 
-		private void UpdateState()
-		{
-			if (isSelfPowered)
-			{
-				state = PowerState.On;
-			}
-			if (isSelfPowered)
-			{
-				recordedVoltage = expectedRunningVoltage;
-			}
-		}
-
-		private void UpdateSynchronisedState(PowerState oldState, PowerState newState)
+		public void UpdateSynchronisedState(PowerState oldState, PowerState newState)
 		{
 			EnsureInit();
 			if (!isEMPed)
 			{
 				if (newState != state)
 				{
-					Logger.LogTraceFormat("{0}({1}) state changing {2} to {3}", Category.Electrical, name, transform.position.To2Int(), this.state, newState);
+					Loggy.Trace().Format("{0}({1}) state changing {2} to {3}", Category.Electrical, name, transform.position.RoundTo2Int(), this.state, newState);
 				}
 
 				state = newState;
@@ -403,6 +416,13 @@ namespace Systems.Electricity
 			bestTarget.AddDevice(this);
 
 			return true;
+		}
+
+		public void ChangeToSelfPowered()
+		{
+			isSelfPowered = true;
+			SelfPoweredUpdate();
+			UpdateSynchronisedState(state, DMMath.Prob(5) ? PowerState.OverVoltage : PowerState.On);
 		}
 	}
 

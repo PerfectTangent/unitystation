@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
 using HealthV2;
 using UnityEngine;
 using Mirror;
 using TileManagement;
 using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Items.Command
 {
@@ -14,7 +16,7 @@ namespace Items.Command
 		[SerializeField]
 		private float boundRadius = 600;
 		private Pickupable pick;
-		private CustomNetTransform customNetTrans;
+		private UniversalObjectPhysics ObjectPhysics;
 		private RegisterTile registerTile;
 		private BetterBoundsInt bound;
 		private EscapeShuttle escapeShuttle;
@@ -35,7 +37,7 @@ namespace Items.Command
 
 		private void Awake()
 		{
-			customNetTrans = GetComponent<CustomNetTransform>();
+			ObjectPhysics = GetComponent<UniversalObjectPhysics>();
 			registerTile = GetComponent<RegisterTile>();
 			pick = GetComponent<Pickupable>();
 		}
@@ -76,7 +78,7 @@ namespace Items.Command
 
 		private bool DiskLost()
 		{
-			if (((gameObject.AssumedWorldPosServer() - MatrixManager.MainStationMatrix.GameObject.AssumedWorldPosServer())
+			if (((gameObject.AssumedWorldPosServer() - MatrixManager.MainStationMatrix.GameObject.transform.position)
 				.magnitude < boundRadius)) return false;
 
 			if (escapeShuttle != null && escapeShuttle.Status != EscapeShuttleStatus.DockedCentcom)
@@ -106,8 +108,8 @@ namespace Items.Command
 					return true;
 				}
 
-				var checkPlayer = PlayerList.Instance.Get(player.gameObject, true);
-				if (checkPlayer.Equals(ConnectedPlayer.Invalid))
+				var checkPlayer = PlayerList.Instance.Get(player.gameObject);
+				if (checkPlayer.Equals(PlayerInfo.Invalid))
 				{
 					return true;
 				}
@@ -129,12 +131,25 @@ namespace Items.Command
 				position = new Vector3(Random.Range(bound.xMin, bound.xMax), Random.Range(bound.yMin, bound.yMax), 0);
 			}
 
+			if (pick.ItemSlot?.Player is not null)
+			{
+				Chat.AddExamineMsg(pick.ItemSlot.Player.PlayerScript.gameObject, "You feel a sudden tingling sensation in your pocket, " +
+				                             "and as you reach inside, you realize that the Nuclear Authentication Disk " +
+				                             "has vanished into thin air. The unmistakable hum of bluespace technology echoes in your ears, " +
+				                             "indicating that it has been teleported away to an unknown location");
+			}
+			else
+			{
+				Chat.AddExamineMsg(gameObject,
+					"The range-activated bluespace retrieval system triggers, whisking away the Nuclear Authentication Disk!");
+			}
+
 			if (pick?.ItemSlot != null)
 			{
 				Inventory.ServerDrop(pick.ItemSlot);
 				pick.RefreshUISlotImage();
 			}
-			customNetTrans.SetPosition(position);
+			ObjectPhysics.AppearAtWorldPositionServer(position.ToWorld(registerTile.Matrix));
 		}
 	}
 }

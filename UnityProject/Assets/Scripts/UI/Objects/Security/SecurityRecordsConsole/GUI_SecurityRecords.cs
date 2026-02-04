@@ -1,8 +1,12 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
+using Systems.Character;
 using UI.Core.NetUI;
 using Objects.Security;
+using Systems;
 
 namespace UI.Objects.Security
 {
@@ -15,13 +19,13 @@ namespace UI.Objects.Security
 		[SerializeField]
 		private GUI_SecurityRecordsEntryPage entryPage = null;
 		[SerializeField]
-		private NetLabel idText = null;
+		private NetText_label idText = null;
 		private SecurityRecordsConsole console;
 
 		public override void OnEnable()
 		{
 			base.OnEnable();
-			if (CustomNetworkManager.Instance._isServer)
+			if (CustomNetworkManager.IsServer)
 			{
 				StartCoroutine(WaitForProvider());
 			}
@@ -55,39 +59,39 @@ namespace UI.Objects.Security
 			}
 		}
 
-		public void RemoveId(ConnectedPlayer player)
+		public void RemoveId(PlayerInfo player)
 		{
 			if (console.IdCard)
 			{
 				console.ServerRemoveIDCard(player);
 				UpdateScreen();
 			}
-			else if (IsAIInteracting())
+			else if (IsAIInteracting(player))
 			{
 				UpdateScreen();
 			}
 		}
 
-		public void UpdateIdText(NetLabel labelToSet)
+		public void UpdateIdText(NetText_label labelToSet)
 		{
 			var IdCard = console.IdCard;
 			if (IdCard)
 			{
-				labelToSet.SetValueServer($"{IdCard.RegisteredName}, {IdCard.GetJobTitle()}");
+				labelToSet.MasterSetValue($"{IdCard.RegisteredName}, {IdCard.GetJobTitle()}");
 			}
 			else if (IsAIInteracting())
 			{
-				labelToSet.SetValueServer("AI Control");
+				labelToSet.MasterSetValue("AI Control");
 			}
 			else
 			{
-				labelToSet.SetValueServer("********");
+				labelToSet.MasterSetValue("********");
 			}
 		}
 
 		public void LogIn()
 		{
-			if ((console.IdCard == null || console.IdCard.HasAccess(Access.security) == false) && IsAIInteracting() == false)
+			if ((console.IdCard == null || console.Restricted.HasClearance(console.IdCard.ClearanceSource) == false) && IsAIInteracting() == false)
 			{
 				return;
 			}
@@ -128,17 +132,49 @@ namespace Objects.Security
 	[System.Serializable]
 	public class SecurityRecord
 	{
-		public string EntryName;
+		public static event Action OnWantedLevelChange;
+
+		private string entryName;
+
+		public string EntryName
+		{
+			get => entryName;
+			set
+			{
+				CrewManifestManager.Instance.OrNull()?.UpdateNameSecurityRecord(this, value);
+				entryName = value;
+			}
+		}
+
 		public string ID;
 		public string Sex;
 		public string Age;
 		public string Species;
 		public string Rank;
 		public string Fingerprints;
-		public SecurityStatus Status;
+
+
+		public SecurityStatus status;
+
+		public SecurityStatus Status
+		{
+			get => status;
+			set
+			{
+				bool diff = status != value;
+
+				status = value;
+				if (diff)
+				{
+					IdentityChangeOrWantedLevel();
+				}
+			}
+		}
+
+
 		public List<SecurityRecordCrime> Crimes;
 		public Occupation Occupation;
-		public CharacterSettings characterSettings;
+		public CharacterSheet characterSettings;
 
 		public SecurityRecord()
 		{
@@ -151,6 +187,19 @@ namespace Objects.Security
 			Fingerprints = "-";
 			Status = SecurityStatus.None;
 			Crimes = new List<SecurityRecordCrime>();
+		}
+
+		public void IdentityChangeOrWantedLevel()
+		{
+			try
+			{
+				OnWantedLevelChange?.Invoke();
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+
+			}
 		}
 	}
 }

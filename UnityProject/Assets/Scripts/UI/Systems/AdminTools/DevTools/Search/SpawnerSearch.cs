@@ -3,7 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Logs;
 using Mirror;
+using NUnit.Framework;
+using UI.Systems.AdminTools.DevTools.Search;
 using UnityEngine;
 
 /// <summary>
@@ -20,9 +23,12 @@ public class SpawnerSearch
 	// array of structs for fast iteration while searching
 	public readonly DevSpawnerDocument[] documents;
 
-	private SpawnerSearch(DevSpawnerDocument[] documents)
+	public readonly DevSpawnerDocument[] DEBUG_documents;
+
+	private SpawnerSearch(DevSpawnerDocument[] documents, DevSpawnerDocument[] DEBUG_documents)
 	{
 		this.documents = documents;
+		this.DEBUG_documents = DEBUG_documents;
 	}
 
 	/// <summary>
@@ -33,18 +39,26 @@ public class SpawnerSearch
 	public static SpawnerSearch ForPrefabs(IEnumerable<GameObject> prefabs)
 	{
 		List<DevSpawnerDocument> documents = new List<DevSpawnerDocument>();
+		List<DevSpawnerDocument> DeBugs = new List<DevSpawnerDocument>();
 		foreach (var prefab in prefabs)
 		{
 			if (prefab.GetComponent<NetworkIdentity>() == null)
 			{
-				Logger.LogTraceFormat("{0} omitted from dev spawner because it has no network identity. Only" +
-				                      " networked prefabs can be spawned.", Category.Admin);
+				Loggy.Trace().Format("{0} omitted from dev spawner because it has no network identity. Only" +
+				                      " networked prefabs can be spawned.", Category.Admin, prefab);
 				continue;
 			}
-			documents.Add(DevSpawnerDocument.ForPrefab(prefab));
+
+			var newEntry = DevSpawnerDocument.ForPrefab(prefab);
+
+			if (newEntry.Value.IsDEBUG == false)
+			{
+				documents.Add( (DevSpawnerDocument) newEntry );
+			}
+			DeBugs.Add((DevSpawnerDocument) newEntry );
 		}
 
-		return new SpawnerSearch(documents.OrderBy(doc => doc.SearchableName).ToArray());
+		return new SpawnerSearch(documents.OrderBy(doc => doc.Name).ToArray(), DeBugs.OrderBy(doc => doc.Name).ToArray());
 	}
 
 	/// <summary>
@@ -52,11 +66,56 @@ public class SpawnerSearch
 	/// </summary>
 	/// <param name="rawSearch">raw search query</param>
 	/// <returns></returns>
-	public IEnumerable<DevSpawnerDocument> Search(string rawSearch)
+	public IEnumerable<DevSpawnerDocument> Search(string rawSearch, bool DEBUG = false)
 	{
 		string standardizedSearch = Standardize(rawSearch);
 
-		return documents.Where(doc => doc.SearchableName.Contains(standardizedSearch));
+		var ToUse = DEBUG ? DEBUG_documents : documents;
+
+		// Linq expression that handles grabbing multiple names from a prefab.
+		// it grabs all prefabs in documents then loops through all prefabs and grabs all searchable names.
+		// if the searchable name contains a substring that the user is searching it will return it.
+
+		List<DevSpawnerDocument> docs = new List<DevSpawnerDocument>();
+
+
+		bool LongEnoughForPrefabIDs = standardizedSearch.Length > 8;
+		var UPPER = ToUse.Length;
+		for (int i = 0; i < UPPER; i++)
+		{
+			var Entry = ToUse[i];
+			var SearchableNameNumber = Entry.SearchableName.Length;
+			for (int j = 0; j < SearchableNameNumber; j++)
+			{
+				var Entryj = Entry.SearchableName[j];
+				if (Entryj.Contains(standardizedSearch))
+				{
+					if (Entry.ForeverID == standardizedSearch)
+					{
+						docs.Insert(0, Entry);
+					}
+					else
+					{
+						docs.Add(Entry);
+					}
+				}
+			}
+			if (LongEnoughForPrefabIDs)
+			{
+				if (Entry.RelatedPrefabsIDs.Contains(standardizedSearch))
+				{
+					if (Entry.ForeverID == standardizedSearch)
+					{
+						docs.Insert(0, Entry);
+					}
+					else
+					{ docs.Add(Entry);
+					}
+				}
+			}
+		}
+
+		return docs;
 	}
 
 	/// <summary>
@@ -69,6 +128,7 @@ public class SpawnerSearch
 	{
 		string result = raw.ToLower();
 		//convert non alphanumeric stuff to whitespace - we only care about letters and numbers
-		return SpawnerSearch.NON_ALPHANUMERIC.Replace(result, " ");
+		result = result.Replace(" ", "");
+		return SpawnerSearch.NON_ALPHANUMERIC.Replace(result, "");
 	}
 }

@@ -1,20 +1,28 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using Core.Admin.Logs;
 using HealthV2;
 using UnityEngine;
-using UI.Objects.Medical;
 using Random = UnityEngine.Random;
-using Health.Sickness;
+using Items.Others;
+using Logs;
+using Mirror;
+using Newtonsoft.Json;
+using Systems.Character;
+using UI.Objects.Medical.Cloning;
 
 namespace Objects.Medical
 {
 	/// <summary>
 	/// Main component for cloning console.
 	/// </summary>
-	public class CloningConsole : MonoBehaviour, IServerSpawn
+	[RequireComponent(typeof(ItemStorage))]
+	public class CloningConsole : MonoBehaviour, ICheckedInteractable<HandApply>, IServerSpawn
 	{
-		private List<CloningRecord> cloningRecords = new List<CloningRecord>();
+		[SerializeField] private GameObject paperPrefab;
 
 		private DNAScanner scanner;
 		/// <summary>
@@ -28,19 +36,21 @@ namespace Objects.Medical
 		/// </summary>
 		public CloningPod CloningPod => cloningPod;
 
+		private CloningRecord currentRecord;
+		public CloningRecord CurrentRecord => currentRecord;
+
 		private GUI_Cloning consoleGUI;
 		private RegisterTile registerTile;
 		private ClosetControl closet;
-
-		/// <summary>
-		/// Saved cloning records.
-		/// </summary>
-		public IEnumerable<CloningRecord> CloningRecords => cloningRecords;
+		private ItemStorage recordsStorage;
+		private HasNetworkTab networkTab;
 
 		private void Awake()
 		{
 			registerTile = GetComponent<RegisterTile>();
 			closet = GetComponent<ClosetControl>();
+			recordsStorage = GetComponent<ItemStorage>();
+			networkTab = GetComponent<HasNetworkTab>();
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
@@ -48,15 +58,41 @@ namespace Objects.Medical
 			scanner = null;
 			cloningPod = null;
 			consoleGUI = null;
+
 			//TODO: Support persistance of this info somewhere, such as to a circuit board.
 			//scan for adjacent dna scanner and cloning pod
-			scanner = MatrixManager.GetAdjacent<DNAScanner>(registerTile.WorldPositionServer, true).FirstOrDefault();
-			cloningPod = MatrixManager.GetAdjacent<CloningPod>(registerTile.WorldPositionServer, true).FirstOrDefault();
+			StartCoroutine(CheckForAdjacentScanners());
 
 			if (cloningPod)
 			{
 				cloningPod.console = this;
 			}
+		}
+
+		private IEnumerator CheckForAdjacentScanners()
+		{
+			var checks = 0;
+			while (checks <= 4)
+			{
+				scanner = MatrixManager.GetAdjacent<DNAScanner>(registerTile.WorldPositionServer, true).FirstOrDefault();
+				cloningPod = MatrixManager.GetAdjacent<CloningPod>(registerTile.WorldPositionServer, true).FirstOrDefault();
+				if (scanner != null && cloningPod != null)
+				{
+					break;
+				}
+				yield return WaitFor.Seconds(0.5f);
+				checks++;
+			}
+
+			Chat.AddActionMsgToChat(gameObject,
+				scanner == null
+					? $"The {gameObject.ExpensiveName()} beeps an error code, indicating that it cannot find a nearby scanner to connect to."
+					: $"The {gameObject.ExpensiveName()} beeps a succes code, indicating that it connected to the {scanner.gameObject.ExpensiveName()} succesfully.");
+
+			Chat.AddActionMsgToChat(gameObject,
+				cloningPod == null
+					? $"The {gameObject.ExpensiveName()} beeps an error code, indicating that it cannot find a cloning pod nearby."
+					: $"The {gameObject.ExpensiveName()} beeps a succes code, indicating that it connected to the {cloningPod.gameObject.ExpensiveName()} succesfully.");
 		}
 
 		/// <summary>
@@ -80,6 +116,7 @@ namespace Objects.Medical
 			}
 		}
 
+		[RightClickMethod()]
 		[NaughtyAttributes.Button()]
 
 		public void Scan()
@@ -89,26 +126,18 @@ namespace Objects.Medical
 				UpdateInoperableStatus();
 				return;
 			}
+
 			if (scanner.occupant)
 			{
 				var mob = scanner.occupant;
 				var mobID = scanner.occupant.mobID;
 				var playerScript = mob.GetComponent<PlayerScript>();
-				if (playerScript?.mind?.bodyMobID != mobID)
+				if (playerScript.OrNull()?.Mind?.bodyMobID != mobID)
 				{
 					scanner.statusString = "Bad mind/body interface.";
 					return;
 				}
-				for (int i = 0; i < cloningRecords.Count; i++)
-				{
-					var record = cloningRecords[i];
-					if (mobID == record.mobID)
-					{
-						record.UpdateRecord(mob, playerScript);
-						scanner.statusString = "Record updated.";
-						return;
-					}
-				}
+
 				CreateRecord(mob, playerScript);
 				scanner.statusString = "Subject successfully scanned.";
 			}
@@ -125,22 +154,46 @@ namespace Objects.Medical
 
 		private void UpdateInoperableStatus()
 		{
-			if (!scanner.RelatedAPC)
-				scanner.statusString = "Scanner not connected to APC.";
-			else if (!scanner.Powered)
-				scanner.statusString = "Voltage too low.";
+			if (scanner == null)
+			{
+				Loggy.Error("[CloningConsole/UpdateInoperableStatus()] - The scanner is not connected to this console.");
+				Chat.AddActionMsgToChat(gameObject,
+					$"A {gameObject.ExpensiveName()} crashes momentarily before coming back to life with an error that says 'No scanner connected..'");
+				StartCoroutine(CheckForAdjacentScanners());
+				return;
+			}
+			if (scanner.RelatedAPC == null)
+			{
+				scanner.statusString = "Scanner not connected to APC!";
+				return;
+			}
+
+			if (scanner.Powered == false)
+			{
+				scanner.statusString = "Voltage too low!";
+			}
 		}
 
 		public void ServerTryClone(CloningRecord record)
 		{
 			if (cloningPod && cloningPod.CanClone())
 			{
-				var status = record.mind.GetCloneableStatus(record.mobID);
+				Mind mind = NetworkUtils.FindObjectOrNull(record.mindID)?.GetComponent<Mind>();
+				if (mind == null)
+				{
+					return;
+				}
+				else
+				{
+					record.mind = mind;
+				}
+				CloneableStatus status = mind.GetCloneableStatus(record.mobID);
 
 				if (status == CloneableStatus.Cloneable)
 				{
 					cloningPod.ServerStartCloning(record);
-					cloningRecords.Remove(record);
+					recordsStorage.ServerDropAll();
+					consoleGUI.ViewMainPage();
 				}
 				else
 				{
@@ -151,14 +204,25 @@ namespace Objects.Medical
 
 		private void CreateRecord(LivingHealthMasterBase livingHealth, PlayerScript playerScript)
 		{
-			var record = new CloningRecord();
-			record.UpdateRecord(livingHealth, playerScript);
-			cloningRecords.Add(record);
+			var record1 = new CloningRecord();
+			record1.UpdateRecord(livingHealth, playerScript);
+			AdminLogsManager.AddNewLog(
+				null,
+				$"{gameObject.ExpensiveName()} at {gameObject.AssumedWorldPosServer()}" +
+				$" has created a new cloning record for {playerScript.playerName}.",
+				LogCategory.RoundFlow);
+			var paper1 = Spawn.ServerPrefab(paperPrefab, gameObject.AssumedWorldPosServer());
+			paper1.GameObject.GetComponent<Paper>().SetServerString(record1.Copy());
+			RemoveRecord();
+			recordsStorage.ServerTryAdd(paper1.GameObject);
+			if (paper1.GameObject.TryGetComponent<Paper>(out var p) == false) return;
+			var record = CloningRecord.FromString(p.ServerString);
+			currentRecord = record;
 		}
 
 		public void UpdateDisplay()
 		{
-			consoleGUI.UpdateDisplay();
+			consoleGUI.OrNull()?.UpdateDisplay();
 		}
 
 		public void RegisterConsoleGUI(GUI_Cloning guiCloning)
@@ -166,88 +230,39 @@ namespace Objects.Medical
 			consoleGUI = guiCloning;
 		}
 
-		public void RemoveRecord(CloningRecord specificRecord)
+		public void RemoveRecord()
 		{
-			cloningRecords.Remove(specificRecord);
-		}
-	}
-
-	public class CloningRecord
-	{
-		public string name;
-		public string scanID;
-		public float oxyDmg;
-		public float burnDmg;
-		public float toxinDmg;
-		public float bruteDmg;
-		public string uniqueIdentifier;
-		public CharacterSettings characterSettings;
-		public int mobID;
-		public Mind mind;
-		public List<BodyPartRecord> surfaceBodyParts = new List<BodyPartRecord>();
-		public List<string> sicknessList = new List<string>();
-
-		public CloningRecord()
-		{
-			scanID = Random.Range(0, 9999).ToString();
+			recordsStorage.ServerDropAll();
+			currentRecord = null;
 		}
 
-		public void UpdateRecord(LivingHealthMasterBase livingHealth, PlayerScript playerScript)
+		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			mobID = livingHealth.mobID;
-			mind = playerScript.mind;
-			name = playerScript.playerName;
-			characterSettings = playerScript.characterSettings;
-			oxyDmg = livingHealth.GetOxyDamage;
-			burnDmg = livingHealth.GetTotalBurnDamage();
-			toxinDmg = livingHealth.GetTotalToxDamage();
-			bruteDmg = livingHealth.GetTotalBruteDamage();
-			uniqueIdentifier = "35562Eb18150514630991";
-			foreach(BodyPart part in livingHealth.SurfaceBodyParts)
-            {
-				BodyPartRecord partRecord = new BodyPartRecord();
-				surfaceBodyParts.Add(partRecord.Copy(part));
-            }
-			foreach(SicknessAffliction sickness in livingHealth.mobSickness.sicknessAfflictions)
-            {
-				sicknessList.Add(sickness.Sickness.SicknessName);
-            }
+			if (interaction.IsAltClick) return false;
+			return DefaultWillInteract.Default(interaction, side);
 		}
-	}
 
-	public class BodyPartRecord
-    {
-		public string name;
-		public decimal brute;
-		public decimal burn;
-		public decimal toxin;
-		public decimal oxygen;
-		public bool isBleeding;
-		public BodyPartType type;
-		public DamageSeverity severity;
-		public List<BodyPartRecord> organs = new List<BodyPartRecord>();
-
-		public BodyPartRecord Copy(BodyPart part)
-        {
-			name = part.gameObject.ExpensiveName();
-			brute = Math.Round((decimal)part.Brute, 1);
-			burn = Math.Round((decimal)part.Burn, 1);
-			toxin = Math.Round((decimal)part.Toxin, 1);
-			oxygen = Math.Round((decimal)part.Oxy, 1);
-			isBleeding = part.IsBleeding;
-			type = part.BodyPartType;
-			severity = part.Severity;
-			for (int i = 0; i < part.ContainBodyParts.Count(); i++)
+		public void ServerPerformInteraction(HandApply interaction)
+		{
+			if (interaction.HandObject == null)
 			{
-				organs.Add(new BodyPartRecord());
-				organs[i].name = part.ContainBodyParts[i].gameObject.ExpensiveName();
-				organs[i].brute = Math.Round((decimal)part.ContainBodyParts[i].Brute, 1);
-				organs[i].burn = Math.Round((decimal)part.ContainBodyParts[i].Burn, 1);
-				organs[i].toxin = Math.Round((decimal)part.ContainBodyParts[i].Toxin, 1);
-				organs[i].oxygen = Math.Round((decimal)part.ContainBodyParts[i].Oxy, 1);
-				organs[i].isBleeding = part.ContainBodyParts[i].IsBleeding;
+				networkTab.ServerPerformInteraction(interaction);
+				return;
 			}
-			return this;
+			if (interaction.HandObject.TryGetComponent<Paper>(out var p) == false) return;
+			var record = CloningRecord.FromString(p.ServerString);
+			if (record == null)
+			{
+				Chat.AddExamineMsg(interaction.Performer, "The console spits the paper out back into your hand..");
+				return;
+			}
+			else
+			{
+				Chat.AddExamineMsg(interaction.Performer, "The paper disappears wihtin the cloning console.");
+			}
+			recordsStorage.ServerTryTransferFrom(interaction.HandSlot);
+			currentRecord = record;
+			consoleGUI?.UpdateDisplay();
 		}
-    }
+	}
 }

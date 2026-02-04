@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
 using TileManagement;
 using Tiles;
+using UnityEngine.Tilemaps;
 
 /// <summary>
 /// Tile which is merely an effect / overlay. Doesn't really
@@ -15,10 +19,7 @@ public class OverlayTile : LayerTile
 	private string overlayName = null;
 	public string OverlayName => overlayName;
 
-	[Tooltip("Appearance of this overlay")]
-	[SerializeField]
-	private Sprite sprite = null;
-	public override Sprite PreviewSprite => sprite;
+
 
 	[FormerlySerializedAs("isMoppable")]
 	[Tooltip("Is this removed when the tile it's on is cleaned?")]
@@ -50,4 +51,11 @@ public class OverlayTile : LayerTile
 		}
 		return false;
 	}
+
+	public override int GetHashCode()
+	{
+		return base.GetHashCode();
+	}
 }
+
+

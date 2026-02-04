@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Newtonsoft.Json;
 using System.Linq;
+using Logs;
 
 /// <summary>
 /// Describes all possible actions which can be mapped to a key
@@ -75,10 +76,18 @@ public enum KeyAction
 	PocketOne,
 	PocketTwo,
 	PocketThree,
-	
+
+	EmoteWindowUI,
+
 	//Interactions that only happen when this key is pressed
 	RadialScrollBackward,
 	RadialScrollForward,
+
+	HideUi,
+	PreventRadialQuickSelectOpen,
+	PushToTalk,
+	Mode3DKeyToggle,
+	PushToSTT
 }
 
 /// <summary>
@@ -89,7 +98,8 @@ public enum MoveAction
 	MoveUp = KeyAction.MoveUp,
 	MoveLeft = KeyAction.MoveLeft,
 	MoveDown = KeyAction.MoveDown,
-	MoveRight = KeyAction.MoveRight
+	MoveRight = KeyAction.MoveRight,
+	NoMove = KeyAction.None
 }
 
 public class KeybindManager : MonoBehaviour {
@@ -332,6 +342,7 @@ public class KeybindManager : MonoBehaviour {
 		{  KeyAction.HandActivate,	new KeybindMetadata("Activate Item", ActionType.Hand)},
 		{  KeyAction.HandEquip, 	new KeybindMetadata("Equip Item", ActionType.Hand)},
 
+
 		// Intents
 		{ KeyAction.IntentLeft,		new KeybindMetadata("Cycle Intent Left", ActionType.Intent)},
 		{ KeyAction.IntentRight,	new KeybindMetadata("Cycle Intent Right", ActionType.Intent)},
@@ -347,7 +358,10 @@ public class KeybindManager : MonoBehaviour {
 		{ KeyAction.ToggleHelp,	new KeybindMetadata("Toggle Help Window", ActionType.Chat)},
 		{ KeyAction.ToggleAHelp,	new KeybindMetadata("Toggle Admin Help", ActionType.Chat)},
 		{ KeyAction.ToggleMHelp,	new KeybindMetadata("Toggle Mentor Help", ActionType.Chat)},
+		{ KeyAction.PushToTalk,	new KeybindMetadata("Toggle Microphone", ActionType.Chat)},
+		{ KeyAction.PushToSTT, new KeybindMetadata("Toggles the voice to text system", ActionType.Chat)},
 
+		
 		// Body part selection
 		{ KeyAction.TargetHead,		new KeybindMetadata("Target Head, Eyes and Mouth", ActionType.Targeting)},
 		{ KeyAction.TargetChest,	new KeybindMetadata("Target Chest", ActionType.Targeting)},
@@ -373,6 +387,11 @@ public class KeybindManager : MonoBehaviour {
 
 		{ KeyAction.RadialScrollForward, new KeybindMetadata("Radial Scroll Forward", ActionType.UI)},
 		{ KeyAction.RadialScrollBackward, new KeybindMetadata("Radial Scroll Backward", ActionType.UI)},
+		{ KeyAction.EmoteWindowUI,	new KeybindMetadata("Open Emote Window.", ActionType.UI)},
+		{ KeyAction.HideUi, new KeybindMetadata("Hide UI", ActionType.UI) },
+		{ KeyAction.PreventRadialQuickSelectOpen, new KeybindMetadata("Prevent Quick Radial Open", ActionType.UI) },
+		{ KeyAction.Mode3DKeyToggle,new KeybindMetadata("Toggles mouse in 3D mode", ActionType.UI)},
+
 
 	};
 
@@ -390,6 +409,7 @@ public class KeybindManager : MonoBehaviour {
 		{ KeyAction.ActionDrop,		new DualKeyCombo(new KeyCombo(KeyCode.Q), 	new KeyCombo(KeyCode.Home))},
 		{ KeyAction.ActionResist,	new DualKeyCombo(new KeyCombo(KeyCode.V), 	null)},
 		{ KeyAction.ActionStopPull, new DualKeyCombo(new KeyCombo(KeyCode.H), new KeyCombo(KeyCode.Delete))},
+		{ KeyAction.Mode3DKeyToggle,new DualKeyCombo(new KeyCombo(KeyCode.Tab), null)},
 
 		{  KeyAction.Point,			new DualKeyCombo(new KeyCombo(KeyCode.Mouse2, KeyCode.LeftShift), null)},
 		{  KeyAction.HandSwap, 		new DualKeyCombo(new KeyCombo(KeyCode.X),	new KeyCombo(KeyCode.Mouse2))},
@@ -411,6 +431,8 @@ public class KeybindManager : MonoBehaviour {
 		{ KeyAction.ToggleHelp,    new DualKeyCombo(new KeyCombo(KeyCode.F1), null)},
 		{ KeyAction.ToggleAHelp,    new DualKeyCombo(new KeyCombo(KeyCode.F2), null)},
 		{ KeyAction.ToggleMHelp,    new DualKeyCombo(new KeyCombo(KeyCode.F3), null)},
+		{ KeyAction.PushToTalk,    new DualKeyCombo(new KeyCombo(KeyCode.N), null)},
+		{ KeyAction.PushToSTT,    new DualKeyCombo(new KeyCombo(KeyCode.M), null)},
 
 		// Body part selection
 		{ KeyAction.TargetHead, 	new DualKeyCombo(new KeyCombo(KeyCode.Keypad8), null)},
@@ -436,6 +458,9 @@ public class KeybindManager : MonoBehaviour {
 
 		{ KeyAction.RadialScrollForward,	new DualKeyCombo(new KeyCombo(KeyCode.E, KeyCode.LeftShift), null)},
 		{ KeyAction.RadialScrollBackward,	new DualKeyCombo(new KeyCombo(KeyCode.Q, KeyCode.LeftShift), null)},
+		{ KeyAction.EmoteWindowUI,	new DualKeyCombo(new KeyCombo(KeyCode.Backslash), null)},
+		{ KeyAction.HideUi, new DualKeyCombo(new KeyCombo(KeyCode.F11), null) },
+		{ KeyAction.PreventRadialQuickSelectOpen, new DualKeyCombo(new KeyCombo(KeyCode.LeftShift), null) },
 
 	};
 	public KeybindDict userKeybinds = new KeybindDict();
@@ -463,7 +488,7 @@ public class KeybindManager : MonoBehaviour {
 
 		public void Set(KeyAction keyAction, KeyCombo keyCombo, bool isPrimary)
 		{
-			Logger.Log("Setting " + (isPrimary ? "primary" : "secondary") + "keybind for " + keyAction + " to " + keyCombo, Category.Keybindings);
+			Loggy.Info("Setting " + (isPrimary ? "primary" : "secondary") + "keybind for " + keyAction + " to " + keyCombo, Category.Keybindings);
 			if (isPrimary)
 			{
 				this[keyAction].PrimaryCombo = keyCombo;
@@ -477,7 +502,7 @@ public class KeybindManager : MonoBehaviour {
 		}
 		public void Remove(KeyAction keyAction, bool isPrimary)
 		{
-			Logger.Log("Removing " + (isPrimary ? "primary" : "secondary") + " keybind from " + keyAction, Category.Keybindings);
+			Loggy.Info("Removing " + (isPrimary ? "primary" : "secondary") + " keybind from " + keyAction, Category.Keybindings);
 			if (isPrimary)
 			{
 				this[keyAction].PrimaryCombo = KeyCombo.None;
@@ -494,13 +519,13 @@ public class KeybindManager : MonoBehaviour {
 				if (keyCombo == entry.Value.PrimaryCombo)
 				{
 					isPrimary = true;
-					Logger.Log("Conflict found with primary key for " + entry.Key, Category.Keybindings);
+					Loggy.Info("Conflict found with primary key for " + entry.Key, Category.Keybindings);
 					return entry;
 				}
 				else if (keyCombo == entry.Value.SecondaryCombo)
 				{
 					isPrimary = false;
-					Logger.Log("Conflict found with secondary key for " + entry.Key, Category.Keybindings);
+					Loggy.Info("Conflict found with secondary key for " + entry.Key, Category.Keybindings);
 					return entry;
 				}
 			}
@@ -583,7 +608,7 @@ public class KeybindManager : MonoBehaviour {
 
 	public void SaveKeybinds(KeybindDict newKeybinds)
 	{
-		Logger.Log("Saving user keybinds", Category.Keybindings);
+		Loggy.Info("Saving user keybinds", Category.Keybindings);
 		// Make userKeybinds reference the new keybinds (since KeybindDict is reference type)
 		userKeybinds = newKeybinds;
 		// Turn the user's keybinds into JSON
@@ -595,13 +620,13 @@ public class KeybindManager : MonoBehaviour {
 
 	public void ResetKeybinds()
 	{
-		Logger.Log("Resetting user keybinds", Category.Keybindings);
+		Loggy.Info("Resetting user keybinds", Category.Keybindings);
 		// Save a copy of the default keybinds as the user's keybinds
 		SaveKeybinds(defaultKeybinds.Clone());
 	}
 	public void LoadKeybinds()
 	{
-		Logger.Log("Loading user keybinds", Category.Keybindings);
+		Loggy.Info("Loading user keybinds", Category.Keybindings);
 		// Get the user's saved keybinds from PlayerPrefs
 		string jsonKeybinds = PlayerPrefs.GetString("userKeybinds");
 		if (jsonKeybinds != "")
@@ -619,7 +644,7 @@ public class KeybindManager : MonoBehaviour {
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("Couldn't deserialize userKeybind JSON: " + e, Category.Keybindings);
+				Loggy.Error("Couldn't deserialize userKeybind JSON: " + e, Category.Keybindings);
 				ResetKeybinds();
 				ModalPanelManager.Instance.Inform("Unable to read saved keybinds.\nThey were either corrupt or outdated, so they have been reset.");
 			}
@@ -634,7 +659,7 @@ public class KeybindManager : MonoBehaviour {
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("Unable to add new keybind entries" + e, Category.Keybindings);
+				Loggy.Error("Unable to add new keybind entries" + e, Category.Keybindings);
 				ResetKeybinds();
 				ModalPanelManager.Instance.Inform("Unable to read saved keybinds.\nThey were either corrupt or outdated, so they have been reset.");
 			}
@@ -644,7 +669,7 @@ public class KeybindManager : MonoBehaviour {
 			}
 			catch (Exception e)
 			{
-				Logger.LogError("Unable to remove old keybind entries" + e, Category.Keybindings);
+				Loggy.Error("Unable to remove old keybind entries" + e, Category.Keybindings);
 				ResetKeybinds();
 				ModalPanelManager.Instance.Inform("Unable to read saved keybinds.\nThey were either corrupt or outdated, so they have been reset.");
 			}
@@ -653,7 +678,7 @@ public class KeybindManager : MonoBehaviour {
 		else
 		{
 			// Make a new copy of defaultKeybinds and make userKeybinds reference it
-			Logger.Log("No saved keybinds found. Using default.", Category.Keybindings);
+			Loggy.Info("No saved keybinds found. Using default.", Category.Keybindings);
 			ResetKeybinds();
 		}
 	}

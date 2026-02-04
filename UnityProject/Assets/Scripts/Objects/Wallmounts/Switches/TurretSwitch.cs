@@ -1,19 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using Messages.Server;
 using Systems.Electricity;
 using Systems.Interaction;
-using Systems.ObjectConnection;
 using CustomInspectors;
+using Logs;
 using UI.Core.Net;
 using Objects.Other;
+using Shared.Systems.ObjectConnection;
+using Systems.Clearance;
 
 
 namespace Objects.Wallmounts.Switches
 {
-	[RequireComponent(typeof(AccessRestrictions))]
+	[RequireComponent(typeof(ClearanceRestricted))]
 	[RequireComponent(typeof(APCPoweredDevice))]
 	public class TurretSwitch : ImnterfaceMultitoolGUI, ISubscriptionController, ICheckedInteractable<AiActivate>, IMultitoolMasterable, ICanOpenNetTab, IServerSpawn
 	{
@@ -21,11 +22,11 @@ namespace Objects.Wallmounts.Switches
 		[Tooltip("Is this door restricted?")]
 		public bool restricted;
 
-		private AccessRestrictions accessRestrictions;
-		public AccessRestrictions AccessRestrictions => accessRestrictions;
+		private ClearanceRestricted clearanceRestricted;
+		public ClearanceRestricted ClearanceRestricted => clearanceRestricted;
 
 		[SerializeField]
-		private List<Turret> turrets = new List<Turret>();
+		private List<Turret> turrets = new();
 
 		private SpriteHandler spriteHandler;
 		private APCPoweredDevice apcPoweredDevice;
@@ -40,6 +41,8 @@ namespace Objects.Wallmounts.Switches
 		[SerializeField]
 		private bool isStun = true;
 		public bool IsStun => isStun;
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 
 		private void Awake()
 		{
@@ -47,18 +50,25 @@ namespace Objects.Wallmounts.Switches
 			gameObject.layer = LayerMask.NameToLayer("WallMounts");
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
 			apcPoweredDevice = GetComponent<APCPoweredDevice>();
-			accessRestrictions = GetComponent<AccessRestrictions>();
+			clearanceRestricted = GetComponent<ClearanceRestricted>();
+
+			if (CustomNetworkManager.IsServer)
+			{
+				apcPoweredDevice.OnStateChangeEvent += OnPowerStatusChange;
+			}
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
-			apcPoweredDevice.OnStateChangeEvent.AddListener(OnPowerStatusChange);
 			ChangeTurretStates();
 		}
 
 		private void OnDisable()
 		{
-			apcPoweredDevice.OnStateChangeEvent.RemoveListener(OnPowerStatusChange);
+			if (CustomNetworkManager.IsServer)
+			{
+				apcPoweredDevice.OnStateChangeEvent -= OnPowerStatusChange;
+			}
 		}
 
 		public void AddTurretToSwitch(Turret turret)
@@ -126,7 +136,7 @@ namespace Objects.Wallmounts.Switches
 				return;
 			}
 
-			spriteHandler.ChangeSprite(0);
+			spriteHandler.SetCatalogueIndexSprite(0);
 		}
 
 		public void ChangeOnState(bool newState)
@@ -144,7 +154,7 @@ namespace Objects.Wallmounts.Switches
 				return;
 			}
 
-			spriteHandler.ChangeSprite(1);
+			spriteHandler.SetCatalogueIndexSprite(1);
 
 			ChangeTurretStates();
 		}
@@ -159,7 +169,7 @@ namespace Objects.Wallmounts.Switches
 			if (hasPower == false || isOn == false) return;
 
 			// 2 = stun, 3 = lethal
-			spriteHandler.ChangeSprite(newState ? 2 : 3);
+			spriteHandler.SetCatalogueIndexSprite(newState ? 2 : 3);
 
 			ChangeTurretStates();
 		}
@@ -168,6 +178,12 @@ namespace Objects.Wallmounts.Switches
 		{
 			foreach (var turret in turrets)
 			{
+				if (turret == null)
+				{
+					Loggy.Error($"null turrets in Turret switch at {transform.localPosition}");
+					continue;
+				}
+
 				if (isOn == false)
 				{
 					turret.ChangeBulletState(Turret.TurretState.Off);
@@ -178,19 +194,19 @@ namespace Objects.Wallmounts.Switches
 			}
 		}
 
-		private void OnPowerStatusChange(Tuple<PowerState, PowerState> newStates)
+		private void OnPowerStatusChange(PowerState old , PowerState newStates)
 		{
-			ChangePowerState(newStates.Item2 != PowerState.Off);
+			ChangePowerState(newStates != PowerState.Off);
 		}
 
 		//Called when player wants to open nettab, so we can validate access
 		public bool CanOpenNetTab(GameObject playerObject, NetTabType netTabType)
 		{
-			if (accessRestrictions != null && restricted)
+			if (clearanceRestricted != null && restricted)
 			{
 				//Ai always allowed through, check other players access
-				if (playerObject.GetComponent<PlayerScript>().PlayerState != PlayerScript.PlayerStates.Ai &&
-				    accessRestrictions.CheckAccess(playerObject) == false)
+				if (playerObject.GetComponent<PlayerScript>().PlayerType != PlayerTypes.Ai &&
+				    clearanceRestricted.HasClearance(playerObject) == false)
 				{
 					Chat.AddExamineMsgFromServer(playerObject, "Higher Access Level Needed");
 					return false;
@@ -205,19 +221,14 @@ namespace Objects.Wallmounts.Switches
 			var peppers = NetworkTabManager.Instance.GetPeepers(gameObject, NetTabType.TurretController);
 			if(peppers.Count == 0) return;
 
-			List<ElementValue> valuesToSend = new List<ElementValue>();
-
-			if (HasPower == false)
+			List<ElementValue> valuesToSend = new List<ElementValue>
 			{
-				valuesToSend.Add(new ElementValue() { Id = "TextSetting", Value = Encoding.UTF8.GetBytes("No Power") });
-			}
-			else
-			{
-				valuesToSend.Add(new ElementValue() { Id = "TextSetting", Value = Encoding.UTF8.GetBytes(IsOn ? IsStun ? "Stun" : "Lethal" : "Off") });
-			}
-
-			valuesToSend.Add(new ElementValue() { Id = "SliderPower", Value = Encoding.UTF8.GetBytes((isOn ? 1 * 100 : 0).ToString()) });
-			valuesToSend.Add(new ElementValue() { Id = "SliderStun", Value = Encoding.UTF8.GetBytes((isStun ? 0 : 1 * 100).ToString()) });
+				HasPower == false
+					? new ElementValue { Id = "TextSetting", Value = Encoding.UTF8.GetBytes("No Power") }
+					: new ElementValue { Id = "TextSetting", Value = Encoding.UTF8.GetBytes(IsOn ? IsStun ? "Stun" : "Lethal" : "Off") },
+				new() { Id = "SliderPower", Value = Encoding.UTF8.GetBytes((isOn ? 1 * 100 : 0).ToString()) },
+				new() { Id = "SliderStun", Value = Encoding.UTF8.GetBytes((isStun ? 0 : 1 * 100).ToString()) }
+			};
 
 			// Update all UI currently opened.
 			TabUpdateMessage.SendToPeepers(gameObject, NetTabType.TurretController, TabAction.Update, valuesToSend.ToArray());
@@ -226,7 +237,7 @@ namespace Objects.Wallmounts.Switches
 		#region Multitool Interaction
 
 		public MultitoolConnectionType ConType => MultitoolConnectionType.Turret;
-		public bool MultiMaster => true;
+		public bool MultiMaster => true; //TODO
 		int IMultitoolMasterable.MaxDistance => int.MaxValue;
 
 		#endregion

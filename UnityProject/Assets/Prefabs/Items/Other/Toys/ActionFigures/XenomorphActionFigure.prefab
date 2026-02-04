@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1655691407480885068, guid: b2cc2b1c514be164282a4cdd366643e5,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 34a8beab2f0ed5c4ba4309cb1d37113b,
         type: 2}
+    - target: {fileID: 1947406906936637606, guid: b2cc2b1c514be164282a4cdd366643e5,
+        type: 3}
+      propertyPath: parentID
+      value: b2cc2b1c514be164282a4cdd366643e5
+      objectReference: {fileID: 0}
     - target: {fileID: 1947406906936637606, guid: b2cc2b1c514be164282a4cdd366643e5,
         type: 3}
       propertyPath: foreverID
@@ -28,6 +34,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_WasSpriteAssigned
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4767086867303369087, guid: b2cc2b1c514be164282a4cdd366643e5,
+        type: 3}
+      propertyPath: _assetId
+      value: 4273027695
       objectReference: {fileID: 0}
     - target: {fileID: 4767086867303369087, guid: b2cc2b1c514be164282a4cdd366643e5,
         type: 3}
@@ -96,6 +107,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4994974757112765353, guid: b2cc2b1c514be164282a4cdd366643e5,
         type: 3}
+      propertyPath: exportCost
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4994974757112765353, guid: b2cc2b1c514be164282a4cdd366643e5,
+        type: 3}
       propertyPath: initialName
       value: xenomorph action figure
       objectReference: {fileID: 0}
@@ -111,4 +127,7 @@ PrefabInstance:
         realistic sounds! Pull back string to use.
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b2cc2b1c514be164282a4cdd366643e5, type: 3}

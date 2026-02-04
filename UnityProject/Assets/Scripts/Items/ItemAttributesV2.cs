@@ -1,9 +1,18 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Mirror;
 using AddressableReferences;
+using Core;
+using Core.Physics;
+using Core.Utils;
+using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks.Linq;
 using Systems.Clothing;
+using UI.Systems.Tooltips.HoverTooltips;
+using UnityEngine.Serialization;
+using Util.Independent.FluentRichText;
 
 namespace Items
 {
@@ -13,39 +22,10 @@ namespace Items
 	/// well with using prefab variants.
 	/// </summary>
 	[RequireComponent(typeof(Pickupable))] //Inventory interaction
-	[RequireComponent(typeof(ObjectBehaviour))] //pull and Push
 	[RequireComponent(typeof(RegisterItem))] //Registry with subsistence
-	public class ItemAttributesV2 : Attributes, IServerSpawn
+	public class ItemAttributesV2 : Attributes, IHoverTooltip
 	{
 		[Header("Item Info")]
-
-		[SerializeField]
-		[Tooltip("Initial traits of this item on spawn.")]
-		private List<ItemTrait> initialTraits = null;
-		public List<ItemTrait> InitialTraits => initialTraits;
-
-		/// <summary>
-		/// Sizes:
-		/// Tiny - pen, coin, pills. Anything you'd easily lose in a couch.
-		/// Small - Pocket-sized items. You could hold a couple in one hand, but ten would be a hassle without a bag. Apple, phone, drinking glass etc.
-		/// Medium - default size. Fairly bulky but stuff you could carry in one hand and stuff into a backpack. Most tools would fit this size.
-		/// Large - particularly long or bulky items that would need a specialised bag to carry them. A shovel, a snowboard etc.
-		/// Huge - Think, like, a fridge. Absolute unit. You aren't stuffing this into anything less than a shipping crate.
-		/// </summary>
-		[Tooltip("Size of this item when spawned. Is medium by default, which you should change if needed.")]
-		[SerializeField]
-		private ItemSize initialSize = ItemSize.Medium;
-
-		/// <summary>
-		/// Current size.
-		/// </summary>
-		[SyncVar(hook = nameof(SyncSize))]
-		private ItemSize size;
-
-		/// <summary>
-		/// Current size
-		/// </summary>
-		public ItemSize Size => size;
 
 		[Header("Item Damage")]
 
@@ -54,22 +34,16 @@ namespace Items
 		[SerializeField]
 		private float hitDamage = 0;
 
+
+		[Tooltip(" Says roughly how much damage it does when examining ")]
+		public bool ShowHitDamage = true;
+
 		/// <summary>
 		/// Damage when we click someone with harm intent, tracked server side only.
 		/// </summary>
 		public float ServerHitDamage
 		{
-			get
-			{
-				//If item has an ICustomDamageCalculation component, use that instead.
-				ICustomDamageCalculation part = GetComponent<ICustomDamageCalculation>();
-				if (part != null)
-				{
-					return part.ServerPerformDamageCalculation();
-				}
-
-				return hitDamage;
-			}
+			get => hitDamage;
 			set => hitDamage = value;
 		}
 
@@ -112,6 +86,28 @@ namespace Items
 		[EnumFlag]
 		public TraumaticDamageTypes TraumaticDamageType;
 
+		[SerializeField,
+		Range(0, 100),
+		Tooltip("How likely a player is to block an attack if they are holding this item in their active hand, 0% for never.")]
+		private float blockChance = 0;
+
+		/// <summary>
+		/// MultiInterestFloat listing all sources that are effecting block chance, tracked server side only.
+		/// </summary>
+		public MultiInterestFloat ServerBlockChance = new( InSetFloatBehaviour: MultiInterestFloat.FloatBehaviour.AddBehaviour);
+
+		/// <summary>
+		/// Server only action for OnBlock effects, gameobject is the attacker and float is the amount of damage that was blocked
+		/// </summary>
+		public Action<GameObject, float, DamageType> OnBlock;
+
+		/// <summary>
+		///	Server only action for OnMelee effects, similar to OnBlock
+		/// </summary>
+		/// <param name="attacker"> gameObject performing the attack</param>
+		/// <param name="target"> gameObject being attacked</param>
+		public Action<GameObject, GameObject> OnMelee;
+
 		[Header("Sprites/Sounds/Flags/Misc.")]
 
 		[Tooltip("How many tiles to move per 0.1s when being thrown")]
@@ -120,7 +116,7 @@ namespace Items
 		/// <summary>
 		/// How many tiles to move per 0.1s when being thrown
 		/// </summary>
-		public float ThrowSpeed => throwSpeed;
+		public float ThrowSpeed => throwSpeed * 4;
 
 		[Tooltip("Max throw distance")]
 		[SerializeField]
@@ -145,6 +141,18 @@ namespace Items
 		{
 			get => hitSound;
 			set => hitSound = value;
+		}
+
+		[Tooltip("Sound to be played when we block someone elses attack")]
+		[SerializeField]
+		private AddressableAudioSource blockSound = null;
+		/// <summary>
+		/// Sound to be played when we block someone elses attack, tracked server side only
+		/// </summary>
+		public AddressableAudioSource ServerBlockSound
+		{
+			get => blockSound;
+			set => blockSound = value;
 		}
 
 		[Tooltip("Sound to be played when object gets added to storage.")]
@@ -201,15 +209,30 @@ namespace Items
 
 		public ItemsSprites ItemSprites => itemSprites;
 
+		private ItemsSprites itemSprites = new ItemsSprites();
+
 		[Tooltip("The In hands Sprites If it has any")]
-		[SerializeField]
-		private ItemsSprites itemSprites;
+		[SerializeField, FormerlySerializedAs("itemSprites")]
+		private ItemsSprites InitialitemSprites;
+
+		[HideInInspector]
+		public bool IsFakeItem = false;
+
+		public Action<UniversalObjectPhysics> OnSlipOn;
 
 		#region Lifecycle
 
 		private void Awake()
 		{
 			EnsureInit();
+			ComponentsTracker<ItemAttributesV2>.Instances.Add(this);
+			ServerBlockChance.RecordPosition(this, blockChance);
+		}
+
+		private void OnDestroy()
+		{
+			ComponentsTracker<ItemAttributesV2>.Instances.Remove(this);
+			ServerBlockChance.RemovePosition(this);
 		}
 
 		private void EnsureInit()
@@ -220,20 +243,22 @@ namespace Items
 				traits.Add(definedTrait);
 			}
 
+			itemSprites.Palette.Clear();
+			itemSprites.Palette.AddRange(InitialitemSprites.Palette);
+			itemSprites.SpriteInventoryIcon = InitialitemSprites.SpriteInventoryIcon;
+			itemSprites.SpriteLeftHand = InitialitemSprites.SpriteLeftHand;
+			itemSprites.SpriteRightHand = InitialitemSprites.SpriteRightHand;
+			itemSprites.IsPaletted = InitialitemSprites.IsPaletted;
+
 			hasInit = true;
 		}
 
 		public override void OnStartClient()
 		{
 			EnsureInit();
-			SyncSize(size, this.size);
 			base.OnStartClient();
 		}
 
-		public void OnSpawnServer(SpawnInfo info)
-		{
-			size = initialSize;
-		}
 
 		#endregion Lifecycle
 
@@ -260,13 +285,27 @@ namespace Items
 
 		/// <summary>
 		/// Does it have any of the given traits?
+		/// Causes allocations. Use HasAnyTraitZeroAlloc instead.
 		/// </summary>
-		/// <param name="expectedTraits"></param>
-		/// <returns></returns>
+		[Obsolete]
 		public bool HasAnyTrait(IEnumerable<ItemTrait> expectedTraits)
 		{
 			return traits.Any(expectedTraits.Contains);
 		}
+
+
+		/// <summary>
+		/// Does it have any of the given traits?
+		/// </summary>
+		/// <param name="expectedTraits">The list of traits to check.</param>
+		/// <returns>True if one of the traits in expectedTraits is included in traits.</returns>
+		public bool HasAnyTraitZeroAlloc(List<ItemTrait> expectedTraits)
+		{
+			if (expectedTraits.Count == 0 || traits.Count == 0) return false;
+			return traits.Overlaps(expectedTraits);
+		}
+
+
 
 		/// <summary>
 		/// Does it have all of the given traits?
@@ -275,7 +314,14 @@ namespace Items
 		/// <returns></returns>
 		public bool HasAllTraits(IEnumerable<ItemTrait> expectedTraits)
 		{
-			return traits.All(expectedTraits.Contains);
+			foreach (var required in expectedTraits)
+			{
+				if (traits.Contains(required) == false)
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 
 		/// <summary>
@@ -288,11 +334,7 @@ namespace Items
 			traits.Add(toAdd);
 		}
 
-		private void SyncSize(ItemSize oldSize, ItemSize newSize)
-		{
-			EnsureInit();
-			size = newSize;
-		}
+
 
 		/// <summary>
 		/// Removes the trait dynamically.
@@ -315,21 +357,12 @@ namespace Items
 		}
 
 		/// <summary>
-		/// Change this item's size and sync it to clients.
-		/// </summary>
-		/// <param name="newSize"></param>
-		[Server]
-		public void ServerSetSize(ItemSize newSize)
-		{
-			SyncSize(size, newSize);
-		}
-
-		/// <summary>
 		/// Use SpriteHandlerController.SetSprites instead. (SpriteHandlerController may now be deprecated)
 		/// </summary>
 		/// <param name="newSprites">New sprites</param>
 		public void SetSprites(ItemsSprites newSprites)
 		{
+			if (newSprites == null) return;
 			itemSprites = newSprites;
 		}
 
@@ -338,6 +371,87 @@ namespace Items
 		{
 			ClothingV2 clothing = GetComponent<ClothingV2>();
 			if (clothing != null) clothing.AssignPaletteToSprites(this.ItemSprites.Palette);
+		}
+
+		private string GetInfo()
+		{
+			if (ShowHitDamage == false) return "";
+
+			string returnS = "";
+			switch (hitDamage)
+			{
+				case < 1:
+					returnS =  "This item is seemingly harmless";
+					break;
+				case < 4:
+					returnS =  "would do some damage";
+					break;
+				case < 7:
+					returnS =  "okay damage";
+					break;
+				case < 11:
+					returnS =  "decent damage";
+					break;
+				case < 13:
+					returnS =  "robust damage.";
+					break;
+				case < 21:
+					returnS =  "strong damage.";
+					break;
+				case < 31:
+					returnS =  "powerful damage.";
+					break;
+				case < 41:
+					returnS =  "crazy damage.";
+					break;
+				case < 51:
+					returnS =  "insane damage.";
+					break;
+				case < 101:
+					if (UnityEngine.Random.Range(0, 2) == 1)
+					{
+						returnS =  "One shot bs hit damage.";
+					}
+					else
+					{
+						returnS =  "This item is too lethal and deadly.";
+					}
+
+					break;
+				case > 101:
+					returnS =  "ok they are dead now you don't need any more damage!!!";
+					break;
+				default:
+					returnS =  "You can't tell how harmful this item is as a weapon.";
+					break;
+			}
+
+			return returnS.Color("#D4D4D4").FontSize("85%");
+		}
+
+		public string HoverTip()
+		{
+			return GetInfo();
+		}
+
+		public string CustomTitle()
+		{
+			return null;
+		}
+
+		public Sprite CustomIcon()
+		{
+			return null;
+		}
+
+		public List<Sprite> IconIndicators()
+		{
+			return null;
+		}
+
+		public List<TextColor> InteractionsStrings()
+		{
+			return null;
 		}
 
 

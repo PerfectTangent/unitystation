@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 964166953619812975, guid: a0c29a11d2c864b7982765b5340eed0e,
@@ -259,6 +260,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3564945054494194852, guid: a0c29a11d2c864b7982765b5340eed0e,
         type: 3}
+      propertyPath: _assetId
+      value: 2987445615
+      objectReference: {fileID: 0}
+    - target: {fileID: 3564945054494194852, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
       propertyPath: m_AssetId
       value: e3a0238ef8323eb4caadcb2e19bbcf41
       objectReference: {fileID: 0}
@@ -284,12 +290,41 @@ PrefabInstance:
       value: A suit that protects against radiation. The label reads, 'Made with
         lead. Please do not consume insulation.'
       objectReference: {fileID: 0}
+    - target: {fileID: 3891274522419703410, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 191c35cc0a3844f44b2e306af0efd4fd,
+        type: 2}
+    - target: {fileID: 3891274522419703410, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: b432693e5b7b5f54d8cd64135ef10b44,
+        type: 2}
+    - target: {fileID: 3891274522419703410, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 2ef0e1d65d5e1dd48b28b03a1a212f17,
+        type: 2}
     - target: {fileID: 7325966862900394647, guid: a0c29a11d2c864b7982765b5340eed0e,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 2ef0e1d65d5e1dd48b28b03a1a212f17,
         type: 2}
+    - target: {fileID: 7325966862900394647, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 2ef0e1d65d5e1dd48b28b03a1a212f17,
+        type: 2}
+    - target: {fileID: 7518679174278335869, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
+      propertyPath: parentID
+      value: a0c29a11d2c864b7982765b5340eed0e
+      objectReference: {fileID: 0}
     - target: {fileID: 7518679174278335869, guid: a0c29a11d2c864b7982765b5340eed0e,
         type: 3}
       propertyPath: foreverID
@@ -317,11 +352,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7534581208369271445, guid: a0c29a11d2c864b7982765b5340eed0e,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 4ac462fc64fa6b646b3b6c7bc42c83a3,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3525490832341156112, guid: a0c29a11d2c864b7982765b5340eed0e,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5968405865309683893}
   m_SourcePrefab: {fileID: 100100000, guid: a0c29a11d2c864b7982765b5340eed0e, type: 3}
 --- !u!1 &3921521694364753778 stripped
 GameObject:
@@ -343,4 +385,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   runningSpeedDebuff: 1.5
   walkingSpeedDebuff: 0.5
+  SpeedDebuffRemoved: 0
   slot: 0

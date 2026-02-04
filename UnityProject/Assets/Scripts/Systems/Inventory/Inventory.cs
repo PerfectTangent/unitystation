@@ -1,8 +1,16 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Core;
+using Items;
+using Logs;
 using Messages.Client;
 using UnityEngine;
 using Systems.Storage;
 using Objects;
+using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Main API for modifying inventory. If you need to do something with inventory, check here first.
@@ -29,9 +37,27 @@ public static class Inventory
 	/// <param name="toSlot"></param>
 	/// <param name="replacementStrategy">what to do if toSlot is already occupied</param>
 	/// <returns>true if successful</returns>
-	public static bool ServerTransfer(ItemSlot fromSlot, ItemSlot toSlot, ReplacementStrategy replacementStrategy = ReplacementStrategy.Cancel, bool IgnoreRestraints = false)
+	public static bool  ServerTransfer(ItemSlot fromSlot, ItemSlot toSlot, ReplacementStrategy replacementStrategy = ReplacementStrategy.Cancel, bool IgnoreRestraints = false)
 	{
 		return ServerPerform(InventoryMove.Transfer(fromSlot, toSlot, replacementStrategy, IgnoreRestraints));
+	}
+
+	/// <summary>
+	/// Inventory move in which the objects are Swapped from one slot to another
+	/// </summary>
+	/// <param name="SlotOne"></param>
+	/// <param name="SlotTwo"></param>
+	/// <param name="replacementStrategy">what to do if toSlot is already occupied</param>
+	/// <returns>true if successful</returns>
+	public static void ServerSwap(ItemSlot SlotOne, ItemSlot SlotTwo, ReplacementStrategy replacementStrategy = ReplacementStrategy.Cancel, bool IgnoreRestraints = false)
+	{
+		var ObjectOne = SlotOne.ItemObject;
+		ServerDrop(SlotOne);
+		var ObjectTwo = SlotTwo.ItemObject;
+		ServerDrop(SlotTwo);
+
+		ServerAdd(ObjectOne, SlotTwo);
+		ServerAdd(ObjectTwo, SlotOne);
 	}
 
 	/// <summary>
@@ -96,13 +122,16 @@ public static class Inventory
 	/// </summary>
 	/// <param name="objectInSlot">object to despawn from inventory. Will be despawned normally if not in slot.</param>
 	/// <returns>true if successful</returns>
-	public static bool ServerDespawn(GameObject objectInSlot)
+	public static async Task<bool> ServerDespawn(GameObject objectInSlot)
 	{
 		var pu = objectInSlot.GetComponent<Pickupable>();
 		if (pu == null || pu.ItemSlot == null)
 		{
-			_ = Despawn.ServerSingle(objectInSlot);
+			var result = await Despawn.ServerSingle(objectInSlot);
+
+			return result.Successful;
 		}
+
 		return ServerDespawn(pu.ItemSlot);
 	}
 
@@ -116,6 +145,45 @@ public static class Inventory
 	public static bool ServerDrop(ItemSlot fromSlot, Vector2? worldTargetVector = null)
 	{
 		return ServerPerform(InventoryMove.Drop(fromSlot, worldTargetVector));
+	}
+
+
+	public static bool ServerDropAtWorld(ItemSlot fromSlot, Vector3 WorldVector)
+	{
+		return ServerPerform(InventoryMove.Drop(fromSlot,  WorldVector-fromSlot.GetRootStorageOrPlayer().AssumedWorldPosServer() ));
+	}
+
+	/// <summary>
+	/// If you're too lazy to get the ItemSlot This will do it for you or Return false if it can't find ItemSlot it is in
+	/// </summary>
+	/// <param name="fromSlot"></param>
+	/// <param name="worldTargetVector"></param>
+	/// <returns></returns>
+	public static bool ServerDrop(GameObject Object, Vector2? worldTargetVector = null)
+	{
+		if (Object.TryGetComponent<Pickupable>(out var Pickupable) == false) return false;
+		if (Pickupable.ItemSlot == null) return false;
+
+		return ServerPerform(InventoryMove.Drop(Pickupable.ItemSlot , worldTargetVector));
+	}
+
+
+	/// <summary>
+	/// Drops all the items in the slots of the player
+	/// </summary>
+	/// <param name="playerStorage">players dynamic storage</param>
+	/// <param name="worldTargetVector">world space vector pointing from origin to targeted position to throw, leave null
+	/// to drop at holder's position</param>
+	/// <returns>true if successful</returns>
+	public static void ServerDropAll(DynamicItemStorage playerStorage, Vector2? worldTargetVector = null)
+	{
+		var playerItems = playerStorage.GetItemSlots().ToList();
+
+		foreach (var playerItemSlot in playerItems.NotNull())
+		{
+			if(playerItemSlot.IsEmpty) continue;
+			ServerPerform(InventoryMove.Drop(playerItemSlot, worldTargetVector));
+		}
 	}
 
 	/// <summary>
@@ -165,9 +233,9 @@ public static class Inventory
 	/// <param name="spinMode"></param>
 	/// <param name="aim">body part to target</param>
 	/// <returns>true if successful</returns>
-	public static bool ServerThrow(ItemSlot fromSlot, Vector2 worldTargetVector, SpinMode spinMode = SpinMode.CounterClockwise, BodyPartType aim = BodyPartType.Chest)
+	public static bool ServerThrow(ItemSlot fromSlot, Vector2 worldTargetVector, BodyPartType aim = BodyPartType.Chest)
 	{
-		return ServerPerform(InventoryMove.Throw(fromSlot, worldTargetVector, spinMode, aim));
+		return ServerPerform(InventoryMove.Throw(fromSlot, worldTargetVector, aim));
 	}
 
 	/// <summary>
@@ -177,28 +245,34 @@ public static class Inventory
 	/// <returns>true if successful</returns>
 	public static bool ServerPerform(InventoryMove toPerform)
 	{
+		if (CustomNetworkManager.IsServer == false)
+		{
+			Loggy.Error("Tried to manipulate item Storage While being on the client");
+			return false;
+		}
+
 		if (toPerform == null)
 		{
-			Logger.LogError("Inventory move null, likely it failed due to previous error.", Category.Inventory);
+			Loggy.Error("Inventory move null, likely it failed due to previous error.", Category.Inventory);
 			return false;
 		}
 		var pickupable = toPerform.MovedObject;
 		if (pickupable == null)
 		{
-			Logger.LogTrace("Inventory move attempted with null object. Move will not be performed", Category.Inventory);
+			Loggy.Trace("Inventory move attempted with null object. Move will not be performed", Category.Inventory);
 			return false;
 		}
 
 		if (toPerform.FromSlot != null && toPerform.FromSlot.Invalid)
 		{
-			Logger.LogErrorFormat("Inventory move attempted with invalid slot {0}. This slot reference should've" +
+			Loggy.Error().Format("Inventory move attempted with invalid slot {0}. This slot reference should've" +
 			                      " been cleaned up when the round restarted yet somehow didn't.", Category.Inventory,
 				toPerform.FromSlot);
 			return false;
 		}
 		if (toPerform.ToSlot != null && toPerform.ToSlot.Invalid)
 		{
-			Logger.LogErrorFormat("Inventory move attempted with invalid slot {0}. This slot reference should've" +
+			Loggy.Error().Format("Inventory move attempted with invalid slot {0}. This slot reference should've" +
 			                      " been cleaned up when the round restarted yet somehow didn't.", Category.Inventory,
 				toPerform.ToSlot);
 			return false;
@@ -219,7 +293,7 @@ public static class Inventory
 		}
 		else
 		{
-			Logger.LogTraceFormat("Unrecognized move type {0}. Please add logic to this method to support this move type.",
+			Loggy.Trace().Format("Unrecognized move type {0}. Please add logic to this method to support this move type.",
 				Category.Inventory, toPerform.InventoryMoveType);
 		}
 
@@ -245,13 +319,21 @@ public static class Inventory
 		var fromSlot = toPerform.FromSlot;
 		if (toSlot == null)
 		{
-			Logger.LogTraceFormat("Attempted to transfer {0} to another slot but target slot was null." +
+			Loggy.Trace().Format("Attempted to transfer {0} to another slot but target slot was null." +
 			                      " Move will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
 		if (toSlot.Item != null)
 		{
+
+			if (toSlot.ItemNotRemovable)
+			{
+				Loggy.Trace().Format("Attempted to remove {0} from inventory but from slot {1} had ItemNotRemovable." +
+				                      " Move will not be performed.", Category.Inventory, pickupable.name, fromSlot);
+				return false;
+			}
+
 			// Check if the items can be stacked
 			var stackableTarget = toSlot.Item.GetComponent<Stackable>();
 			if (stackableTarget != null && stackableTarget.CanAccommodate(pickupable.gameObject))
@@ -263,18 +345,18 @@ public static class Inventory
 			switch (toPerform.ReplacementStrategy)
 			{
 				case ReplacementStrategy.DespawnOther:
-					Logger.LogTraceFormat("Attempted to transfer from slot {0} to slot {1} which already had something in it." +
+					Loggy.Trace().Format("Attempted to transfer from slot {0} to slot {1} which already had something in it." +
 											" Item in slot will be despawned first.", Category.Inventory, fromSlot, toSlot);
 					ServerDespawn(toSlot);
 					break;
 				case ReplacementStrategy.DropOther:
-					Logger.LogTraceFormat("Attempted to transfer from slot {0} to slot {1} which already had something in it." +
+					Loggy.Trace().Format("Attempted to transfer from slot {0} to slot {1} which already had something in it." +
 											" Item in slot will be dropped first.", Category.Inventory, fromSlot, toSlot);
 					ServerDrop(toSlot);
 					break;
 				case ReplacementStrategy.Cancel:
 				default:
-					Logger.LogTraceFormat("Attempted to transfer from slot {0} to slot {1} which already had something in it." +
+					Loggy.Trace().Format("Attempted to transfer from slot {0} to slot {1} which already had something in it." +
 											" Transfer will not be performed.", Category.Inventory, fromSlot, toSlot);
 					return false;
 			}
@@ -282,7 +364,7 @@ public static class Inventory
 
 		if (pickupable.ItemSlot == null)
 		{
-			Logger.LogTraceFormat("Attempted to transfer {0} to target slot but item is not in a slot." +
+			Loggy.Trace().Format("Attempted to transfer {0} to target slot but item is not in a slot." +
 			                      " transfer will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
@@ -290,15 +372,22 @@ public static class Inventory
 
 		if (fromSlot == null)
 		{
-			Logger.LogTraceFormat("Attempted to transfer {0} to target slot but from slot was null." +
+			Loggy.Trace().Format("Attempted to transfer {0} to target slot but from slot was null." +
 			                      " transfer will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
 		if (!Validations.CanFit(toSlot, pickupable, NetworkSide.Server, true) && toPerform.IgnoreConstraints == false)
 		{
-			Logger.LogTraceFormat("Attempted to transfer {0} to slot {1} but slot cannot fit this item." +
+			Loggy.Trace().Format("Attempted to transfer {0} to slot {1} but slot cannot fit this item." +
 			                      " transfer will not be performed.", Category.Inventory, pickupable.name, toSlot);
+			return false;
+		}
+
+		if (fromSlot.ItemNotRemovable)
+		{
+			Loggy.Trace().Format("Attempted to remove {0} from inventory but from slot {1} had ItemNotRemovable." +
+			                      " Move will not be performed.", Category.Inventory, pickupable.name, fromSlot);
 			return false;
 		}
 
@@ -320,7 +409,7 @@ public static class Inventory
 	{
 		if (pickupable.ItemSlot == null)
 		{
-			Logger.LogTraceFormat("Attempted to remove {0} from inventory but item is not in a slot." +
+			Loggy.Trace().Format("Attempted to remove {0} from inventory but item is not in a slot." +
 			                      " remove will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
@@ -328,14 +417,22 @@ public static class Inventory
 		var fromSlot = toPerform.FromSlot;
 		if (fromSlot == null)
 		{
-			Logger.LogTraceFormat("Attempted to remove {0} from inventory but from slot was null." +
+			Loggy.Trace().Format("Attempted to remove {0} from inventory but from slot was null." +
 			                      " Move will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
 
 		if (fromSlot.Item == null)
 		{
-			Logger.LogTraceFormat("Attempted to remove {0} from inventory but from slot {1} had no item in it." +
+			Loggy.Trace().Format("Attempted to remove {0} from inventory but from slot {1} had no item in it." +
+			                      " Move will not be performed.", Category.Inventory, pickupable.name, fromSlot);
+			return false;
+		}
+
+
+		if (fromSlot.ItemNotRemovable)
+		{
+			Loggy.Trace().Format("Attempted to remove {0} from inventory but from slot {1} had ItemNotRemovable." +
 			                      " Move will not be performed.", Category.Inventory, pickupable.name, fromSlot);
 			return false;
 		}
@@ -347,11 +444,11 @@ public static class Inventory
 		//decide how it should be removed
 		var removeType = toPerform.RemoveType;
 		var holder = fromSlot.GetRootStorageOrPlayer();
-		var holderPushPull = holder?.GetComponent<PushPull>();
-		var parentContainer = holderPushPull == null ? null : holderPushPull.parentContainer;
+		var universalObjectPhysics = holder?.GetComponent<UniversalObjectPhysics>();
+		var parentContainer = universalObjectPhysics == null ? null : universalObjectPhysics.ContainedInObjectContainer;
 		if (parentContainer != null && removeType == InventoryRemoveType.Throw)
 		{
-			Logger.LogTraceFormat("throwing from slot {0} while in container {1}. Will drop instead.", Category.Inventory,
+			Loggy.Trace().Format("throwing from slot {0} while in container {1}. Will drop instead.", Category.Inventory,
 				fromSlot,
 				parentContainer.name);
 			removeType = InventoryRemoveType.Drop;
@@ -368,16 +465,16 @@ public static class Inventory
 			// determine where it will appear
 			if (parentContainer != null)
 			{
-				Logger.LogTraceFormat("Dropping from slot {0} while in container {1}", Category.Inventory,
+				Loggy.Trace().Format("Dropping from slot {0} while in container {1}", Category.Inventory,
 					fromSlot,
 					parentContainer.name);
 				var objectContainer = parentContainer.GetComponent<ObjectContainer>();
 				if (objectContainer == null)
 				{
-					Logger.LogWarningFormat("Dropping from slot {0} while in container {1}, but container type was not recognized. " +
+					Loggy.Warning().Format("Dropping from slot {0} while in container {1}, but container type was not recognized. " +
 					                      "Currently only ObjectContainer is supported. Please add code to handle this case.", Category.Inventory,
 						fromSlot,
-						holderPushPull.parentContainer.name);
+						universalObjectPhysics.ContainedInObjectContainer.name);
 					return false;
 				}
 				//vanish it and set its parent container
@@ -386,43 +483,90 @@ public static class Inventory
 				return true;
 			}
 
-			var holderPlayer = holder?.GetComponent<PlayerSync>();
-			var cnt = pickupable.GetComponent<CustomNetTransform>();
+			var holderPlayer = holder.OrNull()?.GetComponent<UniversalObjectPhysics>();
+			var uop = pickupable.GetComponent<UniversalObjectPhysics>();
 			var holderPosition = holder?.gameObject.AssumedWorldPosServer();
 			Vector3 targetWorldPos = holderPosition.GetValueOrDefault(Vector3.zero) + (Vector3)toPerform.WorldTargetVector.GetValueOrDefault(Vector2.zero);
-			if (holderPlayer != null)
+			if (holderPlayer != null && toPerform.WorldTargetVector.GetValueOrDefault(Vector2.zero).magnitude == 0)
 			{
 				// dropping from player
-				// Inertia drop works only if player has external impulse (space floating etc.)
-				cnt.InertiaDrop(targetWorldPos, holderPlayer.SpeedServer,
-					holderPlayer.ServerImpulse);
+				uop.DropAtAndInheritMomentum(holderPlayer);
 			}
 			else
 			{
 				// dropping from not-held storage
-				cnt.AppearAtPositionServer(targetWorldPos);
+				uop.AppearAtWorldPositionServer(targetWorldPos);
 			}
 		}
 		else if (removeType == InventoryRemoveType.Throw)
 		{
 			// throw / eject
 			// determine where it will be thrown from
-			var cnt = pickupable.GetComponent<CustomNetTransform>();
-			var assumedWorldPosServer = holder.gameObject.AssumedWorldPosServer();
-			var throwInfo = new ThrowInfo
-			{
-				ThrownBy = holder.gameObject,
-				Aim = toPerform.ThrowAim.GetValueOrDefault(BodyPartType.Chest),
-				OriginWorldPos = assumedWorldPosServer,
-				WorldTrajectory = toPerform.WorldTargetVector.GetValueOrDefault(Vector2.zero),
-				SpinMode = toPerform.ThrowSpinMode.GetValueOrDefault(SpinMode.Clockwise)
-			};
+			var UOP = pickupable.GetComponent<UniversalObjectPhysics>();
+
+			var WorldTrajectory = toPerform.WorldTargetVector.GetValueOrDefault(Vector2.zero).normalized.To3();
 			// dropping from player
 			// Inertia drop works only if player has external impulse (space floating etc.)
-			cnt.Throw(throwInfo);
+			UOP.DropAtAndInheritMomentum(universalObjectPhysics);
 
+
+			var Distance = toPerform.WorldTargetVector.Value.magnitude;
+			var IA2 = ((ItemAttributesV2) UOP.attributes.Component);
+			if (Distance > IA2.ThrowRange)
+			{
+				Distance = IA2.ThrowRange;
+			}
+
+			//v = u + at
+			// u – initial velocity
+			// v – final velocity
+			// a – acceleration
+			// t – time
+			// s – displacement
+
+			//so
+			//0 = IA2.ThrowSpeed + UniversalObjectPhysics.DEFAULT_Friction * t?
+
+			//t = (IA2.ThrowSpeed) / UniversalObjectPhysics.DEFAULT_Friction
+			//s=1/2*(u+v)*t
+
+			//s=1/2*(IA2.ThrowSpeed)*(IA2.ThrowSpeed / UniversalObjectPhysics.DEFAULT_Friction)
+
+			//s=1/2*(u+v)*(u/f)
+
+			//s= u^2 / 2f
+
+			//Distance / IA2.ThrowSpeed
+
+			//   (u^2 / 2f) / A2.ThrowSpeed
+
+
+			// (Mathf.Pow(IA2.ThrowSpeed,2) / 2*UniversalObjectPhysics.DEFAULT_Friction) / A2.ThrowSpeed
+
+			var airtime = 0f;
+
+			if (UOP.stickyMovement)
+			{
+				airtime = (Distance / IA2.ThrowSpeed);
+			}
+			else
+			{
+
+				var timeTakenIfallThrow = (Distance / IA2.ThrowSpeed);
+
+				//speedloss  / friction
+				 airtime = timeTakenIfallThrow- ((Mathf.Pow(IA2.ThrowSpeed, 2) / (2 * UniversalObjectPhysics.DEFAULT_Friction)) / IA2.ThrowSpeed);
+			}
+
+			UOP.NewtonianPush(WorldTrajectory, ((ItemAttributesV2) UOP.attributes.Component).ThrowSpeed
+				, airtime
+				, Single.NaN, toPerform.ThrowAim.GetValueOrDefault(BodyPartType.Chest), holder.gameObject,
+				Random.Range(25, 150));
+
+
+			//
 			// Counter-impulse for players in space
-			holderPushPull.Pushable.NewtonianMove((-throwInfo.WorldTrajectory).NormalizeTo2Int(), speed: (int)cnt.Size + 1);
+			universalObjectPhysics.NewtonianNewtonPush(-WorldTrajectory,UOP.GetWeight() + 1);
 		}
 		// NOTE: vanish doesn't require any extra logic. The item is already at hiddenpos and has
 		// already been removed from the inventory system.
@@ -434,8 +578,8 @@ public static class Inventory
 
 		if (pickupable.gameObject.TryGetComponent<Stackable>(out var stack))
 		{
-			var cnt = pickupable.GetComponent<CustomNetTransform>();
-			stack.ServerStackOnGround(cnt.ServerLocalPosition);
+			var uop = pickupable.GetComponent<UniversalObjectPhysics>();
+			stack.ServerStackOnGround(uop.transform.localPosition.RoundToInt());
 		}
 
 		return true;
@@ -446,9 +590,17 @@ public static class Inventory
 		// item is not currently in inventory, it should be moved into inventory system into
 		// the indicated slot.
 
+		if (pickupable.UniversalObjectPhysics.IsBuckled)
+		{
+			Loggy.Trace().Format("Attempted to add {0} to inventory but item is buckled to something {1}." +
+			                      " Move will not be performed.", Category.Inventory, pickupable.name, pickupable.UniversalObjectPhysics.BuckledToObject);
+			return false;
+		}
+
+
 		if (pickupable.ItemSlot != null)
 		{
-			Logger.LogTraceFormat("Attempted to add {0} to inventory but item is already in slot {1}." +
+			Loggy.Trace().Format("Attempted to add {0} to inventory but item is already in slot {1}." +
 			                      " Move will not be performed.", Category.Inventory, pickupable.name, pickupable.ItemSlot);
 			return false;
 		}
@@ -456,7 +608,7 @@ public static class Inventory
 		var toSlot = toPerform.ToSlot;
 		if (toSlot == null)
 		{
-			Logger.LogTraceFormat("Attempted to add {0} to inventory but target slot was null." +
+			Loggy.Trace().Format("Attempted to add {0} to inventory but target slot was null." +
 			                      " Move will not be performed.", Category.Inventory, pickupable.name);
 			return false;
 		}
@@ -474,18 +626,18 @@ public static class Inventory
 				switch (toPerform.ReplacementStrategy)
 				{
 					case ReplacementStrategy.DespawnOther:
-						Logger.LogTraceFormat("Attempted to add {0} to inventory but target slot {1} already had something in it." +
+						Loggy.Trace().Format("Attempted to add {0} to inventory but target slot {1} already had something in it." +
 											  " Item in slot will be despawned first.", Category.Inventory, pickupable.name, toSlot);
 						ServerDespawn(toSlot);
 						break;
 					case ReplacementStrategy.DropOther:
-						Logger.LogTraceFormat("Attempted to add {0} to inventory but target slot {1} already had something in it." +
+						Loggy.Trace().Format("Attempted to add {0} to inventory but target slot {1} already had something in it." +
 											  " Item in slot will be dropped first.", Category.Inventory, pickupable.name, toSlot);
 						ServerDrop(toSlot);
 						break;
 					case ReplacementStrategy.Cancel:
 					default:
-						Logger.LogTraceFormat("Attempted to add {0} to inventory but target slot {1} already had something in it." +
+						Loggy.Trace().Format("Attempted to add {0} to inventory but target slot {1} already had something in it." +
 											  " Move will not be performed.", Category.Inventory, pickupable.name, toSlot);
 						return false;
 				}
@@ -494,17 +646,13 @@ public static class Inventory
 
 		if (!Validations.CanFit(toSlot, pickupable, NetworkSide.Server, true) && toPerform.IgnoreConstraints == false)
 		{
-			Logger.LogTraceFormat("Attempted to add {0} to slot {1} but slot cannot fit this item." +
+			Loggy.Trace().Format("Attempted to add {0} to slot {1} but slot cannot fit this item." +
 			                      " transfer will not be performed.", Category.Inventory, pickupable.name, toSlot);
 			return false;
 		}
 
-		// go poof, it's in inventory now.
-		pickupable.GetComponent<CustomNetTransform>().DisappearFromWorldServer(true);
-
 		// no longer inside any PushPull
-		pickupable.GetComponent<ObjectBehaviour>().parentContainer = null;
-		pickupable.GetComponent<RegisterTile>().UpdatePositionServer();
+		pickupable.GetComponent<UniversalObjectPhysics>().DisappearFromWorld();
 
 		// update pickupable's item and slot's item
 		pickupable._SetItemSlot(toSlot);
@@ -535,9 +683,9 @@ public static class Inventory
 	public static void ClientRequestTransfer(ItemSlot from, ItemSlot to)
 	{
 		if (!Validations.CanPutItemToSlot(PlayerManager.LocalPlayerScript, to, from.Item,
-			NetworkSide.Client, PlayerManager.LocalPlayer, examineRecipient: PlayerManager.LocalPlayer))
+			NetworkSide.Client, PlayerManager.LocalPlayerObject, examineRecipient: PlayerManager.LocalPlayerObject))
 		{
-			Logger.LogTraceFormat("Client cannot request transfer from {0} to {1} because" +
+			Loggy.Trace().Format("Client cannot request transfer from {0} to {1} because" +
 			                      " validation failed.", Category.Inventory,
 				from, to);
 			return;
@@ -582,32 +730,155 @@ public static class Inventory
 	/// Used to populate an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory,
 	/// Recursively far down as specified in namedSlotPopulatorEntrys
 	/// </summary>
-	/// <param name="gameObject"></param>
-	/// <param name="namedSlotPopulatorEntrys"></param>
-	public static void PopulateSubInventory(GameObject gameObject, List<SlotPopulatorEntry> namedSlotPopulatorEntrys)
+	public static void PopulateSubInventory(GameObject gameObject, List<SlotPopulatorEntry> namedSlotPopulatorEntrys, SpawnInfo info)
 	{
 		if (namedSlotPopulatorEntrys.Count == 0) return;
 
-		var ItemStorage = gameObject.GetComponent<ItemStorage>();
-		if (ItemStorage == null) return;
+		var itemStorage = gameObject.GetComponent<ItemStorage>();
+		if (itemStorage == null) return;
 
+		PopulateSubInventory(itemStorage, namedSlotPopulatorEntrys, info);
+	}
+
+	/// <summary>
+	/// Used to populate an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory,
+	/// Recursively far down as specified in namedSlotPopulatorEntrys
+	/// </summary>
+	public static void PopulateSubInventory(ItemStorage itemStorage, List<SlotPopulatorEntry> namedSlotPopulatorEntrys, SpawnInfo info)
+	{
+		if (namedSlotPopulatorEntrys.Count == 0) return;
 
 		foreach (var namedSlotPopulatorEntry in namedSlotPopulatorEntrys)
 		{
+			if (namedSlotPopulatorEntry == null || namedSlotPopulatorEntry.Prefab == null) continue;
 			ItemSlot ItemSlot;
-			if (namedSlotPopulatorEntry.UesIndex)
+			if (namedSlotPopulatorEntry.DoNotGetFirstEmptySlot == false)
 			{
-				ItemSlot = ItemStorage.GetIndexedItemSlot(namedSlotPopulatorEntry.IndexSlot);
+				ItemSlot =  itemStorage.GetNextEmptySlot();
 			}
 			else
 			{
-				ItemSlot = ItemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.NamedSlot);
+				if (namedSlotPopulatorEntry.UseIndex)
+				{
+					ItemSlot = itemStorage.GetIndexedItemSlot(namedSlotPopulatorEntry.IndexSlot);
+				}
+				else
+				{
+					ItemSlot = itemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.NamedSlot);
+
+					if (ItemSlot == null)
+					{
+						for (int i = 0; i < namedSlotPopulatorEntry.AlternativeNamedSlots.Count; i++)
+						{
+							ItemSlot = itemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.AlternativeNamedSlots[i]);
+							if (ItemSlot != null)
+							{
+								break;
+							}
+						}
+					}
+
+				}
+
+				if (ItemSlot.Item != null && namedSlotPopulatorEntry.IfOccupiedFindEmptySlot)
+				{
+					ItemSlot = itemStorage.GetNextFreeIndexedSlot();
+				}
 			}
+
+
 			if (ItemSlot == null) continue;
 
-			var spawn = Spawn.ServerPrefab(namedSlotPopulatorEntry.Prefab);
-			Inventory.ServerAdd(spawn.GameObject, ItemSlot,namedSlotPopulatorEntry.ReplacementStrategy, true );
-			PopulateSubInventory(spawn.GameObject, namedSlotPopulatorEntry.namedSlotPopulatorEntrys);
+			var spawn = Spawn.ServerPrefab(namedSlotPopulatorEntry.Prefab, PrePickRandom: true, spawnManualContents: info?.SpawnManualContents ?? false);
+
+			if (namedSlotPopulatorEntry.StackableAmount != 1)
+			{
+				spawn.GameObject.GetComponent<Stackable>()?.ServerSetAmount(namedSlotPopulatorEntry.StackableAmount);
+			}
+
+			if (Validations.CanFit(ItemSlot, spawn.GameObject, NetworkSide.Server) == false)
+			{
+				Loggy.Error($"Your initial contents spawn for ItemStorage {itemStorage.name} for {spawn.GameObject} Is bypassing the Can fit requirements");
+			}
+
+			ServerAdd(spawn.GameObject, ItemSlot,namedSlotPopulatorEntry.ReplacementStrategy, true );
+			PopulateSubInventoryRecursive(spawn.GameObject, namedSlotPopulatorEntry.namedSlotPopulatorEntrys, info);
+		}
+	}
+
+	/// <summary>
+	/// Used to populate an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory,
+	/// Recursively far down as specified in SlotPopulatorEntryRecursive
+	/// </summary>
+	public static void PopulateSubInventoryRecursive(GameObject gameObject, List<SlotPopulatorEntryRecursive> namedSlotPopulatorEntrys, SpawnInfo info)
+	{
+		if (namedSlotPopulatorEntrys.Count == 0) return;
+
+		var itemStorage = gameObject.GetComponent<ItemStorage>();
+		if (itemStorage == null) return;
+
+		PopulateSubInventoryRecursive(itemStorage, namedSlotPopulatorEntrys, info);
+	}
+
+	/// <summary>
+	/// Used to populate an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory within an inventory,
+	/// Recursively far down as specified in SlotPopulatorEntryRecursive
+	/// </summary>
+	public static void PopulateSubInventoryRecursive(ItemStorage itemStorage, List<SlotPopulatorEntryRecursive> namedSlotPopulatorEntrys, SpawnInfo info)
+	{
+		if (namedSlotPopulatorEntrys.Count == 0) return;
+
+		foreach (var namedSlotPopulatorEntry in namedSlotPopulatorEntrys)
+		{
+			if (namedSlotPopulatorEntry == null || namedSlotPopulatorEntry.Prefab == null) continue;
+			ItemSlot ItemSlot;
+			if (namedSlotPopulatorEntry.DoNotGetFirstEmptySlot == false)
+			{
+				ItemSlot =  itemStorage.GetNextEmptySlot();
+			}
+			else
+			{
+				if (namedSlotPopulatorEntry.UseIndex)
+				{
+					ItemSlot = itemStorage.GetIndexedItemSlot(namedSlotPopulatorEntry.IndexSlot);
+				}
+				else
+				{
+					ItemSlot = itemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.NamedSlot);
+
+					if (ItemSlot == null)
+					{
+						for (int i = 0; i < namedSlotPopulatorEntry.AlternativeNamedSlots.Count; i++)
+						{
+							ItemSlot = itemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.AlternativeNamedSlots[i]);
+							if (ItemSlot != null)
+							{
+								break;
+							}
+						}
+					}
+				}
+
+				if (ItemSlot.Item != null && namedSlotPopulatorEntry.IfOccupiedFindEmptySlot)
+				{
+					ItemSlot = itemStorage.GetNextFreeIndexedSlot();
+				}
+			}
+
+			var spawn = Spawn.ServerPrefab(namedSlotPopulatorEntry.Prefab, PrePickRandom: true, spawnManualContents: info?.SpawnManualContents ?? false);
+
+			if (namedSlotPopulatorEntry.StackableAmount != 1)
+			{
+				spawn.GameObject.GetComponent<Stackable>()?.ServerSetAmount(namedSlotPopulatorEntry.StackableAmount);
+			}
+
+
+			if (Validations.CanFit(ItemSlot, spawn.GameObject, NetworkSide.Server) == false)
+			{
+				Loggy.Error($"Your initial contents spawn for ItemStorage {itemStorage.name} for {spawn.GameObject} Is bypassing the Can fit requirements");
+			}
+
+			ServerAdd(spawn.GameObject, ItemSlot,namedSlotPopulatorEntry.ReplacementStrategy, true);
 		}
 	}
 }

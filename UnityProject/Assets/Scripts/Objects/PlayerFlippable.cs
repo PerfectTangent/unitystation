@@ -1,6 +1,9 @@
 ﻿using System;
+using Core;
+using Logs;
 using Messages.Client.Interaction;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
@@ -24,8 +27,8 @@ namespace Objects
 
 		public bool WillInteract(ContextMenuApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
-			if (TryGetComponent(out ObjectBehaviour behaviour) && !behaviour.IsPushable) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (TryGetComponent(out UniversalObjectPhysics behaviour) && behaviour.IsNotPushable) return false;
 
 			return DefaultWillInteract.Default(interaction, side);
 		}
@@ -37,7 +40,7 @@ namespace Objects
 
 		private void OnFlipClicked()
 		{
-			if (!Validations.IsReachableByRegisterTiles(gameObject.RegisterTile(), PlayerManager.LocalPlayerScript.registerTile, false)) return;
+			if (!Validations.IsReachableByRegisterTiles(gameObject.RegisterTile(), PlayerManager.LocalPlayerScript.RegisterPlayer, false)) return;
 
 			var menuApply = ContextMenuApply.ByLocalPlayer(gameObject, "Flip");
 			RequestInteractMessage.Send(menuApply, this);
@@ -58,7 +61,7 @@ namespace Objects
 			}
 			else
 			{
-				Logger.LogError(
+				Loggy.Error(
 						$"Failed to spawn {name}'s flipped version! " +
 						$"Is {name} missing reference to {nameof(flippedObject)} prefab?", Category.Interaction);
 			}

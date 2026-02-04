@@ -9,17 +9,17 @@ namespace Learning.ProtipObjectTypes
 
 		public void OnEnable()
 		{
-			PlayerManager.PlayerScript.playerHealth.OnTakeDamageType += DamageTypeSimilar;
+			PlayerManager.LocalPlayerScript.playerHealth.OnTakeDamageType += DamageTypeSimilar;
 		}
 
 		public void OnDisable()
 		{
-			PlayerManager.PlayerScript.playerHealth.OnTakeDamageType -= DamageTypeSimilar;
+			PlayerManager.LocalPlayerScript.playerHealth.OnTakeDamageType -= DamageTypeSimilar;
 		}
 
-		private void DamageTypeSimilar(DamageType type)
+		private void DamageTypeSimilar(DamageType type, GameObject affector, float amount)
 		{
-			if(type == damageTypeThatTriggersTip) TriggerTip();
+			if(type == damageTypeThatTriggersTip) TriggerTip(gameObject);
 		}
 	}
 }

@@ -1,38 +1,62 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using NaughtyAttributes;
 using TMPro;
 using AdminTools;
-using Managers;
+using Core.Chat;
 using Items;
+using Logs;
+using Shared.Managers;
+using UnityEngine.Serialization;
 
 namespace UI.Chat_UI
 {
 	public class ChatUI : SingletonManager<ChatUI>
 	{
+
+
 		public GameObject chatInputWindow = default;
 		public Transform content = default;
 		public GameObject chatEntryPrefab = default;
 		public int maxLogLength = 90;
-		[SerializeField] private TMP_Text chatInputLabel = null;
-		[SerializeField] private GameObject channelToggleTemplate = null;
-		[SerializeField] private GameObject background = null;
-		[SerializeField] private TMP_InputField InputFieldChat = null;
-		[SerializeField] private RectTransform viewportTransform = null;
 
-		[SerializeField, BoxGroup("Scroll Bar")] private Image scrollHandle = null;
-		[SerializeField, BoxGroup("Scroll Bar")] private Image scrollBackground = null;
+		[SerializeField]
+		private TMP_Text chatInputLabel = null;
+		[SerializeField]
+		private GameObject channelToggleTemplate = null;
+		[SerializeField]
+		private Image background = null;
 
-		[SerializeField] private AdminHelpChat adminHelpChat = null;
-		[SerializeField] private MentorHelpChat mentorHelpChat = null;
+		public TMP_InputField InputFieldChat = null;
+		[SerializeField]
+		private RectTransform viewportTransform = null;
 
-		[SerializeField] private PlayerPrayerWindow playerPrayerWindow = null;
-		[SerializeField] private GameObject helpSelectionPanel = null;
-		[SerializeField] private RectTransform chatUITransform = default;
+		[SerializeField, BoxGroup("Scroll Bar")]
+		private Image scrollHandle = null;
+		[SerializeField, BoxGroup("Scroll Bar")]
+		private Image scrollBackground = null;
+
+		[SerializeField]
+		private AdminHelpChat adminHelpChat = null;
+		[SerializeField]
+		private AdminHelpChat mentorHelpChat = null;
+		[SerializeField]
+		private AdminHelpChat playerPrayerWindow = null;
+
+		[SerializeField]
+		private GameObject helpSelectionPanel = null;
+		[SerializeField]
+		private RectTransform chatUITransform = default;
+
+		[SerializeField]
+		private LanguageScreen languagePanel = null;
+		public LanguageScreen LanguagePanel => languagePanel;
 
 		/// <summary>The root transform for the chat UI.</summary>
 		public RectTransform ChatUITransform => chatUITransform;
@@ -40,6 +64,8 @@ namespace UI.Chat_UI
 
 		private ChatChannel selectedChannels;
 		private int selectedVoiceLevel;
+
+		[FormerlySerializedAs("STTImageText")] public Image SpeechToTextImageText;
 
 		/// <summary>
 		/// Latest parsed input from input field
@@ -71,6 +97,9 @@ namespace UI.Chat_UI
 		private List<ChatEntry> allEntries = new List<ChatEntry>();
 		private int hiddenEntries = 0;
 		private bool scrollBarInteract = false;
+		private DateTime DateTimePressedf6ToggleSTT;
+
+
 		public event Action<bool> scrollBarEvent;
 		public event System.Action checkPositionEvent;
 
@@ -84,6 +113,80 @@ namespace UI.Chat_UI
 		/// </summary>
 		public event System.Action OnChatWindowClosed;
 
+		[BoxGroup("Animation")] public float ChatFadeSpeed = 2f;
+		[FormerlySerializedAs("ChatMinimumAlpha")] [BoxGroup("Animation"), Range(0,1)] public float ChatMinimumBackgroundAlpha = 0.5f;
+		[BoxGroup("Animation")] public bool SetChatBackgroundToHiddenOnStartup = true;
+
+		private const float FULLY_VISIBLE_ALPHA = 0.95f;
+
+
+		[BoxGroup("Animation"), Range(0,1)] public float ChatContentMinimumAlpha = 0f;
+
+		[field: SerializeField] public List<TMP_FontAsset> Fonts = new List<TMP_FontAsset>();
+		public int FontIndexToUse = -1;
+
+
+		public void SetPreferenceChatContent(float preference)
+		{
+			ChatContentMinimumAlpha = preference;
+			PlayerPrefs.SetFloat(PlayerPrefKeys.ChatContentMinimumAlpha, preference);
+			PlayerPrefs.Save();
+		}
+
+		public float GetPreferenceChatContent()
+		{
+			if (PlayerPrefs.HasKey(PlayerPrefKeys.ChatContentMinimumAlpha))
+			{
+				return PlayerPrefs.GetFloat(PlayerPrefKeys.ChatContentMinimumAlpha);
+			}
+			else
+			{
+				PlayerPrefs.SetFloat(PlayerPrefKeys.ChatContentMinimumAlpha, 0);
+				PlayerPrefs.Save();
+				return 0f;
+			}
+		}
+
+		public void SetPreferenceChatBackground(float preference)
+		{
+			ChatMinimumBackgroundAlpha = preference;
+			PlayerPrefs.SetFloat(PlayerPrefKeys.ChatBackgroundMinimumAlpha, preference);
+			PlayerPrefs.Save();
+		}
+
+		public float GetPreferenceChatBackground()
+		{
+			if (PlayerPrefs.HasKey(PlayerPrefKeys.ChatBackgroundMinimumAlpha))
+			{
+				return PlayerPrefs.GetFloat(PlayerPrefKeys.ChatBackgroundMinimumAlpha);
+			}
+			else
+			{
+				PlayerPrefs.SetFloat(PlayerPrefKeys.ChatBackgroundMinimumAlpha, 0);
+				PlayerPrefs.Save();
+				return 0f;
+			}
+		}
+
+
+		public override void Awake()
+		{
+			base.Awake();
+			ChatMinimumBackgroundAlpha = GetPreferenceChatBackground();
+			ChatContentMinimumAlpha = GetPreferenceChatContent();
+
+			var Option =PlayerPrefs.GetString("fontPref", "LiberationSans SDF");
+
+			for (int i = 0; i < Fonts.Count; i++)
+			{
+				if (Fonts[i].name == Option)
+				{
+					FontIndexToUse = i;
+					break;
+				}
+			}
+		}
+
 		/// <summary>
 		/// The main channels which shouldn't be active together.
 		/// Local, Ghost and OOC.
@@ -92,6 +195,12 @@ namespace UI.Chat_UI
 		private static readonly List<ChatChannel> MainChannels = new List<ChatChannel>
 		{
 			ChatChannel.Local,
+
+			//Blob only has access to blob so can be default
+			ChatChannel.Blob,
+			//Alien only has access to Alien so can be default
+			ChatChannel.Alien,
+
 			ChatChannel.Ghost,
 			ChatChannel.OOC
 		};
@@ -102,7 +211,6 @@ namespace UI.Chat_UI
 		private static readonly List<ChatChannel> RadioChannels = new List<ChatChannel>
 		{
 			ChatChannel.Common,
-			ChatChannel.Binary,
 			ChatChannel.Supply,
 			ChatChannel.CentComm,
 			ChatChannel.Command,
@@ -112,6 +220,16 @@ namespace UI.Chat_UI
 			ChatChannel.Security,
 			ChatChannel.Service,
 			ChatChannel.Syndicate
+		};
+
+		/// <summary>
+		/// OtherChannels which don't broadcast to local
+		/// </summary>
+		private static readonly List<ChatChannel> OtherChannels = new List<ChatChannel>
+		{
+			ChatChannel.Binary,
+			ChatChannel.Blob,
+			ChatChannel.Alien
 		};
 
 		/// <summary>
@@ -126,8 +244,13 @@ namespace UI.Chat_UI
 
 		public ChatEntryPool entryPool;
 
-		public void Start()
+		public bool Showing = false;
+		public bool Animating = false;
+
+		public override void Start()
 		{
+			base.Start();
+
 			// subscribe to input fields update
 			InputFieldChat.onValueChanged.AddListener(OnInputFieldChatValueChanged);
 
@@ -136,7 +259,12 @@ namespace UI.Chat_UI
 
 			// Make sure the window and channel panel start disabled
 			chatInputWindow.SetActive(false);
-			background.SetActive(false);
+			if (SetChatBackgroundToHiddenOnStartup)
+			{
+				Color c = background.color;
+				c.a = 0f;
+				background.color = c;
+			}
 			//channelPanel.gameObject.SetActive(false);
 			EventManager.AddHandler(Event.UpdateChatChannels, OnUpdateChatChannels);
 			chatFilter = Chat.Instance.GetComponent<ChatFilter>();
@@ -152,8 +280,9 @@ namespace UI.Chat_UI
 			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 		}
 
-		private void OnDestroy()
+		public override void OnDestroy()
 		{
+			base.OnDestroy();
 			EventManager.RemoveHandler(Event.UpdateChatChannels, OnUpdateChatChannels);
 		}
 
@@ -162,7 +291,7 @@ namespace UI.Chat_UI
 			// TODO add events to inventory slot changes to trigger channel refresh
 			if (chatInputWindow.activeInHierarchy && !isChannelListUpToDate())
 			{
-				Logger.Log("Channel list is outdated!", Category.Chat);
+				Loggy.Info("Channel list is outdated!", Category.Chat);
 				RefreshChannelPanel();
 			}
 
@@ -173,12 +302,13 @@ namespace UI.Chat_UI
 					parsedInput = Chat.ParsePlayerInput(InputFieldChat.text, chatContext);
 					if (Chat.IsValidToSend(parsedInput.ClearMessage))
 					{
-						PlayerSendChat(parsedInput.ClearMessage);
+						PlayerSendChat(parsedInput);
 					}
 
 					CloseChatWindow();
 				}
 			}
+
 
 			if (!chatInputWindow.activeInHierarchy) return;
 			if (KeyboardInputManager.IsEscapePressed())
@@ -186,33 +316,53 @@ namespace UI.Chat_UI
 				CloseChatWindow();
 			}
 
+			if (CommonInput.GetKey(KeyCode.F6) && Math.Abs((DateTimePressedf6ToggleSTT - DateTime.Now).TotalMilliseconds) > 200f)
+			{
+				DateTimePressedf6ToggleSTT = DateTime.Now;
+				OnToggleSTT();
+			}
+
+
 			if (InputFieldChat.isFocused) return;
 			if (KeyboardInputManager.IsMovementPressed() || KeyboardInputManager.IsEscapePressed())
 			{
 				CloseChatWindow();
 			}
+
+
 		}
 
 		/// <summary>
 		/// Only to be used via chat relay!
 		/// </summary>
-		public void AddChatEntry(string message)
+		public void AddChatEntry(string message, TMP_SpriteAsset languageSprite = null)
 		{
-			// Check for chat entry duplication
-			if (allEntries.Count > 0 && message.Equals(allEntries[allEntries.Count - 1].Message))
-			{
-				allEntries[allEntries.Count - 1].AddChatDuplication();
-				return;
-			}
-
+			if (WillUpdateStack(ref message)) return;
 			GameObject entry = entryPool.GetChatEntry();
 			var chatEntry = entry.GetComponent<ChatEntry>();
 			chatEntry.ViewportTransform = viewportTransform;
-			chatEntry.SetText(message);
+			chatEntry.SetText(message, languageSprite, FontIndexToUse != -1 ? Fonts[FontIndexToUse] : null);
 			allEntries.Add(chatEntry);
 			SetEntryTransform(entry);
 			CheckLengthOfChatLog();
 			checkPositionEvent?.Invoke();
+		}
+
+		private bool WillUpdateStack(ref string message)
+		{
+			if (allEntries.Count <= 5) return false;
+			for (int i = 0; i < 6; i++)
+			{
+				var entryToCheck = allEntries[allEntries.Count - i - 1];
+				string cleanedEntryMessage = Regex.Replace(entryToCheck.Message, @"<size=[^>]+>|</size>", string.Empty);
+				string cleanedMessage = Regex.Replace(message, @"<size=[^>]+>|</size>", string.Empty);
+				if (string.Equals(cleanedEntryMessage, cleanedMessage, StringComparison.InvariantCultureIgnoreCase))
+				{
+					entryToCheck.AddChatDuplication();
+					return true;
+				}
+			}
+			return false;
 		}
 
 		private void CheckLengthOfChatLog()
@@ -278,8 +428,8 @@ namespace UI.Chat_UI
 			if ((allEntries.Count - hiddenEntries) < 20)
 			{
 				float fadeTime = coolDownFade ? 3f : 0f;
-				scrollBackground.CrossFadeAlpha(0.01f, fadeTime, false);
-				scrollHandle.CrossFadeAlpha(0.01f, fadeTime, false);
+				scrollBackground.CrossFadeAlpha(0f, fadeTime, false);
+				scrollHandle.CrossFadeAlpha(0f, fadeTime, false);
 			}
 			else
 			{
@@ -298,6 +448,21 @@ namespace UI.Chat_UI
 		public void OnScrollBarMove()
 		{
 			checkPositionEvent?.Invoke();
+		}
+
+
+		public void OnToggleSTT()
+		{
+			WhisperMicrophoneHandler.Instance.gameObject.SetActive(!WhisperMicrophoneHandler.Instance.gameObject.activeSelf);
+
+			if (WhisperMicrophoneHandler.Instance.gameObject.activeSelf)
+			{
+				SpeechToTextImageText.color = Color.green;
+			}
+			else
+			{
+				SpeechToTextImageText.color = Color.white;
+			}
 		}
 
 		//This is an editor interface trigger event, do not delete
@@ -324,22 +489,23 @@ namespace UI.Chat_UI
 			if (Chat.IsValidToSend(parsedInput.ClearMessage))
 			{
 				_ = SoundManager.Play(CommonSounds.Instance.Click01);
-				PlayerSendChat(parsedInput.ClearMessage);
+				PlayerSendChat(parsedInput);
 			}
 
 			CloseChatWindow();
 		}
 
-		private void PlayerSendChat(string sendMessage)
+		private void PlayerSendChat(ParsedChatInput parsedChat)
 		{
-			sendMessage = sendMessage.Replace("\n", " ").Replace("\r", " ");  // We don't want users to spam chat vertically
+			//.Replace("\n" is done on server too
+			parsedChat.ClearMessage = parsedChat.ClearMessage.Replace("\n", " ").Replace("\r", " ");  // We don't want users to spam chat vertically
 			if (selectedVoiceLevel == -1)
-				sendMessage = "#" + sendMessage;
+				parsedChat.ClearMessage = "#" + parsedChat.ClearMessage;
 			if (selectedVoiceLevel == 1)
-				sendMessage = sendMessage.ToUpper();
+				parsedChat.ClearMessage = parsedChat.ClearMessage.ToUpper();
 
 			// Selected channels already masks all unavailable channels in it's get method
-			chatFilter.Send(sendMessage, SelectedChannels);
+			chatFilter.Send(parsedChat, SelectedChannels);
 			// The filter can be skipped / replaced by calling the following method instead:
 			// PostToChatMessage.Send(sendMessage, SelectedChannels);
 			InputFieldChat.text = "";
@@ -357,20 +523,17 @@ namespace UI.Chat_UI
 		/// Opens the chat window to send messages
 		/// </summary>
 		/// <param name="newChannel">The chat channels to select when opening it</param>
-		public void OpenChatWindow(ChatChannel newChannel = ChatChannel.None)
+		public void OpenChatWindow(ChatChannel newChannel = ChatChannel.None, bool inputFocus = true)
 		{
 			//Prevent input spam
 			if (windowCoolDown || UIManager.PreventChatInput) return;
 			StartWindowCooldown();
-
 			// Can't open chat window while main menu open
 			if (GUI_IngameMenu.Instance.menuWindow.activeInHierarchy)
 			{
 				return;
 			}
-
 			var availChannels = GetAvailableChannels();
-
 			// Change the selected channel if one is passed to the function and it's available
 			if (newChannel != ChatChannel.None && (availChannels & newChannel) == newChannel)
 			{
@@ -385,20 +548,31 @@ namespace UI.Chat_UI
 
 			EventManager.Broadcast(Event.ChatFocused);
 			chatInputWindow.SetActive(true);
-			background.SetActive(true);
-			UIManager.IsInputFocus = true; // should work implicitly with InputFieldFocus
-			EventSystem.current.SetSelectedGameObject(InputFieldChat.gameObject, null);
-			InputFieldChat.OnPointerClick(new PointerEventData(EventSystem.current));
+			Showing = true;
+			StartCoroutine(AnimateBackground());
+			if (inputFocus)
+			{
+				UIManager.IsInputFocus = true; // should work implicitly with InputFieldFocus
+				EventSystem.current.SetSelectedGameObject(InputFieldChat.gameObject, null);
+				InputFieldChat.OnPointerClick(new PointerEventData(EventSystem.current));
+			}
+
 			RefreshChannelPanel();
 		}
 
-		public void CloseChatWindow()
+		public void CloseChatWindow(bool quickClose = false)
 		{
 			StartWindowCooldown();
 			UIManager.IsInputFocus = false;
 			chatInputWindow.SetActive(false);
-			EventManager.Broadcast(Event.ChatUnfocused);
-			background.SetActive(false);
+			languagePanel.gameObject.SetActive(false);
+
+			EventManager.Broadcast(quickClose ? Event.ChatQuickUnfocus : Event.ChatUnfocused);
+			SpeechToTextImageText.color = Color.white;
+			Showing = false;
+
+			StartCoroutine(AnimateBackground());
+
 			UIManager.PreventChatInput = false;
 
 			// if doesn't clear input next opening can be by OOC or other hotkey
@@ -408,6 +582,36 @@ namespace UI.Chat_UI
 
 			OnChatWindowClosed?.Invoke();
 		}
+
+		#region ChatAnim
+
+
+		private IEnumerator AnimateBackground()
+		{
+			if (Animating) yield break;
+
+			Animating = true;
+
+			Color color = background.color;
+			while((Showing && background.color.a < FULLY_VISIBLE_ALPHA) || (Showing == false && background.color.a > 0.0001f))
+			{
+				yield return WaitFor.EndOfFrame;
+				if (Showing)
+				{
+					color.a = Mathf.Lerp(color.a, FULLY_VISIBLE_ALPHA, ChatFadeSpeed * Time.deltaTime);
+				}
+				else
+				{
+					color.a = Mathf.Lerp(color.a, ChatMinimumBackgroundAlpha, ChatFadeSpeed * Time.deltaTime);
+				}
+
+				color.a = Mathf.Clamp(color.a, 0f, FULLY_VISIBLE_ALPHA);
+				background.color = color;
+			}
+			Animating = false;
+
+		}
+		#endregion
 
 		public void StartWindowCooldown()
 		{
@@ -423,13 +627,30 @@ namespace UI.Chat_UI
 			windowCoolDown = false;
 		}
 
+		public void OnMouseEnter()
+		{
+			if (UIManager.IsInputFocus) return;
+			Showing = true;
+			StartCoroutine(AnimateBackground());
+			OpenChatWindow( inputFocus : false );
+		}
+
+		public void OnMouseExit()
+		{
+			if (UIManager.IsInputFocus) return;
+			Showing = false;
+			SpeechToTextImageText.color = Color.white;
+			StartCoroutine(AnimateBackground());
+			CloseChatWindow(true);
+		}
+
 		/// <summary>
 		/// Will update the toggles, active radio channels and channel text
 		/// </summary>
 		private void RefreshChannelPanel()
 		{
-			Logger.LogTrace("Refreshing channel panel!", Category.Chat);
-			Logger.Log("Selected channels: " + ListChannels(SelectedChannels), Category.Chat);
+			Loggy.Trace("Refreshing channel panel!", Category.Chat);
+			Loggy.Info("Selected channels: " + ListChannels(SelectedChannels), Category.Chat);
 			RefreshToggles();
 			UpdateInputLabel();
 		}
@@ -486,7 +707,7 @@ namespace UI.Chat_UI
 			// Check a channel toggle doesn't already exist
 			if (ChannelToggles.ContainsKey(channel))
 			{
-				Logger.LogWarning($"Channel toggle already exists for {channel}!", Category.Chat);
+				Loggy.Warning($"Channel toggle already exists for {channel}!", Category.Chat);
 				return;
 			}
 
@@ -512,6 +733,11 @@ namespace UI.Chat_UI
 			}
 
 			foreach (ChatChannel channel in RadioChannels)
+			{
+				CreateToggle(channel);
+			}
+
+			foreach (ChatChannel channel in OtherChannels)
 			{
 				CreateToggle(channel);
 			}
@@ -570,18 +796,39 @@ namespace UI.Chat_UI
 		/// </summary>
 		private void UpdateInputLabel()
 		{
+			var localStatus = selectedChannels.GetFlags().Any(x => RadioChannels.Contains((ChatChannel)x))
+				? $"{SpeakRadioText()}" : "to nearby characters";
 			if ((SelectedChannels & ChatChannel.OOC) == ChatChannel.OOC)
 			{
-				chatInputLabel.text = "OOC:";
+				chatInputLabel.text = "Speaking Out Of Character (OOC):";
 			}
 			else if ((SelectedChannels & ChatChannel.Ghost) == ChatChannel.Ghost)
 			{
-				chatInputLabel.text = "Ghost:";
+				chatInputLabel.text = "Speaking as a Ghost:";
 			}
 			else
 			{
-				chatInputLabel.text = "Say:";
+				chatInputLabel.text = PlayerManager.
+					LocalPlayerScript != null ?
+					$"Say as {PlayerManager.LocalPlayerScript.visibleName} {localStatus}:"
+					: "Say:";
 			}
+		}
+
+		private string SpeakRadioText()
+		{
+			if (selectedChannels.GetFlags().Count() > 3) return "to multiple channels.";
+			var speakTo = "to ";
+			int count = selectedChannels.GetFlags().Count() - 1;
+			int index = -1;
+			foreach (var channel in selectedChannels.GetFlags())
+			{
+				index++;
+				if (channel.ToString() == "None") continue;
+				speakTo += index != count ? $"{channel.ToString()}, " : $"and {channel.ToString()} ";
+			}
+
+			return speakTo + "channels";
 		}
 
 		/// <summary>
@@ -609,7 +856,7 @@ namespace UI.Chat_UI
 		/// </summary>
 		public void EnableChannel(ChatChannel channel)
 		{
-			Logger.Log($"Enabling {channel}", Category.Chat);
+			Loggy.Info($"Enabling {channel}", Category.Chat);
 
 			if (ChannelToggles.ContainsKey(channel))
 			{
@@ -617,7 +864,7 @@ namespace UI.Chat_UI
 			}
 			else
 			{
-				Logger.LogWarning($"Can't enable {channel} because it isn't in ChannelToggles!", Category.Chat);
+				Loggy.Warning($"Can't enable {channel} because it isn't in ChannelToggles!", Category.Chat);
 			}
 
 			//Deselect all other channels in UI if it's a main channel
@@ -649,25 +896,12 @@ namespace UI.Chat_UI
 		}
 
 		/// <summary>
-		/// Disable all selected chanels except main channels
-		/// </summary>
-		private void DisableAllChanels()
-		{
-			/*var selectedEnumerable = SelectedChannels.GetFlags();
-			foreach (ChatChannel selected in selectedEnumerable)
-			{
-				if (!MainChannels.Contains(selected))
-					DisableChannel(selected);
-			}*/
-		}
-
-		/// <summary>
 		/// Disable a channel and perform all special logic for it.
 		/// Main channels can't be disabled, and radio channels can hide the active radio channel panel
 		/// </summary>
 		public void DisableChannel(ChatChannel channel)
 		{
-			Logger.Log($"Disabling {channel}", Category.Chat);
+			Loggy.Info($"Disabling {channel}", Category.Chat);
 
 			// Special behaviour for main channels
 			if (MainChannels.Contains(channel))
@@ -729,7 +963,7 @@ namespace UI.Chat_UI
 				else
 				{
 					// TODO: need some addition UX indication that channel is not avaliable
-					Logger.Log($"Player trying to write message to channel {inputChannel}, but there are only {availChannels} avaliable;", Category.Chat);
+					Loggy.Info($"Player trying to write message to channel {inputChannel}, but there are only {availChannels} avaliable;", Category.Chat);
 				}
 
 				// delete all tags from input
@@ -802,6 +1036,20 @@ namespace UI.Chat_UI
 					helpSelectionPanel.gameObject.SetActive(false);
 				}
 			}
+		}
+
+		public void OnLanguageButton()
+		{
+			if (PlayerManager.LocalPlayerScript == null) return;
+			languagePanel.gameObject.SetActive(true);
+			_ = SoundManager.Play(CommonSounds.Instance.Click01);
+		}
+
+		public void OnEmoteButton()
+		{
+			if (PlayerManager.LocalPlayerScript == null) return;
+			EmoteActionManager.DisplayEmoteWindow();
+			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 		}
 	}
 }

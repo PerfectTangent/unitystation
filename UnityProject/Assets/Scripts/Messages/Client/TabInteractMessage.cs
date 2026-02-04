@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using Mirror;
 using UI.Core.NetUI;
@@ -29,16 +30,16 @@ namespace Messages.Client
 			ProcessFurther(SentByPlayer, NetworkObject, msg);
 		}
 
-		private void ProcessFurther(ConnectedPlayer player, GameObject tabProvider, NetMessage msg)
+		private void ProcessFurther(PlayerInfo player, GameObject tabProvider, NetMessage msg)
 		{
 			if (player == null)
 			{
-				Logger.LogWarning("[TabInteractMessage.ProcessFurther] - player is null", Category.NetUI);
+				Loggy.Warning("[TabInteractMessage.ProcessFurther] - player is null", Category.NetUI);
 				return;
 			}
 			else if (tabProvider == null)
 			{
-				Logger.LogWarning("[TabInteractMessage.ProcessFurther] - tabProvider is null", Category.NetUI);
+				Loggy.Warning("[TabInteractMessage.ProcessFurther] - tabProvider is null", Category.NetUI);
 				return;
 			}
 
@@ -46,14 +47,14 @@ namespace Messages.Client
 
 			//First Validations is for objects in the world (computers, etc), second check is for items in active hand (null rod, PADs).
 			bool validate;
-			if (playerScript.PlayerState == PlayerScript.PlayerStates.Ai)
+			if (playerScript.PlayerType == PlayerTypes.Ai)
 			{
 				validate = Validations.CanApply(new AiActivate(player.GameObject, null,
-					tabProvider, Intent.Help, AiActivate.ClickTypes.NormalClick), NetworkSide.Server);
+					tabProvider, Intent.Help,playerScript.Mind , AiActivate.ClickTypes.NormalClick), NetworkSide.Server);
 			}
 			else
 			{
-				validate = Validations.CanApply(playerScript, tabProvider, NetworkSide.Server);
+				validate = Validations.CanApply(playerScript, tabProvider, NetworkSide.Server, reachRange: ReachRange.ExtendedServer);
 
 				try
 				{
@@ -69,7 +70,7 @@ namespace Messages.Client
 				}
 				catch (NullReferenceException exception)
 				{
-					Logger.LogError($"Caught NRE in TabInteractMessage.Process: Tab: {tabProvider.OrNull().ExpensiveName()} {exception.Message} \n {exception.StackTrace}", Category.Interaction);
+					Loggy.Error($"Caught NRE in TabInteractMessage.Process: Tab: {tabProvider.OrNull().ExpensiveName()} {exception.Message} \n {exception.StackTrace}", Category.Interaction);
 					return;
 				}
 			}
@@ -114,7 +115,7 @@ namespace Messages.Client
 			}
 
 			//Notify all peeping players of the change
-			List<ConnectedPlayer> list = NetworkTabManager.Instance.GetPeepers(tabProvider, msg.NetTabType);
+			List<PlayerInfo> list = NetworkTabManager.Instance.GetPeepers(tabProvider, msg.NetTabType);
 			for (var i = 0; i < list.Count; i++)
 			{
 				var connectedPlayer = list[i];
@@ -128,9 +129,9 @@ namespace Messages.Client
 			}
 		}
 
-		private TabUpdateMessage FailValidation(ConnectedPlayer player, GameObject tabProvider, NetMessage msg, string reason = "")
+		private TabUpdateMessage FailValidation(PlayerInfo player, GameObject tabProvider, NetMessage msg, string reason = "")
 		{
-			Logger.LogWarning($"{player.Name}: Tab interaction w/{tabProvider} denied: {reason}", Category.NetUI);
+			Loggy.Warning($"{player.Name}: Tab interaction w/{tabProvider} denied: {reason}", Category.NetUI);
 			return TabUpdateMessage.Send(player.GameObject, tabProvider, msg.NetTabType, TabAction.Close);
 		}
 

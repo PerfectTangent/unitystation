@@ -15,9 +15,9 @@ namespace Items.Engineering
 
 		public decimal energyPerAtom = 17M;
 
-		public decimal PresentAtoms = 100000000000000000;
-		public decimal fuelNeutronGeneration = 2.5M;
-		public decimal PresentAtomsfuel = 100000000000000000;
+		public virtual decimal PresentAtoms { get; set; }  = 100000000000000000;
+		public virtual decimal fuelNeutronGeneration  { get; set; } =  2.5M;
+		public virtual decimal PresentAtomsfuel { get; set; } = 100000000000000000;
 		public decimal PresentAtomsDecayProducts = 0;
 		public decimal PresentAtomsXenon = 0;
 
@@ -33,18 +33,18 @@ namespace Items.Engineering
 		private const decimal XenonHalfLife = 210;
 		private const decimal XenonOneSecondDecay = 0.9967047m; //(decimal) Math.Pow(0.5D, (double) (1 / XenonHalfLife))
 
-		public Tuple<decimal, decimal> ProcessRodHit(decimal AbsorbedNeutrons)
+		public virtual (decimal newEnergy, decimal newNeutrons, bool Break)  ProcessRodHit(decimal AbsorbedNeutrons)
 		{
-			//Logger.Log(Time.time + "," + this.name + ", " + "PresentAtomsfuel , " + PresentAtomsfuel);
-			//Logger.Log(Time.time + "," + this.name + ", " + "PresentAtomsDecayProducts , " + PresentAtomsDecayProducts);
-			//Logger.Log(Time.time + "," + this.name + ", " + "PresentAtomsXenon , " + PresentAtomsXenon);
-			//Logger.Log(Time.time + "," + this.name + ", " + "AbsorbedNeutrons , " + AbsorbedNeutrons);
+			//Loggy.Log(Time.time + "," + this.name + ", " + "PresentAtomsfuel , " + PresentAtomsfuel);
+			//Loggy.Log(Time.time + "," + this.name + ", " + "PresentAtomsDecayProducts , " + PresentAtomsDecayProducts);
+			//Loggy.Log(Time.time + "," + this.name + ", " + "PresentAtomsXenon , " + PresentAtomsXenon);
+			//Loggy.Log(Time.time + "," + this.name + ", " + "AbsorbedNeutrons , " + AbsorbedNeutrons);
 
 
 			PresentAtomsXenon *= XenonOneSecondDecay;
 			decimal DestroyedFuelAtoms = (PresentAtomsfuel / (PresentAtoms + (PresentAtomsXenon * XenonAbsorptionPower))) *
 										 AbsorbedNeutrons;
-			//Logger.Log(Time.time + "," + this.name + ", " + "DestroyedFuelAtoms , " + DestroyedFuelAtoms);
+			//Loggy.Log(Time.time + "," + this.name + ", " + "DestroyedFuelAtoms , " + DestroyedFuelAtoms);
 			PresentAtomsXenon -= ((PresentAtomsXenon * XenonAbsorptionPower) / PresentAtoms) * AbsorbedNeutrons;
 			if (PresentAtomsXenon < 0)
 			{
@@ -63,10 +63,10 @@ namespace Items.Engineering
 				(DestroyedFuelAtoms * fuelNeutronGeneration);
 
 			PresentAtomsDecayProducts = CurrentAtomsDecayedProducts;
-			//Logger.Log(Time.time + "," + this.name + ", " + "GeneratedNeutrons , " + GeneratedNeutrons);
-			//Logger.Log(Time.time + "," + this.name + ", " + "Energy generated , " + (DestroyedFuelAtoms * energyPerAtom));
+			//Loggy.Log(Time.time + "," + this.name + ", " + "GeneratedNeutrons , " + GeneratedNeutrons);
+			//Loggy.Log(Time.time + "," + this.name + ", " + "Energy generated , " + (DestroyedFuelAtoms * energyPerAtom));
 			SetEditerVariables(DestroyedFuelAtoms * energyPerAtom);
-			return (new Tuple<decimal, decimal>((DestroyedFuelAtoms * energyPerAtom), GeneratedNeutrons));
+			return ((DestroyedFuelAtoms * energyPerAtom), GeneratedNeutrons, false);
 		}
 
 		public void SetEditerVariables(decimal OutputtingEnergy)

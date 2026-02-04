@@ -1,8 +1,9 @@
-﻿using Systems.Clothing;
-using HealthV2;
-using Mirror;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using UnityEngine;
+using HealthV2;
+using Logs;
+using Systems.Character;
+using Systems.Clothing;
 
 /// <summary>
 /// This is used to contain data about the basic rendering of a body part.
@@ -16,8 +17,6 @@ public class BodyPartSprites : MonoBehaviour
 
 	public SpriteRenderer spriteRenderer;
 
-	public CharacterSettings ThisCharacter;
-
 	public SpriteOrder SpriteOrder;
 
 	public ClothingHideFlags ClothingHide;
@@ -26,6 +25,7 @@ public class BodyPartSprites : MonoBehaviour
 
 	public int referenceOffset = 0;
 
+	public IntName intName;
 
 	public void UpdateData(string InNew)
 	{
@@ -41,7 +41,7 @@ public class BodyPartSprites : MonoBehaviour
 			}
 		}
 		if (baseSpriteHandler == null) return;
-		baseSpriteHandler.ChangeSpriteVariant(referenceOffset, false);
+		baseSpriteHandler.SetSpriteVariant(referenceOffset, false);
 	}
 
 	public virtual void UpdateSpritesForImplant(BodyPart implant,ClothingHideFlags INClothingHide, SpriteDataSO Sprite, SpriteOrder _SpriteOrder = null)
@@ -59,7 +59,7 @@ public class BodyPartSprites : MonoBehaviour
 				spriteRenderer.sortingOrder = SpriteOrder.Orders[0];
 			}
 		}
-		baseSpriteHandler.ChangeSpriteVariant(referenceOffset, false);
+		baseSpriteHandler.SetSpriteVariant(referenceOffset, false);
 	}
 
 
@@ -104,7 +104,7 @@ public class BodyPartSprites : MonoBehaviour
 		//Not networked so don't run sprite change on headless
 		if (CustomNetworkManager.IsHeadless) return;
 
-		baseSpriteHandler.ChangeSpriteVariant(referenceOffset, false);
+		baseSpriteHandler.SetSpriteVariant(referenceOffset, false);
 	}
 
 

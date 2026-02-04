@@ -1,4 +1,6 @@
-﻿using Mirror;
+﻿using AdminCommands;
+using Mirror;
+using Systems.Permissions;
 
 namespace Messages.Client
 {
@@ -8,11 +10,21 @@ namespace Messages.Client
 		/// Player that sent this ClientMessage.
 		/// Returns ConnectedPlayer.Invalid if there are issues finding one from PlayerList (like, player already left)
 		/// </summary>
-		public ConnectedPlayer SentByPlayer;
+		public PlayerInfo SentByPlayer;
+
+		public NetworkConnection SentBy;
 		public override void Process(NetworkConnection sentBy, T msg)
 		{
-			SentByPlayer = PlayerList.Instance.Get(sentBy);
-			base.Process(sentBy, msg);
+			SentByPlayer = PlayerList.Instance.GetOnline(sentBy);
+			SentBy = sentBy;
+			try
+			{
+				base.Process(sentBy, msg);
+			}
+			finally
+			{
+				SentByPlayer = null;
+			}
 		}
 
 		public static void Send(T msg)
@@ -25,19 +37,19 @@ namespace Messages.Client
 			NetworkClient.Send(msg, 1);
 		}
 
-		internal bool IsFromAdmin()
+		internal bool HasPermission(string PermissionCode, bool Logfailure = true)
 		{
-			if (CustomNetworkManager.IsServer)
-			{
-				return PlayerList.Instance.IsAdmin(SentByPlayer);
-			}
+			return AdminCommandsManager.HasPermission(SentByPlayer, PermissionCode, Logfailure);
+		}
 
-			return PlayerList.Instance.IsClientAdmin;
+		internal bool HasPermissions( string[] PermissionCodes)
+		{
+			return AdminCommandsManager.HasPermissions(SentByPlayer, PermissionCodes, true);
 		}
 
 		private static uint LocalPlayerId()
 		{
-			return PlayerManager.LocalPlayer.GetComponent<NetworkIdentity>().netId;
+			return PlayerManager.LocalPlayerObject.GetComponent<NetworkIdentity>().netId;
 		}
 	}
 }

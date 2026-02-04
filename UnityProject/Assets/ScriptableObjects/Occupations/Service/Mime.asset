@@ -13,23 +13,24 @@ MonoBehaviour:
   m_Name: Mime
   m_EditorClassIdentifier: 
   jobType: 27
+  jobCategory: 7
   isCrewmember: 1
   lateSpawnIsArrivals: 1
   inventoryPopulator: {fileID: 11400000, guid: 32366ae8deadc49b19966a38033bd6a3, type: 2}
   useStandardPopulator: 1
+  useCharacterSettings: 1
+  CustomSpeciesOverwrite: {fileID: 0}
   limit: 1
   priority: 99
-  allowedAccess: 220000001a0000004c00000034000000
-  allowedLowPopAccess: 
-  issuedClearance: 0d0000001f000000290000005b000000
-  issuedLowPopClearance: 0d0000001f000000290000005b000000
+  issuedClearance: 0d0000005b00000029000000
+  issuedLowPopClearance: 
   spells:
   - {fileID: 11400000, guid: 14882d5d2a29c46d1b37de26d1da3cb6, type: 2}
   - {fileID: 11400000, guid: a7e67c94fce9149d4b9ba746fa0a23e8, type: 2}
   - {fileID: 11400000, guid: 65a4413cd65894296bfc06d174d28ce4, type: 2}
   - {fileID: 11400000, guid: 70771701ec046427c90808f8ada9aae9, type: 2}
   progress: 80
-  choiceColor: {r: 0.8666667, g: 0.8666667, b: 0.8666667, a: 1}
+  choiceColor: {r: 1, g: 1, b: 1, a: 1}
   previewSprite: {fileID: 21300000, guid: bdcafa2993e52804e8ca9f6a20e03da3, type: 3}
   displayName: Mime
   difficulty: 1
@@ -46,16 +47,21 @@ MonoBehaviour:
     m_keys:
     - vowOfSilence
     m_values: 01
+  BetterCustomProperties: []
   isTargeteable: 1
   playSound: 1
   spawnSound:
-    SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/AmbientTracks/SpawnSounds/departments/Service_Spawn.prefab
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   textColor: {r: 0.86666673, g: 0.86666673, b: 0.86666673, a: 1}
   backgroundColor: {r: 1, g: 0, b: 0, a: 0}
   specialPlayerPrefab: {fileID: 0}
+  StartingMutations: []
+  references:
+    version: 2
+    RefIds: []

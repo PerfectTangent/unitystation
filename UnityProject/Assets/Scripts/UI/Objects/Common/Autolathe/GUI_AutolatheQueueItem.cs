@@ -1,14 +1,11 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-using UI.Core.NetUI;
+﻿using UI.Core.NetUI;
 using Objects.Machines;
-using UI.Objects.Robotics;
 
 namespace UI.Objects
 {
 	public class GUI_AutolatheQueueItem : DynamicEntry
 	{
-		private GUI_Autolathe ExoFabMasterTab => MasterTab as GUI_Autolathe;
+		private GUI_Autolathe ExoFabMasterTab => containedInTab as GUI_Autolathe;
 
 		public MachineProduct Product { get; set; }
 
@@ -18,14 +15,14 @@ namespace UI.Objects
 		public NetInteractiveButton UpButton => upButton;
 		private NetInteractiveButton downButton;
 		public NetInteractiveButton DownButton => downButton;
-		private GUI_ExoFabQueueLabel numberInQueueColorElement;
-		private GUI_ExoFabQueueLabel productTextColorElement;
+		private GUI_RDProQueueLabel numberInQueueColorElement;
+		private GUI_RDProQueueLabel productTextColorElement;
 
 		public void ForwardInQueue()
 		{
 			if (ExoFabMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_Autolathe>().OnUpQueueClicked.Invoke(NumberInQueue);
+				containedInTab.GetComponent<GUI_Autolathe>().OnUpQueueClicked.Invoke(NumberInQueue);
 			}
 			else
 			{
@@ -37,7 +34,7 @@ namespace UI.Objects
 		{
 			if (ExoFabMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_Autolathe>().OnDownQueueClicked.Invoke(NumberInQueue);
+				containedInTab.GetComponent<GUI_Autolathe>().OnDownQueueClicked.Invoke(NumberInQueue);
 			}
 			else
 			{
@@ -49,7 +46,7 @@ namespace UI.Objects
 		{
 			if (ExoFabMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_Autolathe>().OnRemoveProductClicked.Invoke(NumberInQueue);
+				containedInTab.GetComponent<GUI_Autolathe>().OnRemoveProductClicked.Invoke(NumberInQueue);
 			}
 			else
 			{
@@ -69,23 +66,23 @@ namespace UI.Objects
 				switch (nameBeforeIndex)
 				{
 					case "QueueNumber":
-						numberInQueueColorElement = element as GUI_ExoFabQueueLabel;
-						((NetUIElement<string>)element).SetValueServer(NumberInQueue.ToString());
+						numberInQueueColorElement = element as GUI_RDProQueueLabel;
+						((NetUIElement<string>)element).MasterSetValue(NumberInQueue.ToString());
 						break;
 
 					case "ProductName":
-						productTextColorElement = element as GUI_ExoFabQueueLabel;
-						((NetUIElement<string>)element).SetValueServer(Product.Name);
+						productTextColorElement = element as GUI_RDProQueueLabel;
+						((NetUIElement<string>)element).MasterSetValue(Product.Name);
 						break;
 
 					case "UpButton":
 						upButton = element as NetInteractiveButton;
-						upButton.SetValueServer("true");
+						upButton.MasterSetValue("true");
 						break;
 
 					case "DownButton":
 						downButton = element as NetInteractiveButton;
-						downButton.SetValueServer("true");
+						downButton.MasterSetValue("true");
 						break;
 				}
 			}

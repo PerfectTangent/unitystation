@@ -1,6 +1,5 @@
 ﻿using Doors;
 using Items;
-using Managers;
 using Messages.Client.VariableViewer;
 using Objects.Wallmounts;
 using System;
@@ -8,6 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Logs;
+using SecureStuff;
+using Shared.Managers;
 using Tiles;
 using UI;
 using UI.Core.RightClick;
@@ -61,20 +63,48 @@ public class RightClickManager : SingletonManager<RightClickManager>
 	private static List<RightClickAttributedComponent> attributedTypes = new List<RightClickAttributedComponent>();
 	private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
+
 	//defines a particular component that has one or more methods which have been attributed with RightClickMethod. Cached
 	// in the above list to avoid expensive lookup at click-time.
 	private class RightClickAttributedComponent
 	{
 		public Type ComponentType;
-		public List<MethodInfo> AttributedMethods;
+		public List<MethodInfoAndRightClick> AttributedMethods;
+	}
+
+	public class MethodInfoAndRightClick
+	{
+		public MethodInfo MethodInfo;
+		public RightClickMethod RightClickMethod;
 	}
 
 	[SerializeField]
 	private RightClickMenuController menuControllerPrefab = default;
+	[SerializeField]
+	private GameObject legacyMenuControllerPrefab = default;
+
+	[SerializeField]
+	private GameObject quickSelectMenuControllerPrefab = default;
 
 	private RightClickMenuController menuController;
+	private IRightClickMenu legacyMenuController;
 
-	public RightClickMenuController MenuController
+	private IRightClickMenu quickSelectMenuController;
+
+
+	public static Dictionary<string, PreferenceRightClickOption> AvailableRightClickOptions =
+		new Dictionary<string, PreferenceRightClickOption>()
+		{
+			{PreferenceRightClickOption.Radial.ToString(), PreferenceRightClickOption.Radial},
+			{PreferenceRightClickOption.DropDown.ToString(), PreferenceRightClickOption.DropDown},
+			{PreferenceRightClickOption.QuickRadial.ToString(), PreferenceRightClickOption.QuickRadial},
+
+		};
+
+
+	private PreferenceRightClickOption CurrentPreference = PreferenceRightClickOption.Radial;
+
+	public IRightClickMenu MenuController
 	{
 		get
 		{
@@ -83,7 +113,29 @@ public class RightClickManager : SingletonManager<RightClickManager>
 				menuController = Instantiate(menuControllerPrefab, transform);
 			}
 
-			return menuController;
+			if (legacyMenuController == null)
+			{
+				var legacy = Instantiate(legacyMenuControllerPrefab, transform);
+				legacyMenuController = legacy.GetComponent<IRightClickMenu>();
+			}
+
+			if (quickSelectMenuController == null)
+			{
+				var legacy = Instantiate(quickSelectMenuControllerPrefab, transform);
+				quickSelectMenuController = legacy.GetComponent<IRightClickMenu>();
+			}
+
+			switch (CurrentPreference)
+			{
+				case PreferenceRightClickOption.Radial:
+					return menuController;
+				case PreferenceRightClickOption.DropDown:
+					return legacyMenuController;
+				case PreferenceRightClickOption.QuickRadial:
+					return quickSelectMenuController;
+				default:
+					return menuController;
+			}
 		}
 	}
 
@@ -93,7 +145,10 @@ public class RightClickManager : SingletonManager<RightClickManager>
 		// cache all known usages of the RightClickMethod annotation
 		if (attributedTypes.Count == 0)
 		{
-			new Task(GetRightClickAttributedMethods).Start();
+			if (CustomNetworkManager.IsHeadless == false)
+			{
+				new Task(GetRightClickAttributedMethods).Start();
+			}
 		}
 
 		// Will be enabled by ControlDisplays when needed
@@ -104,6 +159,7 @@ public class RightClickManager : SingletonManager<RightClickManager>
 	{
 		lightingSystem = Camera.main.GetComponent<LightingSystem>();
 		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
+		GetRightClickPreference(save: true);
 	}
 
 	private void OnDisable()
@@ -111,25 +167,49 @@ public class RightClickManager : SingletonManager<RightClickManager>
 		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 	}
 
+	public static string GetRightClickPreference(bool save = false)
+	{
+		var Prefere=  PlayerPrefs.GetString("RightClickPreference", AvailableRightClickOptions.Keys.First());
+		if (AvailableRightClickOptions.ContainsKey(Prefere) == false)
+		{
+			Prefere = AvailableRightClickOptions.Keys.First();
+			SetRightClickPreference(Prefere);
+		}
+
+		if (save)
+		{
+			SetRightClickPreference(Prefere);
+		}
+
+		return Prefere;
+	}
+
+	public static void SetRightClickPreference(string Preference)
+	{
+		PlayerPrefs.SetString("RightClickPreference", Preference);
+		Instance.CurrentPreference = AvailableRightClickOptions[Preference];
+	}
+
 	private void GetRightClickAttributedMethods()
 	{
 		var result = new List<RightClickAttributedComponent>();
 
-		var allComponentTypes = AppDomain.CurrentDomain.GetAssemblies()
-			.SelectMany(s => s.GetTypes())
-			.Where(s => typeof(MonoBehaviour).IsAssignableFrom(s));
+		var data = AllowedReflection.GetFunctionsWithAttribute<RightClickMethod>();
 
-		foreach (var componentType in allComponentTypes)
+		foreach (var MonoBehaviourAndMethods in data)
 		{
-			var attributedMethodsForType = componentType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.FlattenHierarchy)
-				.Where(m => m.GetCustomAttribute<RightClickMethod>(true) != null)
-				.ToList();
-			if (attributedMethodsForType.Count > 0)
+			if (MonoBehaviourAndMethods.Value.Count > 0)
 			{
 				RightClickAttributedComponent component = new RightClickAttributedComponent
 				{
-					ComponentType = componentType,
-					AttributedMethods = attributedMethodsForType
+					ComponentType = MonoBehaviourAndMethods.Key,
+					AttributedMethods = MonoBehaviourAndMethods.Value.Select(x => new MethodInfoAndRightClick()
+					{
+						MethodInfo = x.MethodInfo,
+						RightClickMethod = x.Attribute
+
+					}).ToList()
+
 				};
 				result.Add(component);
 			}
@@ -219,6 +299,10 @@ public class RightClickManager : SingletonManager<RightClickManager>
 		var position = MouseUtils.MouseToWorldPos();
 		var objects = UITileList.GetItemsAtPosition(position);
 
+
+		objects = objects.Where(x => x.GetUniversalObjectPhysics()?.Intangible is null or false && (x.GetUniversalObjectPhysics()?.MappingIntangible is null or false)).ToList();
+
+
 		//special case, remove wallmounts that are transparent
 		objects.RemoveAll(IsHiddenWallmount);
 
@@ -242,7 +326,7 @@ public class RightClickManager : SingletonManager<RightClickManager>
 
 	private bool IsUnderFloorTile(GameObject obj)
 	{
-		LayerTile tile = UITileList.GetTileAtPosition(obj.WorldPosClient());
+		LayerTile tile = UITileList.GetTileAtPosition(obj.AssumedWorldPosServer());
 
 		// Layer 22 is the 'Floor' layer
 		return (tile != null && tile.LayerType != LayerType.Base && obj.layer == 22);
@@ -290,7 +374,7 @@ public class RightClickManager : SingletonManager<RightClickManager>
 					}
 				}
 
-				if (!string.IsNullOrEmpty(PlayerList.Instance.AdminToken))
+				if (PlayerList.HasTAGClient(TAG.VARIABLE_VIEWER))
 				{
 					subMenus.Add(VariableViewerOption.AsMenu(() =>
 					{
@@ -321,12 +405,11 @@ public class RightClickManager : SingletonManager<RightClickManager>
 	private IEnumerable<RightClickMenuItem> CreateSubMenuOptions(RightClickAttributedComponent attributedType, Component actualComponent)
 	{
 		return attributedType.AttributedMethods
-			.Select(m => CreateSubMenuOption(m, actualComponent));
+			.Select(m => CreateSubMenuOption(m.MethodInfo, actualComponent, m.RightClickMethod));
 	}
 
-	private RightClickMenuItem CreateSubMenuOption(MethodInfo forMethod, Component actualComponent)
+	private RightClickMenuItem CreateSubMenuOption(MethodInfo forMethod, Component actualComponent,  RightClickMethod rightClickMethod)
 	{
-		var rightClickMethod = forMethod.GetCustomAttribute<RightClickMethod>(true);
 		return rightClickMethod.AsMenu(forMethod, actualComponent);
 	}
 
@@ -356,8 +439,8 @@ public class RightClickManager : SingletonManager<RightClickManager>
 		}
 
 		// See if this object has an AirLockAnimator then try to get the sprite from that, otherwise try to get the sprite from the first renderer we find
-		var airLockAnimator = forObject.GetComponentInChildren<AirLockAnimator>();
-		var spriteRenderer = airLockAnimator != null ? airLockAnimator.doorbase : forObject.GetComponentInChildren<SpriteRenderer>();
+		var airLockAnimator = forObject.GetComponentInChildren<DoorAnimatorV2>();
+		var spriteRenderer = airLockAnimator != null ? airLockAnimator.DoorBase.GetComponent<SpriteRenderer>() : forObject.GetComponentInChildren<SpriteRenderer>();
 
 		Sprite sprite = null;
 		if (spriteRenderer != null)
@@ -366,12 +449,25 @@ public class RightClickManager : SingletonManager<RightClickManager>
 		}
 		else
 		{
-			Logger.LogWarningFormat("Could not determine sprite to use for right click menu" +
+			Loggy.Warning().Format("Could not determine sprite to use for right click menu" +
 					" for object {0}. Please manually configure a sprite in a RightClickAppearance component" +
 					" on this object.", Category.UserInput, forObject.name);
 		}
 
-		return new RightClickMenuItem(sprite, spriteRenderer.color, null, ButtonColor,
+		var Colour = Color.white;
+		if (spriteRenderer != null)
+		{
+			Colour = spriteRenderer.color;
+		}
+
+		return new RightClickMenuItem(sprite, Colour, null, ButtonColor,
 			label, subMenus, action, null, palette, false);
 	}
+}
+
+public enum PreferenceRightClickOption
+{
+	Radial,
+	DropDown,
+	QuickRadial
 }

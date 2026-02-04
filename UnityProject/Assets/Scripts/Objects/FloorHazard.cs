@@ -4,14 +4,19 @@ using System.Collections.Generic;
 using System.Linq;
 using Systems.MobAIs;
 using AddressableReferences;
+using Core;
 using HealthV2;
+using HealthV2.Limbs;
+using Logs;
 using NaughtyAttributes;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.EventSystems;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
-	public class FloorHazard : MonoBehaviour, IPlayerEntersTile, IObjectEntersTile
+	public class FloorHazard : EnterTileBase, IServerInventoryMove
 	{
 		[SerializeField] private AttackType attackType = AttackType.Melee;
 		[SerializeField] private DamageType damageType = DamageType.Brute;
@@ -25,37 +30,46 @@ namespace Objects
 		[SerializeField] private bool canCauseTrauma;
 		[SerializeField, HideIf("ignoresFootwear")] private List<ItemTrait> protectiveItemTraits;
 		[SerializeField] private List<BodyPartType> limbsToHurt;
+		[SerializeField] private UnityEvent<GameObject> OnStepEvent = new UnityEvent<GameObject>();
 
-		public virtual bool WillAffectPlayer(PlayerScript playerScript)
+		[SerializeField] private float MaxDamage = 0;
+
+		public override bool WillAffectPlayer(PlayerScript playerScript)
 		{
 			return playerScript.IsGhost == false;
 		}
 
-		public virtual void OnPlayerStep(PlayerScript playerScript)
+		public override void OnPlayerStep(PlayerScript playerScript)
 		{
+			if (playerScript.GetComponent<UniversalObjectPhysics>().IsInAir) return;
+			if(objectPhysics.registerTile.LocalPosition == TransformState.HiddenPos) return;
 			var health = playerScript.playerHealth;
+
 			HurtFeet(health); //Moving this to it's own function to keep things clean.
 			//Text and Audio feedback.
 			Chat.AddActionMsgToChat(gameObject, $"You step on the {gameObject.ExpensiveName()}!",
 				$"{health.playerScript.visibleName} steps on the {gameObject.ExpensiveName()}!");
 			PlayStepAudio();
+			OnStepEvent?.Invoke(playerScript.gameObject);
 		}
 
-		public virtual bool WillAffectObject(GameObject eventData)
+		public override bool WillAffectObject(GameObject eventData)
 		{
 			//Old health
 			return eventData.HasComponent<LivingHealthBehaviour>();
 		}
 
-		public virtual void OnObjectEnter(GameObject eventData)
+		public override void OnObjectEnter(GameObject eventData)
 		{
 			//Old health
-			eventData.GetComponent<LivingHealthBehaviour>().ApplyDamageToBodyPart(
+			eventData.GetComponent<LivingHealthBehaviour>()?.ApplyDamageToBodyPart(
 				gameObject, damageToGive, attackType, damageType);
 		}
 
 		protected void HurtFeet(LivingHealthMasterBase health)
 		{
+			if (health.OrNull()?.playerScript.OrNull()?.DynamicItemStorage == null) return;
+
 			if (ignoresFootwear == false)
 			{
 				foreach (var slot in health.playerScript.DynamicItemStorage.GetNamedItemSlots(NamedSlot.feet))
@@ -64,6 +78,19 @@ namespace Objects
 					{
 						//Check if the footwear we have on has any protective traits against the floor hazard.
 						if (slot.ItemAttributes.GetTraits().Any(trait => protectiveItemTraits.Contains(trait)))
+						{
+							return;
+						}
+					}
+				}
+
+				foreach (var BodyPart in health.SurfaceBodyParts)
+				{
+					var leg = BodyPart.CommonComponents.SafeGetComponent<HumanoidLeg>();
+					if (leg != null)
+					{
+						//Check if the leg we have on has any protective traits against the floor hazard.
+						if (BodyPart.CommonComponents.ItemAttributes.GetTraits().Any(trait => protectiveItemTraits.Contains(trait)))
 						{
 							return;
 						}
@@ -90,7 +117,19 @@ namespace Objects
 
 		protected void ApplyDamageToPartyType(LivingHealthMasterBase health, BodyPartType type)
 		{
+			if (MaxDamage != 0)
+			{
+				if (( health.MaxHealth - health.OverallHealth) > MaxDamage) return;
+			}
+
 			health.ApplyDamageToBodyPart(gameObject, damageToGive, attackType, damageType, type, armorPentration, traumaChance, traumaType);
+		}
+
+		public void OnInventoryMoveServer(InventoryMove info)
+		{
+			if (this.gameObject != info.MovedObject.gameObject) return;
+			OnLocalPositionChangedServer(info.FromPlayer != null ? info.FromPlayer.LocalPosition : TransformState.HiddenPos,
+				objectPhysics.registerTile.LocalPosition);
 		}
 	}
 }

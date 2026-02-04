@@ -1,9 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using Managers;
+using Logs;
 using Messages.Server;
 using ScriptableObjects;
+using Shared.Managers;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
@@ -23,15 +23,15 @@ public class NetworkTabManager : SingletonManager<NetworkTabManager>
 
 	private readonly Dictionary<NetTabDescriptor, NetTab> openTabs = new Dictionary<NetTabDescriptor, NetTab>();
 
-	public List<ConnectedPlayer> GetPeepers(GameObject provider, NetTabType type)
+	public List<PlayerInfo> GetPeepers(GameObject provider, NetTabType type)
 	{
 		var descriptor = Tab( provider, type );
 		if ( !openTabs.ContainsKey( descriptor ) ) {
-			return new List<ConnectedPlayer>();
+			return new List<PlayerInfo>();
 		}
 		var info = openTabs[descriptor];
 		if ( info.IsUnobserved ) {
-			return new List<ConnectedPlayer>();
+			return new List<PlayerInfo>();
 		}
 		return info.Peepers.ToList();
 	}
@@ -167,7 +167,7 @@ public struct NetTabDescriptor
 		this.type = type;
 		if (type == NetTabType.None && this.provider != null)
 		{
-			Logger.LogError($"You forgot to set a proper NetTabType in your new tab on {this.provider.ExpensiveName()}!\n" +
+			Loggy.Error($"You forgot to set a proper NetTabType in your new tab on {this.provider.ExpensiveName()}!\n" +
 				"Go to Prefabs/GUI/Resources and see if any prefabs starting with Tab has Type=None",Category.NetUI);
 		}
 	}
@@ -183,7 +183,7 @@ public struct NetTabDescriptor
 
 		if(toInstantiate == null)
 		{
-			Logger.LogWarning($"[NetworkTabManager.Spawn] - Couldn't load 'Tab{type}' from the netTab SO", Category.NetUI);
+			Loggy.Warning($"[NetworkTabManager.Spawn] - Couldn't load 'Tab{type}' from the netTab SO", Category.NetUI);
 			return null;
 		}
 

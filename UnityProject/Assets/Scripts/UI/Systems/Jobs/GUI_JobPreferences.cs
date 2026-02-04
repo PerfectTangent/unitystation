@@ -1,22 +1,25 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using System.Linq;
-using DatabaseAPI;
+using Logs;
+using UnityEngine;
 
 /// <summary>
 /// A dictionary using JobType and Priority. Used to store a player's job preferences.
 /// </summary>
 public class JobPrefsDict : Dictionary<JobType, Priority> { }
 
-namespace UI
+namespace UI.Character
 {
 	/// <summary>
 	/// Controls the job preferences screen
 	/// </summary>
 	public class GUI_JobPreferences : MonoBehaviour
 	{
+		[SerializeField]
+		private CharacterSettings characterSettings;
+
 		/// <summary>
 		/// Have all the jobs already been populated?
 		/// </summary>
@@ -76,7 +79,7 @@ namespace UI
 		{
 			if (force == false && jobsPopulated)
 			{
-				Logger.Log("Jobs have already been populated!", Category.Jobs);
+				Loggy.Info("Jobs have already been populated!", Category.Jobs);
 				return;
 			}
 
@@ -158,7 +161,7 @@ namespace UI
 		/// <param name="entry">Entry reference to change dropdown boxes</param>
 		public void OnPriorityChange(JobType job, Priority priority, JobListEntry entry)
 		{
-			Logger.Log($"Changed priority for {job} to {priority}.", Category.Jobs);
+			Loggy.Info($"Changed priority for {job} to {priority}.", Category.Jobs);
 
 			if (priority == Priority.None)
 			{
@@ -188,7 +191,7 @@ namespace UI
 				}
 			}
 
-			Logger.Log("Current Job Preferences:\n" +
+			Loggy.Info("Current Job Preferences:\n" +
 				string.Join("\n", jobPreferences.Select(a => $"{a.Key}: {a.Value}")), Category.Jobs);
 		}
 
@@ -197,8 +200,7 @@ namespace UI
 		/// </summary>
 		private void SaveJobPreferences()
 		{
-			PlayerManager.CurrentCharacterSettings.JobPreferences = jobPreferences;
-			_ = ServerData.UpdateCharacterProfile(PlayerManager.CurrentCharacterSettings);
+			characterSettings.EditedCharacter.JobPreferences = jobPreferences;
 		}
 
 		/// <summary>
@@ -208,7 +210,7 @@ namespace UI
 		{
 			// Loop through all jobs and set the dropdown to the specified priority.
 			// This will update the local jobPreferences variable using OnPriorityChange.
-			foreach (var jobPref in PlayerManager.CurrentCharacterSettings.JobPreferences.ToList())
+			foreach (var jobPref in characterSettings.EditedCharacter.JobPreferences.ToList())
 			{
 				jobEntries[jobPref.Key].SetPriority(jobPref.Value);
 			}

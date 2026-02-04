@@ -14,7 +14,7 @@ namespace UI.Objects.Cargo
 		private OreRedemptionMachine oreRedemptionMachine;
 		private bool loadOresCooldown;
 
-		public NetLabel laborPointsLabel;
+		public NetText_label laborPointsLabel;
 		protected override void InitServer()
 		{
 			StartCoroutine(WaitForProvider());
@@ -37,10 +37,10 @@ namespace UI.Objects.Cargo
 
 		public void UpdateLaborPoints(int laborPoints)
 		{
-			laborPointsLabel.SetValueServer($"Unclaimed points: {laborPoints.ToString()}");
+			laborPointsLabel.MasterSetValue($"Unclaimed points: {laborPoints.ToString()}");
 		}
 
-		public void ClaimLaborPoints(ConnectedPlayer connectedPlayer)
+		public void ClaimLaborPoints(PlayerInfo connectedPlayer)
 		{
 			oreRedemptionMachine.ClaimLaborPoints(connectedPlayer.GameObject);
 		}

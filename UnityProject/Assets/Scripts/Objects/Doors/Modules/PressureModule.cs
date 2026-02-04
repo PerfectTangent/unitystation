@@ -25,54 +25,50 @@ namespace Doors.Modules
 			master.HackingProcessBase.RegisterPort(PlayPressureWarning, master.GetType());
 		}
 
-		public override ModuleSignal OpenInteraction(HandApply interaction, HashSet<DoorProcessingStates> States)
-		{
-			return ModuleSignal.Continue;
-		}
-
-		private ModuleSignal TryPressureWarning( HashSet<DoorProcessingStates> States)
+		private void TryPressureWarning( HashSet<DoorProcessingStates> States)
 		{
 			//If the door isn't powered, we skip this check. We don't have the power to scan pressure.
 			if (!master.HasPower)
 			{
-				return ModuleSignal.Continue;
+				return;
 			}
 
 			if (warningActive)
 			{
-				return ModuleSignal.Continue;
+				return;
 			}
 
 			if (States.Contains(DoorProcessingStates.SoftwareHacked))
 			{
-				return ModuleSignal.Continue;
+				return;
 			}
 
 			if (!IsPressureDangerous())
 			{
-				return ModuleSignal.Continue;
+				return;
 			}
 
 			master.HackingProcessBase.ImpulsePort(PlayPressureWarning);
-			return ModuleSignal.ContinueWithoutDoorStateChange;
+			States.Add(DoorProcessingStates.SoftwarePrevented);
+			return;
 		}
 
 		public void PlayPressureWarning()
 		{
-			StartCoroutine(master.DoorAnimator.PlayPressureWarningAnimation());
-			master.DoorAnimator.ServerPlayPressureSound();
+			master.DoorAnimator.PlayPressureWarningAnimation().Forget();
+			master.SoundController.ServerPlaySound(DoorSoundController.DoorSoundType.PressureWarn);
 			StartCoroutine(ResetWarning());
 		}
 
-		public override ModuleSignal ClosedInteraction(HandApply interaction, HashSet<DoorProcessingStates> States)
+		public override void ClosedInteraction(HandApply interaction, ref HashSet<DoorProcessingStates> States)
 		{
-
-			return TryPressureWarning (States);
+			TryPressureWarning (States);
 		}
 
-		public override ModuleSignal BumpingInteraction(GameObject byPlayer, HashSet<DoorProcessingStates> States)
+		public override void BumpingInteraction(GameObject byPlayer, ref HashSet<DoorProcessingStates> States)
 		{
-			return TryPressureWarning( States);
+
+			TryPressureWarning( States);
 		}
 
 		/// <summary>
@@ -100,11 +96,11 @@ namespace Doors.Modules
 			var horzPressureDiff = 0.0;
 			if (!upMetaNode.IsOccupied || !downMetaNode.IsOccupied)
 			{
-				vertPressureDiff = Math.Abs(upMetaNode.GasMix.Pressure - downMetaNode.GasMix.Pressure);
+				vertPressureDiff = Math.Abs(upMetaNode.GasMixLocal.Pressure - downMetaNode.GasMixLocal.Pressure);
 			}
 			if (!leftMetaNode.IsOccupied || !rightMetaNode.IsOccupied)
 			{
-				horzPressureDiff = Math.Abs(leftMetaNode.GasMix.Pressure - rightMetaNode.GasMix.Pressure);
+				horzPressureDiff = Math.Abs(leftMetaNode.GasMixLocal.Pressure - rightMetaNode.GasMixLocal.Pressure);
 			}
 
 			// Set pressureLevel according to the pressure difference found.

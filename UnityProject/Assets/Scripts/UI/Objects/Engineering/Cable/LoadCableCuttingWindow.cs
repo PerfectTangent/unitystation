@@ -50,7 +50,7 @@ public class LoadCableCuttingWindow : MonoBehaviour
 	private void OnEnable()
 	{
 		// store reference to player transform
-		localPlayerTransform = PlayerManager.LocalPlayer.transform;
+		localPlayerTransform = PlayerManager.LocalPlayerObject.transform;
 		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
 	}
 
@@ -72,7 +72,7 @@ public class LoadCableCuttingWindow : MonoBehaviour
 			return false;
 		}
 		// disable window if distance is greater than interaction distance
-		else if (Vector2.Distance(localPlayerTransform.position, targetWorldPosition) > PlayerScript.interactionDistance)
+		else if (Vector2.Distance(localPlayerTransform.position, targetWorldPosition) > PlayerScript.INTERACTION_DISTANCE)
 			return false;
 
 		return true;

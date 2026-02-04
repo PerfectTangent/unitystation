@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
+using Logs;
 using UnityEngine;
 using Systems.Explosions;
 using Managers;
 using Strings;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace InGameEvents
 {
@@ -30,7 +33,7 @@ namespace InGameEvents
 		{
 			if (stationMatrix != null) return false;
 
-			Logger.LogError($"Unable to start \"{nameof(EventImmovableRod)}\". Main station may not be initialized yet.", Category.Event);
+			Loggy.Error($"Unable to start \"{nameof(EventImmovableRod)}\". Main station may not be initialized yet.", Category.Event);
 			return true;
 		}
 
@@ -151,11 +154,12 @@ namespace InGameEvents
 		public IEnumerator MoveRodToPosition(Transform transform, Vector3 position, float timeToMove)
 		{
 			var currentPos = transform.position;
+			var ObjectPhysics = transform.GetComponent<UniversalObjectPhysics>();
 			var t = 0f;
 			while(t < 1)
 			{
 				t += Time.deltaTime / timeToMove;
-				transform.position = Vector3.Lerp(currentPos, position, t);
+				ObjectPhysics.AppearAtWorldPositionServer( Vector3.Lerp(currentPos, position, t), false);
 				yield return null;
 			}
 		}

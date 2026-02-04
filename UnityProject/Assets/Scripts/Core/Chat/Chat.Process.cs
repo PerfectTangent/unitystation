@@ -7,8 +7,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using AddressableReferences;
+using Core.Accounts;
 using Core.Chat;
-using DatabaseAPI;
+using Managers;
 using Mirror;
 using NaughtyAttributes;
 using ScriptableObjects;
@@ -16,15 +17,17 @@ using Strings;
 using Tilemaps.Behaviours.Meta;
 using Unitystation.Options;
 using WebSocketSharp;
+using Antagonists;
+using Logs;
+using SecureStuff;
 using Random = UnityEngine.Random;
 
 public partial class Chat
 {
-	private static Dictionary<string, UniqueQueue<DestroyChatMessage>> messageQueueDict =
-		new Dictionary<string, UniqueQueue<DestroyChatMessage>>();
+	private static readonly Dictionary<string, UniqueQueue<DestroyChatMessage>> messageQueueDict = new();
 
 	private static Coroutine composeMessageHandle;
-	private static StringBuilder stringBuilder = new StringBuilder();
+	private static readonly StringBuilder stringBuilder = new();
 
 	private struct DestroyChatMessage
 	{
@@ -49,6 +52,7 @@ public partial class Chat
 	public Color combatColor;
 	public Color warningColor;
 	public Color blobColor;
+	public Color alienColor;
 	public Color defaultColor;
 
 	private static bool playedSound;
@@ -60,7 +64,7 @@ public partial class Chat
 	/// <summary>
 	/// This channels can't be heared as sound by other players (like binary or changeling hivemind)
 	/// </summary>
-	public static readonly ChatChannel NonVerbalChannels = ChatChannel.Binary | ChatChannel.Ghost | ChatChannel.Blob;
+	public static readonly ChatChannel NonVerbalChannels = ChatChannel.Binary | ChatChannel.Ghost | ChatChannel.Blob | ChatChannel.Alien;
 
 	/// <summary>
 	/// This channels are OOC or service messages and shouldn't affect IC communications
@@ -73,6 +77,15 @@ public partial class Chat
 	/// This channels are either non verbal communication (Ghost, Binary) or some serivice channel (OOC, Action)
 	/// </summary>
 	public static readonly ChatChannel NonSpeechChannels = NonVerbalChannels | ServiceChannels;
+
+	/// <summary>
+	/// This channels that are verbal
+	/// </summary>
+	public static readonly ChatChannel SpeechChannels = ChatChannel.Local | ChatChannel.Command | ChatChannel.CentComm
+	                                                    | ChatChannel.Supply | ChatChannel.Engineering | ChatChannel.Medical |
+	                                                    ChatChannel.Science | ChatChannel.Security | ChatChannel.Service
+	                                                    | ChatChannel.Syndicate | ChatChannel.Engineering | ChatChannel.Medical |
+	                                                    ChatChannel.Science;
 
 	/// <summary>
 	/// Processes a message to be used in the chat log and chat bubbles.
@@ -88,7 +101,7 @@ public partial class Chat
 	/// <param name="sendByPlayer">The player sending the message. Used for detecting conciousness and occupation.</param>
 	/// <param name="message">The chat message to process.</param>
 	/// <returns>A tuple of the processed chat message and the detected modifiers.</returns>
-	private static (string, ChatModifier) ProcessMessage(ConnectedPlayer sentByPlayer, string message)
+	private static (string, ChatModifier) ProcessMessage(PlayerInfo sentByPlayer, string message)
 	{
 		ChatModifier chatModifiers = ChatModifier.None; // Modifier that will be returned in the end.
 		ConsciousState playerConsciousState = ConsciousState.DEAD;
@@ -121,22 +134,15 @@ public partial class Chat
 			message = message.Replace("/me", ""); // note that there is no space here as compared to the above if
 			message = message.Substring(1); // so that this substring can properly cut off both * and the space
 
-			if(CheckForEmoteAction(message, Instance.emoteActionManager))
+			if(CheckForEmoteAction(message))
 			{
-				DoEmoteAction(message, sentByPlayer.GameObject, Instance.emoteActionManager);
+				DoEmoteAction(message, sentByPlayer.GameObject);
 
 				//Message is done in DoEmoteAction()
 				message = "";
 			}
 
 			chatModifiers |= ChatModifier.Emote;
-		}
-		// Whisper
-		else if (message.StartsWith("#") || message.StartsWith("/w ", true, CultureInfo.CurrentCulture))
-		{
-			message = message.Replace("/w", "");
-			message = message.Substring(1);
-			chatModifiers |= ChatModifier.Whisper;
 		}
 		// Sing
 		else if (message.StartsWith("%") || message.StartsWith("/s ", true, CultureInfo.CurrentCulture))
@@ -160,7 +166,7 @@ public partial class Chat
 		// Question
 		else if (message.EndsWith("?"))
 		{
-			chatModifiers |= sentByPlayer.Script.PlayerState == PlayerScript.PlayerStates.Ai ?
+			chatModifiers |= sentByPlayer.Script.PlayerType == PlayerTypes.Ai ?
 				ChatModifier.Query : ChatModifier.Question;
 		}
 		// Exclaim
@@ -169,7 +175,7 @@ public partial class Chat
 			chatModifiers |= ChatModifier.Exclaim;
 		}
 		//Ai state message
-		else if (sentByPlayer.Script.PlayerState == PlayerScript.PlayerStates.Ai)
+		else if (sentByPlayer.Script.PlayerType == PlayerTypes.Ai)
 		{
 			chatModifiers |= ChatModifier.State;
 		}
@@ -180,8 +186,15 @@ public partial class Chat
 
 		//TODO Assign racial speech mods
 
+		//TODO Move chat Modifier stuff into its own script
 		// Assign inventory speech mods
-		chatModifiers |= sentByPlayer.Script.mind.inventorySpeechModifiers;
+		chatModifiers |= sentByPlayer.Script.inventorySpeechModifiers;
+
+		if (sentByPlayer.Script.playerHealth != null)
+		{
+			chatModifiers |= sentByPlayer.Script.playerHealth.BodyChatModifier;
+		}
+
 
 		/////// Process Speech mutations
 		message = SpeechModManager.Instance.ApplyMod(chatModifiers, message);
@@ -195,7 +208,7 @@ public partial class Chat
 	/// </summary>
 	/// <returns>The chat message, formatted to suit the chat log.</returns>
 	public static string ProcessMessageFurther(string message, string speaker, ChatChannel channels,
-		ChatModifier modifiers, Loudness loudness, uint originatorUint = 0, bool stripTags = true)
+		ChatModifier modifiers, Loudness loudness, bool isWhispering, uint originatorUint = 0, bool stripTags = true)
 	{
 		playedSound = false;
 		//Highlight in game name by bolding and underlining if possible
@@ -203,28 +216,29 @@ public partial class Chat
 		message = HighlightInGameName(message, false);
 
 		//Skip everything if system message
-		if (channels.HasFlag(ChatChannel.System))
+		if (channels.HasFlagFast(ChatChannel.System))
 		{
 			return message;
 		}
 
 		//Skip everything in case of combat channel
-		if (channels.HasFlag(ChatChannel.Combat))
+		if (channels.HasFlagFast(ChatChannel.Combat))
 		{
 			return AddMsgColor(channels, $"<i>{message}</i>"); //POC
 		}
 
 		//Skip everything if it is an action or examine message or if it is a local message
 		//without a speaker (which is used by machines)
-		if (channels.HasFlag(ChatChannel.Examine) ||
-		    channels.HasFlag(ChatChannel.Action) ||
-		    channels.HasFlag(ChatChannel.Local) && string.IsNullOrEmpty(speaker))
+		if (channels.HasFlagFast(ChatChannel.Examine) ||
+		    channels.HasFlagFast(ChatChannel.Action) ||
+		    channels.HasFlagFast(ChatChannel.Local)
+		    && string.IsNullOrEmpty(speaker))
 		{
 			return AddMsgColor(channels, $"<i>{message}</i>");
 		}
 
 		// Skip everything if the message is a local warning
-		if (channels.HasFlag(ChatChannel.Warning))
+		if (channels.HasFlagFast(ChatChannel.Warning))
 		{
 			return AddMsgColor(channels, $"<i>{message}</i>");
 		}
@@ -248,7 +262,7 @@ public partial class Chat
 		}
 
 		//Check for OOC. If selected, remove all other channels and modifiers (could happen if UI fucks up or someone tampers with it)
-		if (channels.HasFlag(ChatChannel.OOC))
+		if (channels.HasFlagFast(ChatChannel.OOC))
 		{
 			//ooc name quick fix
 			var name = Regex.Replace(speaker, @"\t\n\r", "");
@@ -258,18 +272,21 @@ public partial class Chat
 			}
 
 			//highlight OOC name by bolding and underlining if possible
-			message = HighlightName(message, ServerData.Auth.CurrentUser.DisplayName);
+			message = HighlightName(message, PlayerManager.Account.Username);
 
 			message = AddMsgColor(channels, $"[ooc] <b>{name}: {message}</b>");
 			return message;
 		}
 
 		//Ghosts don't get modifiers
-		if (channels.HasFlag(ChatChannel.Ghost))
+		if (channels.HasFlagFast(ChatChannel.Ghost))
 		{
 			string[] _ghostVerbs = {"cries", "moans"};
 			return AddMsgColor(channels, $"[dead] <b>{speaker}</b> {_ghostVerbs.PickRandom()}: {message}");
 		}
+
+		//HighLightCodeWordsForTraitors
+		message = HighLightCodeWords(message);
 		string verb = "says,";
 
 		if ((modifiers & ChatModifier.Mute) == ChatModifier.Mute)
@@ -277,10 +294,11 @@ public partial class Chat
 			return "";
 		}
 
-		if ((modifiers & ChatModifier.Whisper) == ChatModifier.Whisper)
+		if ((modifiers & ChatModifier.Whisper) == ChatModifier.Whisper || isWhispering)
 		{
 			verb = "whispers,";
 			message = $"<i>{message}</i>";
+			loudness = Loudness.QUIET;
 		}
 		else if ((modifiers & ChatModifier.Sing) == ChatModifier.Sing)
 		{
@@ -313,14 +331,19 @@ public partial class Chat
 			verb = "asks,";
 		}
 
+		if (string.IsNullOrEmpty(speaker))
+		{
+			verb = "";
+		}
+
 		var chan = $"[{channels.ToString().ToLower().Substring(0, 3)}] ";
 
-		if (channels.HasFlag(ChatChannel.Command))
+		if (channels.HasFlagFast(ChatChannel.Command))
 		{
 			chan = "[cmd] ";
 		}
 
-		if (channels.HasFlag(ChatChannel.Local))
+		if (channels.HasFlagFast(ChatChannel.Local))
 		{
 			chan = "";
 		}
@@ -338,7 +361,7 @@ public partial class Chat
 		return AddMsgColor(channels,
 			$"{chan}<b>{speaker}</b> {verb}" // [cmd]  Username says,
 			+ "  " // Two hair spaces. This triggers Text-to-Speech.
-			+ $"<size={textSize}>" + "\"" +  message + "\"" + "</size>"); // "This text will be spoken by TTS!"
+			+ $"<size={textSize + PlayerPrefs.GetInt(ChatOptions.FONTSCALE_KEY, 1)}>" + "\"" +  message + "\"" + "</size>"); // "This text will be spoken by TTS!"
 	}
 
 	private static string StripAll(string input)
@@ -388,6 +411,37 @@ public partial class Chat
 		return boldedName;
 	}
 
+	private static string HighLightCodeWords(string input)
+	{
+
+		if (PlayerManager.LocalPlayerScript == null) return input;
+
+		if (PlayerManager.LocalMindScript == null) return input;
+
+		if (PlayerManager.LocalMindScript.IsAntag == false) return input;
+
+		if (CodeWordManager.Instance.CodeWordRoles.Contains(PlayerManager.LocalMindScript.NetworkedAntagJob) == false) return input;
+
+		string[] coloredText = input.Split(' '); //Split at each Word
+
+		for (int j = 0; j < coloredText.Length; j++)
+		{
+			for (int i = 0; i < CodeWordManager.WORD_COUNT; i++)
+			{
+				if (Regex.IsMatch(coloredText[j], $@"(?:^|\W){CodeWordManager.Instance.Words[i]}(?:$|\W)", RegexOptions.IgnoreCase))
+				{
+					coloredText[j] = $"<b><color=red>{coloredText[j]}</color></b>";
+				}
+				if (Regex.IsMatch(coloredText[j], $@"(?:^|\W){CodeWordManager.Instance.Responses[i]}(?:$|\W)", RegexOptions.IgnoreCase))
+				{
+					coloredText[j] = $"<b><color=blue>{coloredText[j]}</color></b>";
+				}
+			}
+		}
+
+		return string.Join(" ", coloredText);
+	}
+
 	private static string HighlightName(string input, string name, bool playSound = true)
 	{
 		if ((ThemeManager.ChatHighlight == false && ThemeManager.MentionSound == false) || name.IsNullOrEmpty())
@@ -422,20 +476,6 @@ public partial class Chat
 
 
 // TODO move all these methods to a proper SpeechModifier SO
-	private static string Hiss(Match m)
-	{
-		string x = m.ToString();
-		if (char.IsLower(x[0]))
-		{
-			x = x + "ss";
-		}
-		else
-		{
-			x = x + "SS";
-		}
-
-		return x;
-	}
 
 	private static string Sing(string m)
 	{
@@ -517,7 +557,8 @@ public partial class Chat
 	/// on the client. Do not use for anything else!
 	/// </summary>
 	public static void ProcessUpdateChatMessage(uint recipientUint, uint originatorUint, string message,
-		string messageOthers, ChatChannel channels, ChatModifier modifiers, string speaker, GameObject recipient, Loudness loudness, bool stripTags = true)
+		string messageOthers, ChatChannel channels, ChatModifier modifiers, string speaker, GameObject recipient,
+		Loudness loudness, bool stripTags = true, ushort languageId = 0, bool isWhispering = false, string Voice = "")
 	{
 
 		var isOriginator = true;
@@ -534,32 +575,41 @@ public partial class Chat
 
 		if (GhostValidationRejection(originatorUint, channels)) return;
 
-		var msg = ProcessMessageFurther(message, speaker, channels, modifiers, loudness, originatorUint, stripTags);
-		ChatRelay.Instance.UpdateClientChat(msg, channels, isOriginator, recipient, loudness, modifiers);
+		if (PlayerManager.LocalPlayerScript != null
+		    && PlayerManager.LocalPlayerScript.IsDeadOrGhost == false
+		    && PlayerManager.LocalPlayerScript.playerHealth != null
+		    && PlayerManager.LocalPlayerScript.playerHealth.CannotRecognizeNames)
+		{
+			speaker = "<color=red>Unknown</color>";
+		}
+
+		var msg = ProcessMessageFurther(message, speaker, channels, modifiers, loudness, isWhispering, originatorUint, stripTags);
+		ChatRelay.Instance.UpdateClientChat(msg, channels, isOriginator, recipient, loudness, modifiers, languageId, isWhispering, Voice : Voice, originatorNetId: originatorUint);
 	}
 
 	private static bool GhostValidationRejection(uint originator, ChatChannel channels)
 	{
-		if (PlayerManager.PlayerScript == null) return false;
-		if (PlayerManager.PlayerScript.IsGhost == false) return false;
-		if (Instance.GhostHearAll && PlayerManager.PlayerScript.IsPlayerSemiGhost == false) return false;
+		if (PlayerManager.LocalPlayerScript == null) return false;
+		if (PlayerManager.LocalPlayerScript.IsGhost == false) return false;
+		if (Instance.GhostHearAll && PlayerManager.LocalPlayerScript.IsPlayerSemiGhost == false) return false;
 
-		if (NetworkIdentity.spawned.ContainsKey(originator))
+		var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
+
+		if (spawned.TryGetValue(originator, out var getOrigin))
 		{
-			var getOrigin = NetworkIdentity.spawned[originator];
 			if (channels == ChatChannel.Local || channels == ChatChannel.Combat
 			                                  || channels == ChatChannel.Action)
 			{
 				LayerMask layerMask = LayerMask.GetMask("Door Closed");
 				if (Vector2.Distance(getOrigin.transform.position,
-					PlayerManager.LocalPlayer.transform.position) > 14f)
+					PlayerManager.LocalPlayerObject.transform.position) > 14f)
 				{
 					return true;
 				}
 				else
 				{
 					if (MatrixManager.RayCast(getOrigin.transform.position, Vector2.zero, 0, LayerTypeSelection.Walls,
-						layerMask, PlayerManager.LocalPlayer.transform.position).ItHit)
+						layerMask, PlayerManager.LocalPlayerObject.transform.position).ItHit)
 					{
 						return true;
 					}
@@ -577,43 +627,44 @@ public partial class Chat
 
 	private static bool IsServer()
 	{
-		if (!CustomNetworkManager.Instance._isServer)
+		if (!CustomNetworkManager.IsServer)
 		{
-			Logger.LogError("A server only method was called on a client in chat.cs", Category.Chat);
+			Loggy.Error("A server only method was called on a client in chat.cs", Category.Chat);
 			return false;
 		}
 
 		return true;
 	}
 
-	private static string GetChannelColor(ChatChannel channel)
+	public static string GetChannelColor(ChatChannel channel)
 	{
-		if (channel.HasFlag(ChatChannel.OOC)) return ColorUtility.ToHtmlStringRGBA(Instance.oocColor);
-		if (channel.HasFlag(ChatChannel.Ghost)) return ColorUtility.ToHtmlStringRGBA(Instance.ghostColor);
-		if (channel.HasFlag(ChatChannel.Binary)) return ColorUtility.ToHtmlStringRGBA(Instance.binaryColor);
-		if (channel.HasFlag(ChatChannel.Supply)) return ColorUtility.ToHtmlStringRGBA(Instance.supplyColor);
-		if (channel.HasFlag(ChatChannel.CentComm)) return ColorUtility.ToHtmlStringRGBA(Instance.centComColor);
-		if (channel.HasFlag(ChatChannel.Command)) return ColorUtility.ToHtmlStringRGBA(Instance.commandColor);
-		if (channel.HasFlag(ChatChannel.Common)) return ColorUtility.ToHtmlStringRGBA(Instance.commonColor);
-		if (channel.HasFlag(ChatChannel.Engineering)) return ColorUtility.ToHtmlStringRGBA(Instance.engineeringColor);
-		if (channel.HasFlag(ChatChannel.Medical)) return ColorUtility.ToHtmlStringRGBA(Instance.medicalColor);
-		if (channel.HasFlag(ChatChannel.Science)) return ColorUtility.ToHtmlStringRGBA(Instance.scienceColor);
-		if (channel.HasFlag(ChatChannel.Security)) return ColorUtility.ToHtmlStringRGBA(Instance.securityColor);
-		if (channel.HasFlag(ChatChannel.Service)) return ColorUtility.ToHtmlStringRGBA(Instance.serviceColor);
-		if (channel.HasFlag(ChatChannel.Syndicate)) return ColorUtility.ToHtmlStringRGBA(Instance.syndicateColor);
-		if (channel.HasFlag(ChatChannel.Local)) return ColorUtility.ToHtmlStringRGBA(Instance.localColor);
-		if (channel.HasFlag(ChatChannel.Combat)) return ColorUtility.ToHtmlStringRGBA(Instance.combatColor);
-		if (channel.HasFlag(ChatChannel.Warning)) return ColorUtility.ToHtmlStringRGBA(Instance.warningColor);
-		if (channel.HasFlag(ChatChannel.Blob)) return ColorUtility.ToHtmlStringRGBA(Instance.blobColor);
+		if (channel.HasFlagFast(ChatChannel.OOC)) return ColorUtility.ToHtmlStringRGBA(Instance.oocColor);
+		if (channel.HasFlagFast(ChatChannel.Ghost)) return ColorUtility.ToHtmlStringRGBA(Instance.ghostColor);
+		if (channel.HasFlagFast(ChatChannel.Binary)) return ColorUtility.ToHtmlStringRGBA(Instance.binaryColor);
+		if (channel.HasFlagFast(ChatChannel.Supply)) return ColorUtility.ToHtmlStringRGBA(Instance.supplyColor);
+		if (channel.HasFlagFast(ChatChannel.CentComm)) return ColorUtility.ToHtmlStringRGBA(Instance.centComColor);
+		if (channel.HasFlagFast(ChatChannel.Command)) return ColorUtility.ToHtmlStringRGBA(Instance.commandColor);
+		if (channel.HasFlagFast(ChatChannel.Common)) return ColorUtility.ToHtmlStringRGBA(Instance.commonColor);
+		if (channel.HasFlagFast(ChatChannel.Engineering)) return ColorUtility.ToHtmlStringRGBA(Instance.engineeringColor);
+		if (channel.HasFlagFast(ChatChannel.Medical)) return ColorUtility.ToHtmlStringRGBA(Instance.medicalColor);
+		if (channel.HasFlagFast(ChatChannel.Science)) return ColorUtility.ToHtmlStringRGBA(Instance.scienceColor);
+		if (channel.HasFlagFast(ChatChannel.Security)) return ColorUtility.ToHtmlStringRGBA(Instance.securityColor);
+		if (channel.HasFlagFast(ChatChannel.Service)) return ColorUtility.ToHtmlStringRGBA(Instance.serviceColor);
+		if (channel.HasFlagFast(ChatChannel.Syndicate)) return ColorUtility.ToHtmlStringRGBA(Instance.syndicateColor);
+		if (channel.HasFlagFast(ChatChannel.Local)) return ColorUtility.ToHtmlStringRGBA(Instance.localColor);
+		if (channel.HasFlagFast(ChatChannel.Combat)) return ColorUtility.ToHtmlStringRGBA(Instance.combatColor);
+		if (channel.HasFlagFast(ChatChannel.Warning)) return ColorUtility.ToHtmlStringRGBA(Instance.warningColor);
+		if (channel.HasFlagFast(ChatChannel.Blob)) return ColorUtility.ToHtmlStringRGBA(Instance.blobColor);
+		if (channel.HasFlagFast(ChatChannel.Alien)) return ColorUtility.ToHtmlStringRGBA(Instance.alienColor);
 		return ColorUtility.ToHtmlStringRGBA(Instance.defaultColor);
 	}
 
 	private static bool IsNamelessChan(ChatChannel channel)
 	{
-		if (channel.HasFlag(ChatChannel.System) ||
-		    channel.HasFlag(ChatChannel.Combat) ||
-		    channel.HasFlag(ChatChannel.Action) ||
-		    channel.HasFlag(ChatChannel.Examine))
+		if (channel.HasFlagFast(ChatChannel.System) ||
+		    channel.HasFlagFast(ChatChannel.Combat) ||
+		    channel.HasFlagFast(ChatChannel.Action) ||
+		    channel.HasFlagFast(ChatChannel.Examine))
 		{
 			return true;
 		}
@@ -625,7 +676,7 @@ public partial class Chat
 	/// All tags for a radio msg that goes after '.' or ':'
 	/// For example ':e' sends message to engineering channel
 	/// </summary>
-	public readonly static Dictionary<char, ChatChannel> ChanelsTags = new Dictionary<char, ChatChannel>()
+	public static readonly Dictionary<char, ChatChannel> ChannelsTags = new Dictionary<char, ChatChannel>
 	{
 		{'b', ChatChannel.Binary},
 		{'u', ChatChannel.Supply},
@@ -637,7 +688,8 @@ public partial class Chat
 		{'s', ChatChannel.Security},
 		{'v', ChatChannel.Service},
 		{'t', ChatChannel.Syndicate},
-		{'g', ChatChannel.Ghost}
+		{'g', ChatChannel.Ghost},
+		{'a', ChatChannel.Alien}
 	};
 
 	/// <summary>
@@ -651,12 +703,23 @@ public partial class Chat
 	{
 		// check if message is valid
 		if (string.IsNullOrEmpty(playerInput))
-			return new ParsedChatInput(playerInput, playerInput, ChatChannel.None);
+			return new ParsedChatInput(playerInput, playerInput, ChatChannel.None, 0);
 
+		var extractedChanel = CheckRadio(playerInput, context, out var specialCharCount);
+
+		var languageId = CheckLanguage(playerInput, ref specialCharCount);
+
+		// delete all special chars
+		var clearMsg = playerInput.Substring(specialCharCount).TrimStart(' ');
+		return new ParsedChatInput(playerInput, clearMsg, extractedChanel, languageId);
+	}
+
+	private static ChatChannel CheckRadio(string playerInput, IChatInputContext context, out int specialCharCount)
+	{
 		// all extracted channels from special chars
 		ChatChannel extractedChanel = ChatChannel.None;
 		// how many special chars we need to delete
-		int specialCharCount = 0;
+		specialCharCount = 0;
 
 		var firstLetter = playerInput.First();
 		if (firstLetter == ';')
@@ -672,9 +735,9 @@ public partial class Chat
 			{
 				var secondLetter = char.ToLower(playerInput[1]);
 				// let's try find desired chanel
-				if (ChanelsTags.ContainsKey(secondLetter))
+				if (ChannelsTags.ContainsKey(secondLetter))
 				{
-					extractedChanel = ChanelsTags[secondLetter];
+					extractedChanel = ChannelsTags[secondLetter];
 					specialCharCount = 2;
 				}
 				else if (secondLetter == 'h')
@@ -686,7 +749,7 @@ public partial class Chat
 					}
 					else
 					{
-						Logger.LogWarning("Chat context is null - can't resolve :h tag", Category.Chat);
+						Loggy.Warning("Chat context is null - can't resolve :h tag", Category.Chat);
 						extractedChanel = ChatChannel.None;
 					}
 
@@ -695,9 +758,34 @@ public partial class Chat
 			}
 		}
 
-		// delete all special chars
-		var clearMsg = playerInput.Substring(specialCharCount).TrimStart(' ');
-		return new ParsedChatInput(playerInput, clearMsg, extractedChanel);
+		return extractedChanel;
+	}
+
+	private static ushort CheckLanguage(string playerInput, ref int specialCharCount)
+	{
+		if (playerInput.Length - specialCharCount < 2)
+		{
+			//Radio channels go first the language channels so if they exists and the input length is too short
+			//dont check for languages
+			return 0;
+		}
+
+		var firstLetter = playerInput[specialCharCount];
+		if (firstLetter == ',')
+		{
+			var secondLetter = char.ToLower(playerInput[specialCharCount + 1]);
+
+			var language = LanguageManager.Instance.GetLanguageByKey(secondLetter);
+			if (language == null) return 0;
+
+			specialCharCount += 2;
+
+			var canUse = PlayerManager.LocalPlayerScript.MobLanguages.CanSpeakLanguage(language);
+
+			return canUse ? language.LanguageUniqueId : (ushort) 0;
+		}
+
+		return 0;
 	}
 
 	/// <summary>
@@ -722,15 +810,16 @@ public partial class Chat
 		{Speech.Swedish, ChatModifier.Swedish},
 		{Speech.Chav, ChatModifier.Chav},
 		{Speech.Stutter, ChatModifier.Stutter},
-		{Speech.Scotsman, ChatModifier.Scotsman}
+		{Speech.Scotsman, ChatModifier.Scotsman},
+		{Speech.Unintelligible, ChatModifier.Unintelligible}
 	};
 
-	private static bool CheckForEmoteAction(string emote, EmoteActionManager data)
+	private static bool CheckForEmoteAction(string emote)
 	{
-		return EmoteActionManager.HasEmote(emote, data);
+		return EmoteActionManager.HasEmote(emote);
 	}
-	private static void DoEmoteAction(string emoteName, GameObject player, EmoteActionManager data)
+	private static void DoEmoteAction(string emoteName, GameObject player)
 	{
-		EmoteActionManager.DoEmote(emoteName, player, data);
+		EmoteActionManager.DoEmote(emoteName, player);
 	}
 }

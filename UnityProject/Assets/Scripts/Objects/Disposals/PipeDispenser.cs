@@ -2,20 +2,26 @@
 using UnityEngine;
 using Mirror;
 using AddressableReferences;
+using Core;
 using Items.Atmospherics;
+using Logs;
 using Objects.Construction;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Objects.Atmospherics
 {
-	public class PipeDispenser : MonoBehaviour
+	public class PipeDispenser : MonoBehaviour, ICheckedInteractable<HandApply>
 	{
 		private const float DISPENSING_TIME = 2; // As per sprite sheet JSON file.
 
 		[SerializeField]
 		private AddressableAudioSource OperatingSound = null;
 
-		private ObjectBehaviour objectBehaviour;
+		[SerializeField]
+		private ItemTrait pipeDispensedItemTrait = null;
+
+		private UniversalObjectPhysics objectPhysics;
 		private WrenchSecurable securable;
 		private HasNetworkTab netTab;
 		private SpriteHandler spriteHandler;
@@ -39,7 +45,7 @@ namespace Objects.Atmospherics
 
 		private void Awake()
 		{
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectPhysics = GetComponent<UniversalObjectPhysics>();
 			securable = GetComponent<WrenchSecurable>();
 			netTab = GetComponent<HasNetworkTab>();
 			spriteHandler = transform.GetChild(0).GetComponent<SpriteHandler>();
@@ -51,11 +57,11 @@ namespace Objects.Atmospherics
 		{
 			if (MachineOperating)
 			{
-				spriteHandler.ChangeSprite((int)SpriteState.Operating);
+				spriteHandler.SetCatalogueIndexSprite((int)SpriteState.Operating);
 			}
 			else
 			{
-				spriteHandler.ChangeSprite((int)SpriteState.Idle);
+				spriteHandler.SetCatalogueIndexSprite((int)SpriteState.Idle);
 			}
 		}
 
@@ -64,10 +70,10 @@ namespace Objects.Atmospherics
 			if (MachineOperating || securable.IsAnchored == false) return;
 
 			this.RestartCoroutine(SetMachineOperating(), ref animationRoutine);
-			SpawnResult spawnResult = Spawn.ServerPrefab(objectPrefab, objectBehaviour.AssumedWorldPositionServer());
+			SpawnResult spawnResult = Spawn.ServerPrefab(objectPrefab, objectPhysics.registerTile.WorldPosition);
 			if (spawnResult.Successful == false)
 			{
-				Logger.LogError(
+				Loggy.Error(
 						$"Failed to spawn an object from {name}! " +
 						$"Is {nameof(UI.Objects.Atmospherics.GUI_PipeDispenser)} missing reference to object prefab?",
 						Category.Pipes);
@@ -89,7 +95,7 @@ namespace Objects.Atmospherics
 		{
 			MachineOperating = true;
 			UpdateSprite();
-			SoundManager.PlayNetworkedAtPos(OperatingSound, objectBehaviour.AssumedWorldPositionServer(), sourceObj: gameObject);
+			SoundManager.PlayNetworkedAtPos(OperatingSound, objectPhysics.registerTile.WorldPosition, sourceObj: gameObject);
 			yield return WaitFor.Seconds(DISPENSING_TIME);
 			MachineOperating = false;
 			UpdateSprite();
@@ -98,6 +104,21 @@ namespace Objects.Atmospherics
 		private void OnAnchoredChange()
 		{
 			netTab.enabled = securable.IsAnchored;
+		}
+
+		public bool WillInteract(HandApply interaction, NetworkSide side)
+		{
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			return interaction.UsedObject != null && Validations.HasItemTrait(interaction.UsedObject, pipeDispensedItemTrait);
+		}
+
+		public void ServerPerformInteraction(HandApply interaction)
+		{
+			if (Validations.HasItemTrait(interaction.UsedObject, pipeDispensedItemTrait))
+			{
+				Chat.AddExamineMsgFromServer(interaction.Performer, $"You put the {interaction.UsedObject.ExpensiveName()} back into the {gameObject.ExpensiveName()}");
+				_= Despawn.ServerSingle(interaction.UsedObject);
+			}
 		}
 	}
 }

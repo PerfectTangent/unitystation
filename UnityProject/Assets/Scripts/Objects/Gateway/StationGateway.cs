@@ -1,18 +1,24 @@
-﻿using Mirror;
+﻿using System.Collections.Generic;
+using Mirror;
 using UnityEngine;
 using System.Linq;
+using Core;
 using UnityEditor;
 using Gateway;
+using Logs;
 using Systems.Electricity;
 using Managers;
+using Messages.Server.SoundMessages;
 using Strings;
+using UI.Systems.Tooltips.HoverTooltips;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
 	/// <summary>
 	/// For Gateways inheritable class
 	/// </summary>
-	public class StationGateway : NetworkBehaviour, IAPCPowerable
+	public class StationGateway : NetworkBehaviour, IAPCPowerable, IExaminable, IHoverTooltip
 	{
 		[SerializeField]
 		private SpriteRenderer[] Sprites = null;
@@ -103,8 +109,8 @@ namespace Objects
 				{
 					if (!string.IsNullOrEmpty(EditorPrefs.GetString("prevEditorScene")))
 					{
-						if (SubSceneManager.Instance.awayWorldList.AwayWorlds.Contains(
-							EditorPrefs.GetString("prevEditorScene")))
+						if (SubSceneManager.Instance.AwayWorlds.AwayWorlds.Contains(
+							    EditorPrefs.GetString("prevEditorScene")))
 						{
 							loadNormally = false;
 							// This will ensure that the gateway is ready in 30 seconds
@@ -156,7 +162,12 @@ namespace Objects
 				if (timeElapsedServerSound > SoundLength && isOn)
 				{
 					DetectPlayer();
-					SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.MachineHum4, Position + Vector3Int.up);
+					SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.MachineHum4, Position + Vector3Int.up, new AudioSourceParameters()
+					{
+						Pitch = 0.5f,
+						Volume = 0.276f,
+						MaxDistance = 8
+					});
 					timeElapsedServerSound = 0;
 				}
 			}
@@ -178,14 +189,14 @@ namespace Objects
 			}
 		}
 
-		[Server]
+		[Server, NaughtyAttributes.Button]
 		private void ConnectToWorld()
 		{
 			var randomWorld = SubSceneManager.RequestRandomAwayWorldLink(this);
 
 			if (randomWorld == null)
 			{
-				Logger.Log("StationGateway failed to connect to an away world", Category.Machines);
+				Loggy.Info("StationGateway failed to connect to an away world", Category.Machines);
 				SetOffline();
 				return;
 			}
@@ -213,12 +224,12 @@ namespace Objects
 		public virtual void DetectPlayer()
 		{
 			// detect players positioned on the portal bit of the gateway
-			var playersFound = Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer + Vector3Int.up, ObjectType.Player, true);
+			var playersFound = Matrix.Get<MovementSynchronisation>(registerTile.LocalPositionServer + Vector3Int.up, ObjectType.Player, true);
 
 			if (SpawnedMobs == false && selectedWorld != null && playersFound.Count() > 0)
 			{
 				selectedWorld.SetUp(this);
-				Logger.Log("Gateway Spawned Mobs", Category.Machines);
+				Loggy.Info("Gateway Spawned Mobs", Category.Machines);
 				if (selectedWorld.GetComponent<MobSpawnControlScript>() != null)
 				{
 					selectedWorld.GetComponent<MobSpawnControlScript>().SpawnMobs();
@@ -226,16 +237,16 @@ namespace Objects
 				SpawnedMobs = true;
 			}
 
-			foreach (ObjectBehaviour player in playersFound)
+			foreach (MovementSynchronisation player in playersFound)
 			{
 				var coord = new Vector2(Position.x, Position.y);
-				Chat.AddLocalMsgToChat(Message, coord, gameObject);
+				Chat.AddLocalMsgToChat(Message, coord, gameObject, LanguageManager.Common);
 				SoundManager.PlayNetworkedForPlayer(player.gameObject,CommonSounds.Instance.StealthOff); // very weird, sometimes does the sound other times not.
 				TransportUtility.TransportObjectAndPulled(player, TeleportTargetCoord);
 			}
 
-			foreach (var item in Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer + Vector3Int.up, ObjectType.Object, true)
-										.Concat(Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer + Vector3Int.up, ObjectType.Item, true)))
+			foreach (var item in Matrix.Get<UniversalObjectPhysics>(registerTile.LocalPositionServer + Vector3Int.up, ObjectType.Object, true)
+				         .Concat(Matrix.Get<UniversalObjectPhysics>(registerTile.LocalPositionServer + Vector3Int.up, ObjectType.Item, true)))
 			{
 				TransportUtility.TransportObjectAndPulled(item, TeleportTargetCoord);
 			}
@@ -293,5 +304,34 @@ namespace Objects
 		}
 
 		#endregion
+
+		private string StateExamineMessage()
+		{
+			if (PoweredDevice.State == PowerState.Off)
+			{
+				return "The gateway stands lifeless, void of power.";
+			}
+
+			var text = selectedWorld == null
+				? "A lone red LED blinks on the gateway, signaling a missing connection."
+				: $"A green LED flashes on the gateway, hinting at a stable connection. Display says \"{selectedWorld.WorldName}\".";
+
+			return text;
+		}
+
+		public string Examine(Vector3 worldPos = default(Vector3))
+		{
+			return StateExamineMessage();
+		}
+
+		public string HoverTip()
+		{
+			return StateExamineMessage();
+		}
+
+		public Sprite CustomIcon() => Sprites[0].sprite;
+		public string CustomTitle() => null;
+		public List<Sprite> IconIndicators() => null;
+		public List<TextColor> InteractionsStrings() => null;
 	}
 }

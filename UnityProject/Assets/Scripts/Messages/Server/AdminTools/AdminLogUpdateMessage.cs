@@ -1,5 +1,7 @@
 ﻿using AdminTools;
+using Core.Admin.Logs;
 using Mirror;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Messages.Server.AdminTools
@@ -13,7 +15,7 @@ namespace Messages.Server.AdminTools
 
 		public override void Process(NetMessage msg)
 		{
-			UIManager.Instance.adminChatWindows.adminLogWindow.ClientUpdateChatLog(msg.JsonData);
+			AdminLogsManager.AddNewLog(null, msg.JsonData, LogCategory.Admin);
 		}
 
 		public static NetMessage SendSingleEntryToAdmins(AdminChatMessage chatMessage)
@@ -21,9 +23,9 @@ namespace Messages.Server.AdminTools
 			AdminChatUpdate update = new AdminChatUpdate();
 			update.messages.Add(chatMessage);
 			NetMessage  msg =
-				new NetMessage  {JsonData = JsonUtility.ToJson(update) };
+				new NetMessage  {JsonData = JsonConvert.SerializeObject(update) };
 
-			SendToAdmins(msg);
+			SendToAdmins(msg, TAG.ADMIN_LOGS);
 			return msg;
 		}
 
@@ -32,7 +34,7 @@ namespace Messages.Server.AdminTools
 			NetMessage msg =
 				new NetMessage
 				{
-					JsonData = JsonUtility.ToJson(update),
+					JsonData = JsonConvert.SerializeObject(update),
 				};
 
 			SendTo(requestee, msg);

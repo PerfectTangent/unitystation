@@ -1,139 +1,47 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using Items;
-using AddressableReferences;
-using Messages.Server;
 using UnityEngine;
 using Mirror;
+using Weapons.ActivatableWeapons;
 using Random = UnityEngine.Random;
 
-[RequireComponent(typeof(Pickupable))]
-public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
-	ICheckedInteractable<HandApply>, ICheckedInteractable<InventoryApply>
+public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandApply>, ICheckedInteractable<InventoryApply>
 {
 	[SerializeField]
-	[SyncVar]
-	private SwordColor color = default;
+	[SyncVar(hook = nameof(SyncState))] private SwordColor color = default;
 
-	[SerializeField]
-	private ItemSize activatedSize = ItemSize.Huge;
-	private ItemSize offSize;
+	private ActivatableWeapon av;
+	private EmitLightOnActivate avEmitLight;
+	private ChangeSpriteOnActivate avChangeSprite;
 
-	[SerializeField]
-	private AddressableAudioSource activatedHitSound = null;
-	private AddressableAudioSource offHitSound;
-
-	[SerializeField]
-	[Range(0, 100)]
-	private float activatedHitDamage = 30;
-	private float offHitDamage;
-
-	[SerializeField]
-	[Range(0, 100)]
-	private float activatedThrowDamage = 20;
-	private float offThrowDamage;
-
-	[SerializeField]
-	[Tooltip("The verbs to use when the energy sword being used to attack something while activated.")]
-	private List<string> activatedVerbs = new List<string>();
-	private List<string> offAttackVerbs;
-
-	[SerializeField]
-	private EswordSprites Sprites = default;
-
-	private ItemAttributesV2 itemAttributes;
-	private ItemLightControl lightControl;
-	private SpriteHandler spriteHandler;
-
-	[SyncVar(hook = nameof(SyncState))]
-	private bool isActivated;
-
-	public AddressableAudioSource saberon;
-
-	public AddressableAudioSource saberoff;
-
-	#region Lifecycle
+	[SerializeField] private EswordSprites Sprites = default;
 
 	private void Awake()
 	{
-		itemAttributes = GetComponent<ItemAttributesV2>();
-		lightControl = GetComponent<ItemLightControl>();
-		spriteHandler = GetComponentInChildren<SpriteHandler>();
+		av = GetComponent<ActivatableWeapon>();
+		avEmitLight = GetComponent<EmitLightOnActivate>();
+		avChangeSprite = GetComponent<ChangeSpriteOnActivate>();
 	}
 
 	private void Start()
 	{
-		offSize = itemAttributes.Size;
-		offHitSound = itemAttributes.ServerHitSound;
-		offHitDamage = itemAttributes.ServerHitDamage;
-		offThrowDamage = itemAttributes.ServerThrowDamage;
-		offAttackVerbs = new List<string>(itemAttributes.ServerAttackVerbs);
 		if (color == SwordColor.Random)
 		{
 			// Get random color
-			color = (SwordColor)Enum.GetValues(typeof(SwordColor)).GetValue(Random.Range(1, 5));
+			SyncState(color, (SwordColor)Enum.GetValues(typeof(SwordColor)).GetValue(Random.Range(1, 5)));
 		}
 	}
 
-	#endregion Lifecycle
-
-	private void SyncState(bool oldState, bool newState)
+	public void SyncState(SwordColor oldState, SwordColor newState)
 	{
-		isActivated = newState;
-
-		if (isActivated)
-		{
-			itemAttributes.SetSprites(GetItemSprites(color));
-		}
-		else
-		{
-			itemAttributes.SetSprites(Sprites.Off);
-		}
+		color = newState;
+		UpdateCol();
 	}
 
-	#region Interaction-ToggleState
-
-	public bool WillInteract(HandActivate interaction, NetworkSide side)
+	private void UpdateCol()
 	{
-		if (!DefaultWillInteract.Default(interaction, side))
-		{
-			return false;
-		}
-
-		return true;
+		avEmitLight.Color = GetLightSourceColor(color);
+		avChangeSprite.ActivatedSprites = GetItemSprites(color);
 	}
-
-	public void ServerPerformInteraction(HandActivate interaction)
-	{
-		isActivated = !isActivated; // This runs SyncState, which sets itemAttributes on clients
-		var lightColor = GetLightSourceColor(color);
-		lightControl.SetColor(lightColor);
-		lightControl.Toggle(isActivated);
-
-		if (isActivated)
-		{
-			SetActivatedAttributes();
-			spriteHandler.ChangeSprite((int)color);
-			itemAttributes.SetSprites(GetItemSprites(color));
-		}
-		else
-		{
-			SetDeactivatedAttributes();
-			spriteHandler.ChangeSprite(0);
-			itemAttributes.SetSprites(Sprites.Off);
-		}
-
-		SoundManager.PlayNetworkedAtPos(
-			isActivated ? saberon : saberoff, gameObject.AssumedWorldPosServer());
-
-		PlayerAppearanceMessage.SendToAll(interaction.Performer, (int)interaction.HandSlot.NamedSlot.GetValueOrDefault(NamedSlot.none), gameObject);
-	}
-
-	#endregion Interaction-ToggleState
-
-
-	#region Interaction-AdjustColor
 
 	public bool WillInteract(InventoryApply interaction, NetworkSide side)
 	{
@@ -142,8 +50,8 @@ public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
 		//only works if screwdriver is in hand
 		if (!interaction.IsFromHandSlot) return false;
 
-		return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
-				Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Multitool);
+		return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
+				Validations.HasItemTrait(interaction, CommonTraits.Instance.Multitool);
 	}
 
 	public void ServerPerformInteraction(InventoryApply interaction)
@@ -155,8 +63,8 @@ public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
 	{
 		if (!DefaultWillInteract.Default(interaction, side)) return false;
 
-		return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
-				Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Multitool);
+		return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
+				Validations.HasItemTrait(interaction, CommonTraits.Instance.Multitool);
 	}
 
 	public void ServerPerformInteraction(HandApply interaction)
@@ -166,7 +74,7 @@ public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
 
 	private void AdjustColor(GameObject usedObject, GameObject performer)
 	{
-		if (isActivated)
+		if (av.IsActive)
 		{
 			Chat.AddExamineMsgFromServer(performer, "You can't adjust the sword while it's <i>on</i>!");
 			return;
@@ -180,40 +88,23 @@ public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
 
 		if (Validations.HasItemTrait(usedObject, CommonTraits.Instance.Screwdriver))
 		{
-			color += 1;
-			if (color > SwordColor.Purple)
+			var num = color;
+			if (num + 1 > SwordColor.Purple)
 			{
-				color = SwordColor.Red;
+				SyncState(color, SwordColor.Red);
 			}
-
+			else
+			{
+				SyncState(color, num + 1);
+			}
 			Chat.AddExamineMsgFromServer(performer, "You adjust the crystalline beam emitter.");
 		}
 		else if (Validations.HasItemTrait(usedObject, CommonTraits.Instance.Multitool))
 		{
-			color = SwordColor.Rainbow;
+			SyncState(color, SwordColor.Rainbow);
 			Chat.AddExamineMsgFromServer(performer,
 					"You tinker with the sword's firmware using the multitool.\nIt reports; <b>RNBW_ENGAGE</b>.");
 		}
-	}
-
-	#endregion Interaction-AdjustColor
-
-	private void SetDeactivatedAttributes()
-	{
-		itemAttributes.ServerSetSize(offSize);
-		itemAttributes.ServerHitSound = offHitSound;
-		itemAttributes.ServerHitDamage = offHitDamage;
-		itemAttributes.ServerThrowDamage = offThrowDamage;
-		itemAttributes.ServerAttackVerbs = offAttackVerbs;
-	}
-
-	private void SetActivatedAttributes()
-	{
-		itemAttributes.ServerSetSize(activatedSize);
-		itemAttributes.ServerHitSound = activatedHitSound;
-		itemAttributes.ServerHitDamage = activatedHitDamage;
-		itemAttributes.ServerThrowDamage = activatedThrowDamage;
-		itemAttributes.ServerAttackVerbs = activatedVerbs;
 	}
 
 	private ItemsSprites GetItemSprites(SwordColor swordColor)
@@ -232,7 +123,7 @@ public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
 				return Sprites.Rainbow;
 		}
 
-		return Sprites.Off;
+		return Sprites.Red;
 	}
 
 	private Color GetLightSourceColor(SwordColor swordColor)
@@ -240,19 +131,19 @@ public class EnergySword : NetworkBehaviour, ICheckedInteractable<HandActivate>,
 		switch (swordColor)
 		{
 			case SwordColor.Red:
-				return new Color32(250, 130, 130, 255); // LIGHT_COLOR_RED
+				return new Color32(250, 130, 130, 169); // LIGHT_COLOR_RED
 			case SwordColor.Blue:
-				return new Color32(64, 206, 255, 255); // LIGHT_COLOR_LIGHT_CYAN
+				return new Color32(64, 206, 255, 169); // LIGHT_COLOR_LIGHT_CYAN
 			case SwordColor.Green:
-				return new Color32(100, 200, 100, 255); // LIGHT_COLOR_GREEN
+				return new Color32(100, 200, 100, 169); // LIGHT_COLOR_GREEN
 			case SwordColor.Purple:
-				return new Color32(155, 81, 255, 255); // LIGHT_COLOR_LAVENDER
+				return new Color32(155, 81, 255, 169); // LIGHT_COLOR_LAVENDER
 		}
 
 		return default;
 	}
 
-	private enum SwordColor
+	public enum SwordColor
 	{
 		Random = 0,
 		Red = 1,
@@ -270,5 +161,4 @@ public class EswordSprites{
 	public ItemsSprites Purple = new ItemsSprites();
 	public ItemsSprites Rainbow = new ItemsSprites();
 	public ItemsSprites Red = new ItemsSprites();
-	public ItemsSprites Off = new ItemsSprites();
 }

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 2341012954230024805}
   - component: {fileID: 2521656241382242825}
   m_Layer: 5
-  m_Name: Tooltip_Placeholder
+  m_Name: OldTooltip
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -31,7 +31,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2338729149468139205}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -91,6 +90,7 @@ GameObject:
   - component: {fileID: 2338729149468139205}
   - component: {fileID: 2340930569063245211}
   - component: {fileID: 2521908554719778531}
+  - component: {fileID: 6382782667546856552}
   m_Layer: 5
   m_Name: Panel_ToolTip
   m_TagString: Untagged
@@ -114,7 +114,6 @@ RectTransform:
   - {fileID: 2749770474105519504}
   - {fileID: 4291166550735643140}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
@@ -159,6 +158,19 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &6382782667546856552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2553322715527811953}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d68eca7a0ae473e975e4f769b16f693, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  classicPanelTooltip: {fileID: 2521656241382242825}
 --- !u!1 &4255000533146734361
 GameObject:
   m_ObjectHideFlags: 0
@@ -190,7 +202,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2338729149468139205}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
@@ -270,7 +281,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2338729149468139205}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}

@@ -1,34 +1,49 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Chemistry;
+using HealthV2;
+using HealthV2.Living.PolymorphicSystems.Bodypart;
 using UnityEngine;
 
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class Bones : BodyPartFunctionality
 	{
-		[SerializeField] private float BloodGeneratedByOneNutriment = 1;
-		[SerializeField] private BloodType GeneratesThis;
+		[SerializeField] public float BloodGeneratedByOneNutriment = 30;
+		[SerializeField] private Reagent GeneratesThis;
+
+		public float GenerationOvershoot = 1;
+
+		public HungerComponent HungerComponent;
+
+		public ReagentCirculatedComponent ReagentCirculatedComponent;
+
+		public override void Awake()
+		{
+			base.Awake();
+			HungerComponent = this.GetComponentCustom<HungerComponent>();
+			ReagentCirculatedComponent = this.GetComponentCustom<ReagentCirculatedComponent>();
+		}
+
 		public override void SetUpSystems()
 		{
 			base.SetUpSystems();
 			if (GeneratesThis == null)
 			{
-				GeneratesThis = RelatedPart.HealthMaster.CirculatorySystem.BloodType;
+				GeneratesThis = ReagentCirculatedComponent.bloodReagent;
 			}
 		}
+
 		public override void ImplantPeriodicUpdate()
 		{
-			if (RelatedPart.BloodStoredMax > RelatedPart.BloodContainer.ReagentMixTotal && RelatedPart.BloodContainer[RelatedPart.Nutriment] > 0 &&
-			    RelatedPart.HealthMaster.GetTotalBlood() < RelatedPart.HealthMaster.CirculatorySystem.BloodInfo.BLOOD_NORMAL)
+			if ((ReagentCirculatedComponent.AssociatedSystem.StartingBlood * GenerationOvershoot) > ReagentCirculatedComponent.AssociatedSystem.BloodPool.Total)  //Assuming this is blood cap max)
 			{
-				float toConsume = RelatedPart.PassiveConsumptionNutriment * RelatedPart.HealingNutrimentMultiplier;
-				if (toConsume > RelatedPart.BloodContainer[RelatedPart.Nutriment])
+				float toConsume = HungerComponent.PassiveConsumptionNutriment * HungerComponent.HealingNutrimentMultiplier;
+				if (toConsume > ReagentCirculatedComponent.AssociatedSystem.BloodPool[HungerComponent.Nutriment])
 				{
-					toConsume = RelatedPart.BloodContainer[RelatedPart.Nutriment];
+					toConsume = ReagentCirculatedComponent.AssociatedSystem.BloodPool[HungerComponent.Nutriment];
 				}
 
-				RelatedPart.BloodContainer.CurrentReagentMix.Remove(RelatedPart.Nutriment, toConsume);
-				RelatedPart.BloodContainer.CurrentReagentMix.Add(GeneratesThis, BloodGeneratedByOneNutriment * toConsume);
+				ReagentCirculatedComponent.AssociatedSystem.BloodPool.Remove(HungerComponent.Nutriment, toConsume);
+				ReagentCirculatedComponent.AssociatedSystem.BloodPool.Add(GeneratesThis, BloodGeneratedByOneNutriment * toConsume);
 			}
 		}
 	}

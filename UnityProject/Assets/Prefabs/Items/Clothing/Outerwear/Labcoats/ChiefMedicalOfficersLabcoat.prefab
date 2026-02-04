@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2754019653643912758, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
+      propertyPath: parentID
+      value: dfc0f23c4db66d144a03103586ce7619
+      objectReference: {fileID: 0}
     - target: {fileID: 2754019653643912758, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
       propertyPath: foreverID
@@ -29,19 +35,25 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2810172669535721950, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: b53e1fe558ad7884b89fbca32beb9508,
         type: 2}
     - target: {fileID: 2810172669535721950, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
-      propertyPath: allClothingData.Array.data[1]
+      propertyPath: 'allClothingData.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 1ffa22ee49d19764c97795b9dbb92ed7,
         type: 2}
     - target: {fileID: 3153813430929650140, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 917d91eb63874b847a2c1a98e0478074,
+        type: 2}
+    - target: {fileID: 3153813430929650140, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 917d91eb63874b847a2c1a98e0478074,
         type: 2}
@@ -56,6 +68,12 @@ PrefabInstance:
       value: Bluer than the standard model. Issued to Chief Medical Officers, keeping
         them visible at all times among the sea of the wounded and other doctors.
       objectReference: {fileID: 0}
+    - target: {fileID: 8678186998923896121, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 917d91eb63874b847a2c1a98e0478074,
+        type: 2}
     - target: {fileID: 8967636835189487879, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
       propertyPath: m_Sprite
@@ -124,8 +142,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9157702831496919023, guid: dfc0f23c4db66d144a03103586ce7619,
         type: 3}
+      propertyPath: _assetId
+      value: 1727449624
+      objectReference: {fileID: 0}
+    - target: {fileID: 9157702831496919023, guid: dfc0f23c4db66d144a03103586ce7619,
+        type: 3}
       propertyPath: m_AssetId
       value: 63e8f225c4bf1d647be06fb2f91c15aa
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dfc0f23c4db66d144a03103586ce7619, type: 3}

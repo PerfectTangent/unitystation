@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 536155454978254675, guid: 0068bc8f1fd50c54a978e30b4c416e2c,
+        type: 3}
+      propertyPath: parentID
+      value: 0068bc8f1fd50c54a978e30b4c416e2c
+      objectReference: {fileID: 0}
     - target: {fileID: 536155454978254675, guid: 0068bc8f1fd50c54a978e30b4c416e2c,
         type: 3}
       propertyPath: foreverID
@@ -30,6 +36,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 645d2af232083e545930ac3d55f4a641,
         type: 2}
+    - target: {fileID: 5072271168613268864, guid: 0068bc8f1fd50c54a978e30b4c416e2c,
+        type: 3}
+      propertyPath: <relevantDepartment>k__BackingField
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6034605051001232213, guid: 0068bc8f1fd50c54a978e30b4c416e2c,
         type: 3}
       propertyPath: machineParts
@@ -40,6 +51,11 @@ PrefabInstance:
         type: 3}
       propertyPath: initialName
       value: Booze Dispenser (Machine Board)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6799946118622369418, guid: 0068bc8f1fd50c54a978e30b4c416e2c,
+        type: 3}
+      propertyPath: _assetId
+      value: 3708586748
       objectReference: {fileID: 0}
     - target: {fileID: 6799946118622369418, guid: 0068bc8f1fd50c54a978e30b4c416e2c,
         type: 3}
@@ -127,4 +143,7 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0068bc8f1fd50c54a978e30b4c416e2c, type: 3}

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
+﻿using System.Linq;
 
 namespace UI.Core.NetUI
 {
@@ -14,38 +11,24 @@ namespace UI.Core.NetUI
 	{
 		public void AddItems(int count)
 		{
-			for (int i = 0; i < count; i++)
-			{
-				Add();
-			}
-			NetworkTabManager.Instance.Rescan(MasterTab.NetTabDescriptor);
+			AddBulk(new string[count]);
+			NetworkTabManager.Instance.Rescan(containedInTab.NetTabDescriptor);
 			UpdatePeepers();
 		}
 
 		public void SetItems(int count)
 		{
-			while (count > Entries.Length)
+			while (count > Entries.Count)
 			{
 				Add();
 			}
 
-			while (count < Entries.Length)
+			while (count < Entries.Count)
 			{
 				Remove(Entries.Last().name);
 			}
-			NetworkTabManager.Instance.Rescan(MasterTab.NetTabDescriptor);
+			NetworkTabManager.Instance.Rescan(containedInTab.NetTabDescriptor);
 			UpdatePeepers();
-		}
-
-		public DynamicEntry AddItem()
-		{
-			var newEntry = Add();
-
-			// rescan elements and notify
-			NetworkTabManager.Instance.Rescan(MasterTab.NetTabDescriptor);
-			UpdatePeepers();
-
-			return newEntry;
 		}
 	}
 }

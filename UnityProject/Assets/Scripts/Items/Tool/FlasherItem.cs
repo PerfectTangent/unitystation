@@ -7,6 +7,7 @@ namespace Items.Tool
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (interaction.IsAltClick) return false;
 			return gameObject.PickupableOrNull().ItemSlot != null;
 		}
 
@@ -20,7 +21,14 @@ namespace Items.Tool
 			if(interaction.TargetObject == null || interaction.TargetObject.TryGetComponent<RegisterPlayer>(out var player) == false) return;
 			Chat.AddActionMsgToChat(interaction.Performer, $"You flash {player.PlayerScript.visibleName}",
 				$"{interaction.PerformerPlayerScript.visibleName} flashes {player.PlayerScript.visibleName}!");
-			FlashTarget(player.gameObject);
+			if (stunsPlayers)
+			{
+				FlashTarget(player.gameObject, flashTime, flashTime + stunExtraTime);
+			}
+			else
+			{
+				FlashTarget(player.gameObject, flashTime, 0);
+			}
 		}
 	}
 }

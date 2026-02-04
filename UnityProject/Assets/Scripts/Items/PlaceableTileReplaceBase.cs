@@ -13,7 +13,7 @@ namespace Objects
 	public class PlaceableTileReplaceBase : MonoBehaviour, ICheckedInteractable<PositionalHandApply>
 	{
 		[NonSerialized]
-		public LayerTypeSelection layerTypeSelection = LayerTypeSelection.Underfloor | LayerTypeSelection.Effects;
+		public LayerTypeSelection layerTypeSelection = LayerTypeSelection.AllUnderFloor | LayerTypeSelection.Effects;
 
 		[FormerlySerializedAs("entries")]
 		[Tooltip("Defines each possible way this item can be placed as a tile.")]
@@ -32,7 +32,7 @@ namespace Objects
 
 		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.HandObject != gameObject) return false;
 
 			//it's annoying to place something when you're trying to pick up instead to add to your current stack,

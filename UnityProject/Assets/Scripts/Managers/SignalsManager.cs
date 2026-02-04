@@ -4,6 +4,7 @@ using Communications;
 using UnityEngine;
 using Mirror;
 using ScriptableObjects.Communications;
+using Shared.Managers;
 using Random = System.Random;
 
 namespace Managers
@@ -13,9 +14,38 @@ namespace Managers
 
 		public HashSet<SignalReceiver> Receivers = new HashSet<SignalReceiver>();
 
+		public override void Start()
+		{
+			base.Start();
+			EventManager.AddHandler(Event.SceneUnloading, ClearReceivers);
+		}
+		void ClearReceivers()
+		{
+			Receivers.Clear();
+		}
+
+		public override void OnDestroy()
+		{
+			EventManager.RemoveHandler(Event.SceneUnloading, ClearReceivers);
+			base.OnDestroy();
+		}
+
+		public void Clear()
+		{
+			List<SignalReceiver> receivers = new List<SignalReceiver>();
+			receivers.AddRange(Receivers);
+			Debug.Log("removed " + CleanupUtil.RidListOfSoonToBeDeadElements(receivers, u=> u) + " dead elements from SignalsManager.Receivers");
+			Receivers.Clear();
+
+			foreach (var a in receivers)
+			{
+				Receivers.Add(a);
+			}
+		}
+
 		/// <summary>
 		/// Called from the server as the Receivers list is only available for the host and to avoid clients from cheating.
-		/// Loops through all receivers and sends the signal if they match the signal type and/or frequancy
+		/// Loops through all receivers and sends the signal if they match the signal type and/or frequency
 		/// </summary>
 		[Server]
 		public void SendSignal(SignalEmitter emitter, SignalType type, SignalDataSO signalDataSo, ISignalMessage signalMessage = null)
@@ -24,46 +54,46 @@ namespace Managers
 
 			foreach (SignalReceiver receiver in Receivers)
 			{
+				if (receiver.gameObject == null) continue;
+				//So servers don't accidentally send data back to themselves
+				if (emitter.gameObject == receiver.gameObject) continue;
 				if (receiver.SignalTypeToReceive != type) continue;
 
+				//If the signals are not on the same frequency or requires encryption
 				if (receiver.Frequency.IsBetween(signalDataSo.MinMaxFrequancy.x, signalDataSo.MinMaxFrequancy.y) == false) continue;
 				if (receiver.ListenToEncryptedData == false && MatchingEncryption(receiver, emitter) == false) continue;
 
+				//Bounced radios always have a limited range. Has no limit on the number of devices it can send a signal to.
+				if (receiver.SignalTypeToReceive == SignalType.BOUNCED && AreOnTheSameFrequancy(receiver, emitter))
+				{
+					SignalStrengthHandler(receiver, emitter, signalDataSo, signalMessage);
+					continue;
+				}
+
+				//Radio signals are designed to send and process data and commands back and fourth.
+				if ((receiver.SignalTypeToReceive == SignalType.RADIOCLIENT || receiver.SignalTypeToReceive == SignalType.RADIOSERVER)
+					&& AreOnTheSameFrequancy(receiver, emitter))
+				{
+					if (signalDataSo.UsesRange) { SignalStrengthHandler(receiver, emitter, signalDataSo, signalMessage); continue; }
+					receiver.ReceiveSignal(SignalStrength.HEALTHY, emitter, signalMessage);
+					continue;
+				}
+
+				//PING signals are meant for communicating to a single device only
+				//These are meant for admin, special items and map specific cases where other signals cannot interfere with this
 				if (receiver.SignalTypeToReceive == SignalType.PING && receiver.Emitter == emitter)
 				{
 					if (signalDataSo.UsesRange) { SignalStrengthHandler(receiver, emitter, signalDataSo); break; }
 					receiver.ReceiveSignal(SignalStrength.HEALTHY, emitter, signalMessage);
 					break;
 				}
-				//TODO (Max) : Radio signals should be sent to relays and servers.
-				if (receiver.SignalTypeToReceive == SignalType.RADIO && AreOnTheSameFrequancy(receiver, emitter))
-				{
-					if (signalDataSo.UsesRange) { SignalStrengthHandler(receiver, emitter, signalDataSo, signalMessage); continue; }
-					receiver.ReceiveSignal(SignalStrength.HEALTHY, emitter, signalMessage);
-					continue;
-				}
-				//Bounced radios always have a limited range.
-				if (receiver.SignalTypeToReceive == SignalType.BOUNCED && AreOnTheSameFrequancy(receiver, emitter))
-				{
-					SignalStrengthHandler(receiver, emitter, signalDataSo, signalMessage);
-				}
 			}
 		}
 
 		private bool MatchingEncryption(SignalReceiver receiver, SignalEmitter emitter)
 		{
-			if (receiver.EncryptionData == null) return true;
-			if (emitter.EncryptionData == null)
-			{
-				return false;
-			}
-
-			if (emitter.EncryptionData.EncryptionSecret != receiver.EncryptionData.EncryptionSecret)
-			{
-				return false;
-			}
-
-			return true;
+			if(receiver.PassCode == 0) return true;
+			return emitter.Passcode == receiver.PassCode;
 		}
 
 		private bool AreOnTheSameFrequancy(SignalReceiver receiver , SignalEmitter emitter)
@@ -97,7 +127,7 @@ namespace Managers
 		private IEnumerator DelayedSignalRecevie(float waitTime, SignalReceiver receiver, SignalEmitter emitter, SignalStrength strength, ISignalMessage signalMessage = null)
 		{
 			yield return WaitFor.Seconds(waitTime);
-			if (receiver.gameObject == null)
+			if (receiver.OrNull()?.gameObject == null)
 			{
 				//In case the object despawns before the signal reaches it
 				yield break;
@@ -135,7 +165,8 @@ namespace Managers
 	public enum SignalType
 	{
 		PING, //Signal is meant for a target object
-		RADIO, //Signal is meant to be connected via a receiver to relay to other devices
+		RADIOSERVER, //Signal from a machine that processes client signals and updates other clients
+		RADIOCLIENT, //Signal from a machine that communicates with another machine
 		BOUNCED //Signal is meant to be sent to all nearby devices without a middle man
 	}
 
@@ -153,8 +184,7 @@ namespace Managers
 	{
 		public string Sender;
 		public string Message;
-		public bool IsEncrypted;
-		public string OriginalSenderName;
+		public int Code;
 	}
 }
 

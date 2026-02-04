@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using AddressableReferences;
+using Core.Editor.Attributes;
 using HealthV2;
+using Logs;
 using Messages.Server.SoundMessages;
 using NaughtyAttributes;
 using UnityEngine;
+using UnityEngine.Serialization;
+using Util.Independent.FluentRichText;
 using Random = UnityEngine.Random;
 
 namespace ScriptableObjects.RP
@@ -16,6 +20,8 @@ namespace ScriptableObjects.RP
 		[SerializeField]
 		protected string emoteName = "";
 		public string EmoteName => emoteName;
+
+		[field: SerializeField] public Sprite EmoteIcon;
 
 		[Tooltip("Does this emote require the player to have hands that exist and not handcuffed?")]
 		[SerializeField]
@@ -43,7 +49,7 @@ namespace ScriptableObjects.RP
 
 		[Tooltip("If the emote has a special requirment and fails to meet it.")]
 		[SerializeField]
-		protected string failText = "You were unable to preform this action!";
+		protected string failText = "You were unable to perform this action!";
 
 		[SerializeField, ShowIf(nameof(isAudibleEmote))]
 		protected string mouthBlockedText = "You are unable to make a sound!";
@@ -64,6 +70,15 @@ namespace ScriptableObjects.RP
 		[SerializeField]
 		private Vector2 pitchRange = new Vector2(0.7f, 1f);
 
+		[FormerlySerializedAs("allowedPlayerStates")]
+		[Tooltip("Which player states are allowed to use this emote")]
+		[SerializeField]
+		private PlayerTypes allowedPlayerTypes = PlayerTypes.Normal;
+
+		[SerializeField, SerializeReference, SelectImplementation(typeof(IEmoteBehavior))]
+		[Tooltip("Behaviors that are initiated when emoting.")]
+		protected List<IEmoteBehavior> Behaviors = new List<IEmoteBehavior>();
+
 		protected enum FailType
 		{
 			Normal,
@@ -71,13 +86,29 @@ namespace ScriptableObjects.RP
 			MouthBlocked
 		}
 
-		public virtual void Do(GameObject player)
+		public virtual void Do(GameObject actor)
 		{
-			if(CheckAllBaseConditions(player) == false) return;
-			Chat.AddActionMsgToChat(player, $"{youText}", $"{player.ExpensiveName()} {viewText}.");
-			PlayAudio(defaultSounds, player);
+			if (CheckAllBaseConditions(actor) == false) return;
+			Chat.AddActionMsgToChat(actor, $"{youText}", $"{actor.ExpensiveName()} {viewText}.");
+			PlayAudio(defaultSounds, actor);
+			RunBehaviors(actor);
 		}
 
+		protected void RunBehaviors(GameObject actor)
+		{
+			try
+			{
+				foreach (var behavior in Behaviors)
+				{
+					behavior.Behave(actor);
+				}
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+			}
+
+		}
 
 		/// <summary>
 		/// Use this instead of rewriting Chat.AddActionMsgToChat() when adding text to a failed conditon.
@@ -89,7 +120,7 @@ namespace ScriptableObjects.RP
 			switch (type)
 			{
 				case FailType.Normal:
-					Chat.AddActionMsgToChat(player, $"{failText}", "");
+					Chat.AddExamineMsg(player, $"[Emote: {emoteName}] - {failText}".Italic());
 					break;
 				case FailType.Critical:
 					Chat.AddActionMsgToChat(player, $"{player.ExpensiveName()} {critViewText}.", $"{player.ExpensiveName()} {critViewText}.");
@@ -102,16 +133,13 @@ namespace ScriptableObjects.RP
 
 		protected void PlayAudio(List<AddressableAudioSource> audio, GameObject player)
 		{
-			//If there is no audio in the audio list, exit out of this function.
-			if (audio.Count == 0)
-			{
-				Logger.LogWarning("[EmoteSO/" + $"{name}] - " + "No audio files detected!.");
-				return;
-			}
+			if (audio.Count == 0) return;
 
 			var audioSourceParameters = new AudioSourceParameters(Random.Range(pitchRange.x, pitchRange.y), 100f);
+			var audioSource = audio.PickRandom();
 
-			_ = SoundManager.PlayNetworkedAtPosAsync(audio.PickRandom(), player.AssumedWorldPosServer(), audioSourceParameters);
+			_ = SoundManager.PlayNetworkedAtPosAsync(audioSource, player.AssumedWorldPosServer(),
+				audioSourceParameters, sourceObj: player, attachToSource: true);
 		}
 
 		/// <summary>
@@ -120,10 +148,11 @@ namespace ScriptableObjects.RP
 		/// </summary>
 		protected List<AddressableAudioSource> GetBodyTypeAudio(GameObject player)
 		{
-			if(player.TryGetComponent<PlayerScript>(out var playerScript) == false) return defaultSounds;
+			if (player.TryGetComponent<PlayerScript>(out var playerScript) == false) return defaultSounds;
 			var bodyType = playerScript.characterSettings.BodyType;
-			//Get the player's species
-			var race = CharacterSettings.GetRaceData(playerScript.characterSettings);
+			// Get the player's species
+			if (!RaceSOSingleton.TryGetRaceByName(playerScript.characterSettings.Species, out var race)) return defaultSounds;
+
 			VoiceType voiceTypeToUse = new VoiceType();
 			foreach (var voice in TypedSounds)
 			{
@@ -133,11 +162,15 @@ namespace ScriptableObjects.RP
 
 			List<AddressableAudioSource> GetSounds(BodyType bodyTypeToCheck)
 			{
-				foreach (var sound in voiceTypeToUse.VoiceDatas)
+				if (voiceTypeToUse.VoiceDatas != null)
 				{
-					if(sound.VoiceSex != bodyTypeToCheck) continue;
-					return sound.Sounds;
+					foreach (var sound in voiceTypeToUse.VoiceDatas)
+					{
+						if(sound.VoiceSex != bodyTypeToCheck) continue;
+						return sound.Sounds;
+					}
 				}
+
 				return defaultSounds;
 			}
 
@@ -189,7 +222,7 @@ namespace ScriptableObjects.RP
 		{
 			//TODO : This sort of thing should be checked on the player script when reworking telecomms and adding a proper silencing system
 			if(player.TryGetComponent<PlayerScript>(out var script) == false) return false;
-			if (script.mind.occupation.JobType == JobType.MIME) return true; //FIXME : Find a way to check if vow of silence is broken
+			if (script.Mind.OrNull()?.occupation != null && script.Mind.occupation.JobType == JobType.MIME) return true; //FIXME : Find a way to check if vow of silence is broken
 			foreach (var slot in script.Equipment.ItemStorage.GetItemSlots())
 			{
 				if(slot.IsEmpty) continue;
@@ -200,6 +233,18 @@ namespace ScriptableObjects.RP
 
 		protected bool CheckAllBaseConditions(GameObject player)
 		{
+			if (player.TryGetComponent<PlayerScript>(out var playerScript)
+			    && allowedPlayerTypes.HasFlag(playerScript.PlayerType) == false)
+			{
+				FailText(player, FailType.Normal);
+				return false;
+			}
+
+			if (playerScript.playerHealth.IsDead)
+			{
+				return false;
+			}
+
 			if (allowEmoteWhileInCrit == false && CheckPlayerCritState(player))
 			{
 				FailText(player, FailType.Critical);

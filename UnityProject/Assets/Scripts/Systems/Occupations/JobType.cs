@@ -68,7 +68,25 @@ public enum JobType
 	ANCIENT_ENGINEER = 56,
 	REDSHIELD_OFFICER = 57,
 	ASHWALKER = 58,
-	HIGHLANDER = 59
+	HIGHLANDER = 59,
+	THEWELDER = 60,
+	CHANGELING = 61,
+	ASHWALKER_PRIEST = 62,
+	MAINT_SURVIVOR = 63,
+}
+
+public enum JobCategory
+{
+	Other = 0,
+	Cargo,
+	Engineering,
+	Medical,
+	Security,
+	Science,
+	Service,
+	Crewe,
+	Command,
+	Silicon
 }
 
 public static class JobCategories

@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa96b9f69a100de479f7f4b29b3bd871, type: 3}
+  m_Name: HeatExchangerPipeRun
+  m_EditorClassIdentifier: 
+  <ForeverID>k__BackingField: a6970a03725bbc44bab5ee8e51520f58
+  displayName: 
+  description: 
+  LayerType: 11
+  TileType: 12
+  RequiredTiles: []
+  Mass: 1
+  floorTileSounds: {fileID: 0}
+  CanSoundOverride: 0
+  atmosPassable: 1
+  isSealed: 1
+  SpawnWithNoAir: 0
+  passable: 1
+  mineable: 0
+  miningTime: 5
+  miningHardness: 1
+  constructable: 1
+  RadiationPassability: 1
+  ThermalConductivity: 0.05
+  HeatCapacity: 10000
+  doesReflectBullet: 0
+  indestructible: 0
+  ExplosionImpassable: 0
+  BlocksTileInteractionsUnder: 0
+  passableException:
+    m_keys: 
+    m_values: 
+  maxHealth: 0
+  damageDeflection: 0
+  armor:
+    Melee: 90
+    Bullet: 90
+    Laser: 90
+    Energy: 90
+    Bomb: 90
+    Rad: 100
+    Fire: 100
+    Acid: 90
+    Magic: 0
+    Bio: 100
+    Anomaly: 0
+    DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
+  tileInteractions:
+  - {fileID: 11400000, guid: f3cbdc8fa952d8f41b14bcf1de66e64e, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
+  tileStepInteractions: []
+  spawnOnDeconstruct: {fileID: 4986358109480565920, guid: ba7654faafb5b8e4ca4ce7c5f4ca196e,
+    type: 3}
+  spawnAmountOnDeconstruct: 1
+  lootOnDespawn: {fileID: 0}
+  toTileWhenDestroyed: {fileID: 0}
+  spawnOnDestroy: {fileID: 0}
+  damageOverlayList: {fileID: 0}
+  soundOnHit:
+    SetLoadSetting: 0
+    AssetAddress: 
+    AssetReference:
+      m_AssetGUID: 
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0
+  SoundOnDestroy: []
+  PipeLayer: 1
+  Volume: 0.1
+  CustomLogic: 1
+  Connections:
+    Directions:
+    - Bool: 1
+      MappedNeeded: 0
+      pipeType: 2
+      PortType: 0
+      flagLogic: 0
+    - Bool: 0
+      MappedNeeded: 0
+      pipeType: 1
+      PortType: 0
+      flagLogic: 0
+    - Bool: 1
+      MappedNeeded: 0
+      pipeType: 2
+      PortType: 0
+      flagLogic: 0
+    - Bool: 0
+      MappedNeeded: 0
+      pipeType: 1
+      PortType: 0
+      flagLogic: 0
+  NetCompatible: 1
+  sprite: {fileID: 21300000, guid: 9f869aea24741a04998164f8dc10ea08, type: 3}

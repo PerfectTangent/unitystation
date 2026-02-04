@@ -20,6 +20,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 7b6a18c45b96273d39d6db9ebb2830ac, type: 2}
     m_values: 01000000010000000100000001000000
   useExactAmounts: 0
+  MinimumReactionMultiple: 0
   catalysts:
     m_keys: []
     m_values: 
@@ -34,4 +35,8 @@ MonoBehaviour:
     m_keys:
     - {fileID: 11400000, guid: 5b255694ed5e8945790b893c1975d7cc, type: 2}
     m_values: 04000000
-  effects: []
+  effectDict:
+    m_keys: []
+    m_values: 
+  overrideDisplayName: 
+  indexInSingleton: 571

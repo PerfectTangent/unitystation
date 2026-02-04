@@ -1,10 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System;
-using Mirror;
 using UnityEngine;
 using TMPro;
-using ServerInfo;
 
 public class LobbyUIPlayerListController : MonoBehaviour
 {
@@ -12,8 +9,6 @@ public class LobbyUIPlayerListController : MonoBehaviour
 	public TMP_Text playerCount = null;
 
 	public GameObject playerTemplate = null;
-
-	private ServerInfoUI serverInfoUi;
 
 	private IDictionary<ClientConnectedPlayer, LobbyUIListTemplate> playerEntryList = new Dictionary<ClientConnectedPlayer, LobbyUIListTemplate>();
 

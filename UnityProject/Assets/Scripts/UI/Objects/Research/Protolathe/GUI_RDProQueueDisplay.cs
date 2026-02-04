@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using UI.Core.NetUI;
 using Objects.Machines;
@@ -68,7 +69,7 @@ namespace UI.Objects
 				currentProducts.Add(product);
 				UpdateQueue();
 			}
-			else Logger.Log("Tried to add to machine queue, but queue was full", Category.Machines);
+			else Loggy.Info("Tried to add to machine queue, but queue was full", Category.Machines);
 		}
 
 		public void UpdateQueue()
@@ -90,13 +91,13 @@ namespace UI.Objects
 		{
 			if (currentProducts.Count == 0)
 			{
-				processQueueButton.SetValueServer("false");
-				clearQueueButton.SetValueServer("false");
+				processQueueButton.MasterSetValue("false");
+				clearQueueButton.MasterSetValue("false");
 			}
 			else
 			{
-				processQueueButton.SetValueServer("true");
-				clearQueueButton.SetValueServer("true");
+				processQueueButton.MasterSetValue("true");
+				clearQueueButton.MasterSetValue("true");
 			}
 		}
 
@@ -106,18 +107,18 @@ namespace UI.Objects
 			//Only one item
 			if (currentProducts.Count == 1)
 			{
-				item.DownButton.SetValueServer("false");
-				item.UpButton.SetValueServer("false");
+				item.DownButton.MasterSetValue("false");
+				item.UpButton.MasterSetValue("false");
 			}
 			else
 			{
-				if (item.NumberInQueue == 0) item.UpButton.SetValueServer("false");
+				if (item.NumberInQueue == 0) item.UpButton.MasterSetValue("false");
 
-				if (item.NumberInQueue == currentProducts.Count - 1) item.DownButton.SetValueServer("false");
+				if (item.NumberInQueue == currentProducts.Count - 1) item.DownButton.MasterSetValue("false");
 			}
 		}
 
-		public override void ExecuteServer(ConnectedPlayer subject)
+		public override void ExecuteServer(PlayerInfo subject)
 		{
 		}
 	}

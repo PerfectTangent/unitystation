@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1595527395133040477, guid: 51c105fae1f0b074abf4c80745d8b129,
@@ -19,6 +20,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 1689cc0a802c8b6498ef2186a0968208,
         type: 2}
+    - target: {fileID: 1764592290455851827, guid: 51c105fae1f0b074abf4c80745d8b129,
+        type: 3}
+      propertyPath: _assetId
+      value: 3890618258
+      objectReference: {fileID: 0}
     - target: {fileID: 1764592290455851827, guid: 51c105fae1f0b074abf4c80745d8b129,
         type: 3}
       propertyPath: m_AssetId
@@ -100,6 +106,29 @@ PrefabInstance:
       propertyPath: initialDescription
       value: A bandolier for holding shotgun ammunition.
       objectReference: {fileID: 0}
+    - target: {fileID: 2235114152810004965, guid: 51c105fae1f0b074abf4c80745d8b129,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: a610c00abdc7da24b98388f588013d5c,
+        type: 2}
+    - target: {fileID: 2235114152810004965, guid: 51c105fae1f0b074abf4c80745d8b129,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 140e144cd07b2f942a09a5050ae9df56,
+        type: 2}
+    - target: {fileID: 2235114152810004965, guid: 51c105fae1f0b074abf4c80745d8b129,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 5e3fed5a34b9b474ba79d711b36b51d6,
+        type: 2}
+    - target: {fileID: 4707276644318323434, guid: 51c105fae1f0b074abf4c80745d8b129,
+        type: 3}
+      propertyPath: parentID
+      value: 51c105fae1f0b074abf4c80745d8b129
+      objectReference: {fileID: 0}
     - target: {fileID: 4707276644318323434, guid: 51c105fae1f0b074abf4c80745d8b129,
         type: 3}
       propertyPath: foreverID
@@ -108,6 +137,12 @@ PrefabInstance:
     - target: {fileID: 5525703409436398848, guid: 51c105fae1f0b074abf4c80745d8b129,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 5e3fed5a34b9b474ba79d711b36b51d6,
+        type: 2}
+    - target: {fileID: 5525703409436398848, guid: 51c105fae1f0b074abf4c80745d8b129,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 5e3fed5a34b9b474ba79d711b36b51d6,
         type: 2}
@@ -128,9 +163,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7968275424856731504, guid: 51c105fae1f0b074abf4c80745d8b129,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 13fdf38cf0162a140b23fb7cffbe7b65,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 51c105fae1f0b074abf4c80745d8b129, type: 3}

@@ -8,13 +8,16 @@ using Mirror;
 using AddressableReferences;
 using Systems.Electricity;
 using Systems.Electricity.NodeModules;
-using Systems.ObjectConnection;
 using Objects.Lighting;
 using Objects.Construction;
 using Core.Editor.Attributes;
+using Core.Lighting;
 using CustomInspectors;
-using ScriptableObjects;
 using HealthV2;
+using Logs;
+using SecureStuff;
+using Shared.Systems.ObjectConnection;
+using Systems.MobAIs;
 
 namespace Objects.Engineering
 {
@@ -53,7 +56,7 @@ namespace Objects.Engineering
 		private ResistanceSourceModule resistanceSourceModule;
 
 		[Tooltip("Sound used when the APC loses all power.")]
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		private AddressableAudioSource NoPowerSound = null;
 
 		[NonSerialized]
@@ -66,7 +69,8 @@ namespace Objects.Engineering
 		/// </summary>
 		public List<DepartmentBattery> DepartmentBatteries => departmentBatteries;
 		private List<DepartmentBattery> departmentBatteries = new List<DepartmentBattery>();
-
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 		/// <summary>
 		/// Function for setting the voltage via the property. Used for the voltage SyncVar hook.
 		/// </summary>
@@ -86,36 +90,28 @@ namespace Objects.Engineering
 			electricalNodeControl = GetComponent<ElectricalNodeControl>();
 			resistanceSourceModule = GetComponent<ResistanceSourceModule>();
 			integrity = GetComponent<Integrity>();
+
+			connectedDevices.RemoveAndSerialize(this, gameObject.scene, device => device == null);
 		}
-		private void OnEnable()
+
+		public void Start()
+		{
+			foreach (var Device in connectedDevices)
+			{
+				if ( Device == null) continue;
+				Device.RelatedAPC = this;
+			}
+		}
+
+		public override void OnEnable()
 		{
 			integrity.OnWillDestroyServer.AddListener(WhenDestroyed);
 			base.OnEnable();
 		}
 
-		private void Start()
-		{
-			CheckListOfDevicesForNulls();
-		}
-
-		private void CheckListOfDevicesForNulls()
-		{
-			if (connectedDevices.Count == 0) return;
-			for (int i = connectedDevices.Count - 1; i >= 0; i--)
-			{
-				if (connectedDevices[i] != null)
-				{
-					continue;
-				}
-
-				Logger.Log($"{name} has a null value in {i}.", Category.Electrical);
-				connectedDevices.RemoveAt(i);
-			}
-		}
-
 		private void OnDisable()
 		{
-			integrity.OnWillDestroyServer.RemoveListener(WhenDestroyed);
+			integrity?.OnWillDestroyServer?.RemoveListener(WhenDestroyed);
 			if (electricalNodeControl == null) return;
 			if(ElectricalManager.Instance == null)return;
 			if(ElectricalManager.Instance.electricalSync == null)return;
@@ -134,26 +130,43 @@ namespace Objects.Engineering
 				{
 					if (device.Key.Data.InData.Categorytype != PowerTypeCategory.DepartmentBattery) continue;
 
-					if (connectedDepartmentBatteries.Contains(device.Key.Data.GetComponent<DepartmentBattery>()) == false)
+					var dep = device.Key.Data.GetComponent<DepartmentBattery>();
+					if (dep?.BatterySupplyingModule == null) continue;
+					if (connectedDepartmentBatteries.Contains(dep ) == false)
 					{
-						connectedDepartmentBatteries.Add(device.Key.Data.GetComponent<DepartmentBattery>());
+						connectedDepartmentBatteries.Add(dep );
 
-						if (departmentBatteries.Contains(device.Key.Data.GetComponent<DepartmentBattery>()) == false)
+						if (departmentBatteries.Contains(dep )== false)
 						{
-							departmentBatteries.Add(device.Key.Data.GetComponent<DepartmentBattery>());
+							departmentBatteries.Add(dep);
 						}
 					}
 				}
 			}
 			batteryCharging = false;
-			foreach (var bat in connectedDepartmentBatteries)
+			try
 			{
-				if (bat.BatterySupplyingModule.ChargingWatts > 0)
+				foreach (var bat in connectedDepartmentBatteries)
 				{
-					batteryCharging = true;
+					if (bat.BatterySupplyingModule.ChargingWatts > 0)
+					{
+						batteryCharging = true;
+					}
 				}
 			}
-			ElectricityFunctions.WorkOutActualNumbers(electricalNodeControl.Node.InData);
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+				connectedDepartmentBatteries.RemoveNulls();
+				foreach (var bat in connectedDepartmentBatteries.ToArray())
+				{
+					if (bat.BatterySupplyingModule == null)
+					{
+						connectedDepartmentBatteries.Remove(bat);
+					}
+				}
+			}
+
 			SyncVoltage(voltageSync, electricalNodeControl.Node.InData.Data.ActualVoltage);
 			Current = electricalNodeControl.Node.InData.Data.CurrentInWire;
 			HandleDevices();
@@ -210,7 +223,7 @@ namespace Objects.Engineering
 			float newCapacity = 0;
 			foreach (DepartmentBattery battery in ConnectedDepartmentBatteries)
 			{
-				newCapacity += battery.BatterySupplyingModule.CurrentCapacity;
+				newCapacity += battery.BatterySupplyingModule.GetSetCurrentCapacity;
 			}
 
 			return (newCapacity / maxCapacity);
@@ -227,20 +240,34 @@ namespace Objects.Engineering
 		/// </summary>
 		private void HandleDevices()
 		{
-			float Voltages = Voltage;
-			if (Voltages > 270)
-			{
-				Voltages = 0.001f;
-			}
-			float CalculatingResistance = new float();
+			float voltages = Voltage;
 
-			foreach (APCPoweredDevice Device in connectedDevices)
+			if (voltages > 270) //TODO change
 			{
-				Device.PowerNetworkUpdate(Voltages);
-				CalculatingResistance += (1 / Device.Resistance);
+				voltages = 0.001f;
 			}
 
-			resistanceSourceModule.Resistance = (1 / CalculatingResistance);
+			float calculatingResistance = 0f;
+			var connectedDevicesCount = connectedDevices.Count;
+			try
+			{
+				for (int i = 0; i < connectedDevicesCount; i++)
+				{
+
+					connectedDevices[i].PowerNetworkUpdate(voltages);
+					calculatingResistance += (1 / connectedDevices[i].Resistance);
+				}
+			}
+			catch (Exception e)
+			{
+				connectedDevices.RemoveAll(item => item == null);
+				Loggy.Error(e.ToString());
+				// exit early because there seems to be null shinangins going on with this APC,
+				// which triggers causes GC to bubble up while creating lots Exceptions if left unchecked.
+				return;
+			}
+
+			resistanceSourceModule.Resistance = (1 / calculatingResistance);
 		}
 
 		// -----------------------------------------------------
@@ -301,7 +328,7 @@ namespace Objects.Engineering
 					screenDisplay.sprite = null;
 					EmergencyState = true;
 					StopRefresh();
-					_ = SoundManager.PlayAtPosition(NoPowerSound, gameObject.WorldPosServer());
+					_ = SoundManager.PlayAtPosition(NoPowerSound, gameObject.AssumedWorldPosServer());
 					break;
 			}
 		}
@@ -311,27 +338,27 @@ namespace Objects.Engineering
 		/// <summary>
 		/// The screen sprites which are currently being displayed
 		/// </summary>
-		[PrefabModeOnly]
+
 		Sprite[] loadedScreenSprites;
 		/// <summary>
 		/// The animation sprites for when the APC is in a critical state
 		/// </summary>
-		[PrefabModeOnly]
+
 		public Sprite[] criticalSprites;
 		/// <summary>
 		/// The animation sprites for when the APC is charging
 		/// </summary>
-		[PrefabModeOnly]
+
 		public Sprite[] chargingSprites;
 		/// <summary>
 		/// The animation sprites for when the APC is fully charged
 		/// </summary>
-		[PrefabModeOnly]
+
 		public Sprite[] fullSprites;
 		/// <summary>
 		/// The sprite renderer for the APC display
 		/// </summary>
-		[PrefabModeOnly]
+
 		public SpriteRenderer screenDisplay;
 		/// <summary>
 		/// The sprite index for the display animation
@@ -401,7 +428,7 @@ namespace Objects.Engineering
 		/// <summary>
 		/// List of the department batteries connected to this APC
 		/// </summary>
-		[SerializeField][FormerlySerializedAs("ConnectedDepartmentBatteries")]
+		[SerializeField, FormerlySerializedAs("ConnectedDepartmentBatteries"), PlayModeOnly]
 		private List<DepartmentBattery> connectedDepartmentBatteries = new List<DepartmentBattery>();
 		public List<DepartmentBattery> ConnectedDepartmentBatteries => connectedDepartmentBatteries;
 
@@ -463,7 +490,7 @@ namespace Objects.Engineering
 		public MultitoolConnectionType ConType => MultitoolConnectionType.APC;
 
 		[SerializeField]
-		private bool multiMaster = true;
+		private bool multiMaster = true; //TODO
 		public bool MultiMaster => multiMaster;
 
 		int IMultitoolMasterable.MaxDistance => 30;
@@ -476,6 +503,7 @@ namespace Objects.Engineering
 			}
 
 			connectedDevices.Remove(apcPoweredDevice);
+			apcPoweredDevice.OnDeviceUnLinked?.Invoke();
 			apcPoweredDevice.PowerNetworkUpdate(0.1f);
 		}
 
@@ -484,6 +512,7 @@ namespace Objects.Engineering
 			if (!connectedDevices.Contains(apcPoweredDevice))
 			{
 				connectedDevices.Add(apcPoweredDevice);
+				apcPoweredDevice.OnDeviceLinked?.Invoke();
 			}
 		}
 
@@ -529,7 +558,7 @@ namespace Objects.Engineering
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-			return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver);
+			return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver);
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
@@ -541,7 +570,7 @@ namespace Objects.Engineering
 			}
 
 			float voltage = Voltage*10;
-			Vector3 shockpos = gameObject.WorldPosServer();
+			Vector3 shockpos = gameObject.AssumedWorldPosServer();
 			Electrocution electrocution = new Electrocution(voltage, shockpos, "APC");
 
 			interaction.Performer.GetComponent<PlayerHealthV2>().Electrocute(electrocution);
@@ -567,7 +596,7 @@ namespace Objects.Engineering
 			SpawnResult frameSpawn = Spawn.ServerPrefab(APCFrameObj, SpawnDestination.At(gameObject));
 			if (frameSpawn.Successful == false)
 			{
-				Logger.LogError($"Failed to spawn frame! Is {this} missing references in the inspector?", Category.Construction);
+				Loggy.Error($"Failed to spawn frame! Is {this} missing references in the inspector?", Category.Construction);
 				return;
 			}
 

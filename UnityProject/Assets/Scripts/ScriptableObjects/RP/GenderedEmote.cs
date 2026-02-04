@@ -7,21 +7,32 @@ namespace ScriptableObjects.RP
 	public class GenderedEmote : EmoteSO
 	{
 		private string viewTextFinal;
-
+		protected bool wasEmoteSuccessful = false;
 		/// <summary>
 		/// Gendered Emote is designed for Players only and any NPC that uses HealthV2
 		/// </summary>
-		public override void Do(GameObject player)
+		public override void Do(GameObject actor)
 		{
-			if(CheckAllBaseConditions(player) == false) return;
-			HealthCheck(player);
-			Chat.AddActionMsgToChat(player, $"{youText}", $"{player.ExpensiveName()} {viewTextFinal}.");
+			wasEmoteSuccessful = false;
+			if(CheckAllBaseConditions(actor) == false) return;
+			wasEmoteSuccessful = true;
+
+			HealthCheck(actor);
+			RunBehaviors(actor);
+			if (string.IsNullOrEmpty(youText))
+			{
+				Chat.AddActionMsgToChat(actor, $"{actor.ExpensiveName()} {viewTextFinal}.");
+			}
+			else
+			{
+				Chat.AddActionMsgToChat(actor, $"{youText}", $"{actor.ExpensiveName()} {viewTextFinal}.");
+			}
 			if (soundsAreTyped)
 			{
-				PlayAudio(GetBodyTypeAudio(player), player);
+				PlayAudio(GetBodyTypeAudio(actor), actor);
 				return;
 			}
-			PlayAudio(defaultSounds, player);
+			PlayAudio(defaultSounds, actor);
 		}
 
 		private void HealthCheck(GameObject player)

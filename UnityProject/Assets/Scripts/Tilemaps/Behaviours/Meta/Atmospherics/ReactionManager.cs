@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Chemistry;
+using JetBrains.Annotations;
+using Logs;
+using Messages.Server;
 using UnityEngine;
 using UnityEngine.Profiling;
 using Random = UnityEngine.Random;
@@ -12,8 +16,8 @@ namespace Systems.Atmospherics
 	/// </summary>
 	public class ReactionManager : MonoBehaviour
 	{
-		private float RollingAverageN = 20;
-		private float PushMultiplier = 5;
+		private float RollingAverageN = 50;
+		private float PushMultiplier = 4;
 
 		private GameObject fireLight = null;
 		public GameObject FireLightPrefab => fireLight;
@@ -34,11 +38,30 @@ namespace Systems.Atmospherics
 		private float timePassed;
 		private int reactionTick;
 
+		private HashSet<MetaDataNode> activeWindEffectSpots = new HashSet<MetaDataNode>(30);
+
+		private HashSet<MetaDataNode> windEffectsToRemove = new HashSet<MetaDataNode>(30);
+
+		private List<WindEffectData> windEffectNodes = new List<WindEffectData>(30);
+
+		private const float WindParticleBlockTime = 3f;
+		private const float MINIMUM_AMOUNT_OF_DAMPNESS_IN_THE_AIR = 0.25f;
+
+
+		public enum WindStrength
+		{
+			SOUND_ONLY = 3, //TODO : Add wind noise.
+			WEAK = 6, //Tile changes
+			STRONG = 9, //Garbage room/pipes wind
+			SPACE_VACUUM = 12 //Broken window or open airlock to the vast vacuum of space.
+		}
+
 		/// <summary>
 		/// reused when applying exposures to lots of tiles to avoid creating GC from
 		/// lambdas.
 		/// </summary>
 		private ApplyExposure applyExposure = new ApplyExposure();
+
 
 		private void Awake()
 		{
@@ -57,7 +80,7 @@ namespace Systems.Atmospherics
 
 		private void Start()
 		{
-			fireLight = AtmosManager.Instance.fireLight;
+			fireLight = AtmosManager.Instance.FireLight;
 			AtmosManager.Instance.reactionManagerList.Add(this);
 		}
 
@@ -75,10 +98,47 @@ namespace Systems.Atmospherics
 			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 		}
 
+		public struct WindEffectData
+		{
+			public uint MatrixObject;
+			public Vector3	LocalPosition;
+			public Vector2	TargetVector;
+
+			public WindEffectData(uint matrixNetId, Vector3 localPosition, Vector2 targetVector)
+			{
+				MatrixObject = matrixNetId;
+				LocalPosition = localPosition;
+				TargetVector = targetVector;
+			}
+		}
+
 		private void UpdateMe()
 		{
+			Profiler.BeginSample("Wind Effect Time Check");
+
+			windEffectsToRemove.Clear();
+			foreach (var metaDataNode in activeWindEffectSpots)
+			{
+				metaDataNode.windEffectTime -= Time.deltaTime;
+				if(metaDataNode.windEffectTime > 0) continue;
+				windEffectsToRemove.Add(metaDataNode);
+			}
+
+			foreach (var metaDataNode in windEffectsToRemove)
+			{
+				activeWindEffectSpots.Remove(metaDataNode);
+			}
+
+			Profiler.EndSample();
+
 			Profiler.BeginSample("Wind");
+
+			windEffectNodes.Clear();
+
 			winds.Iterate(windsNodeDelegator);
+
+			PlayWindEffect.SendToAll(windEffectNodes);
+
 			Profiler.EndSample();
 
 			Profiler.BeginSample("HotspotModify");
@@ -87,13 +147,13 @@ namespace Systems.Atmospherics
 			for (int i = hotspotsToAdd.Count - 1; i >= 0; i--)
 			{
 				var addedHotspot = hotspotsToAdd[i];
-				if (!hotspots.ContainsKey(addedHotspot.node.Position) &&
+				if (!hotspots.ContainsKey(addedHotspot.node.LocalPosition) &&
 				    // only process the addition if it hasn't already been done, which
 				    // could happen if multiple things try to add a hotspot to the same tile
 				    addedHotspot.node.Hotspot == null)
 				{
 					addedHotspot.node.Hotspot = addedHotspot;
-					hotspots.TryAdd(addedHotspot.node.Position, addedHotspot.node);
+					hotspots.TryAdd(addedHotspot.node.LocalPosition, addedHotspot.node);
 					addedHotspot.OnCreation();
 				}
 			}
@@ -108,7 +168,7 @@ namespace Systems.Atmospherics
 				{
 					affectedNode.Hotspot.OnRemove();
 					affectedNode.Hotspot = null;
-					hotspots.TryRemove(removedHotspot, out var value);
+					hotspots.TryRemove(removedHotspot, out _);
 				}
 			}
 
@@ -127,7 +187,7 @@ namespace Systems.Atmospherics
 			//hotspot spread to adjacent tiles and damage
 			foreach (MetaDataNode node in hotspots.Values)
 			{
-				ExposeHotspot(node.Position);
+				ExposeHotspot(node.LocalPosition);
 			}
 
 			reactionTick++;
@@ -136,48 +196,61 @@ namespace Systems.Atmospherics
 
 		private void ProcessWindNodes(MetaDataNode windyNode)
 		{
-			foreach (var registerTile in matrix.GetRegisterTile(windyNode.Position, true))
+			windyNode.WindData[(int) PushType.Wind] = (Vector2) windyNode.WindDirection * (windyNode.WindForce);
+
+			if (windyNode.WindForce > (int) WindStrength.WEAK)
 			{
-				//Quicker to get all RegisterTiles and grab the cached PushPull component from it than to get it manually using Get<>
-				if (registerTile.PushPull.HasComponent == false) continue;
-
-				var pushable = registerTile.PushPull.Component;
-
-				float correctedForce = (windyNode.WindForce * PushMultiplier) / (int) pushable.Pushable.Size;
-
-				if (correctedForce >= AtmosConstants.MinPushForce)
+				var registerTiles = matrix.GetRegisterTile(windyNode.LocalPosition, true);
+				for (int i = 0; i < registerTiles.Count; i++)
 				{
-					if (pushable.Pushable.IsTileSnap)
+					var registerTile = registerTiles[i];
+
+					//Quicker to get all RegisterTiles and grab the cached PushPull component from it than to get it manually using Get<>
+					if (registerTile.ObjectPhysics.HasComponent == false) continue;
+					if (registerTile.ObjectPhysics.Component.Intangible) continue;
+
+					var pushable = registerTile.ObjectPhysics.Component;
+					if (pushable.isNotPushable) return;
+					float correctedForce = (windyNode.WindForce) / (int) pushable.GetSize();
+
+					correctedForce = Mathf.Clamp(correctedForce, 0, 30);
+
+					if (pushable.NewtonianMovement.magnitude > 0) return;
+
+					if (pushable.CanBeWindPushed)
 					{
-						byte pushes = (byte)Mathf.Clamp((int)correctedForce / 10, 1, 10);
-						for (byte j = 0; j < pushes; j++)
+						pushable.NewtonianPush( (Vector2)windyNode.WindDirection, Random.Range((float)(correctedForce * 0.8), correctedForce),  spinFactor: Random.Range(1, 150));
+					}
+
+
+					if (pushable.stickyMovement && windyNode.WindForce > (int)WindStrength.WEAK && pushable.CanBeWindPushed )
+					{
+						if (windyNode.WindForce * 0.15f > 0.25f)
 						{
-							//converting push to world coords because winddirection is in local coords
-							pushable.QueuePush((transform.rotation * (Vector2)windyNode.WindDirection).To2Int(),
-								Random.Range((float)(correctedForce * 0.8), correctedForce));
+							pushable.NewtonianPush(windyNode.WindDirection, windyNode.WindForce * 0.15f,
+								windyNode.WindForce * 0.05f, spinFactor: Random.Range(20, 150));
 						}
 					}
-					else
-					{
-						pushable.Pushable.Nudge(new NudgeInfo
-						{
-							OriginPos = pushable.Pushable.ServerPosition,
-							Trajectory = (Vector2)windyNode.WindDirection,
-							SpinMode = SpinMode.None,
-							SpinMultiplier = 1,
-							InitialSpeed = correctedForce,
-						});
-					}
 				}
+
 			}
 
 			windyNode.WindForce = (windyNode.WindForce * ((RollingAverageN - 1) / RollingAverageN));
-			if (windyNode.WindForce < 0.5f * (1f / PushMultiplier))
+			if (windyNode.WindForce < 0.25f)
 			{
 				winds.Remove(windyNode);
 				windyNode.WindForce = 0;
 				windyNode.WindDirection = Vector2Int.zero;
+				windyNode.WindData[(int) PushType.Wind] = Vector2.zero;
+				return;
 			}
+
+			if(activeWindEffectSpots.Contains(windyNode)) return;
+			windyNode.windEffectTime = WindParticleBlockTime;
+			activeWindEffectSpots.Add(windyNode);
+
+			windEffectNodes.Add(new WindEffectData(windyNode.PositionMatrix.NetworkedMatrix.MatrixSync.netId,
+				windyNode.LocalPosition, windyNode.WindDirection));
 		}
 
 		public void DoTick()
@@ -221,15 +294,20 @@ namespace Systems.Atmospherics
 		public void RemoveHotspot(MetaDataNode node)
 		{
 			//removal will be processed later in update
-			hotspotsToRemove.Add(node.Position);
+			hotspotsToRemove.Add(node.LocalPosition);
 		}
 
 		public void ExtinguishHotspot(Vector3Int localPosition)
 		{
-			if (hotspots.ContainsKey(localPosition) && hotspots[localPosition].Hotspot != null)
+			if (HasHotspot(localPosition))
 			{
 				RemoveHotspot(hotspots[localPosition].Hotspot.node);
 			}
+		}
+
+		public bool HasHotspot(Vector3Int localPosition)
+		{
+			return hotspots.ContainsKey(localPosition) && hotspots[localPosition].Hotspot != null;
 		}
 
 		/// <summary>
@@ -258,9 +336,9 @@ namespace Systems.Atmospherics
 			}
 
 			//If we are already a hotspot try to increase temperature if allowed to
-			if (changeTemp && hotspot.GasMix.Temperature < exposeTemperature)
+			if (changeTemp && hotspot.GasMixLocal.Temperature < exposeTemperature)
 			{
-				hotspot.GasMix.SetTemperature(exposeTemperature);
+				hotspot.GasMixLocal.SetTemperature(exposeTemperature);
 			}
 
 			//Only do expose if allowed, prevents thread errors when being called off of main thread
@@ -279,6 +357,7 @@ namespace Systems.Atmospherics
 		private void InternalTryAddHotspot(Vector3Int localPosition, float exposeTemperature = -1f)
 		{
 			MetaDataNode node = metaDataLayer.Get(localPosition, false);
+			if(node.Exists == false) return;
 
 			if(IsAllowedHotSpot(node, exposeTemperature) == false) return;
 
@@ -292,7 +371,7 @@ namespace Systems.Atmospherics
 			//Only need to check stuff which has nodes as we are checking gas contents afterwards
 			if(node == null) return false;
 
-			GasMix gasMix = node.GasMix;
+			GasMix gasMix = node.GasMixLocal;
 
 			if (exposeTemperature < 0)
 			{
@@ -311,6 +390,12 @@ namespace Systems.Atmospherics
 				return false;
 			}
 
+			//Too much water vapor to sustain a hotspot
+			if (gasMix.GasRatio(Gas.WaterVapor) >= MINIMUM_AMOUNT_OF_DAMPNESS_IN_THE_AIR)
+			{
+				return false;
+			}
+
 			//Passed all checks, this position is allowed a hotspot
 			return true;
 		}
@@ -323,74 +408,97 @@ namespace Systems.Atmospherics
 			}
 			catch (Exception e)
 			{
-				Logger.LogError(e.ToString());
+				Loggy.Error(e.ToString());
 			}
 		}
 
 		private void InternalExpose(Vector3Int hotspotPosition, Vector3Int atLocalPosition)
 		{
 			Profiler.BeginSample("ExposureInit");
-			var isSideExposure = hotspotPosition != atLocalPosition;
-			//calculate world position
-			var hotspotWorldPosition = MatrixManager.LocalToWorldInt(hotspotPosition, matrix.MatrixInfo);
-			var atWorldPosition = MatrixManager.LocalToWorldInt(atLocalPosition, matrix.MatrixInfo);
 
-			if (!hotspots.ContainsKey(hotspotPosition))
+			if (hotspots.ContainsKey(hotspotPosition) == false)
 			{
-				Logger.LogError("Hotspot position key was not found in the hotspots dictionary", Category.Atmos);
+				Loggy.Error("Hotspot position key was not found in the hotspots dictionary", Category.Atmos);
 				return;
 			}
 
+			var isSideExposure = hotspotPosition != atLocalPosition;
 
-			//update fire exposure, reusing it to avoid creating GC.
-			applyExposure.Update(isSideExposure, hotspots[hotspotPosition], hotspotWorldPosition, atLocalPosition,
-				atWorldPosition);
 			Profiler.EndSample();
+
 			if (isSideExposure)
 			{
-				Profiler.BeginSample("SideExposure");
-				//side exposure logic
-
-				//already exposed by a different hotspot
-				if (hotspots.ContainsKey(atLocalPosition))
-				{
-					Profiler.EndSample();
-					return;
-				}
-
-				var metadata = metaDataLayer.Get(atLocalPosition);
-				if (!metadata.IsOccupied)
-				{
-					//atmos can pass here, so no need to check side exposure (nothing to brush up against)
-					Profiler.EndSample();
-					return;
-				}
-
-				//only expose to atmos impassable objects, since those are the things the flames would
-				//actually brush up against
-				matrix.ServerObjects.InvokeOnObjects(applyExposure, atLocalPosition);
-				//expose the tiles there
-				foreach (var tilemapDamage in tilemapDamages)
-				{
-					tilemapDamage.OnExposed(applyExposure.FireExposure);
-				}
-
-				Profiler.EndSample();
+				//Side exposure logic
+				SideExposure(hotspotPosition, atLocalPosition);
+				return;
 			}
-			else
-			{
-				Profiler.BeginSample("DirectExposure");
-				//direct exposure logic
-				matrix.ServerObjects.InvokeOnObjects(applyExposure, atLocalPosition);
-				//expose the tiles
-				foreach (var tilemapDamage in tilemapDamages)
-				{
-					tilemapDamage.OnExposed(applyExposure.FireExposure);
-				}
 
-				Profiler.EndSample();
-			}
+			//Direct exposure logic
+			DirectExposure(hotspotPosition, atLocalPosition);
 		}
+
+		private void DirectExposure(Vector3Int hotspotPosition, Vector3Int atLocalPosition)
+		{
+			Profiler.BeginSample("DirectExposure");
+
+			//Calculate world position
+			var hotspotWorldPosition = MatrixManager.LocalToWorldInt(hotspotPosition, matrix.MatrixInfo);
+			var atWorldPosition = MatrixManager.LocalToWorldInt(atLocalPosition, matrix.MatrixInfo);
+
+			//Update fire exposure, reusing it to avoid creating GC.
+			applyExposure.Update(false, hotspots[hotspotPosition], hotspotWorldPosition, atLocalPosition,
+				atWorldPosition);
+
+			matrix.ServerObjects.InvokeOnObjects(applyExposure, atLocalPosition);
+
+			//Expose the tiles
+			foreach (var tilemapDamage in tilemapDamages)
+			{
+				tilemapDamage.OnExposed(applyExposure.FireExposure);
+			}
+
+			Profiler.EndSample();
+		}
+
+		private void SideExposure(Vector3Int hotspotPosition, Vector3Int atLocalPosition)
+		{
+			Profiler.BeginSample("SideExposure");
+
+			//Already exposed by a different hotspot
+			if (hotspots.ContainsKey(atLocalPosition))
+			{
+				Profiler.EndSample();
+				return;
+			}
+
+			var metadata = metaDataLayer.Get(atLocalPosition);
+			if (metadata.IsOccupied == false)
+			{
+				//Atmos can pass here, so no need to check side exposure (nothing to brush up against)
+				Profiler.EndSample();
+				return;
+			}
+
+			//Calculate world position
+			var hotspotWorldPosition = MatrixManager.LocalToWorldInt(hotspotPosition, matrix.MatrixInfo);
+			var atWorldPosition = MatrixManager.LocalToWorldInt(atLocalPosition, matrix.MatrixInfo);
+
+			//Update fire exposure, reusing it to avoid creating GC.
+			applyExposure.Update(false, hotspots[hotspotPosition], hotspotWorldPosition, atLocalPosition,
+				atWorldPosition);
+
+			//Only expose to atmos impassable objects, since those are the things the flames would actually brush up against
+			matrix.ServerObjects.InvokeOnObjects(applyExposure, atLocalPosition);
+
+			//Expose the tiles there
+			foreach (var tilemapDamage in tilemapDamages)
+			{
+				tilemapDamage.OnExposed(applyExposure.FireExposure);
+			}
+
+			Profiler.EndSample();
+		}
+
 
 		public void AddWindEvent(MetaDataNode node, Vector2Int windDirection, float pressureDifference)
 		{
@@ -400,7 +508,7 @@ namespace Systems.Atmospherics
 				winds.AddIfMissing(node);
 
 				node.WindForce = (node.WindForce * ((RollingAverageN - 1) / RollingAverageN)) +
-				                 pressureDifference / RollingAverageN;
+				                 (pressureDifference  * PushMultiplier) / RollingAverageN;
 				node.WindDirection = windDirection;
 			}
 		}

@@ -68,6 +68,11 @@ namespace InGameEvents
 		[HideInInspector]
 		public bool AnnounceEvent = true;
 
+
+		public bool CanRandomlyTrigger = true;
+
+		public float TimeRefundMultiplier = 0;
+
 		private void Start()
 		{
 			InGameEventsManager.Instance.AddEventToList(this, EventType);
@@ -75,7 +80,7 @@ namespace InGameEvents
 
 		private void OnDestroy()
 		{
-			InGameEventsManager.Instance.RemoveEventFromList(this, EventType);
+			InGameEventsManager.Instance.OrNull()?.RemoveEventFromList(this, EventType);
 			CancelInvoke();
 		}
 
@@ -102,6 +107,11 @@ namespace InGameEvents
 		public virtual void OnEventEndTimed()
 		{
 
+		}
+
+		public virtual bool CustomTriggerCriteria()
+		{
+			return true;
 		}
 
 		public void TriggerEvent(string serializedEventParameters = null)

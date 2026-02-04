@@ -1,9 +1,5 @@
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Mirror;
 using UnityEngine;
+using Systems.Character;
 
 /// <summary>
 /// Describes (but does not actually perform) an attempt to spawn things.
@@ -55,7 +51,7 @@ public class SpawnInfo
 	/// If SpawnType.Player, character settings the player is being spawned with.
 	/// </summary>
 	/// <returns></returns>
-	public readonly CharacterSettings CharacterSettings;
+	public readonly CharacterSheet CharacterSettings;
 
 	/// <summary>
 	/// The gear or items that spawn on creation will be enabled or not. ex: equipment on characters.
@@ -63,13 +59,27 @@ public class SpawnInfo
 	public readonly bool SpawnItems;
 
 	/// <summary>
-	///
+	/// Indicates whether or not this was Spawn in for mapping or Something that was Spawned in during the game
 	/// </summary>
 	public readonly bool Mapspawn;
 
+	/// <summary>
+	/// Forces it to spawn Contents that have to be manually spawned in, e,g Sub- organs in body parts, This is the organ printers don't have to mess around with removing body parts that get included automatically
+	/// Warning is recursive so will Go down the entire stack
+	/// </summary>
+	public readonly bool SpawnManualContents;
+
+	/// <summary>
+	/// Used to differentiate between mapped on a scene vs Loaded from Json maps
+	/// Since stuff like pipes act differently on Json maps vs scene maps
+	/// </summary>
+	public readonly bool JsonMapped;
+
+	public bool WasMapspawn => JsonMapped || Mapspawn;
+
 	private SpawnInfo(SpawnType spawnType, ISpawnable spawnable, SpawnDestination spawnDestination, float? scatterRadius, int count, Occupation occupation,
 		GameObject clonedFrom = null,
-		CharacterSettings characterSettings = null, bool spawnItems = true, bool mapspawn = false)
+		CharacterSheet characterSettings = null, bool spawnItems = true, bool mapspawn = false, bool spawnManualContents = false, bool _JsonMapped = false)
 	{
 		SpawnType = spawnType;
 		SpawnableToSpawn = spawnable;
@@ -81,6 +91,8 @@ public class SpawnInfo
 		CharacterSettings = characterSettings;
 		SpawnItems = spawnItems;
 		Mapspawn = mapspawn;
+		SpawnManualContents = spawnManualContents;
+		JsonMapped = _JsonMapped;
 	}
 
 	/// <summary>
@@ -93,7 +105,7 @@ public class SpawnInfo
 	/// <param name="spawnItems">whether player should spawn naked or with their default loadout</param>
 	/// <returns>the newly created GameObject</returns>
 	/// <returns></returns>
-	public static SpawnInfo Player(Occupation occupation, CharacterSettings characterSettings, GameObject playerPrefab, SpawnDestination spawnDestination,
+	public static SpawnInfo Player(Occupation occupation, CharacterSheet characterSettings, GameObject playerPrefab, SpawnDestination spawnDestination,
 		bool spawnItems = false)
 	{
 		return new SpawnInfo(SpawnType.Player, SpawnablePrefab.For(playerPrefab), spawnDestination, null, 1, occupation, characterSettings: characterSettings, spawnItems: spawnItems);
@@ -108,11 +120,11 @@ public class SpawnInfo
 	/// <param name="spawnDestination">destinaton to spawn at</param>
 	/// <returns>the newly created GameObject</returns>
 	/// <returns></returns>
-	public static SpawnInfo Ghost(Occupation occupation, CharacterSettings characterSettings, GameObject ghostPrefab,
+	public static SpawnInfo Ghost(CharacterSheet characterSettings, GameObject ghostPrefab,
 		SpawnDestination spawnDestination)
 	{
 		return new SpawnInfo(SpawnType.Ghost, SpawnablePrefab.For(ghostPrefab), spawnDestination,
-			null, 1, occupation, characterSettings: characterSettings);
+			null, 1, null, characterSettings: characterSettings);
 	}
 
 	/// <summary>
@@ -125,9 +137,11 @@ public class SpawnInfo
 	/// null (no scatter).</param>
 	/// <param name="cancelIfImpassable">If true, the spawn will be cancelled if the location being spawned into is totally impassable.</param>
 	/// <returns>the newly created GameObject</returns>
-	public static SpawnInfo Spawnable(ISpawnable spawnable, SpawnDestination spawnDestination, int count = 1, float? scatterRadius = null, bool spawnItems = true, bool mapspawn = false)
+	public static SpawnInfo Spawnable(ISpawnable spawnable, SpawnDestination spawnDestination, int count = 1, float? scatterRadius = null, bool spawnItems = true,
+		bool mapspawn = false,
+		bool spawnManualContents = false )
 	{
-		return new SpawnInfo(SpawnType.Default, spawnable, spawnDestination, scatterRadius, count, null, spawnItems: spawnItems, mapspawn : mapspawn );
+		return new SpawnInfo(SpawnType.Default, spawnable, spawnDestination, scatterRadius, count, null, spawnItems: spawnItems, mapspawn : mapspawn, spawnManualContents : spawnManualContents );
 	}
 
 	/// <summary>
@@ -156,6 +170,35 @@ public class SpawnInfo
 		var prefab = Spawn.DeterminePrefab(mappedObject);
 		var spawnable = SpawnablePrefab.For(prefab);
 		return new SpawnInfo(SpawnType.Mapped, spawnable, destination, null, 1, null);
+	}
+
+	/// <summary>
+	/// Special type of spawn, performed on each object mapped in the scene once the scene is done loading.
+	/// </summary>
+	/// <param name="mappedObject">object which was mapped into the scene.</param>
+	/// <returns></returns>
+	public static SpawnInfo IsJsonMapped(GameObject mappedObject)
+	{
+		var destination = SpawnDestination.At(mappedObject);
+		//assume prefab
+		var prefab = Spawn.DeterminePrefab(mappedObject);
+		var spawnable = SpawnablePrefab.For(prefab);
+		return new SpawnInfo(SpawnType.Mapped, spawnable, destination, null, 1, null, _JsonMapped: true);
+
+	}
+
+	/// <summary>
+	/// Special type of spawn, for Used for spawning special contents e.g Player body parts with organs, Is recursive
+	/// </summary>
+	/// <param name="Spawnable">object that will have the contents manually spawned</param>
+	/// <returns></returns>
+	public static SpawnInfo ManualContents(GameObject inSpawnable)
+	{
+		var destination = SpawnDestination.At(inSpawnable);
+		//assume prefab
+		var prefab = Spawn.DeterminePrefab(inSpawnable);
+		var spawnable = SpawnablePrefab.For(prefab);
+		return new SpawnInfo(SpawnType.Default, spawnable, destination, null, 1, null, spawnManualContents : true );
 
 	}
 

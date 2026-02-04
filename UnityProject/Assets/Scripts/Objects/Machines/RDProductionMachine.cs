@@ -5,7 +5,8 @@ using Mirror;
 using Systems.Electricity;
 using Objects.Machines;
 using ScriptableObjects.Systems.Research;
-using Systems.ObjectConnection;
+using SecureStuff;
+using Shared.Systems.ObjectConnection;
 
 namespace Systems.Research.Objects
 {
@@ -32,7 +33,7 @@ namespace Systems.Research.Objects
 		[SerializeField]
 		private Department MachineDepartment;
 
-		public PowerState PoweredState;
+		[PlayModeOnly] public PowerState PoweredState;
 
 		private ItemTrait InsertedMaterialType;
 		public MaterialStorageLink materialStorageLink;
@@ -53,13 +54,16 @@ namespace Systems.Research.Objects
 		public List<string> AvailableForMachine;
 
 		public delegate void MaterialsManipulating();
-		public static event MaterialsManipulating MaterialsManipulated;
+		public event MaterialsManipulating MaterialsManipulated;
 
 		private IEnumerator currentProduction;
 
 		static CustomNetworkManager networkManager;
 
 		[SerializeField] private DesignProductionData designProductionData;
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+
+		private Machine machine;
 
 		public enum RDProState
 		{
@@ -72,6 +76,7 @@ namespace Systems.Research.Objects
 		{
 			ProtoLathe = 0,
 			CircuitImprinter = 1,
+			ExosuitFabricator = 2,
 		}
 
 		public enum Department
@@ -146,7 +151,7 @@ namespace Systems.Research.Objects
 
 		#region Lifecycle
 
-		public void Awake()
+		void Awake()
 		{
 			networkManager = CustomNetworkManager.Instance;
 			registerObject = GetComponent<RegisterObject>();
@@ -156,7 +161,7 @@ namespace Systems.Research.Objects
 
 			Machinerytype = machineType.ToString();
 			department = MachineDepartment.ToString();
-
+			machine = this.GetComponent<Machine>();
 			foreach (string Category in CategoryList.Categories)
 			{
 				Categories.Add(Category, new List<string>());
@@ -164,15 +169,22 @@ namespace Systems.Research.Objects
 
 			OnRemoveTechweb();
 
-			if(researchServer != null)
-			{
-				researchServer.TechWebUpdateEvent += TechWebUpdate;
-			}
+			EventManager.AddHandler(Event.RoundStarted, SyncTechWebUpdates);
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
 			SyncSprite(RDProState.Idle, RDProState.Idle);
+		}
+
+		private void SyncTechWebUpdates()
+		{
+			if (researchServer != null) researchServer.Techweb.TechWebDesignUpdateEvent += TechWebUpdate;
+		}
+
+		private void OnDisable()
+		{
+			EventManager.RemoveHandler(Event.RoundStarted, SyncTechWebUpdates);
 		}
 
 		public void OnDespawnServer(DespawnInfo info)
@@ -193,7 +205,12 @@ namespace Systems.Research.Objects
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			if (interaction.HandSlot.IsEmpty) return false;
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+
+			if (Validations.HasComponent<MaterialMakeUp>(interaction.HandObject))
+			{
+				return true;
+			}
 
 			InsertedMaterialType = materialStorageLink.usedStorage.FindMaterial(interaction.HandObject);
 			if (InsertedMaterialType != null)
@@ -208,10 +225,42 @@ namespace Systems.Research.Objects
 			// Can't insert materials while RDPro is in production.
 			if (stateSync != RDProState.Production)
 			{
-				int materialSheetAmount = interaction.HandSlot.Item.GetComponent<Stackable>().Amount;
-				if (materialStorageLink.TryAddSheet(InsertedMaterialType, materialSheetAmount))
+				var MaterialMakeUp = interaction.HandObject.GetComponent<MaterialMakeUp>();
+				var stackable = interaction.HandObject.GetComponent<Stackable>();
+				bool adding = false;
+
+				if (MaterialMakeUp != null)
 				{
-					Inventory.ServerDespawn(interaction.HandObject);
+					var StackableAmount = 1;
+					if (stackable != null)
+					{
+						StackableAmount = stackable.Amount;
+					}
+
+					if (materialStorageLink.CanFit(MaterialMakeUp, StackableAmount))
+					{
+						foreach (var Material in MaterialMakeUp.MakeUp)
+						{
+							materialStorageLink.AddMaterial(Material.Key.materialTrait,
+								Material.Value * StackableAmount);
+						}
+
+						_ = Inventory.ServerDespawn(interaction.HandObject);
+						adding = true;
+					}
+				}
+				else
+				{
+					var canadd = materialStorageLink.TryAddSheet(InsertedMaterialType, stackable.Amount);
+					if (canadd)
+					{
+						_ = Inventory.ServerDespawn(interaction.HandObject);
+						adding = true;
+					}
+				}
+
+				if (adding)
+				{
 					if (stateSync == RDProState.Idle)
 					{
 						StartCoroutine(AnimateAcceptingMaterials());
@@ -239,7 +288,7 @@ namespace Systems.Research.Objects
 					consumeList.Add(designProductionData.MaterialSheets[entry.Key], entry.Value);
 				}
 
-				if (materialStorageLink.usedStorage.TryConsumeList(consumeList))
+				if (materialStorageLink.usedStorage.TryConsumeList(consumeList, 0.5f / (machine.GetPartMultiplier()/2f)))
 				{
 					if (APCPoweredDevice.IsOn(PoweredState))
 					{
@@ -254,7 +303,7 @@ namespace Systems.Research.Objects
 		}
 
 		private IEnumerator ProcessProduction(string DesignID, float productionTime)
-		{		
+		{
 			Design Designclass = Designs.Globals.InternalIDSearch[DesignID];
 
 			GameObject productObject = networkManager.ForeverIDLookupSpawnablePrefabs[Designclass.ItemID];
@@ -275,17 +324,14 @@ namespace Systems.Research.Objects
 
 		public void DispenseMaterialSheet(int amountOfSheets, ItemTrait materialType)
 		{
-			materialStorageLink.usedStorage.DispenseSheet(amountOfSheets, materialType, gameObject.WorldPosServer());
+			materialStorageLink.usedStorage.DispenseSheet(amountOfSheets, materialType, gameObject.AssumedWorldPosServer());
 			UpdateGUI();
 		}
 
-		private void UpdateGUI()
+		public void UpdateGUI()
 		{
 			// Delegate calls method in all subscribers when material is changed
-			if (MaterialsManipulated != null)
-			{
-				MaterialsManipulated();
-			}
+			MaterialsManipulated?.Invoke();
 		}
 
 		private IEnumerator AnimateAcceptingMaterials()
@@ -326,7 +372,7 @@ namespace Systems.Research.Objects
 		IMultitoolMasterable IMultitoolSlaveable.Master => researchServer;
 		bool IMultitoolSlaveable.RequireLink => false;
 
-		bool IMultitoolSlaveable.TrySetMaster(PositionalHandApply interaction, IMultitoolMasterable master)
+		bool IMultitoolSlaveable.TrySetMaster(GameObject performer, IMultitoolMasterable master)
 		{
 			SetMaster(master);
 			return true;
@@ -353,10 +399,10 @@ namespace Systems.Research.Objects
 		{
 			UnSubscribeFromServerEvent();
 
-			server.TechWebUpdateEvent += TechWebUpdate;
-			AddDesigns(server.UpdateAvailableDesigns());
+			server.Techweb.TechWebDesignUpdateEvent += TechWebUpdate;
+			AddDesigns(server.Techweb.UpdateAvailableDesigns());
 			researchServer = server;
-			
+
 		}
 
 		public void UnSubscribeFromServerEvent()
@@ -364,7 +410,7 @@ namespace Systems.Research.Objects
 			OnRemoveTechweb();
 
 			if (researchServer == null) return;
-			researchServer.TechWebUpdateEvent -= TechWebUpdate;
+			researchServer.Techweb.TechWebDesignUpdateEvent -= TechWebUpdate;
 			researchServer = null;
 		}
 

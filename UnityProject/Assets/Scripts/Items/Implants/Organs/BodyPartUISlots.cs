@@ -5,12 +5,10 @@ using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class BodyPartUISlots : MonoBehaviour, IDynamicItemSlotS
 	{
-		public NamedSlotFlagged NamedSlotFlagged;
-
 		private DynamicItemStorage ItemStorage;
 
 		[CanBeNull] public GameObject GameObject
@@ -32,6 +30,8 @@ namespace HealthV2
 
 		[SerializeField] [FormerlySerializedAs("Storage")]
 		private List<BodyPartUISlots.StorageCharacteristics> storage;
+
+		public int InterfaceGetInstanceID => GetInstanceID();
 
 		[System.Serializable]
 		public class StorageCharacteristics

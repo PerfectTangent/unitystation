@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2909197017712554513, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
+      propertyPath: _assetId
+      value: 2509953916
+      objectReference: {fileID: 0}
     - target: {fileID: 2909197017712554513, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
         type: 3}
       propertyPath: m_AssetId
@@ -80,6 +86,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 3397443007502491847, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
         type: 3}
+      propertyPath: exportCost
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 3397443007502491847, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
       propertyPath: initialName
       value: amish suit
       objectReference: {fileID: 0}
@@ -87,6 +98,29 @@ PrefabInstance:
         type: 3}
       propertyPath: initialDescription
       value: It's a very amish looking suit.
+      objectReference: {fileID: 0}
+    - target: {fileID: 3397443007502491847, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 38b027a46bf335d4bbe851112c2576c3,
+        type: 2}
+    - target: {fileID: 3397443007502491847, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 741d84fba36a3f44c811969a4c4bcf72,
+        type: 2}
+    - target: {fileID: 3397443007502491847, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 4cca968e1f8f3cf468e03adb676ced15,
+        type: 2}
+    - target: {fileID: 8174322744686822344, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
+      propertyPath: parentID
+      value: dff9b7e8f22ff9b4cb9e2f035702e875
       objectReference: {fileID: 0}
     - target: {fileID: 8174322744686822344, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
         type: 3}
@@ -110,7 +144,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8193882076658244640, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 0daeac9b081aee140bf193d9889384d8,
         type: 2}
@@ -120,5 +154,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 4cca968e1f8f3cf468e03adb676ced15,
         type: 2}
+    - target: {fileID: 8975007657035133986, guid: dff9b7e8f22ff9b4cb9e2f035702e875,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 4cca968e1f8f3cf468e03adb676ced15,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dff9b7e8f22ff9b4cb9e2f035702e875, type: 3}

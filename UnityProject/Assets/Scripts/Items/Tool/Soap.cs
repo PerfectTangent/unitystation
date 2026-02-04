@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Objects.Construction;
 using UnityEngine;
 
 namespace Items
@@ -16,6 +17,8 @@ namespace Items
 		[SerializeField]
 		private int uses = 100;
 
+		private bool forEverLastingSoap = false;
+
 		private int maxUses;
 
 		[Tooltip("Time taken to clean something with the soap, measured in seconds.")]
@@ -30,29 +33,11 @@ namespace Items
 
 		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			//can only scrub tiles, for now
 			if (!Validations.HasComponent<InteractableTiles>(interaction.TargetObject)) return false;
 
-            // Get position of interaction as Vector3Int
-            Vector3 position = interaction.WorldPositionTarget;
-            Vector3Int positionInt = Vector3Int.RoundToInt(position);
-
-            // Check if there is an object in the way of scrubbing the tile
-			var atPosition = MatrixManager.GetAt<RegisterObject>(positionInt, side == NetworkSide.Server) as List<RegisterObject>;
-            if(atPosition != null) return false;
-
-
-            // Check that the layer scrubbed is a floor, e.g. not a table
-            var metaTileMap = MatrixManager.AtPoint(positionInt, side == NetworkSide.Server).MetaTileMap;
-            var tile = metaTileMap.GetTile(metaTileMap.WorldToCell(positionInt), true);
-
-            if (tile != null && tile.LayerType == LayerType.Tables)
-            {
-                return false;
-            }
-
-			return true;
+            return true;
 		}
 
 		public void ServerPerformInteraction(PositionalHandApply interaction)
@@ -90,6 +75,7 @@ namespace Items
 
 		public void UseUpSoap()
 		{
+			if (forEverLastingSoap) return;
 			uses -= 1;
 			if (uses == 0)
 			{

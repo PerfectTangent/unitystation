@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DatabaseAPI;
 using Messages.Client.Admin;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace AdminTools
 {
@@ -61,6 +62,8 @@ namespace AdminTools
 
 		//Server Settings
 		public int playerLimit;
+		public int maxFrameRate;
+		public string serverPassword;
 	}
 
 	[Serializable]
@@ -72,10 +75,20 @@ namespace AdminTools
 		public string accountName;
 		public bool isAlive;
 		public bool isAntag;
-		public bool isAdmin;
-		public bool isMentor;
+		public bool hasAChat; //needs for achat (tag achat) , roll ui tag
+		public string roleSmall; // roll ui tag
+		public string roleColour; // roll ui tag
+		public bool hasMentorRole; //has metnor roll
 		public bool isOnline;
+		public bool isOOCMuted;
 		public string ipAddress;
+		public uint playerObject;
+
+		public string PlayerNotes;
+		public bool OnWatchlist;
+
+		public bool InJail;
+
 	}
 
 	[Serializable]

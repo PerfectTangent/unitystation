@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 855803449108065293, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
@@ -479,6 +480,24 @@ PrefabInstance:
         were on hand, this suit offers some protection from radiation and biological
         hazards.
       objectReference: {fileID: 0}
+    - target: {fileID: 3495234765619245072, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: e03ccdcf28802274d92b24fa4df2bfdc,
+        type: 2}
+    - target: {fileID: 3495234765619245072, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: a581071e52602a147a607eaa50499e7f,
+        type: 2}
+    - target: {fileID: 3495234765619245072, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: c72053e44104c5c4c961d62345b9fb8f,
+        type: 2}
     - target: {fileID: 3791466462619397166, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
         type: 3}
       propertyPath: m_Sprite
@@ -567,6 +586,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4033042375367942854, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
         type: 3}
+      propertyPath: _assetId
+      value: 4035924784
+      objectReference: {fileID: 0}
+    - target: {fileID: 4033042375367942854, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
+        type: 3}
       propertyPath: m_AssetId
       value: 5d6b1cb6248dca642bb44e0220dfce65
       objectReference: {fileID: 0}
@@ -578,6 +602,12 @@ PrefabInstance:
     - target: {fileID: 7145545764318209269, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: c72053e44104c5c4c961d62345b9fb8f,
+        type: 2}
+    - target: {fileID: 7145545764318209269, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: c72053e44104c5c4c961d62345b9fb8f,
         type: 2}
@@ -603,16 +633,24 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7931175119129480439, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 3f08a538cc465e546b918aaf863a6c5e,
         type: 2}
+    - target: {fileID: 7986767595912221471, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
+        type: 3}
+      propertyPath: parentID
+      value: e3a0238ef8323eb4caadcb2e19bbcf41
+      objectReference: {fileID: 0}
     - target: {fileID: 7986767595912221471, guid: e3a0238ef8323eb4caadcb2e19bbcf41,
         type: 3}
       propertyPath: foreverID
       value: 5d6b1cb6248dca642bb44e0220dfce65
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e3a0238ef8323eb4caadcb2e19bbcf41, type: 3}
 --- !u!210 &2142048587132709599 stripped
 SortingGroup:

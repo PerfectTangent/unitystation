@@ -33,11 +33,10 @@ namespace Systems.MobAIs
 
 		#endregion Lifecycle
 
-		protected override void UpdateMe()
+		public override void ContemplatePriority()
 		{
 			if (MatrixManager.IsInitialized == false || health.IsDead || health.IsCrit) return;
-
-			base.UpdateMe();
+			base.ContemplatePriority();
 			MonitorExtras();
 		}
 
@@ -48,7 +47,7 @@ namespace Systems.MobAIs
 				return;
 			}
 
-			timeWaiting += Time.deltaTime;
+			timeWaiting += MobController.UpdateTimeInterval;
 			if (timeWaiting < timeForNextRandomAction) return;
 			timeWaiting = 0f;
 			timeForNextRandomAction = Random.Range(minTimeBetweenRandomActions, maxTimeBetweenRandomActions);

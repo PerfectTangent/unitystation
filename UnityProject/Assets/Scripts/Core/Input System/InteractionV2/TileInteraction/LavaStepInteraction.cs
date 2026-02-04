@@ -1,8 +1,11 @@
 ﻿using System.Collections.Generic;
+using Core;
+using Health.Objects;
 using HealthV2;
 using UnityEngine;
 using Systems.Atmospherics;
 using Tiles;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Interaction
 {
@@ -27,6 +30,9 @@ namespace Systems.Interaction
 
 		//All lava tiles will use this same dictionary as this is a Scriptable object
 		private Dictionary<GameObject, BasicTile> stuffToLightOnFire = new Dictionary<GameObject, BasicTile>();
+
+		[SerializeField]
+		private PlayerTypes playersEffected = PlayerTypes.Normal;
 
 		private void TryLightOnFire()
 		{
@@ -64,27 +70,32 @@ namespace Systems.Interaction
 
 		private void DamageObject(GameObject objectToBurn)
 		{
-			if (objectToBurn.TryGetComponent<PlayerHealthV2>(out var playerHealth))
+			if (objectToBurn.TryGetComponent<UniversalObjectPhysics>(out var uop))
+			{
+				//dont damage things that are flying thru the air (jumpboots, thrown, etc)
+				if (uop.IsInAir)
+				{
+					return;
+				}
+			}
+
+			if (objectToBurn.TryGetComponent<LivingHealthMasterBase>(out var playerHealth))
 			{
 				playerHealth.ChangeFireStacks(playerMobFireStacks);
 				return;
 			}
 
-			if (objectToBurn.TryGetComponent<LivingHealthBehaviour>(out var livingHealthBehaviour))
+			if (objectToBurn.TryGetComponent<Integrity>(out var integrity) && (integrity.Resistances.LavaProof == false || integrity.Resistances.Flammable))
 			{
-				livingHealthBehaviour.ChangeFireStacks(playerMobFireStacks);
-				return;
-			}
-
-			if (objectToBurn.TryGetComponent<Integrity>(out var integrity))
-			{
-				integrity.ApplyDamage(objectFireDamage, AttackType.Fire, DamageType.Burn);
+				integrity.ApplyDamage(objectFireDamage, AttackType.Fire, DamageType.Burn, true);
 			}
 		}
 
 		private void AddToFireDict(GameObject objectToAdd)
 		{
 			if (objectToAdd.TryGetComponent<RegisterTile>(out var registerTile) == false) return;
+
+			if (registerTile.ObjectPhysics?.Component?.Intangible == true || registerTile.ObjectPhysics?.Component?.MappingIntangible == true) return;
 
 			LayerTile tile = registerTile.Matrix.MetaTileMap.GetTile(registerTile.LocalPositionServer, true);
 
@@ -122,7 +133,7 @@ namespace Systems.Interaction
 		//Player enter tile interaction//
 		public override bool WillAffectPlayer(PlayerScript playerScript)
 		{
-			return true;
+			return playersEffected.HasFlag(playerScript.PlayerType);
 		}
 
 		public override void OnPlayerStep(PlayerScript playerScript)

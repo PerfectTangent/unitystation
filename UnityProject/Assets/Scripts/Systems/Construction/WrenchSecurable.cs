@@ -1,8 +1,11 @@
 using System;
+using Core;
+using Logs;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
 using Mirror;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Construction
 {
@@ -13,7 +16,7 @@ namespace Objects.Construction
 	public class WrenchSecurable : NetworkBehaviour, ICheckedInteractable<HandApply>, IExaminable
 	{
 		private RegisterObject registerObject;
-		private ObjectBehaviour objectBehaviour;
+		public UniversalObjectPhysics objectBehaviour;
 		private HandApply currentInteraction;
 		private string objectName;
 
@@ -22,7 +25,7 @@ namespace Objects.Construction
 		/// </summary>
 		[NonSerialized] public UnityEvent OnAnchoredChange = new UnityEvent();
 
-		public bool IsAnchored => objectBehaviour != null && !objectBehaviour.IsPushable;
+		public bool IsAnchored => objectBehaviour != null && objectBehaviour.IsNotPushable;
 
 		[SerializeField, FormerlySerializedAs("stateSecuredStatus")]
 		[Tooltip("Whether the object will state if it is secured or unsecured upon examination.")]
@@ -49,7 +52,7 @@ namespace Objects.Construction
 		private void Awake()
 		{
 			registerObject = GetComponent<RegisterObject>();
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 		}
 
 		private void Start()
@@ -58,9 +61,9 @@ namespace Objects.Construction
 
 			// Try get the best name for the object, else default to object's prefab name.
 			if (TryGetComponent<ObjectAttributes>(out var attributes)
-			    && string.IsNullOrWhiteSpace(attributes.InitialName) == false)
+			    && string.IsNullOrWhiteSpace(attributes.ArticleName) == false)
 			{
-				objectName = attributes.InitialName;
+				objectName = attributes.ArticleName;
 			}
 			else
 			{
@@ -69,7 +72,7 @@ namespace Objects.Construction
 
 			if (objectBehaviour == null)
 			{
-				Logger.LogWarning($"{nameof(objectBehaviour)} was not found on {this}!", Category.Construction);
+				Loggy.Warning($"{nameof(objectBehaviour)} was not found on {this}!", Category.Construction);
 			}
 		}
 
@@ -129,7 +132,7 @@ namespace Objects.Construction
 
 		private bool VerboseFloorExists()
 		{
-			if (MatrixManager.IsSpaceAt(registerObject.WorldPositionServer, true, registerObject.Matrix.MatrixInfo) == false) return true;
+			if (MatrixManager.IsEmptyAt(registerObject.WorldPositionServer, true, registerObject.Matrix.MatrixInfo) == false) return true;
 
 			Chat.AddExamineMsg(currentInteraction.Performer, $"A floor must be present to secure the {objectName}!");
 			return false;
@@ -183,7 +186,7 @@ namespace Objects.Construction
 
 		public void ServerSetPushable(bool isPushable)
 		{
-			objectBehaviour.ServerSetPushable(isPushable);
+			objectBehaviour.SetIsNotPushable(!isPushable);
 		}
 	}
 }

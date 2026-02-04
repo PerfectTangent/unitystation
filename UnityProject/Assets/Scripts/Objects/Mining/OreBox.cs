@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
 using Mirror;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 public class OreBox : NetworkBehaviour, ICheckedInteractable<HandApply>, IServerDespawn
 {
@@ -26,7 +28,8 @@ public class OreBox : NetworkBehaviour, ICheckedInteractable<HandApply>, IServer
 
 	private void AfterMovement(Vector3Int newLocalPosition)
 	{
-		var tileObjects = MatrixManager.GetAt<ObjectBehaviour>(registerTile.WorldPosition, true);
+		if (isServer == false) return;
+		var tileObjects = MatrixManager.GetAt<UniversalObjectPhysics>(registerTile.WorldPosition, true);
 		foreach (var objectBehaviour in tileObjects)
 		{
 			var item = objectBehaviour.gameObject;
@@ -42,13 +45,13 @@ public class OreBox : NetworkBehaviour, ICheckedInteractable<HandApply>, IServer
 	{
 		if (!DefaultWillInteract.Default(interaction, side))
 			return false;
-		if (interaction.HandSlot.IsEmpty)
-			return false;
+		if (interaction.HandSlot.IsEmpty && interaction.IsAltClick)
+			return true;
 		if (Validations.HasItemTrait(interaction.HandSlot.ItemObject, CommonTraits.Instance.Crowbar))
 			return true;
 		if (Validations.HasItemTrait(interaction.HandSlot.ItemObject, CommonTraits.Instance.OreGeneral))
 			return true;
-		if (interaction.HandSlot.ItemObject.GetComponent<ItemStorage>())
+		if (interaction.HandSlot?.ItemObject.OrNull()?.GetComponent<ItemStorage>())
 			return true;
 
 		return false;
@@ -57,9 +60,10 @@ public class OreBox : NetworkBehaviour, ICheckedInteractable<HandApply>, IServer
 	public void ServerPerformInteraction(HandApply interaction)
 	{
 		var itemObject = interaction.HandSlot.ItemObject;
-		if (Validations.HasItemTrait(itemObject, CommonTraits.Instance.Crowbar))
+		if (Validations.HasItemTrait(itemObject, CommonTraits.Instance.Crowbar) || (interaction.HandSlot.ItemObject == null && interaction.IsAltClick))
 		{
-			oreBoxItemStorage.ServerDropAll();
+			Chat.AddActionMsgToChat(interaction.Performer.gameObject, $"You empty out the {this.gameObject.ExpensiveName()} Quickly", $" {interaction.Performer} empties out the {this.gameObject.ExpensiveName()} Quickly");
+			oreBoxItemStorage.ServerDropAllAtWorld(interaction.Performer.AssumedWorldPosServer());
 		}
 		else if (Validations.HasItemTrait(itemObject, CommonTraits.Instance.OreGeneral))
 		{

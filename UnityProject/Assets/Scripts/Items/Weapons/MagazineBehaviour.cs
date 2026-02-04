@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Logs;
 using Mirror;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -35,8 +36,6 @@ namespace Weapons
 		/// </summary>
 		public int ClientAmmoRemains => Math.Min(clientAmmoRemains, serverAmmoRemains);
 
-		private double[] RNGContents;
-
 		/// <summary>
 		///	The type of magazine. This effects various behaviours depending on its setting
 		/// </summary>
@@ -57,12 +56,6 @@ namespace Weapons
 		public override void OnStartClient()
 		{
 			InitLists();
-			SetupRng();
-		}
-
-		public override void OnStartServer()
-		{
-			SetupRng();
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
@@ -79,7 +72,6 @@ namespace Weapons
 				InitLists();
 			}
 			SyncServerAmmo(magazineSize, magazineSize);
-			SetupRng();
 		}
 
 		public virtual void InitLists()
@@ -103,20 +95,6 @@ namespace Weapons
 			magazineSize = newSize;
 			clientAmmoRemains = -1;
 			SyncServerAmmo(newSize, newSize);
-			SetupRng();
-		}
-
-		/// <summary>
-		/// Creates the RNG table.
-		/// </summary>
-		public void SetupRng()
-		{
-			RNGContents = new double[magazineSize + 1];
-			System.Random magSyncedRNG = new System.Random(GetComponent<NetworkIdentity>().netId.GetHashCode());
-			for (int i = 0; i <= magazineSize; i++)
-			{
-				RNGContents[magazineSize - i] = magSyncedRNG.NextDouble();
-			}
 		}
 
 		/// <summary>
@@ -136,12 +114,12 @@ namespace Weapons
 		{
 			if (amount < 0)
 			{
-				Logger.LogWarning("Attempted to expend a negitive amount of ammo", Category.Firearms); // dont use this method to replenish ammo
+				Loggy.Warning("Attempted to expend a negitive amount of ammo", Category.Firearms); // dont use this method to replenish ammo
 			}
 
 			if (ClientAmmoRemains < amount)
 			{
-				Logger.LogWarning("Client ammo count is too low, cannot expend that much ammo. Make sure" +
+				Loggy.Warning("Client ammo count is too low, cannot expend that much ammo. Make sure" +
 								  " to check ammo count before expending it.", Category.Firearms);
 			}
 			else
@@ -153,7 +131,7 @@ namespace Weapons
 			{
 				if (ServerAmmoRemains < amount)
 				{
-					Logger.LogWarning("Server ammo count is too low, cannot expend that much ammo. Make sure" +
+					Loggy.Warning("Server ammo count is too low, cannot expend that much ammo. Make sure" +
 									  " to check ammo count before expending it.", Category.Firearms);
 				}
 				else
@@ -174,7 +152,7 @@ namespace Weapons
 					}
 				}
 
-				Logger.LogTraceFormat("Expended {0} shots, now serverAmmo {1} clientAmmo {2}", Category.Firearms, amount, serverAmmoRemains, clientAmmoRemains);
+				Loggy.Trace().Format("Expended {0} shots, now serverAmmo {1} clientAmmo {2}", Category.Firearms, amount, serverAmmoRemains, clientAmmoRemains);
 			}
 		}
 
@@ -259,26 +237,9 @@ namespace Weapons
 			Chat.AddExamineMsg(interaction.Performer, message);
 		}
 
-		/// <summary>
-		/// Gets an RNG double which is based on the current ammo remaining and this mag's net ID so client
-		///  can predict deviation / recoil based on how many shots.
-		/// </summary>
-		/// <returns></returns>
-		public double CurrentRng()
-		{
-			double CurrentRng = 1.0;
-			if (clientAmmoRemains <= RNGContents.Length - 1)
-			{
-				CurrentRng = RNGContents[clientAmmoRemains];
-			}
-
-			Logger.LogTraceFormat("rng {0}, serverAmmo {1} clientAmmo {2}", Category.Firearms, CurrentRng, serverAmmoRemains, clientAmmoRemains);
-			return CurrentRng;
-		}
-
 		public virtual String Examine(Vector3 pos)
 		{
-			return $"Accepts {ammoType}\n It has {ServerAmmoRemains} out of {magazineSize} rounds within";
+			return $"Accepts {ammoType}\nIt has {ServerAmmoRemains} out of {magazineSize} rounds within";
 		}
 	}
 

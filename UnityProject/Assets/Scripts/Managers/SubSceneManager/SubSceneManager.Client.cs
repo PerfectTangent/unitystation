@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Messages.Client;
 using Mirror;
+using UI;
+using UI.Systems.PreRound;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,27 +14,33 @@ public partial class SubSceneManager
 {
 	private bool KillClientLoadingCoroutine = false;
 
-	private bool clientIsLoadingSubscene = false;
-	private List<SceneInfo> clientLoadedSubScenes = new List<SceneInfo>();
+	public bool clientIsLoadingSubscene = false;
+	public HashSet<SceneInfo> clientLoadedSubScenes = new HashSet<SceneInfo>();
 
 	private float waitTime = 0f;
 	private readonly float tickRate = 1f;
 
+	public Dictionary<string, bool> ClientObserver = new Dictionary<string, bool>();
+
+	public bool ClientIsFullyDoneLoadingOnSubsceneManager { get; private set; } = false;
+
+
 	void MonitorServerSceneListOnClient()
 	{
-		if (isServer || clientIsLoadingSubscene || AddressableCatalogueManager.FinishLoaded == false) return;
+		if (CustomNetworkManager.IsServer || clientIsLoadingSubscene || AddressableCatalogueManager.FinishLoaded == false) return;
 
 		waitTime += Time.deltaTime;
-		if (waitTime >= tickRate)
+		if (waitTime < tickRate) return;
+		waitTime = 0f;
+
+		for (int i = 0; i < loadedScenesList.Count; i++)
 		{
-			waitTime = 0f;
-			if (clientLoadedSubScenes.Count < loadedScenesList.Count)
-			{
-				clientIsLoadingSubscene = true;
-				var sceneToLoad = loadedScenesList[clientLoadedSubScenes.Count];
-				clientLoadedSubScenes.Add(sceneToLoad);
-				StartCoroutine(LoadClientSubScene(sceneToLoad));
-			}
+			GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Loading Scenes", $"Loading Scene Number #{i}", i / loadedScenesList.Count);
+			var sceneToCheck = loadedScenesList[i];
+			if(clientLoadedSubScenes.Contains(sceneToCheck)) continue;
+			clientIsLoadingSubscene = true;
+			StartCoroutine(LoadClientSubScene(sceneToCheck));
+			break;
 		}
 	}
 
@@ -67,6 +76,7 @@ public partial class SubSceneManager
 		{
 			clientIsLoadingSubscene = false;
 		}
+		clientLoadedSubScenes.Add(sceneInfo);
 	}
 
 	public void LoadScenesFromServer(List<SceneInfo> Scenes, string OriginalScene, Action OnFinish)
@@ -84,9 +94,12 @@ public partial class SubSceneManager
 		//calculate load time:
 		SubsceneLoadTimer.MaxLoadTime = Scenes.Count;
 
+		var loadCount = 0;
 		clientIsLoadingSubscene = true;
 		foreach (var Scene in Scenes)
 		{
+			loadCount++;
+			GUI_PreRoundWindow.Instance?.LoadingArea?.UpdateLoadingBar("Loading Scenes", $"Scenes Loaded.. ({loadCount}/{Scenes.Count})", loadCount / Scenes.Count);
 			yield return LoadClientSubScene(Scene, false, SubsceneLoadTimer, true );
 			if (KillClientLoadingCoroutine)
 			{
@@ -95,14 +108,18 @@ public partial class SubSceneManager
 				clientIsLoadingSubscene = false;
 				yield break;
 			}
-			clientLoadedSubScenes.Add(Scene);
 		}
 
+		loadCount = 0;
+
+		GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Loading Scenes", $"Preparing to spawn objects..", 0.4f);
 		NetworkClient.PrepareToSpawnSceneObjects();
 		RequestObserverRefresh.Send(OriginalScene);
 
-		foreach (var Scene in Scenes)
+		GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Loading Scenes", $"Requesting Object Observers.. ({loadCount}/{Scenes.Count})", 0.5f);
+		foreach (var scene in Scenes)
 		{
+			loadCount++;
 			yield return WaitFor.Seconds(0.1f); //For smooth FPS not necessary technically, but causes freeze For a little bit
 			if (KillClientLoadingCoroutine)
 			{
@@ -110,7 +127,8 @@ public partial class SubSceneManager
 				clientIsLoadingSubscene = false;
 				yield break;
 			}
-			RequestObserverRefresh.Send(Scene.SceneName);
+			RequestObserverRefresh.Send(scene.SceneName);
+			ClientObserver[scene.SceneName] = false;
 		}
 
 		clientIsLoadingSubscene = false;
@@ -120,7 +138,26 @@ public partial class SubSceneManager
 			KillClientLoadingCoroutine = false;
 			yield break;
 		}
-		UIManager.Display.preRoundWindow.CloseMapLoadingPanel();
-		OnFinish.Invoke();
+
+		int Count = 0;
+		while (ObserverOfAll() == false && Count < 600)
+		{
+			yield return WaitFor.Seconds(0.1f);
+			Count++;
+		}
+
+
+		ClientObserver.Clear();
+		ClientSideFinishAction = null;
+		OnFinish?.Invoke();
+		GUI_PreRoundWindow.Instance?.HideLoadingArea();
+		ClientIsFullyDoneLoadingOnSubsceneManager = true;
 	}
+
+
+	public bool ObserverOfAll()
+	{
+		return ClientObserver.All(x => x.Value);
+	}
+
 }

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 309958516471808564, guid: 3e5919f639f566c4590d07d54ef256dd,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 8c1d11e77570c594abd80e3448a207eb,
         type: 3}
+    - target: {fileID: 3417345767468294455, guid: 3e5919f639f566c4590d07d54ef256dd,
+        type: 3}
+      propertyPath: parentID
+      value: 3e5919f639f566c4590d07d54ef256dd
+      objectReference: {fileID: 0}
     - target: {fileID: 3417345767468294455, guid: 3e5919f639f566c4590d07d54ef256dd,
         type: 3}
       propertyPath: foreverID
@@ -26,6 +32,11 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 8159390639885615672, guid: 3e5919f639f566c4590d07d54ef256dd,
         type: 3}
+      propertyPath: exportCost
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 8159390639885615672, guid: 3e5919f639f566c4590d07d54ef256dd,
+        type: 3}
       propertyPath: initialName
       value: box of Mousetraps
       objectReference: {fileID: 0}
@@ -33,7 +44,12 @@ PrefabInstance:
         type: 3}
       propertyPath: customNetTransform
       value: 
-      objectReference: {fileID: 6146345529719437252}
+      objectReference: {fileID: 0}
+    - target: {fileID: 8521467601672753390, guid: 3e5919f639f566c4590d07d54ef256dd,
+        type: 3}
+      propertyPath: _assetId
+      value: 2058188709
+      objectReference: {fileID: 0}
     - target: {fileID: 8521467601672753390, guid: 3e5919f639f566c4590d07d54ef256dd,
         type: 3}
       propertyPath: m_AssetId
@@ -106,16 +122,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 2b0769f4cd9ef014d91cc6adf8a1a6e3,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3e5919f639f566c4590d07d54ef256dd, type: 3}
---- !u!114 &6146345529719437252 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8521883043285352586, guid: 3e5919f639f566c4590d07d54ef256dd,
-    type: 3}
-  m_PrefabInstance: {fileID: 2526514768795039566}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 

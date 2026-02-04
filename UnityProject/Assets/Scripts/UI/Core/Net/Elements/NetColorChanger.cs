@@ -15,7 +15,7 @@ namespace UI.Core.NetUI
 
 		public override Color Value {
 			get => Element.color;
-			set {
+			protected set {
 				externalChange = true;
 				Element.color = value;
 				externalChange = false;
@@ -45,13 +45,13 @@ namespace UI.Core.NetUI
 
 		public Graphic Element => element ??= GetComponent<Graphic>();
 		private Graphic element;
-		
-		public override void ExecuteServer(ConnectedPlayer subject) { }
+
+		public override void ExecuteServer(PlayerInfo subject) { }
 
 		/// <summary>
 		/// Server-only method for updating element (i.e. changing label text) from server GUI code
 		/// </summary>
-		public override void SetValueServer(Color value)
+		public override void MasterSetValue(Color value)
 		{
 			if (Value != value)
 			{

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Logs;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -44,7 +45,7 @@ public class AddressablePicker : EditorWindow
 	{
 		var path = Application.dataPath.Remove(Application.dataPath.IndexOf("/Assets"));
 		path += "/AddressablePackingProjects";
-		Logger.Log(path, Category.Addressables);
+		Loggy.Info(path, Category.Addressables);
 		var Directories = Directory.GetDirectories(path);
 		var FoundFiles = new List<string>();
 		foreach (var Directori in Directories)
@@ -57,12 +58,12 @@ public class AddressablePicker : EditorWindow
 				string FoundFile = "";
 				foreach (var File in Files)
 				{
-					//Logger.Log(File);
+					//Loggy.Log(File);
 					if (File.EndsWith(".json"))
 					{
 						if (FoundFile != "")
 						{
-							Logger.LogError("two catalogues present please only ensure one", Category.Addressables);
+							Loggy.Error("two catalogues present please only ensure one", Category.Addressables);
 						}
 
 						FoundFile = File;
@@ -71,7 +72,7 @@ public class AddressablePicker : EditorWindow
 
 				if (FoundFile == "")
 				{
-					Logger.LogWarning("missing json file", Category.Addressables);
+					Loggy.Warning("missing json file", Category.Addressables);
 				}
 				else
 				{

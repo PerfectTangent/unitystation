@@ -1,12 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using AddressableReferences;
-using Objects.Disposals;
+using Logs;
 using Objects;
 using Objects.Atmospherics;
+using Objects.Disposals;
+using Shared.Managers;
 using Systems.Atmospherics;
-using Managers;
+using UnityEngine;
 
 namespace Systems.Disposals
 {
@@ -18,6 +19,12 @@ namespace Systems.Disposals
 		[SerializeField]
 		[Tooltip("Set the virtual container prefab to be used in disposal instances.")]
 		public GameObject VirtualContainerPrefab;
+
+		[SerializeField]
+		[Tooltip("Crawling virtual container prefab")]
+		private GameObject crawlingVirtualContainerPrefab = null;
+		public GameObject CrawlingVirtualContainerPrefab => crawlingVirtualContainerPrefab;
+
 		[SerializeField]
 		[Tooltip("Set how many tiles every disposal instance can traverse in one second.")]
 		private float TileTraversalsPerSecond = 20;
@@ -26,7 +33,7 @@ namespace Systems.Disposals
 
 		public AddressableAudioSource DisposalEjectionHiss => disposalEjectionHiss;
 
-		private readonly List<DisposalTraversal> disposalInstances = new List<DisposalTraversal>();
+		public readonly List<DisposalTraversal> disposalInstances = new List<DisposalTraversal>();
 
 		private void OnEnable()
 		{
@@ -68,7 +75,7 @@ namespace Systems.Disposals
 			SpawnResult virtualContainerSpawn = Spawn.ServerPrefab(Instance.VirtualContainerPrefab, worldPosition);
 			if (virtualContainerSpawn.Successful == false)
 			{
-				Logger.LogError(
+				Loggy.Error(
 						"Failed to spawn disposal virtual container! " +
 						$"Is {nameof(DisposalsManager)} missing reference to {nameof(Instance.VirtualContainerPrefab)}?",
 						Category.Machines);
@@ -84,21 +91,39 @@ namespace Systems.Disposals
 		/// <param name="sourceContainer">The container holding the entities to be disposed of.</param>
 		public void NewDisposal(GameObject sourceObject)
 		{
+			var selfControlledOnStart = false;
 			// Spawn virtual container
 			var disposalContainer = SpawnVirtualContainer(sourceObject.RegisterTile().WorldPositionServer);
+			var virtualContainer = disposalContainer.GetComponent<DisposalVirtualContainer>();
 
 			// Transfer contents
 			if (sourceObject.TryGetComponent<ObjectContainer>(out var objectContainer))
 			{
 				objectContainer.TransferObjectsTo(disposalContainer.GetComponent<ObjectContainer>());
 			}
+			else
+			{
+				virtualContainer.ObjectContainer.StoreObject(sourceObject);
+				selfControlledOnStart = true;
+			}
 			if (sourceObject.TryGetComponent<GasContainer>(out var gasContainer))
 			{
-				GasMix.TransferGas(disposalContainer.GetComponent<GasContainer>().GasMix, gasContainer.GasMix, gasContainer.GasMix.Moles);
+				GasMix.TransferGas(disposalContainer.GetComponent<GasContainer>().GasMixLocal, gasContainer.GasMixLocal, gasContainer.GasMixLocal.Moles);
+			}
+			else
+			{
+				var tile = sourceObject.RegisterTile();
+				var gasMix = tile.Matrix.MetaDataLayer.Get(tile.LocalPositionServer)?.GasMixLocal;
+				if (gasMix != null)
+				{
+					GasMix.TransferGas(disposalContainer.GetComponent<GasContainer>().GasMixLocal, gasMix, gasMix.Moles);
+				}
 			}
 
 			// Start traversing
-			var traversal = new DisposalTraversal(disposalContainer.GetComponent<DisposalVirtualContainer>());
+			var traversal = new DisposalTraversal(virtualContainer);
+			virtualContainer.traversal = traversal;
+			virtualContainer.SelfControlled = selfControlledOnStart;
 			disposalInstances.Add(traversal);
 		}
 
@@ -113,6 +138,11 @@ namespace Systems.Disposals
 
 		private void UpdateDisposal(DisposalTraversal disposal)
 		{
+			if (disposal.virtualContainer.SelfControlled)
+			{
+				return;
+			}
+
 			if (disposal.TraversalFinished)
 			{
 				FinishDisposal(disposal);

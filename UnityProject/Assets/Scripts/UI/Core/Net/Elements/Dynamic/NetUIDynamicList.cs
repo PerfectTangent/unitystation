@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using UnityEngine;
 using UnityEngine.UI;
 using Messages.Server;
+using SecureStuff;
 using Tilemaps.Behaviours.Meta;
 
 namespace UI.Core.NetUI
@@ -18,18 +20,13 @@ namespace UI.Core.NetUI
 		private int entryCount = 0;
 		public string EntryPrefix => gameObject.name; //= String.Empty;
 
-		public DynamicEntry[] Entries => GetComponentsInChildren<DynamicEntry>(false);
-
-		/// <summary>
-		/// Pool with disabled entries, ready to be reused
-		/// </summary>
-		protected readonly UniqueEntryQueue<DynamicEntry> DisabledEntryPool = new UniqueEntryQueue<DynamicEntry>();
+		public List<DynamicEntry>  Entries = new List<DynamicEntry>();
 
 		public GameObject EntryPrefab;
 
 		public override string[] Value {
 			get => EntryIndex.Keys.ToArray();
-			set {
+			protected set {
 				externalChange = true;
 
 				if (value.Length == 0)
@@ -43,7 +40,6 @@ namespace UI.Core.NetUI
 					var existing = EntryIndex.Keys;
 					var toRemove = existing.Except(value).ToArray();
 					var toAdd = value.Except(existing).ToArray();
-
 					Remove(toRemove);
 					AddBulk(toAdd);
 				}
@@ -61,7 +57,7 @@ namespace UI.Core.NetUI
 					var entryName = entry.name;
 					if (dynamicEntries.ContainsKey(entryName))
 					{
-						Logger.LogWarning($"Duplicate entry name {entryName}, something's wrong", Category.NetUI);
+						Loggy.Warning($"Duplicate entry name {entryName}, something's wrong", Category.NetUI);
 						continue;
 					}
 
@@ -72,26 +68,18 @@ namespace UI.Core.NetUI
 			}
 		}
 
-		private void Start()
-		{
-			DisabledEntryPool.EnqueueAll(GetComponentsInChildren<DynamicEntry>(true)
-				.Where(entry => !entry.gameObject.activeSelf).ToList());
-			Logger.LogTraceFormat("{0} dynamic list: initialized DisabledEntryPool with {1} items", Category.NetUI,
-				gameObject.name, DisabledEntryPool.Count);
-		}
-
 		public override void Init()
 		{
 			if (!EntryPrefab)
 			{
-				var elementType = $"{MasterTab.Type}Entry";
-				Logger.LogFormat("{0} dynamic list: EntryPrefab not assigned, trying to find it as '{1}'", Category.NetUI,
+				var elementType = $"{containedInTab.Type}Entry";
+				Loggy.Info().Format("{0} dynamic list: EntryPrefab not assigned, trying to find it as '{1}'", Category.NetUI,
 					gameObject.name, elementType);
 				EntryPrefab = NetworkTabManager.Instance.NetEntries.GetFromName(elementType);
 
 				if (EntryPrefab == null)
 				{
-					Logger.LogError($"Failed to find net entry {elementType} for {gameObject.name}", Category.NetUI);
+					Loggy.Error($"Failed to find net entry {elementType} for {gameObject.name}", Category.NetUI);
 				}
 			}
 
@@ -105,11 +93,15 @@ namespace UI.Core.NetUI
 		{
 			return string.Join(",", Value);
 		}
-
 		public virtual void Clear()
 		{
-			DisabledEntryPool.EnqueueAll(Entries.ToList());
-
+			foreach (var entry in Entries)
+			{
+				if (entry == null) continue;
+				DestroyImmediate(entry.gameObject);
+			}
+			Entries.Clear();
+			entryCount = 0;
 			RearrangeListItems();
 		}
 
@@ -119,9 +111,9 @@ namespace UI.Core.NetUI
 		/// </summary>
 		private void RearrangeListItems()
 		{
-			if (MasterTab.IsServer)
+			if (containedInTab.IsMasterTab)
 			{
-				NetworkTabManager.Instance.Rescan(MasterTab.NetTabDescriptor);
+				NetworkTabManager.Instance.Rescan(containedInTab.NetTabDescriptor);
 				RefreshPositions();
 				UpdatePeepers();
 			}
@@ -138,6 +130,26 @@ namespace UI.Core.NetUI
 			Remove(new[] { toBeRemoved });
 		}
 
+		public void MasterRemoveItem(DynamicEntry EntryToRemove)
+		{
+			Remove(EntryToRemove.name);
+
+			// rescan elements and notify
+			NetworkTabManager.Instance.Rescan(containedInTab.NetTabDescriptor);
+			UpdatePeepers();
+		}
+
+		public DynamicEntry AddItem()
+		{
+			var newEntry = Add();
+
+			// rescan elements and notify
+			NetworkTabManager.Instance.Rescan(containedInTab.NetTabDescriptor);
+			UpdatePeepers();
+
+			return newEntry;
+		}
+
 		/// <summary>
 		/// Remove entries by their name-index
 		/// </summary>
@@ -148,10 +160,15 @@ namespace UI.Core.NetUI
 			foreach (var itemName in toBeRemoved)
 			{
 				var entryToRemove = entries[itemName];
-				DisabledEntryPool.Enqueue(entryToRemove);
+				entries.Remove(itemName);
+				Entries.Remove(entryToRemove);
+				DestroyImmediate(entryToRemove.gameObject);
+
 			}
 
 			RearrangeListItems();
+
+
 		}
 
 		protected DynamicEntry[] AddBulk(string[] proposedIndices)
@@ -162,41 +179,35 @@ namespace UI.Core.NetUI
 			for (var i = 0; i < proposedIndices.Length; i++)
 			{
 				var proposedIndex = proposedIndices[i];
-				var dynamicEntry = PoolSpawnEntry();
+				var dynamicEntry = SpawnEntry();
 				var resultIndex = InitDynamicEntry(dynamicEntry, proposedIndex);
 
 				if (resultIndex != string.Empty)
 				{
-					Logger.LogTraceFormat("{0} spawning dynamic entry #[{1}]: proposed: [{2}], entry: {3}", Category.NetUI,
+					Loggy.Trace().Format("{0} spawning dynamic entry #[{1}]: proposed: [{2}], entry: {3}", Category.NetUI,
 						mode, resultIndex, proposedIndex, dynamicEntry);
 				}
 				else
 				{
-					Logger.LogWarningFormat(
+					Loggy.Warning().Format(
 						"Dynamic entry \"{0}\" {1} spawn failure, something is wrong with {2}", Category.NetUI,
 						proposedIndex, mode, dynamicEntry);
 				}
 
 				dynamicEntries[i] = dynamicEntry;
+				Entries.Add(dynamicEntry);
 			}
 
 			RearrangeListItems();
 			return dynamicEntries;
 		}
 
-		private DynamicEntry PoolSpawnEntry()
+		private DynamicEntry SpawnEntry()
 		{
-			var nonPool = !DisabledEntryPool.TryDequeue(out var dynamicEntry);
-			if (nonPool)
-			{
-				var entryObject = Instantiate(EntryPrefab, transform, false);
-				dynamicEntry = entryObject.GetComponent<DynamicEntry>();
-			}
-			else
-			{
-				//Reusing
-				dynamicEntry.transform.SetParent(transform, false);
-			}
+			DynamicEntry dynamicEntry = null;
+
+			var entryObject = Instantiate(EntryPrefab, transform, false);
+			dynamicEntry = entryObject.GetComponent<DynamicEntry>();
 
 			return dynamicEntry;
 		}
@@ -215,12 +226,14 @@ namespace UI.Core.NetUI
 		/// </summary>
 		protected virtual void RefreshPositions()
 		{
-			//Adding new entries to the end by default
-			var entries = Entries;
-			Array.Sort(entries, (entry1, entry2) => string.Compare(entry1.name, entry2.name));
-			for (var i = 0; i < entries.Length; i++)
+			// Sort entries by name descending
+			Entries.Sort(
+				(a, b) =>
+					string.Compare(b.name, a.name, StringComparison.Ordinal)
+					);
+			for (var i = 0; i < Entries.Count; i++)
 			{
-				SetProperPosition(entries[i], i);
+				SetProperPosition(Entries[i], i);
 			}
 		}
 
@@ -249,7 +262,7 @@ namespace UI.Core.NetUI
 				}
 			}
 
-			TabUpdateMessage.SendToPeepers(MasterTab.Provider, MasterTab.Type, TabAction.Update, valuesToSend.ToArray());
+			TabUpdateMessage.SendToPeepers(containedInTab.Provider, containedInTab.Type, TabAction.Update, new []{ElementValue} );
 		}
 
 		/// <summary>
@@ -263,7 +276,7 @@ namespace UI.Core.NetUI
 			}
 
 			var index = desiredName;
-			if (desiredName == string.Empty)
+			if (string.IsNullOrEmpty(desiredName))
 			{
 				index = EntryPrefix == string.Empty ? entryCount++.ToString() : EntryPrefix + ":" + entryCount++;
 			}
@@ -288,7 +301,7 @@ namespace UI.Core.NetUI
 					}
 					else
 					{
-						Logger.LogTraceFormat("Reuse: Inner element {0} already had indexed name, while {1} was expected",
+						Loggy.Trace().Format("Reuse: Inner element {0} already had indexed name, while {1} was expected",
 							Category.NetUI, innerElement, index);
 						//Different index - cut and let set it again
 						innerElement.name = innerElement.name.Split(DELIMITER)[0];
@@ -297,6 +310,11 @@ namespace UI.Core.NetUI
 
 				//postfix and not prefix because of how NetKeyButton works
 				innerElement.name = innerElement.name + DELIMITER + index;
+				if (entry == innerElement)
+				{
+					Loggy.Error("Multiple net elements on one gameobject this is not supported");
+				}
+
 			}
 
 			return index;
@@ -319,6 +337,6 @@ namespace UI.Core.NetUI
 			}
 		}
 
-		public override void ExecuteServer(ConnectedPlayer subject) { }
+		public override void ExecuteServer(PlayerInfo subject) { }
 	}
 }

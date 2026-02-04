@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 6506275212319386779}
   - component: {fileID: 7585048103777651924}
   - component: {fileID: 37366778295945027}
+  - component: {fileID: -3176812586771137772}
   m_Layer: 5
   m_Name: ViewRecord
   m_TagString: Untagged
@@ -34,7 +35,6 @@ RectTransform:
   m_Children:
   - {fileID: 1588434199068304126}
   m_Father: {fileID: 3182496508376364112}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
@@ -150,7 +150,7 @@ MonoBehaviour:
   ServerMethod:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 7781418943628128898}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: 
         m_MethodName: ViewRecord
         m_Mode: 1
@@ -162,6 +162,18 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!114 &-3176812586771137772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2514654416329899958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db2adeded33c7e4598e497ef3363eba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2556737776109526403
 GameObject:
   m_ObjectHideFlags: 0
@@ -171,7 +183,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3182496508376364112}
-  - component: {fileID: 7781418943628128898}
   m_Layer: 5
   m_Name: CloningRecord
   m_TagString: Untagged
@@ -195,28 +206,12 @@ RectTransform:
   - {fileID: 5538098841727663073}
   - {fileID: 3677120750369683223}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 223.3, y: -186.4}
   m_SizeDelta: {x: 400, y: 54.84}
   m_Pivot: {x: 0.5, y: 1}
---- !u!114 &7781418943628128898
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2556737776109526403}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1b982bbe15d9e064b99969c798e3c181, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gui_Cloning: {fileID: 0}
-  recordName: {fileID: 2195292001734795585}
-  recrodScanID: {fileID: 9022542237955235879}
 --- !u!1 &5690085278172520247
 GameObject:
   m_ObjectHideFlags: 0
@@ -249,7 +244,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3182496508376364112}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -341,7 +335,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3677120750369683223}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -422,7 +415,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3182496508376364112}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}

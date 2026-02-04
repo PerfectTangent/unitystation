@@ -1,5 +1,9 @@
+using Core;
+using Logs;
+using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.UI;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace UI
 {
@@ -10,12 +14,39 @@ namespace UI
 
 		public Image pullImage;
 
+		public static bool ThrowHold = true;
+
 		private void Start()
 		{
 			UIManager.IsThrow = false;
 
 			pullImage.enabled = false;
+			ThrowHold = GetHoldThrowPreference();
 		}
+
+		public static bool GetHoldThrowPreference()
+		{
+			return 1 == PlayerPrefs.GetInt(PlayerPrefKeys.ThrowHoldPreference, 0);
+		}
+
+
+		public static void SetPreferenceThrowHoldPreference(bool preference)
+		{
+			if (preference)
+			{
+				PlayerPrefs.SetInt(PlayerPrefKeys.ThrowHoldPreference, 1);
+				ThrowHold = true;
+			}
+			else
+			{
+				PlayerPrefs.SetInt(PlayerPrefKeys.ThrowHoldPreference, 0);
+				ThrowHold = false;
+			}
+
+			PlayerPrefs.Save();
+		}
+
+
 
 		#region Buttons
 
@@ -24,15 +55,12 @@ namespace UI
 		/// </summary>
 		public void Resist()
 		{
-			if (PlayerManager.LocalPlayerScript.IsGhost)
-			{
-				return;
-			}
+			if(PlayerManager.LocalPlayerScript.PlayerTypeSettings.CanResist == false) return;
 
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdResist();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdResist();
 
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			Logger.Log("Resist Button", Category.UserInput);
+			Loggy.Info("Resist Button", Category.UserInput);
 		}
 
 		/// <summary>
@@ -40,29 +68,28 @@ namespace UI
 		/// </summary>
 		public void Drop()
 		{
-			// if (!Validations.CanInteract(PlayerManager.LocalPlayerScript, NetworkSide.Client, allowCuffed: true)); Commented out because it does... nothing?
+			if (Validations.CanInteract(PlayerManager.LocalPlayerScript,
+				    NetworkSide.Client, allowCuffed: true, apt: Validations.CheckState(x => x.CanDropItems)) == false) return;
+
+			if (PlayerManager.LocalPlayerScript.DynamicItemStorage == null)
+			{
+				Loggy.Error("Tried to drop, but has no DynamicItemStorage");
+				return;
+			}
 
 			var currentSlot = PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot();
 
-			if (PlayerManager.LocalPlayerScript.IsGhost)
-			{
-				return;
-			}
-
-			if (currentSlot.Item == null)
-			{
-				return;
-			}
+			if (currentSlot.Item == null) return;
 
 			if (UIManager.IsThrow)
 			{
 				Throw();
 			}
 
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdDropItem(currentSlot.ItemStorage.gameObject.NetId(),
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdDropItem(currentSlot.ItemStorage.gameObject.NetId(),
 				currentSlot.NamedSlot.GetValueOrDefault(NamedSlot.none));
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			Logger.Log("Drop Button", Category.UserInput);
+			Loggy.Info("Drop Button", Category.UserInput);
 		}
 
 		/// <summary>
@@ -72,7 +99,7 @@ namespace UI
 		{
 			if (forceDisable)
 			{
-				Logger.Log("Throw force disabled", Category.UserInput);
+				Loggy.Info("Throw force disabled", Category.UserInput);
 				UIManager.IsThrow = false;
 				throwImage.sprite = throwSprites[0];
 				return;
@@ -82,13 +109,11 @@ namespace UI
 			if (throwImage.sprite == throwSprites[0] && UIManager.IsThrow == false)
 			{
 				// Check if player can throw
-				if (!Validations.CanInteract(PlayerManager.LocalPlayerScript, NetworkSide.Client))
-				{
-					return;
-				}
+				if (Validations.CanInteract(PlayerManager.LocalPlayerScript, NetworkSide.Client, apt:
+					    Validations.CheckState(x => x.CanThrowItems)) == false) return;
 
 				// Enable throw
-				Logger.Log("Throw Button Enabled", Category.UserInput);
+				Loggy.Info("Throw Button Enabled", Category.UserInput);
 				_ = SoundManager.Play(CommonSounds.Instance.Click01);
 				UIManager.IsThrow = true;
 				throwImage.sprite = throwSprites[1];
@@ -96,7 +121,7 @@ namespace UI
 			else if (throwImage.sprite == throwSprites[1] && UIManager.IsThrow == true)
 			{
 				// Disable throw
-				Logger.Log("Throw Button Disabled", Category.UserInput);
+				Loggy.Info("Throw Button Disabled", Category.UserInput);
 				UIManager.IsThrow = false;
 				throwImage.sprite = throwSprites[0];
 			}
@@ -109,10 +134,10 @@ namespace UI
 		{
 			if (pullImage && pullImage.enabled)
 			{
-				PlayerScript ps = PlayerManager.LocalPlayerScript;
-				if (ps.pushPull != null)
+				var ps = PlayerManager.LocalPlayerScript.GetComponent<UniversalObjectPhysics>();
+				if (ps != null)
 				{
-					ps.pushPull.CmdStopPulling();
+					ps.StopPulling(true);
 				}
 			}
 		}

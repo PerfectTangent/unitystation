@@ -28,8 +28,8 @@ namespace Systems.Atmospherics
 		public const float SPACE_THERMAL_CONDUCTIVITY	= 0.4f;
 
 		//Plasma fire properties
-		public const float OXYGEN_BURN_RATE_BASE = 1.4f;
-		public const float PLASMA_BURN_RATE_DELTA = 15f;
+		public const float OXYGEN_BURN_RATE_BASE = 1.5f;
+		public const float PLASMA_BURN_RATE_DELTA = 13f;
 		public const float PLASMA_MINIMUM_OXYGEN_NEEDED = 2f;
 		public const float PLASMA_MINIMUM_OXYGEN_PLASMA_RATIO = 30f;
 		public const float PLASMA_UPPER_TEMPERATURE = 1643.15f;
@@ -46,8 +46,13 @@ namespace Systems.Atmospherics
 		public const float FREON_BURN_RATE_DELTA = 4f;
 		public const float FIRE_FREON_ENERGY_RELEASED = -300000f; //amount of heat absorbed per mole of burnt freon in the tile
 
-		public const float FREON_MAXIMUM_BURN_TEMPERATURE = 293f;
-		public const float FREON_LOWER_TEMPERATURE = 60f; //minimum temperature allowed for the burn to go, we would have negative pressure otherwise
+		public const float FREON_MAXIMUM_BURN_TEMPERATURE = 323.15f;
+		public const float FREON_LOWER_TEMPERATURE = 223.15f; //minimum temperature allowed for the burn to go, we would have negative pressure otherwise
+
+		public const float FREON_TRITIUM_MAXIMUM_BURN_TEMPERATURE = 323.15f;
+		public const float FREON_TRITIUM_LOWER_TEMPERATURE = 60f; //minimum temperature allowed for the burn to go, we would have negative pressure otherwise
+
+
 		public const float FREON_OXYGEN_FULLBURN = 10f;
 
 		public const float N2O_DECOMPOSITION_MIN_ENERGY = 1400f;
@@ -69,6 +74,20 @@ namespace Systems.Atmospherics
 		public const float REACTION_OPPRESSION_THRESHOLD = 5f;
 		public const float NOBLIUM_FORMATION_ENERGY = 2e9f; 	//1 Mole of Noblium takes the planck energy to condense.
 		public const float STIM_BALL_GAS_AMOUNT = 5f;
+
+		//Hydrogen reactions
+		public const float HYRDOGEN_MIN_CRYSTALLISE_TEMPERATURE = 1273f; //The minimum temperature needed for hydrogen to crystallise
+		public const float HYRDOGEN_MAX_CRYSTALLISE_TEMPERATURE = 3273f; //The maximum temperature needed for hydrogen to crystallise
+		public const float HYRDOGEN_CRYSTALLISE_ENERGY = 50000f; //Amount of energy it takes to crystallise hydrogen (per mol of H2)
+		public const float HYDROGEN_CRYSTALLISE_RATE = 200f;
+		public const float HYDROGEN_CRYSTALLISE_MIN_MOLES = 199f;
+
+		//Hydrogen formation is based off of the process of steam reforming. For the purpose of unitystation, plasma is assumed to be methane for this reaction. Reaction is endothermic.
+		public const float HYDROGEN_FORM_MIN_TEMPERATURE = 473f;
+		public const float HYDROGEN_FORM_MAX_TEMPERATURE = 1573f;
+		public const float HYDROGEN_FORMATION_ENERGY = 206000f;
+		public const int HYDROGEN_FORMATION_RATIO = 3;
+		public const float HYDROGEN_FORM_MIN_MOLES = 0.1f;
 
 		//Research point amounts
 		public const float NOBLIUM_RESEARCH_AMOUNT = 1000f;

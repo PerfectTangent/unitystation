@@ -1,3 +1,4 @@
+using Items.Others;
 using Mirror;
 using UnityEngine;
 using WebSocketSharp;
@@ -86,7 +87,7 @@ namespace Items.Cargo
 		{
 			var text = interaction.HandObject.GetComponent<Paper>().PaperString;
 			AttachNote(interaction.Performer, text);
-			Inventory.ServerDespawn(interaction.HandObject);
+			_ = Inventory.ServerDespawn(interaction.HandObject);
 		}
 		#endregion
 
@@ -101,7 +102,7 @@ namespace Items.Cargo
 		{
 			var text = interaction.UsedObject.GetComponent<Paper>().PaperString;
 			AttachNote(interaction.Performer, text);
-			Inventory.ServerDespawn(interaction.UsedObject);
+			_ = Inventory.ServerDespawn(interaction.UsedObject);
 		}
 		#endregion
 

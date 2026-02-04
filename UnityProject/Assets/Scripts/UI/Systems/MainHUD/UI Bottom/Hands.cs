@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using HealthV2;
+using Items.Implants.Organs;
+using Logs;
 
 namespace Player
 {
@@ -49,13 +51,13 @@ namespace Player
 			if (Slot == null) return;
 
 			var bodyPartUISlots = gamebodypPart.GetComponent<BodyPartUISlots>();
-			if (UIManager.Instance.UI_SlotManager.BodyPartToSlot.ContainsKey(bodyPartUISlots) == false) return;
+			if (UIManager.Instance.UI_SlotManager.BodyPartToSlot.ContainsKey(bodyPartUISlots.InterfaceGetInstanceID) == false) return;
 
 
 
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdSetActiveHand(gamebodypPart.NetId(), namedSlot);
-			PlayerManager.LocalPlayerScript.playerNetworkActions.activeHand = gamebodypPart;
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CurrentActiveHand = namedSlot;
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdSetActiveHand(gamebodypPart.NetId(), namedSlot);
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.activeHand = gamebodypPart;
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CurrentActiveHand = namedSlot;
 
 			// If player was using both hands - flip images back
 			if (UsingBothHands)
@@ -203,10 +205,10 @@ namespace Player
 			if (PlayerManager.LocalPlayerScript == null) return false;
 
 			// TODO tidy up this if statement once it's working correctly
-			if (!PlayerManager.LocalPlayerScript.playerMove.allowInput ||
-					PlayerManager.LocalPlayerScript.IsGhost)
+			if (!PlayerManager.LocalPlayerScript.playerMove.AllowInput ||
+					PlayerManager.LocalPlayerScript.IsNormal == false)
 			{
-				Logger.Log("Invalid player, cannot perform action!", Category.Interaction);
+				Loggy.Info("Invalid player, cannot perform action!", Category.Interaction);
 				return false;
 			}
 

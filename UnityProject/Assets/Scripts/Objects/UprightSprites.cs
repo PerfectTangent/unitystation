@@ -1,48 +1,35 @@
 using System;
 using System.Linq;
+using Core;
 using UnityEngine;
 using Core.Editor.Attributes;
+using Logs;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 /// <summary>
 /// Client side component. Keeps object's sprites upright no matter the orientation of their parent matrix.
 /// Allows defining what should happen to the sprites during a matrix rotation,
 /// </summary>
-[ExecuteInEditMode]
 public class UprightSprites : MonoBehaviour, IMatrixRotation
 {
-	[PrefabModeOnly]
 	[Tooltip("Defines how this object's sprites should behave during a matrix rotation")]
 	public SpriteMatrixRotationBehavior spriteMatrixRotationBehavior =
 		SpriteMatrixRotationBehavior.RotateUprightAtEndOfMatrixRotation;
 
-	[PrefabModeOnly]
+
 	[Tooltip("Ignore additional rotation (for example, when object is knocked down)")]
 	public SpriteRenderer[] ignoreExtraRotation = new SpriteRenderer[0];
 
-	[PrefabModeOnly]
+
 	public GameObject RotateParent = null;
 
-	/// <summary>
-	/// Client side only! additional rotation to apply to the sprites. Can be used to give the object an appearance
-	/// of being knocked down by, for example, setting this to Quaternion.Euler(0,0,-90).
-	/// </summary>
-	public Quaternion ExtraRotation
-	{
-		get => extraRotation;
-		set
-		{
-			extraRotation = value;
-			//need to update sprite the moment this is set
-			SetSpritesUpright();
-		}
-	}
 
 	private Quaternion extraRotation = Quaternion.identity;
 
 	private SpriteRenderer[] spriteRenderers;
 	private RegisterTile registerTile;
-	private CustomNetTransform cnt;
+	private UniversalObjectPhysics uop;
 
 	private void Awake()
 	{
@@ -52,120 +39,66 @@ public class UprightSprites : MonoBehaviour, IMatrixRotation
 			spriteRenderers = GetComponentsInChildren<SpriteRenderer>().Except(ignoreExtraRotation).ToArray();
 		}
 
-		cnt = GetComponent<CustomNetTransform>();
+		uop = GetComponent<UniversalObjectPhysics>();
 		registerTile.OnParentChangeComplete.AddListener(OnAppearOrChangeMatrix);
 		registerTile.OnAppearClient.AddListener(OnAppearOrChangeMatrix);
-		SetSpritesUpright();
+	}
+
+	public void Start()
+	{
+		OnMatrixRotate();
 	}
 
 	private void OnAppearOrChangeMatrix()
 	{
 		//if our parent changed, our local rotation might've changed so make sure our sprites are still upright
-		SetSpritesUpright();
+		OnMatrixRotate();
 	}
-
-	private void OnEnable()
-	{
-		if (Application.isPlaying == false) return;
-		SetSpritesUpright();
-	}
-
-	private void OnDestroy()
-	{
-		UpdateManager.Remove(CallbackType.UPDATE, SetSpritesUpright);
-	}
-
-	//makes sure it's removed from update manager at end of round since currently updatemanager is not
-	//reset on round end.
-	private void OnDisable()
-	{
-		// Make sure we're in play mode if running in editor.
-#if UNITY_EDITOR
-		if (Application.isPlaying)
-#endif
-			UpdateManager.Remove(CallbackType.UPDATE, SetSpritesUpright);
-	}
-
+	
+	[NaughtyAttributes.Button]
 	private void SetSpritesUpright()
 	{
-		if (RotateParent == null)
-		{
-			if (spriteRenderers == null) return;
-		}
+		if (Manager3D.Is3D) return;
+		var Rotation = transform.rotation.eulerAngles;
+		Rotation.z = 0;
+		transform.rotation = Quaternion.Euler(Rotation);
+	}
 
-		//if the object has rotation (due to spinning), don't set sprites upright, this
-		//avoids it suddenly flicking upright when it crosses a matrix or matrix rotates
-		//note only CNTs can have spin rotation
-		if (cnt != null && Quaternion.Angle(transform.localRotation, Quaternion.identity) > 5) return;
-
-		if (RotateParent != null)
+	public void OnMatrixRotate()
+	{
+		if (CustomNetworkManager.IsHeadless) return;
+		if (spriteMatrixRotationBehavior == SpriteMatrixRotationBehavior.RotateUprightAtEndOfMatrixRotation)
 		{
-			RotateParent.transform.rotation = ExtraRotation;
+			var up = new Vector3(0, 1, 0).DirectionLocalToWorld(registerTile.Matrix).ToOrientationEnum();
+
+			var zSet = 0f;
+			switch (up)
+			{
+				case OrientationEnum.Up_By0:
+					zSet = 0;
+					break;
+				case OrientationEnum.Right_By270:
+					zSet = -270f;
+					break;
+				case OrientationEnum.Down_By180:
+					zSet = -180f;
+					break;
+				case OrientationEnum.Left_By90:
+					zSet = -90f;
+					break;
+			}
+
+
+			var elu = transform.localRotation.eulerAngles;
+			elu.z = zSet;
+			transform.localRotation = Quaternion.Euler(elu);
 			return;
 		}
-
-		foreach (var rend in spriteRenderers)
+		else
 		{
-			if (rend == null) continue;
-			rend.transform.rotation = ExtraRotation;
-		}
-
-		foreach (var rend in ignoreExtraRotation)
-		{
-			if (rend == null) continue;
-
-			rend.transform.rotation = Quaternion.identity;
+			SetSpritesUpright();
 		}
 	}
-
-	public void OnMatrixRotate(MatrixRotationInfo rotationInfo)
-	{
-		//this component is clientside only
-		if (rotationInfo.IsClientside)
-		{
-			if (rotationInfo.IsStarting)
-			{
-				if (spriteMatrixRotationBehavior == SpriteMatrixRotationBehavior.RemainUpright)
-				{
-					UpdateManager.Add(CallbackType.UPDATE, SetSpritesUpright);
-				}
-			}
-			else if (rotationInfo.IsEnding)
-			{
-				if (spriteMatrixRotationBehavior == SpriteMatrixRotationBehavior.RemainUpright)
-				{
-					//stop reorienting to face upright
-					UpdateManager.Remove(CallbackType.UPDATE, SetSpritesUpright);
-				}
-
-				SetSpritesUpright();
-			}
-			else if (rotationInfo.IsObjectBeingRegistered)
-			{
-				//failsafe to ensure we go upright regardless of what happened during init.
-				SetSpritesUpright();
-			}
-		}
-	}
-	//changes the rendered sprite in editor so its always upright
-#if UNITY_EDITOR
-	private void OnValidate()
-	{
-		if (spriteRenderers == null)
-			return;
-
-		if (Application.isEditor && !Application.isPlaying)
-		{
-			foreach (var spriteRenderer in spriteRenderers)
-			{
-				if (spriteRenderer == null) continue;
-				//reeeeee
-				//spriteRenderer.transform.rotation = Quaternion.identity;
-			}
-		}
-	}
-#endif
-
 }
 
 
@@ -178,10 +111,10 @@ public enum SpriteMatrixRotationBehavior
 	/// Object always remains upright, top of the sprite pointing at the top of the screen
 	/// </summary>
 	RemainUpright = 0,
+
 	/// <summary>
 	/// Object rotates with matrix until the end of a matrix rotation, at which point
 	/// it rotates so its top is pointing at the top of the screen (this is how most objects in the game behave).
 	/// </summary>
 	RotateUprightAtEndOfMatrixRotation = 1
-
 }

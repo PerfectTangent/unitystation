@@ -1,8 +1,10 @@
+using System.Collections;
+using HealthV2;
 using UnityEngine;
 
 namespace Items
 {
-	public class SupermatterSliver : MonoBehaviour, IServerInventoryMove, ICheckedInteractable<HandApply>
+	public class SupermatterSliver : MonoBehaviour, IServerInventoryMove, ICheckedInteractable<HandApply>, ISuicide
 	{
 		[SerializeField]
 		private ItemTrait supermatterScalpel = null;
@@ -14,7 +16,7 @@ namespace Items
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (interaction.HandObject == null) return false;
 
@@ -45,6 +47,8 @@ namespace Items
 		//Turn player into ash if he picked it up
 		public void OnInventoryMoveServer(InventoryMove info)
 		{
+			if (this.gameObject != info.MovedObject.gameObject) return;
+
 			if (info.InventoryMoveType != InventoryMoveType.Add) return;
 
 			if (info.ToSlot != null && info.ToSlot?.NamedSlot != null)
@@ -57,9 +61,21 @@ namespace Items
 						$"You reach for the {gameObject.ExpensiveName()} with your hands. That was dumb.",
 						$"{player.visibleName} touches {gameObject.ExpensiveName()} with bare hands. His body bursts into flames and flashes to dust after few moments.");
 
-					player.playerHealth.Gib();
+					player.playerHealth.OnGib();
 				}
 			}
+		}
+
+		public bool CanSuicide(GameObject performer)
+		{
+			return vaporizeWhenPickedUp;
+		}
+
+		public IEnumerator OnSuicide(GameObject performer)
+		{
+			yield return WaitFor.FixedUpdate;
+			Chat.AddActionMsgToChat(gameObject, $"{performer.ExpensiveName()} mistook the {gameObject.ExpensiveName()} for a tasty snack. Yumm..");
+			gameObject.Player().Script.playerHealth.OnGib();
 		}
 	}
 }

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1089361609128820737, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
@@ -200,6 +201,12 @@ PrefabInstance:
       value: A stylish alternative to the normal head of security jumpsuit, complete
         with a tactical skirt.
       objectReference: {fileID: 0}
+    - target: {fileID: 2321628657233272480, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: c7c5a708bd1a15f40aa6398a538afa5e,
+        type: 2}
     - target: {fileID: 2604342679142220446, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
         type: 3}
       propertyPath: m_Sprite
@@ -213,6 +220,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2828748588198284406, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
         type: 3}
+      propertyPath: _assetId
+      value: 1101018052
+      objectReference: {fileID: 0}
+    - target: {fileID: 2828748588198284406, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
+        type: 3}
       propertyPath: m_AssetId
       value: 1c19022c926dd3a488a97c170d0a6199
       objectReference: {fileID: 0}
@@ -222,6 +234,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: c7c5a708bd1a15f40aa6398a538afa5e,
         type: 2}
+    - target: {fileID: 8328160068540222021, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: c7c5a708bd1a15f40aa6398a538afa5e,
+        type: 2}
+    - target: {fileID: 9110561760324615599, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
+        type: 3}
+      propertyPath: parentID
+      value: 0c722f8fdd00ce544b2dc844f4bfdb6e
+      objectReference: {fileID: 0}
     - target: {fileID: 9110561760324615599, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
         type: 3}
       propertyPath: foreverID
@@ -244,9 +267,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9126743421568164423, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: e21177aeedb658c40a3d5428c04d9934,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0c722f8fdd00ce544b2dc844f4bfdb6e, type: 3}

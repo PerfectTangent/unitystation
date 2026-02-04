@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Initialisation;
 using Managers.SettingsManager;
+using TMPro;
+using UI.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,8 +25,16 @@ namespace Unitystation.Options
 		[SerializeField] private InputField frameRateTarget = null;
 
 		[SerializeField] private Slider camZoomSlider = null;
+		[SerializeField] private TMP_InputField uiScaleX = null;
+		[SerializeField] private TMP_InputField uiScaleY = null;
 
 		[SerializeField] private Toggle scrollWheelZoomToggle = null;
+
+		[SerializeField] private Toggle DropShadow = null;
+
+		[SerializeField] private Toggle ShuttleRadaRotation = null;
+
+		public bool ItIsRefreshing = false;
 
 		void OnEnable()
 		{
@@ -46,6 +57,7 @@ namespace Unitystation.Options
 		/// </summary>
 		void RefreshForm()
 		{
+			ItIsRefreshing = true;
 			fullscreenToggle.isOn = DisplaySettings.Instance.IsFullScreen;
 
 			bool vSync = DisplaySettings.Instance.VSyncEnabled;
@@ -58,6 +70,40 @@ namespace Unitystation.Options
 			camZoomSlider.value = DisplaySettings.Instance.ZoomLevel / 8f;
 
 			scrollWheelZoomToggle.isOn = DisplaySettings.Instance.ScrollWheelZoom;
+			uiScaleX.text = PlayerPrefs.GetInt(DisplaySettings.UISCALE_KEY + "x", (int)DisplaySettings.UISCALE_DEFAULT.x).ToString();
+			uiScaleY.text = PlayerPrefs.GetInt(DisplaySettings.UISCALE_KEY + "y", (int)DisplaySettings.UISCALE_DEFAULT.y).ToString();
+			ParseAndSetReferenceResolutionForUiScale(out int x, out int y);
+
+			if (PlayerPrefs.HasKey(PlayerPrefKeys.ItemDropShadow) == false)
+			{
+				PlayerPrefs.SetString(PlayerPrefKeys.ItemDropShadow,  true.ToString());
+			}
+
+			DropShadow.isOn = bool.Parse(PlayerPrefs.GetString(PlayerPrefKeys.ItemDropShadow));
+
+
+			if (PlayerPrefs.HasKey(PlayerPrefKeys.ShuttleRadarRotation) == false)
+			{
+				PlayerPrefs.SetString(PlayerPrefKeys.ShuttleRadarRotation,  true.ToString());
+			}
+
+			ShuttleRadaRotation.isOn = bool.Parse(PlayerPrefs.GetString(PlayerPrefKeys.ShuttleRadarRotation));
+
+			ItIsRefreshing = false;
+		}
+
+
+		public void SetShuttleRadaRotation(bool State)
+		{
+			if (ItIsRefreshing) return;
+			PlayerPrefs.SetString(PlayerPrefKeys.ShuttleRadarRotation, State.ToString());
+			ShuttleCameraRenderer.instance.RotateCamera = State;
+		}
+
+		public void SetItemDropShadow(bool State)
+		{
+			if (ItIsRefreshing) return;
+			LoadManager.Instance.SetMaterialStatus(State);
 		}
 
 		/// <summary>
@@ -125,6 +171,29 @@ namespace Unitystation.Options
 		{
 			int value = (int)camZoomSlider.value * 8;
 			DisplaySettings.Instance.ZoomLevel = value;
+		}
+
+		public void OnUIScaleChange()
+		{
+			ParseAndSetReferenceResolutionForUiScale(out int x, out int y);
+		}
+
+		private void ParseAndSetReferenceResolutionForUiScale(out int x, out int y)
+		{
+			if (int.TryParse(uiScaleX.text, out x) == false || int.TryParse(uiScaleY.text, out y) == false)
+			{
+				uiScaleX.text = DisplaySettings.UISCALE_DEFAULT.x.ToString();
+				uiScaleY.text = DisplaySettings.UISCALE_DEFAULT.y.ToString();
+				x = (int)DisplaySettings.UISCALE_DEFAULT.x;
+				y = (int)DisplaySettings.UISCALE_DEFAULT.y;
+				return;
+			}
+
+			UIManager.Instance.Scaler.referenceResolution = new Vector2(x, y);
+
+			PlayerPrefs.SetInt(DisplaySettings.UISCALE_KEY + "x", x);
+			PlayerPrefs.SetInt(DisplaySettings.UISCALE_KEY + "y", y);
+			PlayerPrefs.Save();
 		}
 
 		public void OnScrollWheelToggle()

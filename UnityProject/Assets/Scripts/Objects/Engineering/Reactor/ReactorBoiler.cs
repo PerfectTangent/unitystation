@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using Systems.Atmospherics;
 using UnityEngine;
 using ScriptableObjects;
-using Systems.ObjectConnection;
 using Objects.Atmospherics;
+using Shared.Systems.ObjectConnection;
 
 
 namespace Objects.Engineering
@@ -12,16 +12,26 @@ namespace Objects.Engineering
 	public class ReactorBoiler : MonoBehaviour, IMultitoolMasterable, ICheckedInteractable<HandApply>, IServerDespawn
 	{
 		public decimal MaxPressureInput = 130000M;
-		public decimal CurrentPressureInput = 0;
+		private decimal AdsorbedEnergy = 0;
+
+		public float BoilerPressure { get; private set; } = 0;
+		public float TurbinePressure { get; private set; } = 0;
+
 		public decimal OutputEnergy;
 		public decimal TotalEnergyInput;
 
-		public decimal Efficiency = 0.5M;
+		public decimal Efficiency = 1M; //0.825M
+		private const int BOILING_TEMP = 100;
 
 		public ReactorPipe ReactorPipe;
 
 		public List<ReactorGraphiteChamber> Chambers;
 		// Start is called before the first frame update
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
+
+		[SerializeField, Range(0, 1), Tooltip("The % cooling of this boiler per update. 100% cools input gas immediately to 100 degrees. 0% doesn't cool the gas.")]
+		private float coolingRate = 0.5f;
 
 		#region Lifecycle
 
@@ -32,14 +42,14 @@ namespace Objects.Engineering
 
 		private void OnEnable()
 		{
-			if (CustomNetworkManager.Instance._isServer == false) return;
+			if (CustomNetworkManager.IsServer == false) return;
 
 			UpdateManager.Add(CycleUpdate, 1);
 		}
 
 		private void OnDisable()
 		{
-			if (CustomNetworkManager.Instance._isServer == false) return;
+			if (CustomNetworkManager.IsServer == false) return;
 
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, CycleUpdate);
 		}
@@ -58,28 +68,29 @@ namespace Objects.Engineering
 		public void CycleUpdate()
 		{
 			//Maybe change equation later to something cool
-			CurrentPressureInput = 0;
-			var ExpectedInternalEnergy = (ReactorPipe.pipeData.mixAndVolume.WholeHeatCapacity * Reactions.KOffsetC + 20f);
+			AdsorbedEnergy = 0;
 
+			var ExpectedInternalEnergy = ReactorPipe.pipeData.mixAndVolume.WholeHeatCapacity * (Reactions.KOffsetC + BOILING_TEMP);
 			var InternalEnergy = ReactorPipe.pipeData.mixAndVolume.InternalEnergy;
 
-			CurrentPressureInput = (decimal) (InternalEnergy - ExpectedInternalEnergy);
+			BoilerPressure = ReactorPipe.pipeData.mixAndVolume.Temperature * ReactorPipe.pipeData.mixAndVolume.Total.x;
+			TurbinePressure = BoilerPressure * coolingRate;
 
-			if (CurrentPressureInput > 0)
+			AdsorbedEnergy = (decimal)(InternalEnergy - ExpectedInternalEnergy) * (decimal)coolingRate;
+
+			if (AdsorbedEnergy > 0)
 			{
-				//Logger.Log("CurrentPressureInput " + CurrentPressureInput);
-				if (CurrentPressureInput > MaxPressureInput)
-				{
-					CurrentPressureInput = MaxPressureInput;
-					//Logger.LogError(" ReactorBoiler !!!booommmm!!", Category.Editor);
-					//Explosions.Explosion.StartExplosion(registerObject.LocalPosition, 800, registerObject.Matrix);
-				}
+				//Loggy.Log("CurrentPressureInput " + CurrentPressureInput);
+				// if (CurrentPressureInput > MaxPressureInput)
+				// {
+				// 	CurrentPressureInput = MaxPressureInput;
+				// 	//Loggy.LogError(" ReactorBoiler !!!booommmm!!", Category.Editor);
+				// 	//Explosions.Explosion.StartExplosion(registerObject.LocalPosition, 800, registerObject.Matrix);
+				// }
 
 
-				ReactorPipe.pipeData.mixAndVolume.InternalEnergy = ExpectedInternalEnergy;
-				
-
-				OutputEnergy = CurrentPressureInput * Efficiency; //Only half of the energy is converted into useful energy
+				ReactorPipe.pipeData.mixAndVolume.InternalEnergy = InternalEnergy - (float)AdsorbedEnergy;
+				OutputEnergy = AdsorbedEnergy * Efficiency; //Only half of the energy is converted into useful energy
 			}
 			else
 			{
@@ -89,7 +100,7 @@ namespace Objects.Engineering
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (!Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Welder)) return false;
 
 			return true;

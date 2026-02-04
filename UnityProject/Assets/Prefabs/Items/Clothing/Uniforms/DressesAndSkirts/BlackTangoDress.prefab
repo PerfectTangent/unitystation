@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2909197017712554513, guid: 4319a1b0d53702e458b176248bc470bb,
+        type: 3}
+      propertyPath: _assetId
+      value: 2117185554
+      objectReference: {fileID: 0}
     - target: {fileID: 2909197017712554513, guid: 4319a1b0d53702e458b176248bc470bb,
         type: 3}
       propertyPath: m_AssetId
@@ -88,6 +94,29 @@ PrefabInstance:
       propertyPath: initialDescription
       value: Filled with Latin fire.
       objectReference: {fileID: 0}
+    - target: {fileID: 3397443007502491847, guid: 4319a1b0d53702e458b176248bc470bb,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 9dea40ec7562bd046972b833dcd22ac8,
+        type: 2}
+    - target: {fileID: 3397443007502491847, guid: 4319a1b0d53702e458b176248bc470bb,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 3b050f1077fa1c340a899e26be064201,
+        type: 2}
+    - target: {fileID: 3397443007502491847, guid: 4319a1b0d53702e458b176248bc470bb,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 27a4af417647d234aad5b0436cb2e24b,
+        type: 2}
+    - target: {fileID: 8174322744686822344, guid: 4319a1b0d53702e458b176248bc470bb,
+        type: 3}
+      propertyPath: parentID
+      value: 4319a1b0d53702e458b176248bc470bb
+      objectReference: {fileID: 0}
     - target: {fileID: 8174322744686822344, guid: 4319a1b0d53702e458b176248bc470bb,
         type: 3}
       propertyPath: foreverID
@@ -110,7 +139,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8193882076658244640, guid: 4319a1b0d53702e458b176248bc470bb,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 44b027d8fbdbd0a41a8ffb28186d07a0,
         type: 2}
@@ -120,5 +149,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 27a4af417647d234aad5b0436cb2e24b,
         type: 2}
+    - target: {fileID: 8975007657035133986, guid: 4319a1b0d53702e458b176248bc470bb,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 27a4af417647d234aad5b0436cb2e24b,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4319a1b0d53702e458b176248bc470bb, type: 3}

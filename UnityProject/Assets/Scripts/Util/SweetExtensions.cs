@@ -7,34 +7,46 @@ using Mirror;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using System.Text;
+using System.Threading.Tasks;
 using Items;
+using System.Threading.Tasks;
+using Core;
+using Core.RootSillys;
+using Logs;
 using Messages.Server;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 public static class SweetExtensions
 {
-	public static IPushable Pushable(this GameObject go)
-	{
-		return go.OrNull()?.GetComponent<IPushable>();
-	}
-
 	public static Pickupable PickupableOrNull(this GameObject go)
 	{
-		return go.OrNull()?.GetComponent<Pickupable>();
+		return go.OrNull().GetComponent<Pickupable>();
 	}
 
-	public static ConnectedPlayer Player(this GameObject go)
+	public static bool TryGetPlayer(this GameObject gameObject, out PlayerInfo player)
 	{
-		var connectedPlayer = PlayerList.Instance?.Get(go);
-		return connectedPlayer == ConnectedPlayer.Invalid ? null : connectedPlayer;
+		player = PlayerList.Instance.OrNull()?.Get(gameObject);
+		return player != null;
+	}
+
+	public static PlayerInfo Player(this GameObject go)
+	{
+		var connectedPlayer = PlayerList.Instance.OrNull()?.Get(go);
+		return connectedPlayer == PlayerInfo.Invalid ? null : connectedPlayer;
 	}
 	public static ItemAttributesV2 Item(this GameObject go)
 	{
-		return go.OrNull()?.GetComponent<ItemAttributesV2>();
+		return go.OrNull()?.GetComponentCustom<ItemAttributesV2>();
 	}
 
 	public static ObjectAttributes Object(this GameObject go)
 	{
-		return go.OrNull()?.GetComponent<ObjectAttributes>();
+		return go.OrNull()?.GetComponentCustom<ObjectAttributes>();
+	}
+
+	public static Attributes AttributesOrNull(this GameObject go)
+	{
+		return go.OrNull()?.GetComponentCustom<Attributes>();
 	}
 
 	public static bool HasComponent<T>(this GameObject go) where T : Component
@@ -77,13 +89,14 @@ public static class SweetExtensions
 			}
 		}
 
-		var player = go.Player();
-		if (player != null && !String.IsNullOrWhiteSpace(player.Script.visibleName))
+		var Script = go.GetComponentCustom<PlayerScript>();
+
+		if (Script != null && string.IsNullOrWhiteSpace(Script.visibleName) == false)
 		{
-			return player.Script.visibleName;
+			return Script.visibleName;
 		}
 
-		return go.name.Replace("NPC_", "").Replace("_", " ").Replace("(Clone)","");
+		return go?.name.Replace("NPC_", "").Replace("_", " ").Replace("(Clone)","").Replace("gameObject", "");
 	}
 
 	public static T GetRandom<T>(this List<T> list)
@@ -91,27 +104,59 @@ public static class SweetExtensions
 		return list?.Count > 0 ? list.PickRandom() : default(T);
 	}
 
-	public static uint NetId(this GameObject go)
+	public static Dictionary<uint, NetworkIdentity> GetSpawned()
+	{
+		return CustomNetworkManager.Spawned;
+	}
+
+
+	public static GameObject NetIdToGameObject(this uint NetID)
+	{
+		if ( NetID != global::NetId.Invalid && NetID != global::NetId.Empty && CustomNetworkManager.Spawned.TryGetValue(NetID, out var Object  ))
+		{
+			return Object.gameObject;
+		}
+		else
+		{
+			return null;
+		}
+
+	}
+
+	public static NetworkIdentity NetWorkIdentity(this GameObject go)
 	{
 		if (go)
 		{
 			go.TryGetComponent<Matrix>(out var matrix);
 			if (matrix)
 			{
-				return matrix.NetworkedMatrix.MatrixSync.netId;
+				return matrix.NetworkedMatrix.MatrixSync.netIdentity;
 			}
 			else
 			{
 				matrix = go.GetComponentInChildren<Matrix>();
 				if (matrix != null)
 				{
-					return matrix.NetworkedMatrix.MatrixSync.netId;
+					return matrix.NetworkedMatrix.MatrixSync.netIdentity;
 				}
 				else
 				{
-					return go.GetComponent<NetworkIdentity>().netId;
+					return go.GetComponent<NetworkIdentity>();
 				}
 			}
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+	public static uint NetId(this GameObject go)
+	{
+		var net = NetWorkIdentity(go);
+		if (net)
+		{
+			return net.netId;
 		}
 		else
 		{
@@ -119,29 +164,239 @@ public static class SweetExtensions
 		}
 	}
 
-	/// Creates garbage! Use very sparsely!
-	public static Vector3 AssumedWorldPosServer(this GameObject go)
+	public static uint NetIdCommonComponents(this GameObject go)
 	{
-		return go.GetComponent<ObjectBehaviour>()?.AssumedWorldPositionServer() ?? WorldPosServer(go);
+		var net = go.GetComponentCustom<NetworkIdentity>();
+		if (net)
+		{
+			return net.netId;
+		}
+		else
+		{
+			return global::NetId.Invalid; //maxValue is invalid (see NetId.cs)
+		}
 	}
-	/// Creates garbage! Use very sparsely!
-	public static Vector3 WorldPosServer(this GameObject go)
+
+	public static NetworkIdentity NetworkIdentity(this uint go)
 	{
-		return go.GetComponent<RegisterTile>()?.WorldPositionServer ?? go.transform.position;
+		if (go is global::NetId.Empty or global::NetId.Invalid)
+		{
+			return null;
+		}
+
+		if (CustomNetworkManager.Spawned.TryGetValue(go, out var Returning))
+		{
+			return Returning;
+		}
+		else
+		{
+			return null;
+		}
+
 	}
-	/// Creates garbage! Use very sparsely!
-	public static Vector3 WorldPosClient(this GameObject go)
+
+	public static void RemoveNulls(this IList list)
 	{
-		return go.GetComponent<RegisterTile>()?.WorldPositionClient ?? go.transform.position;
+		// Ensure the list is not null
+		if (list == null)
+		{
+			throw new ArgumentNullException(nameof(list));
+		}
+
+		// Iterate backwards to avoid issues while removing items
+		for (int i = list.Count - 1; i >= 0; i--)
+		{
+			if (list[i] == null)
+			{
+				list.RemoveAt(i);
+			}
+		}
 	}
+
+
+
+	public static bool IsUnreasonable(this Vector3 Vecctor)
+	{
+		return Vecctor.x.IsUnreasonableNumber() || Vecctor.y.IsUnreasonableNumber() || Vecctor.z.IsUnreasonableNumber();
+	}
+
+
+
+
+	/// Creates garbage! Use very sparsely!
+	public static Vector3 AssumedWorldPosServer(this GameObject go, bool IsInGameItemDoNotSuppressedLog = true)
+	{
+		if (go == null)
+		{
+			Loggy.Error("Null object passed into AssumedWorldPosServer");
+			return TransformState.HiddenPos;
+		}
+
+		return GetRootGameObject(go, IsInGameItemDoNotSuppressedLog).transform.position;
+	}
+
+	public static void AppearAtWorldPositionServer(this GameObject go, Vector3 WorldPositioon)
+	{
+		if (go == null)
+		{
+			Loggy.Error("Null object passed into AssumedWorldPosServer");
+			return;
+		}
+
+		if (ComponentManager.TryGetUniversalObjectPhysics(go, out var UOP))
+		{
+			UOP.AppearAtWorldPositionServer(WorldPositioon);
+		}
+
+	}
+
+
+	public static Matrix GetMatrixRoot(this GameObject go)
+	{
+		if (ComponentManager.TryGetUniversalObjectPhysics(GetRootGameObject(go), out var UOP))
+		{
+			return UOP.registerTile.Matrix;
+		}
+
+		return null;
+	}
+
+
+	/// Creates garbage! Use very sparsely!
+	public static GameObject GetRootGameObject(this GameObject go, bool IsInGameItemSuppressedLog = true)
+	{
+		if (ComponentManager.TryGetUniversalObjectPhysics(go, out  var UOP, IsInGameItemSuppressedLog))
+		{
+			return UOP.GetRootObject;
+		}
+		else
+		{
+			return go;
+		}
+	}
+
+	public static CommonComponents GetCommonComponents(this GameObject go)
+	{
+		if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
+		{
+			return commonComponent;
+		}
+
+		return go.TryGetComponent<CommonComponents>(out var slowGet) ? slowGet : null;
+	}
+
+	public static CommonComponents GetCommonComponents(this Component go)
+	{
+		if (ComponentManager.TryGetCommonComponent(go.gameObject, out  var commonComponent))
+		{
+			return commonComponent;
+		}
+
+		return go.TryGetComponent<CommonComponents>(out var slowGet) ? slowGet : null;
+	}
+
+
+	//New better system for Get component That caches results
+	public static T GetComponentCustom<T>(this Component go)  where T : Component
+	{
+		if (ComponentManager.TryGetCommonComponent(go.gameObject, out  var commonComponent))
+		{
+			return commonComponent.SafeGetComponent<T>();
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+
+	//New better system for Get component That cashs results
+	public static UniversalObjectPhysics GetUniversalObjectPhysics(this GameObject go)
+	{
+		if (ComponentManager.TryGetUniversalObjectPhysics(go, out  var commonComponent))
+		{
+			return commonComponent;
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+
+	//New better system for Get component That cashs results
+	public static int NumberOf(this GameObject go)
+	{
+		if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
+		{
+			if (commonComponent.TrySafeGetComponent<Stackable>(out var Stackable))
+			{
+				return Stackable.Amount;
+			}
+
+			return 1;
+		}
+		else
+		{
+			if (go == null) return 0;
+			if (go.TryGetComponent<Stackable>(out var Stackable))
+			{
+				return Stackable.Amount;
+			}
+			return 1;
+		}
+	}
+
+
+	//New better system for Get component That cashs results
+	public static T GetComponentCustom<T>(this GameObject go)  where T : Component
+	{
+		if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
+		{
+			return commonComponent.SafeGetComponent<T>();
+		}
+		else
+		{
+			if (go == null) return null;
+			return go.GetComponent<T>();
+		}
+	}
+
+
+	public static bool TryGetComponentCustom<T>(this Component go, out T component) where T : Component
+	{
+		if (ComponentManager.TryGetCommonComponent(go.gameObject, out  var commonComponent))
+		{
+			return commonComponent.TrySafeGetComponent<T>(out component);
+		}
+		else
+		{
+			component = null;
+			return false;
+		}
+	}
+
+	public static bool TryGetComponentCustom<T>(this GameObject go, out T component)  where T : Component
+	{
+		if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
+		{
+			return commonComponent.TrySafeGetComponent<T>(out component);
+		}
+		else
+		{
+			component = null;
+			return false;
+		}
+	}
+
 
 	/// <summary>
 	/// Returns true for adjacent coordinates
 	/// </summary>
 	public static bool IsAdjacentTo(this Vector3 one, Vector3 two)
 	{
-		var oneInt = one.To2Int();
-		var twoInt = two.To2Int();
+		var oneInt = one.RoundTo2Int();
+		var twoInt = two.RoundTo2Int();
 		return Mathf.Abs(oneInt.x - twoInt.x) == 1 ||
 			Mathf.Abs(oneInt.y - twoInt.y) == 1;
 	}
@@ -151,12 +406,12 @@ public static class SweetExtensions
 	/// </summary>
 	public static bool IsAdjacentToOrSameAs(this Vector3 one, Vector3 two)
 	{
-		return one.To2Int() == two.To2Int() || one.IsAdjacentTo(two);
+		return one.RoundTo2Int() == two.RoundTo2Int() || one.IsAdjacentTo(two);
 	}
 	/// Creates garbage! Use very sparsely!
 	public static RegisterTile RegisterTile(this GameObject go)
 	{
-		return go.GetComponent<RegisterTile>();
+		return go.OrNull()?.GetComponent<RegisterTile>();
 	}
 
 	/// Wraps provided index value if it's more than array length or is negative
@@ -213,7 +468,7 @@ public static class SweetExtensions
 		float boost = (distance - NO_BOOST_THRESHOLD) * 2;
 		if (boost > 0)
 		{
-			Logger.LogTraceFormat("Lerp speed boost exceeded by {0}", Category.Movement, boost);
+			Loggy.Trace().Format("Lerp speed boost exceeded by {0}", Category.Movement, boost);
 		}
 		return 1 + boost;
 	}
@@ -267,7 +522,7 @@ public static class SweetExtensions
 		{
 			return new Vector2(x, y);
 		}
-		Logger.LogWarning($"Vector parse failed: what the hell is '{stringifiedVector}'?", Category.Unknown);
+		Loggy.Warning($"Vector parse failed: what the hell is '{stringifiedVector}'?", Category.Unknown);
 		return TransformState.HiddenPos;
 	}
 
@@ -365,7 +620,7 @@ public static class SweetExtensions
 	{
 		if (chunkSize <= 0)
 		{
-			throw new ArgumentException("chunkSize must be greater than 0.");
+			throw new ArgumentException($"{nameof(chunkSize)} must be greater than 0.", nameof(chunkSize));
 		}
 
 		while (list.Any())
@@ -375,16 +630,23 @@ public static class SweetExtensions
 		}
 	}
 
-	/// <summary>
-	/// Helped function for enums to get the next value when sorted by their base type
-	/// </summary>
+	/// <summary>Get the next value in the enum. Will loop to the top.</summary>
+	/// <remarks>Generates garbage; use sparingly.</remarks>
 	public static T Next<T>(this T src) where T : Enum
 	{
 		// if (!typeof(T).IsEnum) throw new ArgumentException(String.Format("Argument {0} is not an Enum", typeof(T).FullName));
 
-		T[] Arr = (T[])Enum.GetValues(src.GetType());
-		int j = Array.IndexOf<T>(Arr, src) + 1;
-		return (Arr.Length==j) ? Arr[0] : Arr[j];
+		T[] values = (T[])Enum.GetValues(src.GetType());
+		int j = Array.IndexOf(values, src) + 1;
+		return (values.Length == j) ? values[0] : values[j];
+	}
+
+	/// <summary>Get a random value from the given enum.</summary>
+	/// <remarks>Generates garbage; use sparingly.</remarks>
+	/// <returns>A random value from the enum</returns>
+	public static T PickRandom<T>(this T src) where T : Enum
+	{
+		return ((T[])Enum.GetValues(src.GetType())).PickRandom();
 	}
 
 	/// <summary>
@@ -457,6 +719,11 @@ public static class SweetExtensions
 		return text[0].ToString().ToUpper() + text.Substring(1);
 	}
 
+	public static string Uncapitalize(this string text)
+	{
+		return text[0].ToString().ToLower() + text.Substring(1);
+	}
+
 	/// <summary>
 	/// Extension for all IComparables, like numbers and dates. Returns true if given data
 	/// is between the min and max values. By default, it is inclusive.
@@ -493,28 +760,40 @@ public static class SweetExtensions
 	}
 
 	/// <summary>
-	/// See if two colours are approximately the same
+	/// See if two colors are approximately the same within a small tolerance.
 	/// </summary>
-	public static bool ColorApprox(this Color a, Color b, bool checkAlpha = true)
+	public static bool ColorApprox(this Color a, Color b, bool checkAlpha = true, float tolerance = 0.0001f)
 	{
+		bool CloseEnough(float x, float y) => Mathf.Abs(x - y) <= tolerance;
+
 		if (checkAlpha)
 		{
-			return Mathf.Approximately(a.b, b.b) &&
-			       Mathf.Approximately(a.r, b.r) &&
-			       Mathf.Approximately(a.g, b.g) &&
-			       Mathf.Approximately(a.a, b.a);
+			return CloseEnough(a.r, b.r) &&
+			       CloseEnough(a.g, b.g) &&
+			       CloseEnough(a.b, b.b) &&
+			       CloseEnough(a.a, b.a);
 		}
 
-		return Mathf.Approximately(a.b, b.b) &&
-			   Mathf.Approximately(a.r, b.r) &&
-		       Mathf.Approximately(a.g, b.g);
+		return CloseEnough(a.r, b.r) &&
+		       CloseEnough(a.g, b.g) &&
+		       CloseEnough(a.b, b.b);
 	}
 
+	public static Color ClosestColor(this Color targetColor, Color[] colorPalette)
+	{
+		return colorPalette.OrderBy(c => ColorDifference(targetColor, c)).FirstOrDefault();
+	}
+
+	public static float ColorDifference(Color a, Color b)
+	{
+		return Mathf.Pow(a.r - b.r, 2) + Mathf.Pow(a.g - b.g, 2) + Mathf.Pow(a.b - b.b, 2);
+	}
 
 	public static string Truncate(this string value, int maxLength)
 	{
 		if (string.IsNullOrEmpty(value)) return value;
-		return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+
+		return value.Substring(0, Math.Min(value.Length, maxLength));
 	}
 
 	/// <summary>
@@ -554,6 +833,39 @@ public static class SweetExtensions
 	public static string GetStack(this Exception source)
 	{
 		return $"{source.Message}\n{source.StackTrace}";
+	}
+
+	/// <summary>
+	/// Invokes the given action with the task result when it finishes.
+	/// The action is invoked from the same thread as where the task was initialised.
+	/// </summary>
+	public static Task Then(this Task task, Action<Task> callback)
+	{
+		return task.ContinueWith(callback, TaskScheduler.FromCurrentSynchronizationContext());
+	}
+
+	///<inheritdoc cref="Then(Task, Action{Task})"/>
+	public static Task Then<T>(this Task<T> task, Action<Task<T>> callback)
+	{
+		return task.ContinueWith(callback, TaskScheduler.FromCurrentSynchronizationContext());
+	}
+
+	/// <summary>
+	/// Logs any exceptions a task might throw, handling any <c>AggregateException</c>s.
+	/// </summary>
+	public static void LogFaultedTask(this Task task, Category category = Category.Unknown)
+	{
+		if (task.IsFaulted == false) return;
+
+		var e = task.Exception?.GetBaseException();
+		// GetBaseException() does not seem to work for HttpRequestExceptions
+		for (int i = 0; i < 10; i++)
+		{
+			if (e?.InnerException == null) break;
+			e = e.InnerException;
+		}
+
+		Loggy.Error(e?.ToString(), category);
 	}
 
 	/// <summary>
@@ -607,4 +919,237 @@ public static class SweetExtensions
 
 		component.enabled = value;
 	}
+
+	public static string ToHexString(this string str)
+	{
+		var sb = new StringBuilder();
+
+		var bytes = Encoding.Unicode.GetBytes(str);
+		foreach (var t in bytes)
+		{
+			sb.Append(t.ToString("X2"));
+		}
+
+		return sb.ToString();
+	}
+
+	public static Vector3Int ToLocalVector3Int(this OrientationEnum @in)
+	{
+		return @in switch
+		{
+			OrientationEnum.Up_By0 => Vector3Int.up,
+			OrientationEnum.Right_By270 => Vector3Int.right,
+			OrientationEnum.Down_By180 => Vector3Int.down,
+			OrientationEnum.Left_By90 => Vector3Int.left,
+			_ => Vector3Int.zero
+		};
+	}
+
+
+	public static float VectorToAngle360(this Vector2 vector)
+	{
+		float angle = Mathf.Atan2(vector.y, vector.x) * Mathf.Rad2Deg;
+		if (angle < 0)
+			angle += 360f;
+		return angle;
+	}
+
+
+	public static float To360Z(this OrientationEnum dir)
+	{
+		switch (dir)
+		{
+			case OrientationEnum.Default:
+				return 0;
+				break;
+			case OrientationEnum.Right_By270:
+				return 270;
+				break;
+			case OrientationEnum.Up_By0:
+				return 0;
+				break;
+			case OrientationEnum.Left_By90:
+				return 90;
+				break;
+			case OrientationEnum.Down_By180:
+				return 180;
+				break;
+			default:
+				throw new ArgumentOutOfRangeException();
+		}
+	}
+
+	public static float Rotate360By(this OrientationEnum dir, float finalAngle)
+	{
+		switch (dir)
+		{
+			case OrientationEnum.Default:
+				 break;
+			case OrientationEnum.Right_By270:
+				 finalAngle = finalAngle + 270;
+				 break;
+			case OrientationEnum.Up_By0:
+				 finalAngle = finalAngle + 0;
+				 break;
+			case OrientationEnum.Left_By90:
+				finalAngle = finalAngle + 90;
+				break;
+			case OrientationEnum.Down_By180:
+				finalAngle = finalAngle + 180;
+				break;
+			default:
+				throw new ArgumentOutOfRangeException();
+		}
+
+		// If the final angle is greater than or equal to 360 or less than 0, wrap it around.
+		if (finalAngle >= 360)
+		{
+			finalAngle -= 360;
+		}
+		else if (finalAngle < 0)
+		{
+			finalAngle += 360;
+		}
+		return finalAngle;
+	}
+
+	public static OrientationEnum GetOppositeDirection(this OrientationEnum dir)
+	{
+		switch (dir)
+		{
+			case OrientationEnum.Default:
+				return OrientationEnum.Down_By180;
+			case OrientationEnum.Right_By270:
+				return OrientationEnum.Left_By90;
+			case OrientationEnum.Up_By0:
+				return OrientationEnum.Default;
+			case OrientationEnum.Left_By90:
+				return OrientationEnum.Right_By270;
+			case OrientationEnum.Down_By180:
+				return OrientationEnum.Up_By0;
+			default:
+				throw new ArgumentOutOfRangeException();
+		}
+		return OrientationEnum.Down_By180;
+	}
+
+	public static string RemovePunctuation(this string input)
+	{
+		return new string(input.Where(c => !char.IsPunctuation(c)).ToArray());
+	}
+
+	public static string GetTheyPronoun(this GameObject gameObject)
+	{
+		if (gameObject.TryGetComponent<PlayerScript>(out var playerScript) && playerScript.characterSettings != null)
+		{
+			return playerScript.characterSettings.TheyPronoun(playerScript).Capitalize();
+		}
+
+		return "It";
+	}
+
+	public static string GetTheirPronoun(this GameObject gameObject)
+	{
+		if (gameObject.TryGetComponent<PlayerScript>(out var playerScript) && playerScript.characterSettings != null)
+		{
+			return playerScript.characterSettings.TheirPronoun(playerScript).Capitalize();
+		}
+
+		return "Its";
+	}
+
+	public static string GetThemPronoun(this GameObject gameObject)
+	{
+		if (gameObject.TryGetComponent<PlayerScript>(out var playerScript) && playerScript.characterSettings != null)
+		{
+			return playerScript.characterSettings.ThemPronoun(playerScript).Capitalize();
+		}
+
+		return "It";
+	}
+
+	public static string GetTheyrePronoun(this GameObject gameObject)
+	{
+		if (gameObject.TryGetComponent<PlayerScript>(out var playerScript) && playerScript.characterSettings != null)
+		{
+			return playerScript.characterSettings.TheyrePronoun(playerScript).Capitalize();
+		}
+
+		return "Its";
+	}
+
+	/// <summary>
+	/// returns a list of children of that are under a gameObject.
+	/// </summary>
+	public static List<GameObject> GetAllChildren(this GameObject gameObject)
+	{
+		return (from Transform child in gameObject.transform select child.gameObject).ToList();
+	}
+
+	/// <summary>
+	/// Destroys all children that are under a gameObject. Only use this for client-side objects or UI elements.
+	/// Use the despawn class when dealing with networked objects.
+	/// </summary>
+	public static void DestroyAllChildren(this GameObject gameObject)
+	{
+		foreach (var child in GetAllChildren(gameObject))
+		{
+			// Do not use DestroyImmediate() as that will modify the collection before the end of the frame.
+			UnityEngine.Object.Destroy(child);
+		}
+	}
+
+	/// <summary>
+	/// Returns an offset for a single axis for a vector. Axis offset is random.
+	/// </summary>
+	public static Vector3 RandomOnOneAxis(this Vector3 vector3, int min, int max, bool neverZero = true)
+	{
+		var axis = Random.Range(0, 2);
+		var y =  Random.Range(min, max);
+		var x =  Random.Range(min, max);
+
+		if (neverZero)
+		{
+			if (y == 0) y += min;
+			if (x == 0) x += min;
+		}
+
+		if (axis == 0)
+		{
+			vector3.x += x;
+			vector3.y += y;
+		}
+		else if (axis == 1)
+		{
+			vector3.x += x;
+		}
+		else if (axis == 2)
+		{
+			vector3.y += y;
+		}
+		return vector3;
+	}
+
+	public static Vector2 RandomDirection(this Vector2 vector2)
+	{
+		return new Vector2((int)Random.Range(-1, 1), (int)Random.Range(-1, 1));
+	}
+
+	public static bool IsHiddenPosition(this Vector3 vector3)
+	{
+		return vector3.z <= (TransformState.HiddenPos.z + 10);
+	}
+
+
+	public static string ReplaceFirst(this string text, string search, string replace)
+	{
+		int pos = text.IndexOf(search, StringComparison.Ordinal);
+		if (pos < 0)
+		{
+			return text;
+		}
+		return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
+
+	}
+
 }

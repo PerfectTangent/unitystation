@@ -24,6 +24,8 @@ namespace Clothing
 
 		private Mind mind;
 
+		public FloorSounds SoundChange => soundChange;
+
 		private bool IsPuttingOn(InventoryMove info)
 		{
 			return info.ToSlot != null &&
@@ -40,11 +42,11 @@ namespace Clothing
 
 		public void OnInventoryMoveServer(InventoryMove info)
 		{
-			if (soundChange == null) return;
+			if (this.gameObject != info.MovedObject.gameObject) return;
 
 			if (IsPuttingOn(info))
 			{
-				mind = info.ToPlayer.OrNull()?.PlayerScript.OrNull()?.mind;
+				mind = info.ToPlayer.OrNull()?.PlayerScript.OrNull()?.Mind;
 				if (mind is null) return;
 
 				if (hasPriority == false)
@@ -53,12 +55,12 @@ namespace Clothing
 					if (mind.StepSound) return;
 				}
 
-				mind.StepSound = soundChange;
+				mind.StepSound = soundChange; //Why is this on the mind!!!
 			}
 
 			if (IsTakingOff(info))
 			{
-				mind = info.FromPlayer.OrNull()?.PlayerScript.OrNull()?.mind;
+				mind = info.FromPlayer.OrNull()?.PlayerScript.OrNull()?.Mind;
 				if (mind is null) return;
 
 				HandleTakingOff();

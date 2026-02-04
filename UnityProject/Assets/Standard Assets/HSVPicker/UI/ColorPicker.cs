@@ -1,5 +1,7 @@
-﻿using Assets.HSVPicker;
+﻿using System;
+using Assets.HSVPicker;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class ColorPicker : MonoBehaviour
 {
@@ -19,7 +21,12 @@ public class ColorPicker : MonoBehaviour
 
     [Header("Event")]
     public ColorChangedEvent onValueChanged = new ColorChangedEvent();
+    public ColorChangedEvent onColourApply = new ColorChangedEvent();
+
+
     public HSVChangedEvent onHSVChanged = new HSVChangedEvent();
+
+    public Action<Color> DynamicValueChangeEvent;
 
 	private Color lastColor;
     public Color CurrentColor
@@ -59,12 +66,18 @@ public class ColorPicker : MonoBehaviour
         SendChangedEvent();
     }
 
-	private void OnEnable() {
+	private void OnEnable()
+	{
 		// save color before edit
 		lastColor = CurrentColor;
 	}
 
-    public float H
+	private void OnDisable()
+	{
+		DynamicValueChangeEvent = null;
+	}
+
+	public float H
     {
         get
         {
@@ -195,6 +208,24 @@ public class ColorPicker : MonoBehaviour
         }
     }
 
+    public void EnablePicker(Action<Color> onChange)
+    {
+	    onColourApply.RemoveAllListeners();
+	    DynamicValueChangeEvent = null;
+	    DynamicValueChangeEvent += onChange;
+	    gameObject.SetActive(true);
+    }
+
+    public void EnablePickerApply(UnityAction<Color> onChange)
+    {
+	    onColourApply.RemoveAllListeners();
+	    DynamicValueChangeEvent = null;
+	    onColourApply.AddListener(onChange);
+	    gameObject.SetActive(true);
+    }
+
+
+
     private void RGBChanged()
     {
         HsvColor color = HSVUtil.ConvertRgbToHsv(CurrentColor);
@@ -215,8 +246,9 @@ public class ColorPicker : MonoBehaviour
 
     private void SendChangedEvent()
     {
-        onValueChanged.Invoke(CurrentColor);
-        onHSVChanged.Invoke(_hue, _saturation, _brightness);
+        onValueChanged?.Invoke(CurrentColor);
+        onHSVChanged?.Invoke(_hue, _saturation, _brightness);
+        DynamicValueChangeEvent?.Invoke(CurrentColor);
     }
 
     public void AssignColor(ColorValues type, float value)
@@ -318,6 +350,7 @@ public class ColorPicker : MonoBehaviour
 
 	public void OnApplyBtn()
 	{
+		onColourApply.Invoke(CurrentColor);
 		// close with currentcolor
 		gameObject.SetActive(false);
 	}

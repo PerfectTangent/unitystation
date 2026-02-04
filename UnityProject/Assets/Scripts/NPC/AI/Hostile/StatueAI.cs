@@ -13,7 +13,7 @@ namespace Systems.MobAIs
 	[RequireComponent(typeof(ConeOfSight))]
 	public class StatueAI : GenericHostileAI
 	{
-		protected override void UpdateMe()
+		public override void ContemplatePriority()
 		{
 			if (!isServer) return;
 
@@ -35,14 +35,14 @@ namespace Systems.MobAIs
 
 			if (currentStatus == MobStatus.Searching)
 			{
-				moveWaitTime += Time.deltaTime;
+				moveWaitTime += MobController.UpdateTimeInterval;
 				if (moveWaitTime >= movementTickRate)
 				{
 					moveWaitTime = 0f;
 				}
 
-				searchWaitTime += Time.deltaTime;
-				if (searchWaitTime >= searchTickRate)
+				searchWaitTime += MobController.UpdateTimeInterval;
+				if (searchWaitTime >= searchTickRaten)
 				{
 					searchWaitTime = 0f;
 					var findTarget = SearchForTarget();

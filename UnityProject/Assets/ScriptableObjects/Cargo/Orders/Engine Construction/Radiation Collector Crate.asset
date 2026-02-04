@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0c8fd537387459c95edf35f9c5dd2c3, type: 3}
+  m_Name: Radiation Collector Crate
+  m_EditorClassIdentifier: 
+  OrderName: Radiation Collector Crate
+  CreditCost: 1200
+  Crate: {fileID: 6264972350131591085, guid: dde361d656542f048bdeebf4e87dd7d3, type: 3}
+  Items:
+  - {fileID: 8464128812617895185, guid: 07ffe5b392cddcd41b0ddc71c497130d, type: 3}
+  - {fileID: 8464128812617895185, guid: 07ffe5b392cddcd41b0ddc71c497130d, type: 3}
+  - {fileID: 8464128812617895185, guid: 07ffe5b392cddcd41b0ddc71c497130d, type: 3}
+  EmagOnly: 0
+  SuggestedCargoPrice: 720
+  ContentSellPrice: 600
+  WillFailUnitTests: 0

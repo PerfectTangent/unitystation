@@ -133,8 +133,19 @@ namespace Systems.Electricity
 
 			SupplyToadd.Clear();
 			AliveSupplies.Clear();
+			foreach (var category in OrderList)
+			{
+				AliveSupplies[category] = new HashSet<ElectricalNodeControl>();
+			}
 			TotalSupplies.Clear();
 			ToRemove.Clear();
+			PoweredDevices.Clear();
+		}
+
+
+		public void InBetweenScenesCleanUp()
+		{
+			StopSim();
 		}
 
 		public void AddSupply(ElectricalNodeControl supply, PowerTypeCategory category)
@@ -479,8 +490,10 @@ namespace Systems.Electricity
 				UesAlternativeDirectionWorkOnNextList = true;
 				CircuitSearch(wire, DirectionWorkOnNextList, DirectionWorkOnNextListWait);
 
-				if (DirectionWorkOnNextList.Count <= 0 & DirectionWorkOnNextListWait.Count <= 0 &
-					_DirectionWorkOnNextList.Count <= 0 & _DirectionWorkOnNextListWait.Count <= 0)
+				if (DirectionWorkOnNextList.Count <= 0
+				    && DirectionWorkOnNextListWait.Count <= 0
+				    && _DirectionWorkOnNextList.Count <= 0
+				    && _DirectionWorkOnNextListWait.Count <= 0)
 				{
 					break;
 				}

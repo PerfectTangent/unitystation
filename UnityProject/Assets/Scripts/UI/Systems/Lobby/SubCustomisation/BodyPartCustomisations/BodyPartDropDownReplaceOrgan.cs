@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using HealthV2;
+using Items.Implants.Organs;
+using Logs;
 using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,9 +14,9 @@ namespace UI.CharacterCreator
 	{
 		public Dropdown Dropdown;
 
-		public List<BodyPart> ToChooseFromBodyParts = new List<BodyPart>();
+		private List<BodyPart> ToChooseFromBodyParts = new List<BodyPart>();
 
-		public BodyPart CurrentBodyPart;
+		private BodyPart CurrentBodyPart;
 
 		public BodyPart ParentBodyPart; // can be null with root
 
@@ -22,7 +24,7 @@ namespace UI.CharacterCreator
 		{
 			base.SetUp(incharacterCustomization, Body_Part, path);
 			RelatedBodyPart = Body_Part;
-			List<string> itemOptions = null;
+			List<string> itemOptions = new List<string>();
 			// Make a list of all available options which can then be passed to the dropdown box
 			foreach (var Keyv in incharacterCustomization.ParentDictionary)
 			{
@@ -34,7 +36,10 @@ namespace UI.CharacterCreator
 
 			CurrentBodyPart = Body_Part;
 			ToChooseFromBodyParts = Body_Part.OptionalReplacementOrgan;
-			itemOptions = Body_Part.OptionalReplacementOrgan.Select(gameObject => gameObject.name).ToList();
+			foreach (var Organ in  Body_Part.OptionalReplacementOrgan)
+			{
+				itemOptions.Add(Organ.name);
+			}
 
 
 			itemOptions.Sort();
@@ -52,6 +57,7 @@ namespace UI.CharacterCreator
 			{
 				Newvalue = 0;
 			}
+
 			Dropdown.value = Newvalue;
 		}
 
@@ -63,14 +69,53 @@ namespace UI.CharacterCreator
 		public static void OnPlayerBodyDeserialise(BodyPart bodyPart, string InData)
 		{
 			var PreviousOptions = JsonConvert.DeserializeObject<int>(InData);
-			if (PreviousOptions >= bodyPart.OptionalReplacementOrgan.Count + 1)
+			if (PreviousOptions >= bodyPart.OptionalReplacementOrgan.Count + 1 || PreviousOptions == 0) //0 == Default
 			{
 				return;
 			}
-			var spawned = Spawn.ServerPrefab(bodyPart.OptionalReplacementOrgan[PreviousOptions].gameObject);
 
-			bodyPart.HealthMaster.BodyPartStorage.ServerTryAdd(spawned.GameObject);
-			bodyPart.HealthMaster.BodyPartStorage.ServerTryRemove(bodyPart.gameObject);
+			var ActualIndex = PreviousOptions - 1;
+
+			var spawned = Spawn.ServerPrefab(bodyPart.OptionalReplacementOrgan[ActualIndex].gameObject, spawnManualContents: true);
+
+
+
+			var IPlayerPossessable = bodyPart.GetComponent<IPlayerPossessable>();
+
+			if (bodyPart.ContainedIn)
+			{
+				bodyPart.ContainedIn.OrganStorage.ServerTryAdd(spawned.GameObject);
+			}
+			else
+			{
+				bodyPart.HealthMaster.BodyPartStorage.ServerTryAdd(spawned.GameObject);
+			}
+
+			if (IPlayerPossessable != null)
+			{
+
+				if (IPlayerPossessable.PossessedBy != null)
+				{
+					IPlayerPossessable.PossessedBy.SetPossessingObject(spawned.GameObject);
+				}
+
+				if (IPlayerPossessable.PossessingMind != null)
+				{
+					IPlayerPossessable.PossessingMind.SetPossessingObject(spawned.GameObject);
+				}
+			}
+
+			if (bodyPart.ContainedIn)
+			{
+				bodyPart.ContainedIn.OrganStorage.ServerTryRemove(bodyPart.gameObject);
+			}
+			else
+			{
+				bodyPart.HealthMaster.BodyPartStorage.ServerTryRemove(bodyPart.gameObject);
+			}
+	
+			_ = Despawn.ServerSingle(bodyPart.gameObject);
+
 		}
 
 		public void SetDropdownValue(string currentSetting)
@@ -85,7 +130,7 @@ namespace UI.CharacterCreator
 			}
 			else
 			{
-				Logger.LogWarning($"Unable to find index of {currentSetting}! Using default", Category.Character);
+				Loggy.Warning($"Unable to find index of {currentSetting}! Using default", Category.Character);
 				Dropdown.value = 0;
 			}
 		}
@@ -116,7 +161,12 @@ namespace UI.CharacterCreator
 			}
 		}
 
-		public override void RandomizeValues()
+		public override void RandomizeInBody(BodyPart Body_Part, LivingHealthMasterBase livingHealth)
+		{
+			//Doesn't do anything
+		}
+
+		public override void RandomizeCharacterCreatorValues()
 		{
 			Dropdown.value = Random.Range(0, Dropdown.options.Count - 1);
 			Refresh();
@@ -131,35 +181,29 @@ namespace UI.CharacterCreator
 		{
 			base.Refresh();
 
-			if (Dropdown.value == 0)
+			if (Dropdown.value == 0) //Going to 0
 			{
-				if (CurrentBodyPart != null)
-				{
-					characterCustomization.RemoveBodyPart(CurrentBodyPart);
-				}
-
+				characterCustomization.RemoveBodyPart(CurrentBodyPart);
 				characterCustomization.ParentDictionary[ParentBodyPart].Add(RelatedBodyPart);
 				characterCustomization.SetUpBodyPart(RelatedBodyPart, false);
 				CurrentBodyPart = RelatedBodyPart;
 			}
 			else
 			{
-				if (CurrentBodyPart != null)
+
+				if (CurrentBodyPart == RelatedBodyPart) //Don't delete the customisations of this
 				{
-					if (CurrentBodyPart == RelatedBodyPart)
-					{
-						characterCustomization.RemoveBodyPart(CurrentBodyPart, false);
-					}
-					else
-					{
-						characterCustomization.RemoveBodyPart(CurrentBodyPart);
-					}
+					characterCustomization.RemoveBodyPart(CurrentBodyPart, false);
+				}
+				else
+				{
+					characterCustomization.RemoveBodyPart(CurrentBodyPart);
 				}
 
 				var ChosenOption = Dropdown.options[Dropdown.value].text;
 				CurrentBodyPart = ToChooseFromBodyParts.First(x => x.name == ChosenOption);
 				characterCustomization.ParentDictionary[ParentBodyPart].Add(CurrentBodyPart);
-				characterCustomization.SetUpBodyPart(CurrentBodyPart);
+				characterCustomization.SetUpBodyPart(CurrentBodyPart, false);
 			}
 		}
 	}

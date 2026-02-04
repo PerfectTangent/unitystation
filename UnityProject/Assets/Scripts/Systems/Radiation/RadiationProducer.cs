@@ -1,25 +1,30 @@
 ﻿using System;
 using System.Collections;
+using Core.Sprite_Handler;
 using Light2D;
+using Logs;
 using Mirror;
+using SecureStuff;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Systems.Radiation
 {
 	public class RadiationProducer : NetworkBehaviour
 	{
-		public float OutPuttingRadiation = 0;
-		public Color color = new Color(93f / 255f, 202 / 255f, 49 / 255f, 0);
-		private GameObject mLightRendererObject;
-		private ObjectBehaviour objectBehaviour;
-		private RegisterObject registerObject;
+		[FormerlySerializedAs("OutPuttingRadiation")]
+		public float InitialOutPuttingRadiation = 0;
+
+		private float OutPuttingRadiation = 0;
+		private Color Colour;
+		[FormerlySerializedAs("color")] public Color InitialColour = new Color(93f / 255f, 202 / 255f, 49 / 255f, 0);
 		[NonSerialized] public int ObjectID = 0;
-		private LightSprite lightSprite;
-		public Sprite DotSprite;
+		public LightSpriteHandler lightSprite;
 
 
 		[SyncVar(hook = nameof(SynchStrength))]
-		public float SynchroniseStrength = 0;
+		[PlayModeOnly, NonSerialized] public float SynchroniseStrength = 0;
+
 
 		private void SynchStrength(float old, float newv)
 		{
@@ -31,20 +36,18 @@ namespace Systems.Radiation
 		}
 
 
-		private void Awake()
+		private void Start()
 		{
-			//yeah dam Unity initial Conditions  is not updating
-			color = new Color(93f / 255f, 202 / 255f, 49 / 255f, 0);
-
-			objectBehaviour = this.GetComponent<ObjectBehaviour>();
 			ObjectID = this.GetInstanceID();
 
-			mLightRendererObject = LightSpriteBuilder.BuildDefault(gameObject, color, 7);
-			mLightRendererObject.SetActive(true);
+			if (CustomNetworkManager.IsServer == false) return;
+			OutPuttingRadiation = InitialOutPuttingRadiation;
+			Colour = InitialColour;
 
-			lightSprite = mLightRendererObject.GetComponent<LightSprite>();
-			lightSprite.Sprite = DotSprite;
-			registerObject = this.GetComponent<RegisterObject>();
+
+			lightSprite.SetColor(Colour);
+
+			UpdateValues(InitialOutPuttingRadiation);
 		}
 
 
@@ -74,6 +77,7 @@ namespace Systems.Radiation
 
 		public void SetLevel(float Invalue)
 		{
+			Invalue = Mathf.Max(0, Invalue);
 			SynchStrength(SynchroniseStrength, Invalue);
 		}
 
@@ -81,39 +85,43 @@ namespace Systems.Radiation
 		{
 			if (this == null)
 			{
-				Logger.LogError(" The radioactive object has been destroyed but you're still trying to Produce radiation ", Category.Radiation);
+				Loggy.Error(
+					" The radioactive object has been destroyed but you're still trying to Produce radiation ",
+					Category.Radiation);
 				return;
 			}
-			OutPuttingRadiation = Invalue;
-			float LightPower = OutPuttingRadiation / 24000;
-			if (LightPower > 1)
+
+			if (Invalue < 0)
+			if (Invalue < 0)
 			{
-				mLightRendererObject.transform.localScale = Vector3.one * (7 * LightPower);
-				LightPower = 1;
+				Invalue = 0;
 			}
 
-			lightSprite.Color.a = LightPower;
+			OutPuttingRadiation = Invalue;
+			float LightPower = OutPuttingRadiation / 24000;
+			float LightSize = OutPuttingRadiation / 40000;
+			if (LightPower > 1)
+			{
+				LightPower = 1;
+			}
+			lightSprite.transform.localScale = Vector3.one * (7 * LightSize);
+			var Colour = lightSprite.GetColor().GetValueOrDefault(Color.white);
+			Colour.a = LightPower;
+			lightSprite.SetColor(Colour);
 		}
 
 		private void RequestPulse()
 		{
 			if (OutPuttingRadiation > 0.358f)
 			{
-				if (registerObject == null)
-				{
-					RadiationManager.Instance.RequestPulse(objectBehaviour.registerTile.WorldPositionServer,
-						OutPuttingRadiation, ObjectID);
-				}
-				else
-				{
-					RadiationManager.Instance.RequestPulse(registerObject.WorldPositionServer, OutPuttingRadiation,
-						ObjectID);
-				}
+				RadiationManager.Instance.RequestPulse(gameObject.AssumedWorldPosServer().RoundToInt(),
+					OutPuttingRadiation,
+					ObjectID);
 			}
 
 			UpdateValues(OutPuttingRadiation);
 
-			//Logger.Log("RequestPulse!!" + Time.time);
+			//Loggy.Log("RequestPulse!!" + Time.time);
 		}
 	}
 }

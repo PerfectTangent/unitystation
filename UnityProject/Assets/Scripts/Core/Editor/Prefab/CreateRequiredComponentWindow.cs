@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using UnityEditor;
 using UnityEngine;
-using Utility = UnityEngine.Networking.Utility;
 using Mirror;
 using Object = UnityEngine.Object;
 
@@ -100,7 +100,7 @@ public class CreateRequiredComponentWindow : EditorWindow
 		if (string.IsNullOrEmpty(componentTypeName))
 		{
 			EditorUtility.DisplayDialog("Unable to create required components",
-				"Please enter a component type name (such as CustomNetTransform, RegisterTile, etc...).", "Close");
+				"Please enter a component type name (such as UniversalObjectPhysics, RegisterTile, etc...).", "Close");
 			return;
 		}
 
@@ -200,7 +200,7 @@ public class CreateRequiredComponentWindow : EditorWindow
 
 	private void OnCreateRequiredComponents()
 	{
-		Logger.Log("Performing modifications:", Category.Editor);
+		Loggy.Info("Performing modifications:", Category.Editor);
 		foreach (var prefabModification in prefabModifications)
 		{
 			if (prefabModification.Skip) continue;
@@ -211,7 +211,7 @@ public class CreateRequiredComponentWindow : EditorWindow
 
 				PrefabUtility.SavePrefabAsset(prefabModification.RootGO);
 
-				Logger.LogFormat("Added {0} to game object {1} in prefab {2}", Category.Editor,
+				Loggy.Info().Format("Added {0} to game object {1} in prefab {2}", Category.Editor,
 					componentToAdd.Name, prefabModification.GOToModify, path);
 			}
 		}

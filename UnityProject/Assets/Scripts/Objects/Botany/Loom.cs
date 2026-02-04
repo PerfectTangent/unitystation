@@ -26,7 +26,7 @@ namespace Objects.Botany
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			//start with the default HandApply WillInteract logic.
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			GameObject ObjectInHand = interaction.HandObject;
 
@@ -50,7 +50,7 @@ namespace Objects.Botany
 
 		private void Production(GameObject result, HandApply interaction)
 		{
-			Spawn.ServerPrefab(result, interaction.Performer.WorldPosServer(), count: sheets);
+			Spawn.ServerPrefab(result, interaction.Performer.AssumedWorldPosServer(), count: sheets);
 			interaction.HandObject.GetComponent<Stackable>().ServerConsume(bundles);
 		}
 

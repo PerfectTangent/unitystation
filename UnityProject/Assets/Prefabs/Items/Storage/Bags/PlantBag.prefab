@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2449762591122860759, guid: a4904005b4f886143a41a4b3c99a6845,
@@ -17,7 +18,7 @@ PrefabInstance:
         type: 3}
       propertyPath: itemStorageStructure
       value: 
-      objectReference: {fileID: 11400000, guid: ec172d0d331983347be7d3e8468e4a59,
+      objectReference: {fileID: 11400000, guid: dfa2f775342bc33479a3dea278303c0b,
         type: 2}
     - target: {fileID: 2945219828330548335, guid: a4904005b4f886143a41a4b3c99a6845,
         type: 3}
@@ -29,6 +30,30 @@ PrefabInstance:
       propertyPath: initialDescription
       value: For holding greens!
       objectReference: {fileID: 0}
+    - target: {fileID: 2945219828330548335, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: b0553ac0794055f498afeb19010f5ba0,
+        type: 2}
+    - target: {fileID: 2945219828330548335, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 7968d9f0be0c6ba4cb96a51ecd346a36,
+        type: 2}
+    - target: {fileID: 2945219828330548335, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: b0553ac0794055f498afeb19010f5ba0,
+        type: 2}
+    - target: {fileID: 2945219828330548335, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 7968d9f0be0c6ba4cb96a51ecd346a36,
+        type: 2}
     - target: {fileID: 3225680128402821201, guid: a4904005b4f886143a41a4b3c99a6845,
         type: 3}
       propertyPath: m_Sprite
@@ -97,6 +122,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3433479011725450937, guid: a4904005b4f886143a41a4b3c99a6845,
         type: 3}
+      propertyPath: _assetId
+      value: 1307530985
+      objectReference: {fileID: 0}
+    - target: {fileID: 3433479011725450937, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
       propertyPath: m_AssetId
       value: c9970b39137b47b4e8e1f06443af3ca7
       objectReference: {fileID: 0}
@@ -113,6 +143,11 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 8541259781182205792, guid: a4904005b4f886143a41a4b3c99a6845,
         type: 3}
+      propertyPath: parentID
+      value: a4904005b4f886143a41a4b3c99a6845
+      objectReference: {fileID: 0}
+    - target: {fileID: 8541259781182205792, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
       propertyPath: foreverID
       value: c9970b39137b47b4e8e1f06443af3ca7
       objectReference: {fileID: 0}
@@ -122,7 +157,20 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 6cc654814da48e144add22cb2d7eab23,
         type: 2}
+    - target: {fileID: 8895735541756795018, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 6cc654814da48e144add22cb2d7eab23,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3328757573197865741, guid: a4904005b4f886143a41a4b3c99a6845,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -2634575019780171847}
   m_SourcePrefab: {fileID: 100100000, guid: a4904005b4f886143a41a4b3c99a6845, type: 3}
 --- !u!1 &3544980290922763715 stripped
 GameObject:
@@ -142,6 +190,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e15827970984ba78808f03bc3f01586, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   allClothingData:

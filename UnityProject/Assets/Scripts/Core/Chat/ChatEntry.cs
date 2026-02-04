@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using Managers.SettingsManager;
 using UnityEngine;
 using UnityEngine.UI;
 using NaughtyAttributes;
 using TMPro;
+using Unitystation.Options;
 
 namespace UI.Chat_UI
 {
@@ -16,17 +19,31 @@ namespace UI.Chat_UI
 	{
 		[SerializeField, BoxGroup("Entry Object")]
 		private RectTransform entryTransform = default;
+
 		[SerializeField, BoxGroup("Entry Object")]
 		private TMP_Text messageText = default;
+
+		[SerializeField, BoxGroup("Entry Object")]
+		private TMP_Text messageTextDark = default;
+
 		[SerializeField, BoxGroup("Entry Object")]
 		private ContentSizeFitter messageContentFitter = default;
 
 		[SerializeField, BoxGroup("Stack Object")]
 		private GameObject stackObject = default;
+
 		[SerializeField, BoxGroup("Stack Object")]
 		private TMP_Text stackText = default;
+
 		[SerializeField, BoxGroup("Stack Object")]
 		private Image stackImage = default;
+
+		[SerializeField, BoxGroup("Background")]
+		private Image entryBackground = default;
+
+		[SerializeField, BoxGroup("Background")]
+		private float maximumAlpha = 0.8f;
+
 
 		public RectTransform ViewportTransform { get; set; }
 
@@ -42,6 +59,8 @@ namespace UI.Chat_UI
 		private int stackCount = 1;
 		private Vector3 stackScaleCache;
 
+		private const string SIZE_TAG_PATTERN = @"<size(=|\+=)(\+?[0-9]+\+?)>";
+
 		#region Lifecycle
 
 		private void Awake()
@@ -53,6 +72,8 @@ namespace UI.Chat_UI
 		{
 			EventManager.AddHandler(Event.ChatFocused, OnChatFocused);
 			EventManager.AddHandler(Event.ChatUnfocused, OnChatUnfocused);
+			EventManager.AddHandler(Event.ChatQuickUnfocus, OnQuickChatUnfocused);
+
 			ChatUI.Instance.scrollBarEvent += OnScrollInteract;
 			ChatUI.Instance.checkPositionEvent += CheckPosition;
 			if (IsChatFocused == false)
@@ -65,6 +86,7 @@ namespace UI.Chat_UI
 		{
 			EventManager.RemoveHandler(Event.ChatFocused, OnChatFocused);
 			EventManager.RemoveHandler(Event.ChatUnfocused, OnChatUnfocused);
+			EventManager.RemoveHandler(Event.ChatQuickUnfocus, OnQuickChatUnfocused);
 			if (ChatUI.Instance != null)
 			{
 				ChatUI.Instance.scrollBarEvent -= OnScrollInteract;
@@ -89,10 +111,13 @@ namespace UI.Chat_UI
 		private void ResetEntry()
 		{
 			messageText.text = string.Empty;
+			messageTextDark.text = string.Empty;
 			stackText.text = string.Empty;
 			stackCount = 1;
 			stackObject.SetActive(false);
 			messageText.raycastTarget = false;
+			messageTextDark.raycastTarget = false;
+			entryBackground.color = new Color(entryBackground.color.r, entryBackground.color.g, entryBackground.color.b, 0);
 			AnimateFade(1f, 0f);
 		}
 
@@ -114,6 +139,11 @@ namespace UI.Chat_UI
 		public void OnChatUnfocused()
 		{
 			this.RestartCoroutine(FadeCooldown(), ref fadeCooldownCoroutine);
+		}
+
+		public void OnQuickChatUnfocused()
+		{
+			this.RestartCoroutine(FadeCooldown(true), ref fadeCooldownCoroutine);
 		}
 
 		private void OnScrollInteract(bool isScrolling)
@@ -139,33 +169,86 @@ namespace UI.Chat_UI
 
 		#endregion
 
-		public void SetText(string message)
+		public void SetText(string message, TMP_SpriteAsset languageSprite, TMP_FontAsset font)
 		{
+			if (font != null)
+			{
+				messageText.font = font;
+				messageTextDark.font = font;
+			}
+
+			if (languageSprite != null)
+			{
+				message = $"<sprite=\"{languageSprite.name}\" index=0>{message}";
+			}
+
+			message =
+				$"<size=+{PlayerPrefs.GetInt(ChatOptions.FONTSCALE_KEY, ChatOptions.FONTSCALE_KEY_DEFAULT)}>{message}</size>";
+
 			messageText.text = message;
+			messageTextDark.text = "<color=#000000>" + ReplaceColour(message);
+			var alphaSetting = PlayerPrefs.GetInt(PlayerPrefKeys.CHAT_BACKGROUND_ALLWAYS_ENABLED, 0) == 1;
+			entryBackground.CrossFadeAlpha(alphaSetting ? maximumAlpha : 0f, 0.15f, false);
 			ToggleUIElements(true);
+
 			StartCoroutine(UpdateEntryHeight());
 
 			if (message.Contains("</link>"))
 			{
 				messageText.raycastTarget = true;
+				messageTextDark.raycastTarget = true;
 			}
 		}
 
 		public void AddChatDuplication()
 		{
-			if (stackCount == 1)
-			{
-				// Just need to do this once; message size won't change.
-				SetStackPos();
-			}
-
 			stackText.text = $"x{++stackCount}";
 			ToggleUIElements(true);
 			stackObject.SetActive(true);
 			AnimateFade(1f, 0f);
 			StartCoroutine(AnimateStackObject());
+			StackMessageSizeIncrease();
+			SetStackPos(); // Always make sure the stack bubble has its position updated incase the entry gets updated.
 			this.RestartCoroutine(FadeCooldown(), ref fadeCooldownCoroutine);
 		}
+
+		private void StackMessageSizeIncrease()
+		{
+			Match match = Regex.Match(messageText.text, SIZE_TAG_PATTERN);
+			if (match.Success)
+			{
+				if (HasLargeSizeTag(match)) return;
+				var MessageText = Regex.Replace(messageText.text, SIZE_TAG_PATTERN, match =>
+				{
+					float number = float.Parse(match.Groups[2].Value);
+					float newNumber = number + 2;
+					string newTag = $"<size{match.Groups[1].Value}+{newNumber}>";
+					return newTag;
+				}, RegexOptions.IgnoreCase);
+				messageText.text = MessageText;
+				messageTextDark.text = "<color=#000000>" + ReplaceColour(MessageText);
+				StartCoroutine(UpdateEntryHeight());
+			}
+		}
+
+		private const string pattern = @"<color=([^>]+)>";
+
+		private string ReplaceColour(string intxt)
+		{
+			string result = Regex.Replace(intxt, pattern, match => $"<color=#000000>");
+			return result;
+		}
+
+		private bool HasLargeSizeTag(Match match)
+		{
+			if (int.TryParse(match.Groups[2].Value, out var sizeValue) && sizeValue > 55)
+			{
+				return true;
+			}
+
+			return false;
+		}
+
 
 		private void SetHidden(bool hidden, bool fromCooldown = false)
 		{
@@ -178,6 +261,7 @@ namespace UI.Chat_UI
 		private void ToggleUIElements(bool enabled)
 		{
 			messageText.enabled = enabled;
+			messageTextDark.enabled = enabled;
 			stackText.enabled = enabled;
 			stackImage.enabled = enabled;
 		}
@@ -197,23 +281,29 @@ namespace UI.Chat_UI
 			if (isHidden == false)
 			{
 				// Check to see if the chat entry is inside the viewport, and if so we will enable viewing it.
-				var isInsideViewport = entryTransform.rect.yMax.IsBetween(ViewportTransform.rect.yMin, ViewportTransform.rect.yMax);
-				isInsideViewport |= entryTransform.rect.yMin.IsBetween(ViewportTransform.rect.yMin, ViewportTransform.rect.yMax);
+				var isInsideViewport =
+					entryTransform.rect.yMax.IsBetween(ViewportTransform.rect.yMin, ViewportTransform.rect.yMax);
+				isInsideViewport |=
+					entryTransform.rect.yMin.IsBetween(ViewportTransform.rect.yMin, ViewportTransform.rect.yMax);
 				ToggleUIElements(isInsideViewport);
 			}
 
 			waitToCheck = null;
 		}
 
-		private IEnumerator FadeCooldown()
+		private IEnumerator FadeCooldown(bool Quick = false)
 		{
-			yield return WaitFor.Seconds(12f);
+			if (Quick == false)
+			{
+				yield return WaitFor.Seconds(12f);
+			}
+
 			bool toggleVisibleState = false;
 
 			// Chat may have become focused during this time. Don't fade away if now focused.
 			if (IsChatFocused) yield break;
 
-			AnimateFade(0.01f, 3f);
+			AnimateFade(UI.Chat_UI.ChatUI.Instance.ChatContentMinimumAlpha, 3f);
 			if (isHidden == false)
 			{
 				SetHidden(true, true);
@@ -222,9 +312,13 @@ namespace UI.Chat_UI
 
 			yield return WaitFor.Seconds(3f);
 
+
 			if (toggleVisibleState)
 			{
-				ToggleUIElements(false);
+				if (ChatUI.Instance.ChatContentMinimumAlpha < 0.01f)
+				{
+					ToggleUIElements(false);
+				}
 			}
 		}
 
@@ -256,7 +350,7 @@ namespace UI.Chat_UI
 		{
 			var count = messageText.textInfo.characterCount - 1;
 
-			if(count < 0) return;
+			if (count < 0) return;
 			if (count >= messageText.textInfo.characterInfo.Length) return;
 
 			var lastCharacter = messageText.textInfo.characterInfo[count];
@@ -266,11 +360,18 @@ namespace UI.Chat_UI
 			stackObject.transform.position = newWorldPos;
 		}
 
-		private void AnimateFade(float toAlpha, float time)
+		private void AnimateFade(float toAlpha, float time, bool showBackground = true)
 		{
 			messageText.CrossFadeAlpha(toAlpha, time, false);
+			messageTextDark.CrossFadeAlpha(toAlpha, time, false);
 			stackText.CrossFadeAlpha(toAlpha, time, false);
 			stackImage.CrossFadeAlpha(toAlpha, time, false);
+			//(Max): The alpha check is for when players disable this setting while one of the backgrounds is still visible.
+			//TODO: Add a check later if the background is custom set for templates to always display them.
+			if (showBackground && (PlayerPrefs.GetInt(PlayerPrefKeys.CHAT_BACKGROUND_ALLWAYS_ENABLED, 0) == 1 || toAlpha <= 0.01f))
+			{
+				entryBackground.CrossFadeAlpha(Mathf.Clamp(toAlpha, 0, maximumAlpha), time, false);
+			}
 		}
 	}
 }

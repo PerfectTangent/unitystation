@@ -8,9 +8,13 @@ using UnityEngine.UI;
 using Mirror;
 using ScriptableObjects;
 using Systems.Interaction;
-using Systems.ObjectConnection;
 using Managers;
 using Doors;
+using Logs;
+using SecureStuff;
+using Shared.Systems.ObjectConnection;
+using Systems.Ai;
+using Systems.Clearance;
 
 
 namespace Objects.Wallmounts
@@ -34,6 +38,9 @@ namespace Objects.Wallmounts
 		[SyncVar(hook = nameof(SyncStatusText))]
 		private string statusText = string.Empty;
 
+		[SyncVar(hook = nameof(UpdateTextColor))]
+		private Color currentTextColor;
+
 		public bool hasCables = true;
 		public SpriteHandler MonitorSpriteHandler;
 		public SpriteHandler DisplaySpriteHandler;
@@ -41,12 +48,15 @@ namespace Objects.Wallmounts
 		public Sprite openCabled;
 		public Sprite closedOff;
 		public SpriteDataSO joeNews;
-		public List<DoorController> doorControllers = new List<DoorController>();
-		public List<DoorMasterController> NewdoorControllers = new List<DoorMasterController>();
-		public CentComm centComm;
+		public List<DoorMasterController> NewdoorControllers = new();
+		[PlayModeOnly] public CentComm centComm;
 		public int currentTimerSeconds;
 		public bool countingDown;
 
+		[SerializeField] private Color normalTextColor;
+		[SerializeField] private Color redAlertTextColor = Color.red;
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 		public enum MountedMonitorState
 		{
 			StatusText,
@@ -55,32 +65,39 @@ namespace Objects.Wallmounts
 			NonScrewedPanel,
 			OpenCabled,
 			OpenEmpty
-		};
+		}
 
-		[SerializeField] private StatusDisplayChannel channel = StatusDisplayChannel.Command;
+		[SerializeField, PlayModeOnly] private StatusDisplayChannel channel = StatusDisplayChannel.Command;
 
 		private StatusDisplayChannel cachedChannel;
 
 		[SerializeField] private MultitoolConnectionType conType = MultitoolConnectionType.DoorButton;
 		public MultitoolConnectionType ConType => conType;
 		int IMultitoolMasterable.MaxDistance => int.MaxValue;
-		private bool multiMaster = true;
-		public bool MultiMaster => multiMaster;
+		private bool multiMaster = true; //TODO
+		public bool MultiMaster => multiMaster; //TODO
 
-		private AccessRestrictions accessRestrictions;
+		private ClearanceRestricted restricted;
 
-		public AccessRestrictions AccessRestrictions
+		public ClearanceRestricted Restricted
 		{
 			get
 			{
-				if (accessRestrictions == null)
+				if (restricted == null)
 				{
-					accessRestrictions = GetComponent<AccessRestrictions>();
+					restricted = GetComponent<ClearanceRestricted>();
 				}
 
-				return accessRestrictions;
+				return restricted;
 			}
 		}
+
+		private const string CLEARANCE_LINK_FAIL_STRING = "This unit does not contain the required access to link such device.";
+		private const string CLEARANCE_SETUP_NO_COMPONENT = "You wave the ID infront of the status display.. but nothing happens.";
+		private const string CLEARANCE_OVERWRITE = "You wave the ID infront of the status display.. " +
+		                                           "But it rejects it as clearance has already been setup for it!";
+		private const string CLEARANCE_SETUP_SUCC = "You wave the ID infront of the status display " +
+		                                                    "and it accepts your card's clearance.";
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
@@ -91,7 +108,7 @@ namespace Objects.Wallmounts
 				statusText = GameManager.Instance.CentComm.CommandStatusString;
 			}
 
-			if (doorControllers.Count > 0 || NewdoorControllers.Count > 0  )
+			if (NewdoorControllers.Count > 0  )
 			{
 				OnTextBroadcastReceived(StatusDisplayChannel.DoorTimer);
 			}
@@ -99,11 +116,17 @@ namespace Objects.Wallmounts
 			SyncSprite(stateSync, stateSync);
 			centComm = GameManager.Instance.CentComm;
 			centComm.OnStatusDisplayUpdate.AddListener(OnTextBroadcastReceived);
+			centComm.OnAlertLevelChange += ServerUpdateCurrentColor;
 		}
 
 		private void Start()
 		{
+			#if UNITY_EDITOR
+			// Chances are we are trying to edit or test a scene and the managers aren't loaded.
+			if (Application.isPlaying == false) return;
+			#endif
 			centComm = GameManager.Instance.CentComm;
+
 		}
 
 		/// <summary>
@@ -114,6 +137,7 @@ namespace Objects.Wallmounts
 			centComm.OnStatusDisplayUpdate.RemoveListener(OnTextBroadcastReceived);
 			channel = StatusDisplayChannel.Command;
 			textField.text = string.Empty;
+			centComm.OnAlertLevelChange -= ServerUpdateCurrentColor;
 			this.TryStopCoroutine(ref blinkHandle);
 		}
 
@@ -136,7 +160,7 @@ namespace Objects.Wallmounts
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.Intent == Intent.Harm) return false;
 			return true;
 		}
@@ -145,7 +169,7 @@ namespace Objects.Wallmounts
 		{
 			if (stateSync == MountedMonitorState.OpenCabled || stateSync == MountedMonitorState.OpenEmpty)
 			{
-				if (!hasCables && Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Cable) &&
+				if (!hasCables && Validations.HasItemTrait(interaction, CommonTraits.Instance.Cable) &&
 				    Validations.HasUsedAtLeast(interaction, 5))
 				{
 					//add 5 cables
@@ -161,7 +185,7 @@ namespace Objects.Wallmounts
 							stateSync = MountedMonitorState.OpenCabled;
 						});
 				}
-				else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.GlassSheet) &&
+				else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.GlassSheet) &&
 				         Validations.HasUsedAtLeast(interaction, 2))
 				{
 					//add 2 glass
@@ -176,42 +200,34 @@ namespace Objects.Wallmounts
 							stateSync = MountedMonitorState.NonScrewedPanel;
 						});
 				}
-				else if (hasCables && Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wirecutter))
+				else if (hasCables && Validations.HasItemTrait(interaction, CommonTraits.Instance.Wirecutter))
 				{
 					//cut out cables
-					Chat.AddActionMsgToChat(interaction, $"You remove the cables.",
+					Chat.AddActionMsgToChat(interaction, "You remove the cables.",
 						$"{interaction.Performer.ExpensiveName()} removes the cables.");
 					ToolUtils.ServerPlayToolSound(interaction);
 					Spawn.ServerPrefab(CommonPrefabs.Instance.SingleCableCoil, SpawnDestination.At(gameObject), 5);
 					stateSync = MountedMonitorState.OpenEmpty;
 					hasCables = false;
 					currentTimerSeconds = 0;
-					doorControllers.Clear();
 					NewdoorControllers.Clear();
 				}
 			}
 			else if (stateSync == MountedMonitorState.NonScrewedPanel)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar))
 				{
 					//remove glass
-					Chat.AddActionMsgToChat(interaction, $"You remove the glass panel.",
+					Chat.AddActionMsgToChat(interaction, "You remove the glass panel.",
 						$"{interaction.Performer.ExpensiveName()} removes the glass panel.");
 					ToolUtils.ServerPlayToolSound(interaction);
 					Spawn.ServerPrefab(CommonPrefabs.Instance.GlassSheet, SpawnDestination.At(gameObject), 2);
-					if (hasCables)
-					{
-						stateSync = MountedMonitorState.OpenCabled;
-					}
-					else
-					{
-						stateSync = MountedMonitorState.OpenEmpty;
-					}
+					stateSync = hasCables ? MountedMonitorState.OpenCabled : MountedMonitorState.OpenEmpty;
 				}
-				else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver))
+				else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver))
 				{
 					//screw in monitor, completing construction
-					Chat.AddActionMsgToChat(interaction, $"You connect the monitor.",
+					Chat.AddActionMsgToChat(interaction, "You connect the monitor.",
 						$"{interaction.Performer.ExpensiveName()} connects the monitor.");
 					ToolUtils.ServerPlayToolSound(interaction);
 					if (hasCables)
@@ -222,13 +238,31 @@ namespace Objects.Wallmounts
 			}
 			else
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver))
 				{
 					//disconnect the monitor
-					Chat.AddActionMsgToChat(interaction, $"You disconnect the monitor.",
+					Chat.AddActionMsgToChat(interaction, "You disconnect the monitor.",
 						$"{interaction.Performer.ExpensiveName()} disconnect the monitor.");
 					ToolUtils.ServerPlayToolSound(interaction);
 					stateSync = MountedMonitorState.NonScrewedPanel;
+				}
+
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Id))
+				{
+					if (Restricted == null)
+					{
+						Chat.AddExamineMsg(interaction.Performer, CLEARANCE_SETUP_NO_COMPONENT);
+						return;
+					}
+
+					if (Restricted.HasClearance(interaction.HandObject) == false)
+					{
+						Chat.AddExamineMsg(interaction.Performer, CLEARANCE_OVERWRITE);
+						return;
+					}
+
+					Restricted.SetClearance(new List<Clearance> {Clearance.Security});
+					Chat.AddExamineMsg(interaction.Performer, CLEARANCE_SETUP_SUCC);
 				}
 				else if (stateSync == MountedMonitorState.Image)
 				{
@@ -239,17 +273,7 @@ namespace Objects.Wallmounts
 				{
 					if (channel == StatusDisplayChannel.DoorTimer)
 					{
-						if (AccessRestrictions == null || AccessRestrictions.CheckAccess(interaction.Performer))
-						{
-							AddTime(60);
-						}
-						else
-						{
-							Chat.AddExamineMsg(interaction.Performer, $"Access Denied.");
-							// Play sound
-							SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.AccessDenied,
-								gameObject.AssumedWorldPosServer(), sourceObj: gameObject);
-						}
+						UpdateCellTimer(interaction);
 					}
 					else
 					{
@@ -260,15 +284,34 @@ namespace Objects.Wallmounts
 			}
 		}
 
+		private void UpdateCellTimer(HandApply interaction)
+		{
+			if (interaction.PerformerPlayerScript.gameObject.HasComponent<AiPlayer>())
+			{
+				return;
+			}
+			if (Restricted == null || Restricted.HasClearance(interaction.Performer))
+			{
+				AddTime(60);
+			}
+			else
+			{
+				Chat.AddExamineMsg(interaction.Performer, "Access Denied.");
+				SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.AccessDenied,
+					gameObject.AssumedWorldPosServer(), sourceObj: gameObject);
+			}
+		}
+
 		private void ChangeChannelMessage(HandApply interaction)
 		{
-			Chat.AddActionMsgToChat(interaction, $"You change the channel of the monitor.",
+			Chat.AddActionMsgToChat(interaction, "You change the channel of the monitor.",
 				$"{interaction.Performer.ExpensiveName()} changes the channel of the monitor.");
 		}
 
 		private IEnumerator BlinkText()
 		{
 			textField.text = statusText.Substring(0, Mathf.Min(statusText.Length, MAX_CHARS_PER_PAGE));
+			textField.color = currentTextColor;
 
 			yield return WaitFor.Seconds(3);
 
@@ -285,8 +328,21 @@ namespace Objects.Wallmounts
 			this.StartCoroutine(BlinkText(), ref blinkHandle);
 		}
 
+		private void ServerUpdateCurrentColor()
+		{
+			currentTextColor = centComm.CurrentAlertLevel == CentComm.AlertLevel.Red || centComm.CurrentAlertLevel == CentComm.AlertLevel.Delta
+				? redAlertTextColor
+				: normalTextColor;
+		}
+
+		private void UpdateTextColor(Color oldValue, Color newValue)
+		{
+			textField.color = newValue;
+		}
+
 		private void OnTextBroadcastReceived(StatusDisplayChannel broadcastedChannel)
 		{
+			textField.color = currentTextColor;
 			if (broadcastedChannel == StatusDisplayChannel.DoorTimer)
 			{
 				statusText = FormatTime(currentTimerSeconds, "CELL\n");
@@ -317,16 +373,6 @@ namespace Objects.Wallmounts
 			statusText = centComm.CommandStatusString;
 			channel = broadcastedChannel;
 			cachedChannel = channel;
-		}
-
-		public void LinkDoor(DoorController doorController)
-		{
-			doorControllers.Add(doorController);
-			OnTextBroadcastReceived(StatusDisplayChannel.DoorTimer);
-			if (stateSync == MountedMonitorState.Image)
-			{
-				stateSync = MountedMonitorState.StatusText;
-			}
 		}
 
 		public void NewLinkDoor(DoorMasterController doorController)
@@ -396,35 +442,23 @@ namespace Objects.Wallmounts
 			ResetTimer();
 		}
 
+		// FIXME: replace the way Status display interacts with doors when I make door able to be interacted with devices.
 		private void CloseDoors()
 		{
-			foreach (var door in doorControllers)
-			{
-				//Todo make The actual console itself ingame Hackble, I wouldn't put it on the door because this could get removed and leave references on the door Still
-				//Putting it on this itself would be best
-				door.TryClose();
-			}
-
 			foreach (var door in NewdoorControllers)
 			{
 				//Todo make The actual console itself ingame Hackble, I wouldn't put it on the door because this could get removed and leave references on the door Still
 				//Putting it on this itself would be best
-				door.TryClose();
+				door.PulseTryClose(bypassSoftware: true);
 			}
 		}
 
+		// FIXME: replace the way Status display interacts with doors when I make door able to be interacted with devices.
 		private void OpenDoors()
 		{
-			foreach (var door in doorControllers)
-			{
-				//To do make The actual console itself ingame Hackble
-				door.TryOpen(null, true);
-			}
-
 			foreach (var door in NewdoorControllers)
 			{
-				//To do make The actual console itself ingame Hackble
-				door.TryOpen(null, true);
+				door.PulseTryOpen(bypassSoftware: true);
 			}
 		}
 
@@ -433,7 +467,7 @@ namespace Objects.Wallmounts
 			stateSync = stateNew;
 			if (stateNew == MountedMonitorState.Off)
 			{
-				MonitorSpriteHandler.SetSprite(closedOff);
+				MonitorSpriteHandler.SetSpriteNonNetworked(closedOff);
 				DisplaySpriteHandler.Empty(networked: false);
 				this.TryStopCoroutine(ref blinkHandle);
 				textField.text = "";
@@ -452,18 +486,18 @@ namespace Objects.Wallmounts
 			}
 			else if (stateNew == MountedMonitorState.OpenCabled)
 			{
-				MonitorSpriteHandler.SetSprite(openCabled);
+				MonitorSpriteHandler.SetSpriteNonNetworked(openCabled);
 			}
 			else if (stateNew == MountedMonitorState.NonScrewedPanel)
 			{
-				MonitorSpriteHandler.SetSprite(closedOff);
+				MonitorSpriteHandler.SetSpriteNonNetworked(closedOff);
 				DisplaySpriteHandler.Empty(networked: false);
 				this.TryStopCoroutine(ref blinkHandle);
 				textField.text = "";
 			}
 			else if (stateNew == MountedMonitorState.OpenEmpty)
 			{
-				MonitorSpriteHandler.SetSprite(openEmpty);
+				MonitorSpriteHandler.SetSpriteNonNetworked(openEmpty);
 			}
 		}
 
@@ -489,13 +523,13 @@ namespace Objects.Wallmounts
 
 		private void ContextMenuOptionClicked(ContextMenuApply interaction)
 		{
-			if (!AccessRestrictions || AccessRestrictions.CheckAccess(interaction.Performer))
+			if (!Restricted || Restricted.HasClearance(interaction.Performer))
 			{
 				InteractionUtils.RequestInteract(interaction, this);
 			}
 			else
 			{
-				Chat.AddExamineMsg(interaction.Performer, $"Access Denied.");
+				Chat.AddExamineMsg(interaction.Performer, "Access Denied.");
 				// Play sound
 				SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.AccessDenied, gameObject.AssumedWorldPosServer(),
 					sourceObj: gameObject);

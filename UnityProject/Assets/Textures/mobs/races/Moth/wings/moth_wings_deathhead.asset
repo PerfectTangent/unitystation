@@ -12,21 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d1de2691495b304e9843ac3335b626d, type: 3}
   m_Name: moth_wings_deathhead
   m_EditorClassIdentifier: 
+  foreverID: f9086371ca0ecc943937d671a840dc4c
   Variance:
   - Frames:
-    - sprite: {fileID: 7982905549880950087, guid: 805a0aa8d939825448ebbe1344765341,
+    - sprite: {fileID: 7982905549880950087, guid: 328dfb892ebe3d346965737a4ab136db,
         type: 3}
       secondDelay: 0
   - Frames:
-    - sprite: {fileID: -5601964727919931962, guid: 805a0aa8d939825448ebbe1344765341,
+    - sprite: {fileID: -5601964727919931962, guid: 328dfb892ebe3d346965737a4ab136db,
         type: 3}
       secondDelay: 0
   - Frames:
-    - sprite: {fileID: 5895622982259621295, guid: 805a0aa8d939825448ebbe1344765341,
+    - sprite: {fileID: 5895622982259621295, guid: 328dfb892ebe3d346965737a4ab136db,
         type: 3}
       secondDelay: 0
   - Frames:
-    - sprite: {fileID: -4944616646439674216, guid: 805a0aa8d939825448ebbe1344765341,
+    - sprite: {fileID: -4944616646439674216, guid: 328dfb892ebe3d346965737a4ab136db,
         type: 3}
       secondDelay: 0
   IsPalette: 0

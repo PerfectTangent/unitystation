@@ -12,7 +12,7 @@ namespace UI.Objects.Shuttles
 		public override ElementMode InteractionMode => ElementMode.ServerWrite;
 		public override string Value {
 			get => Element.PercentageFuel.ToString();
-			set {
+			protected set {
 				externalChange = true;
 				Element.PercentageFuel = float.Parse(value);
 				Element.UpdateFuelLevel(Element.PercentageFuel);
@@ -25,7 +25,7 @@ namespace UI.Objects.Shuttles
 		private GUI_FuelGauge element;
 		public GUI_FuelGauge Element => element ??= GetComponent<GUI_FuelGauge>();
 
-		public override void ExecuteServer(ConnectedPlayer subject)
+		public override void ExecuteServer(PlayerInfo subject)
 		{
 			ServerMethod.Invoke(Element.PercentageFuel);
 		}

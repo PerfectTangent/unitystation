@@ -19,6 +19,9 @@ namespace Items
 
 		private Vector3 posCache;
 
+		[Tooltip(" how long it takes before it can start melting After being spawned in")]
+		public float MeltTime = 10f;
+
 		#region Lifecycle
 
 		private void Awake()
@@ -32,7 +35,7 @@ namespace Items
 		{
 			if (CustomNetworkManager.IsServer)
 			{
-				UpdateManager.Add(ServerUpdateCycle, 1f);
+				StartCoroutine(StartCooldown());
 			}
 		}
 
@@ -44,6 +47,14 @@ namespace Items
 			}
 		}
 
+
+
+		private IEnumerator StartCooldown()
+		{
+			yield return WaitFor.Seconds(MeltTime);
+			UpdateManager.Add(ServerUpdateCycle, 1f);
+		}
+
 		private void ServerUpdateCycle()
 		{
 			var pos = registerTile.WorldPosition;
@@ -51,7 +62,7 @@ namespace Items
 			//If in an itemslot try to get that root position
 			if (pickupable.ItemSlot != null)
 			{
-				pos = pickupable.ItemSlot.GetRootStorageOrPlayer().gameObject.WorldPosServer().RoundToInt();
+				pos = pickupable.ItemSlot.GetRootStorageOrPlayer().gameObject.AssumedWorldPosServer().RoundToInt();
 			}
 
 			//If the position is still hidden then the shard or the top pickupable is also hidden
@@ -69,12 +80,12 @@ namespace Items
 
 			if (metaDataNode == null) return;
 
-			if (isHotIce == false && metaDataNode.GasMix.Temperature > AtmosDefines.WATER_VAPOR_FREEZE)
+			if (isHotIce == false && metaDataNode.GasMixLocal.Temperature > AtmosDefines.WATER_VAPOR_FREEZE)
 			{
 				MeltIce(metaDataNode);
 			}
 
-			if (isHotIce && metaDataNode.GasMix.Temperature > 373.15)
+			if (isHotIce && metaDataNode.GasMixLocal.Temperature > 373.15)
 			{
 				MeltHotIce(metaDataNode);
 			}
@@ -84,7 +95,7 @@ namespace Items
 
 		private void MeltIce(MetaDataNode node)
 		{
-			node.GasMix.AddGas(Gas.WaterVapor, stackable.Amount * 2f);
+			node.GasMixLocal.AddGasWithTemperature(Gas.WaterVapor, stackable.Amount * 2f, AtmosDefines.WATER_VAPOR_FREEZE);
 			_ = Despawn.ServerSingle(gameObject);
 		}
 
@@ -92,8 +103,8 @@ namespace Items
 		{
 			if (node == null) return;
 
-			node.GasMix.AddGas(Gas.Plasma, stackable.Amount * 150);
-			node.GasMix.ChangeTemperature(stackable.Amount * 20 + 300);
+			node.GasMixLocal.AddGasWithTemperature(Gas.Plasma, stackable.Amount * 150,  373.15f);
+			node.GasMixLocal.ChangeTemperature(stackable.Amount * 20 + 300);
 			_ = Despawn.ServerSingle(gameObject);
 		}
 
@@ -138,7 +149,7 @@ namespace Items
 			//If in inventory use player pos instead, check root in case player is in something
 			if (pickupable.ItemSlot != null)
 			{
-				pos = pickupable.ItemSlot.GetRootStorageOrPlayer().gameObject.WorldPosServer().RoundToInt();
+				pos = pickupable.ItemSlot.GetRootStorageOrPlayer().gameObject.AssumedWorldPosServer().RoundToInt();
 			}
 
 			//If hidden then stop

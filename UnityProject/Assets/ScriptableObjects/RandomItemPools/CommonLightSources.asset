@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce108c02d022d1940bc023ceca025d81, type: 3}
   m_Name: CommonLightSources
   m_EditorClassIdentifier: 
+  foreverID: 1c01408aa4ff95845b57e06bb1b437ea
   pool:
   - prefab: {fileID: 5734849685452875998, guid: 6f371050bff8b32438f91c7c680900bb,
       type: 3}
@@ -36,4 +37,13 @@ MonoBehaviour:
   - prefab: {fileID: 4784655301099371187, guid: d05e6959c655a704783a7df68cd10435,
       type: 3}
     maxAmount: 1
-    probability: 50
+    probability: 100
+  - prefab: {fileID: 4784655301099371187, guid: adbb6ca456fa4b1408d794922c0fd2c4,
+      type: 3}
+    maxAmount: 1
+    probability: 100
+  - prefab: {fileID: 5521411036628157087, guid: dfb6a2e7b93b69d4d86e97b828674296,
+      type: 3}
+    maxAmount: 1
+    probability: 100
+  RequiredTrait: {fileID: 0}

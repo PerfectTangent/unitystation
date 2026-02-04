@@ -34,10 +34,10 @@ public class PoolConfig : SingletonScriptableObject<PoolConfig>
 
 	private void Awake()
 	{
-		OnValidate();
+		Init();
 	}
 
-	public void OnValidate()
+	public void Init()
 	{
 		prefabToConfig = new Dictionary<GameObject, PrefabPoolConfig>();
 		foreach (var prefabConfig in prefabPools)
@@ -57,6 +57,7 @@ public class PoolConfig : SingletonScriptableObject<PoolConfig>
 	/// <returns>true iff instances of this prefab are allowed to be pooled</returns>
 	public bool IsPoolable(GameObject prefab)
 	{
+		if (prefabToConfig == null) Init();
 		return prefabToConfig.ContainsKey(prefab);
 	}
 
@@ -67,6 +68,7 @@ public class PoolConfig : SingletonScriptableObject<PoolConfig>
 	/// <returns></returns>
 	public int GetCapacity(GameObject prefab)
 	{
+		if (prefabToConfig == null) Init();
 		if (prefabToConfig.TryGetValue(prefab, out var prefabPoolConfig))
 		{
 			return prefabPoolConfig.Capacity;

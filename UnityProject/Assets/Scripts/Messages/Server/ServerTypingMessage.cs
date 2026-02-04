@@ -30,13 +30,18 @@ namespace Messages.Server
 			if (!player)
 				return;
 
-			var icon = player.chatIcon;
+			var icon = player.ChatIcon;
 			if (!icon)
 				return;
 
 			var showTyping = msg.state == TypingState.TYPING;
 
 			// check if player is conscious before generating typing icon
+			if (player.playerHealth == null)
+			{
+				icon.ToggleTypingIcon(showTyping);
+				return;
+			}
 			bool isPlayerConscious = (player.playerHealth.ConsciousState == ConsciousState.CONSCIOUS ||
 			                          player.playerHealth.ConsciousState == ConsciousState.BARELY_CONSCIOUS);
 			if (isPlayerConscious)

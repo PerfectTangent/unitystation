@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -6449731996876368770, guid: 3764f753024ec0048919856bf816c6f8,
@@ -14,10 +15,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -6449731996876368770, guid: 3764f753024ec0048919856bf816c6f8,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 565649abbcd0351428caea20f8e59b96,
         type: 2}
+    - target: {fileID: 3569492402775372663, guid: 3764f753024ec0048919856bf816c6f8,
+        type: 3}
+      propertyPath: exportCost
+      value: 50
+      objectReference: {fileID: 0}
     - target: {fileID: 3569492402775372663, guid: 3764f753024ec0048919856bf816c6f8,
         type: 3}
       propertyPath: initialName
@@ -46,13 +52,13 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 3569492402775372663, guid: 3764f753024ec0048919856bf816c6f8,
         type: 3}
-      propertyPath: initialTraits.Array.data[0]
+      propertyPath: 'initialTraits.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: f6f122bac4fb34653b5921cfbf89d313,
         type: 2}
     - target: {fileID: 3569492402775372663, guid: 3764f753024ec0048919856bf816c6f8,
         type: 3}
-      propertyPath: initialTraits.Array.data[1]
+      propertyPath: 'initialTraits.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 5eafba0d7388d428c8e08ed1b5d5d260,
         type: 2}
@@ -72,6 +78,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_WasSpriteAssigned
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3958889754590863777, guid: 3764f753024ec0048919856bf816c6f8,
+        type: 3}
+      propertyPath: _assetId
+      value: 3761121676
       objectReference: {fileID: 0}
     - target: {fileID: 3958889754590863777, guid: 3764f753024ec0048919856bf816c6f8,
         type: 3}
@@ -154,10 +165,24 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 1ba9077170f8a884aa20c72a9e781c3d,
         type: 2}
+    - target: {fileID: 7071469374394001298, guid: 3764f753024ec0048919856bf816c6f8,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 1ba9077170f8a884aa20c72a9e781c3d,
+        type: 2}
+    - target: {fileID: 8060952115524653176, guid: 3764f753024ec0048919856bf816c6f8,
+        type: 3}
+      propertyPath: parentID
+      value: 3764f753024ec0048919856bf816c6f8
+      objectReference: {fileID: 0}
     - target: {fileID: 8060952115524653176, guid: 3764f753024ec0048919856bf816c6f8,
         type: 3}
       propertyPath: foreverID
       value: 3e49627878e69e941a8ddc6808be2f28
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3764f753024ec0048919856bf816c6f8, type: 3}

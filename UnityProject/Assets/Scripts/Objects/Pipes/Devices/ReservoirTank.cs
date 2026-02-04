@@ -2,21 +2,27 @@
 using ScriptableObjects;
 using Chemistry;
 using Chemistry.Components;
+using UnityEngine;
 
 
 namespace Objects.Atmospherics
 {
 	public class ReservoirTank : MonoPipe, IServerDespawn , ICheckedInteractable<HandApply>
 	{
-		public Reagent Water;
 		public ReagentContainer Container;
+
+		[SerializeField]
+		private ReagentMix initialContents = new ReagentMix();
 
 		#region Lifecycle
 
 		public override void OnSpawnServer(SpawnInfo info)
 		{
 			pipeData.PipeAction = new ReservoirAction();
-			pipeData.GetMixAndVolume.GetReagentMix().Add(Water, 1000);
+			Container.SetIProvideReagentMix(pipeData);
+			pipeData.GetMixAndVolume.SetReagentMix(initialContents.Clone());
+			pipeData.GetMixAndVolume.SetVolume(Container.MaxCapacity);
+
 			base.OnSpawnServer(info);
 		}
 
@@ -30,7 +36,7 @@ namespace Objects.Atmospherics
 
 		public override bool WillInteract(HandApply interaction, NetworkSide side )
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (!Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Welder)) return false;
 
 			return true;

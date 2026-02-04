@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 251446803486426646, guid: caa7ec1293d63a74aa063307403f0c7e,
@@ -24,16 +25,21 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 251446803486426646, guid: caa7ec1293d63a74aa063307403f0c7e,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 4b09dc62b906c6e49a6c1df602e8cd02,
         type: 2}
     - target: {fileID: 251446803486426646, guid: caa7ec1293d63a74aa063307403f0c7e,
         type: 3}
-      propertyPath: allClothingData.Array.data[1]
+      propertyPath: 'allClothingData.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 9e8d4df17c8576b4599bd843cbe434e0,
         type: 2}
+    - target: {fileID: 268759016881297918, guid: caa7ec1293d63a74aa063307403f0c7e,
+        type: 3}
+      propertyPath: parentID
+      value: caa7ec1293d63a74aa063307403f0c7e
+      objectReference: {fileID: 0}
     - target: {fileID: 268759016881297918, guid: caa7ec1293d63a74aa063307403f0c7e,
         type: 3}
       propertyPath: foreverID
@@ -45,12 +51,23 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 23a9c38b452dae04187565399b3cf568,
         type: 2}
+    - target: {fileID: 1028637337542569492, guid: caa7ec1293d63a74aa063307403f0c7e,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 23a9c38b452dae04187565399b3cf568,
+        type: 2}
     - target: {fileID: 6481135740484462287, guid: caa7ec1293d63a74aa063307403f0c7e,
         type: 3}
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 21300000, guid: 31efd8874480e35409ab9bc339551fff,
         type: 3}
+    - target: {fileID: 6526945778998519847, guid: caa7ec1293d63a74aa063307403f0c7e,
+        type: 3}
+      propertyPath: _assetId
+      value: 2584654017
+      objectReference: {fileID: 0}
     - target: {fileID: 6526945778998519847, guid: caa7ec1293d63a74aa063307403f0c7e,
         type: 3}
       propertyPath: m_AssetId
@@ -158,6 +175,24 @@ PrefabInstance:
         and a robust air of authority.  The zipper tab is a pair of jingly little
         handcuffs that get annoying after the first ten seconds.
       objectReference: {fileID: 0}
+    - target: {fileID: 6768331582244846321, guid: caa7ec1293d63a74aa063307403f0c7e,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 58e57d801156232428d3d88e184c5865,
+        type: 2}
+    - target: {fileID: 6768331582244846321, guid: caa7ec1293d63a74aa063307403f0c7e,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 16f85150442d062489bd87fe80243cb9,
+        type: 2}
+    - target: {fileID: 6768331582244846321, guid: caa7ec1293d63a74aa063307403f0c7e,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 23a9c38b452dae04187565399b3cf568,
+        type: 2}
     - target: {fileID: 7389294854367717100, guid: caa7ec1293d63a74aa063307403f0c7e,
         type: 3}
       propertyPath: armoredBodyParts.Array.data[0].armor.Acid
@@ -279,4 +314,7 @@ PrefabInstance:
       value: 40
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: caa7ec1293d63a74aa063307403f0c7e, type: 3}

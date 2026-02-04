@@ -2,11 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Antagonists;
 using Doors;
+using Logs;
 using UnityEngine;
 using Mirror;
 using ScriptableObjects.Systems.Spells;
 using UI.Action;
+using UI.Core.Action;
 
 namespace Systems.Spells
 {
@@ -46,11 +49,11 @@ namespace Systems.Spells
 
 		public virtual void CallActionClient()
 		{
-			UIAction action = UIActionManager.Instance.DicIActionGUI[this];
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdRequestSpell(SpellData.Index, action.LastClickPosition);
+			UIAction action = UIActionManager.Instance.DicIActionGUI[this][0];
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdRequestSpell(SpellData.Index, action.LastClickPosition);
 		}
 
-		public void CallActionServer(ConnectedPlayer SentByPlayer, Vector3 clickPosition)
+		public void CallActionServer(PlayerInfo SentByPlayer, Vector3 clickPosition)
 		{
 			if (ValidateCast(SentByPlayer) &&
 				CastSpellServer(SentByPlayer, clickPosition))
@@ -59,7 +62,7 @@ namespace Systems.Spells
 			}
 		}
 
-		private void AfterCast(ConnectedPlayer sentByPlayer)
+		private void AfterCast(PlayerInfo sentByPlayer)
 		{
 			Cooldowns.TryStartServer(sentByPlayer.Script, SpellData, CooldownTime);
 
@@ -79,21 +82,21 @@ namespace Systems.Spells
 						break;
 				}
 
-				if (sentByPlayer == null || sentByPlayer.CharacterSettings == null) return;
+				if (sentByPlayer == null || sentByPlayer.Mind == null) return;
 
 				Chat.AddActionMsgToChat(sentByPlayer.GameObject, FormatInvocationMessageSelf(sentByPlayer),
 					FormatInvocationMessage(sentByPlayer, modPrefix));
 
 				if (SpellData.InvocationType == SpellInvocationType.Shout)
 				{
-					Chat.AddChatMsgToChat(sentByPlayer, FormatInvocationMessage(sentByPlayer, modPrefix), ChatChannel.Local, Loudness.NORMAL);
+					Chat.AddChatMsgToChatServer(sentByPlayer, FormatInvocationMessage(sentByPlayer, modPrefix), ChatChannel.Local, Loudness.NORMAL);
 				}
 			}
 
 			if (SpellData.ChargeType == SpellChargeType.FixedCharges && --ChargesLeft <= 0)
 			{
 				//remove it from spell list
-				UIActionManager.Toggle(this, false, sentByPlayer.GameObject);
+				UIActionManager.ToggleServer(sentByPlayer.Mind.gameObject, this, false);
 			}
 			else
 			{
@@ -101,13 +104,13 @@ namespace Systems.Spells
 			}
 		}
 
-		public virtual bool CastSpellServer(ConnectedPlayer caster, Vector3 clickPosition)
+		public virtual bool CastSpellServer(PlayerInfo caster, Vector3 clickPosition)
 		{
 			return CastSpellServer(caster);
 		}
 
 		/// <returns>false if it was aborted for some reason</returns>
-		public virtual bool CastSpellServer(ConnectedPlayer caster)
+		public virtual bool CastSpellServer(PlayerInfo caster)
 		{
 			if (SpellData.SummonType == SpellSummonType.None)
 			{ //don't want to summon anything physical and that's alright
@@ -200,27 +203,32 @@ namespace Systems.Spells
 		/// <summary>
 		/// Override this in your subclass for custom logic
 		/// </summary>
-		public virtual Vector3Int GetWorldSummonPosition(ConnectedPlayer caster)
+		public virtual Vector3Int GetWorldSummonPosition(PlayerInfo caster)
 		{
 			return TransformState.HiddenPos;
 		}
 
-		public virtual bool ValidateCast(ConnectedPlayer caster)
+		public virtual bool ValidateCast(PlayerInfo caster)
 		{
 			if (SpellData == null)
 			{
-				Logger.LogErrorFormat("Spell {0} initiated by {1}:\nSpellData is null!", Category.Spells, this, caster);
+				Loggy.Error().Format("Spell {0} initiated by {1}:\nSpellData is null!", Category.Spells, this, caster);
 				return false;
 			}
 
-			if (!caster.Script.mind.Spells.Contains(this))
+			if (!caster.Script.Mind.Spells.Contains(this))
 			{
-				Logger.LogWarningFormat("Illegal spell access: {0} tried to call spell they don't possess ({1})",
+				Loggy.Warning().Format("Illegal spell access: {0} tried to call spell they don't possess ({1})",
 					Category.Exploits, caster, this);
 				return false;
 			}
 
 			if (caster.Script.IsDeadOrGhost || caster.Script.playerHealth.IsCrit)
+			{
+				return false;
+			}
+
+			if (SpellData.AllowSoftCriticalUses == false && caster.Script.playerHealth.IsSoftCrit)
 			{
 				return false;
 			}
@@ -270,17 +278,17 @@ namespace Systems.Spells
 			return true;
 		}
 
-		protected virtual string FormatInvocationMessage(ConnectedPlayer caster, string modPrefix)
+		protected virtual string FormatInvocationMessage(PlayerInfo caster, string modPrefix)
 		{
 			return modPrefix + SpellData.InvocationMessage;
 		}
 
-		protected virtual string FormatInvocationMessageSelf(ConnectedPlayer caster)
+		protected virtual string FormatInvocationMessageSelf(PlayerInfo caster)
 		{
 			return SpellData.InvocationMessageSelf;
 		}
 
-		protected virtual string FormatStillRechargingMessage(ConnectedPlayer caster)
+		protected virtual string FormatStillRechargingMessage(PlayerInfo caster)
 		{
 			return SpellData.StillRechargingMessage;
 		}

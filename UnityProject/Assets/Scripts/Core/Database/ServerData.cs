@@ -1,74 +1,30 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using Firebase.Extensions;
+using Cysharp.Threading.Tasks;
 using Initialisation;
+using Logs;
+using Shared.Managers;
 using UnityEngine;
 
 namespace DatabaseAPI
 {
-	public partial class ServerData : MonoBehaviour, IInitialise
+	public partial class ServerData : SingletonManager<ServerData>, IInitialise
 	{
-		private class Status
-		{
-			public bool error = false;
-			public bool profileSet = false;
-			public bool charReceived = false;
-		}
-
-		private static ServerData serverData;
-
-		public static ServerData Instance
-		{
-			get
-			{
-				if (serverData == null)
-				{
-					serverData = FindObjectOfType<ServerData>();
-				}
-
-				return serverData;
-			}
-		}
-
-		public static string UserFirestoreURL
-		{
-			get
-			{
-				return "https://firestore.googleapis.com/v1/projects/" +
-				       $"unitystation-c6a53/databases/(default)/documents/users/{Auth.CurrentUser.UserId}";
-			}
-		}
-
-		private Firebase.Auth.FirebaseAuth auth;
-		public static Firebase.Auth.FirebaseAuth Auth => Instance.auth;
-
-		private readonly Dictionary<string, Firebase.Auth.FirebaseUser> userByAuth =
-			new Dictionary<string, Firebase.Auth.FirebaseUser>();
-
-		private Firebase.Auth.FirebaseUser user = null;
-
-		public static string UserID
-		{
-			get
-			{
-				if (Instance.user == null)
-				{
-					return "";
-				}
-
-				return Instance.user.UserId;
-			}
-		}
-
 		public static Action serverDataLoaded;
+		public string idToken;
+
 
 		private bool fetchingToken = false;
-		public string idToken;
 		public static string IdToken => Instance.idToken;
-		private readonly HttpClient httpClient = new HttpClient();
 
-		public static HttpClient HttpClient => Instance.httpClient;
+		private void OnEnable()
+		{
+			UpdateManager.Add(UpdateMe, 10f);
+		}
+
+		private void OnDisable()
+		{
+			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
+		}
 
 		public InitialisationSystems Subsystem => InitialisationSystems.ServerData;
 
@@ -76,99 +32,63 @@ namespace DatabaseAPI
 		{
 			//Handles config for RCON and Server Status API for dedicated servers
 			AttemptConfigLoad();
-			InitializeFirebase();
+			AttemptRulesLoad();
+			LoadMotd();
 
 			serverDataLoaded?.Invoke();
 		}
 
-		// Handle initialization of the necessary firebase modules:
-		protected void InitializeFirebase()
-		{
-			auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
-			auth.StateChanged += AuthStateChanged;
-			auth.IdTokenChanged += IdTokenChanged;
-			AuthStateChanged(this, null);
-		}
-
-		private void OnEnable()
-		{
-			EventManager.AddHandler(Event.LoggedOut, OnLogOut);
-			UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
-		}
-
-		private void OnDisable()
-		{
-			EventManager.RemoveHandler(Event.LoggedOut, OnLogOut);
-			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
-		}
-
 		private void UpdateMe()
 		{
-			if (config != null)
+			if (config == null)
 			{
-				if (!string.IsNullOrEmpty(config.HubUser) && !string.IsNullOrEmpty(config.HubPass))
-				{
-					MonitorServerStatus();
-				}
+				Loggy.Warning("Cannot update server status because server config is missing.", Category.DatabaseAPI);
+				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
+				return;
 			}
+
+			if (buildInfo == null)
+			{
+				Loggy.Warning("Cannot update server status because build info is missing.", Category.DatabaseAPI);
+				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
+				return;
+			}
+
+			if (string.IsNullOrEmpty(config.ServerToken))
+			{
+				Loggy.Warning(
+					"No server token configured. This server won't post status updates to the server list",
+					Category.DatabaseAPI);
+				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
+				return;
+			}
+
+			UpdateManager.Add(UpdateMe, 10f);
+			SendServerStatus().Forget();
 		}
 
 		/// <summary>
-		/// Refresh the users profile data
+		///     Refresh the users profile data
 		/// </summary>
-		public static void ReloadProfile()
-		{
-			ServerData.Auth.CurrentUser.ReloadAsync().ContinueWith(task =>
-			{
-				if (task.IsFaulted)
-				{
-					Logger.LogError("Error with profile reload", Category.DatabaseAPI);
-					return;
-				}
-			});
-		}
-
-		// Track state changes of the auth object.
-		private void AuthStateChanged(object sender, EventArgs eventArgs)
-		{
-			Firebase.Auth.FirebaseAuth senderAuth = sender as Firebase.Auth.FirebaseAuth;
-			if (senderAuth != null) userByAuth.TryGetValue(senderAuth.App.Name, out user);
-			if (senderAuth == auth && senderAuth.CurrentUser != user)
-			{
-				bool signedIn = user != senderAuth.CurrentUser && senderAuth.CurrentUser != null;
-				if (!signedIn && user != null)
-				{
-					Logger.Log("Signed out ", Category.DatabaseAPI);
-				}
-
-				user = senderAuth.CurrentUser;
-				userByAuth[senderAuth.App.Name] = user;
-			}
-		}
-
-		// Track ID token changes.
-		private void IdTokenChanged(object sender, EventArgs eventArgs)
-		{
-			Firebase.Auth.FirebaseAuth senderAuth = sender as Firebase.Auth.FirebaseAuth;
-			if (senderAuth == auth && senderAuth.CurrentUser != null && !fetchingToken)
-			{
-				senderAuth.CurrentUser.TokenAsync(false).ContinueWithOnMainThread(
-					task => SetToken(task.Result));
-			}
-		}
-
-		private void SetToken(string result)
-		{
-			Instance.idToken = result;
-		}
-
+		// public static void ReloadProfile()
+		// {
+		// 	ServerData.Auth.CurrentUser.ReloadAsync().ContinueWith(task =>
+		// 	{
+		// 		if (task.IsFaulted)
+		// 		{
+		// 			Loggy.LogError("Error with profile reload", Category.DatabaseAPI);
+		// 			return;
+		// 		}
+		// 	});
+		// }
 		public void OnLogOut()
 		{
-			auth.SignOut();
+			//auth.SignOut();
 			idToken = "";
-			PlayerPrefs.SetString("username", "");
-			PlayerPrefs.SetString("cookie", "");
-			PlayerPrefs.SetInt("autoLogin", 0);
+			//PlayerPrefs.DeleteKey(PlayerPrefKeys.AccountUsername);
+			PlayerPrefs.DeleteKey(PlayerPrefKeys.AccountEmail);
+			PlayerPrefs.DeleteKey(PlayerPrefKeys.AccountToken);
+			PlayerPrefs.SetInt("autoLogin", 0); // TODO remove these,
 			PlayerPrefs.Save();
 		}
 	}

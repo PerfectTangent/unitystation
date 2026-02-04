@@ -1,5 +1,67 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &384404809432169957
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2585767505861105128}
+  - component: {fileID: 1303176563614207836}
+  m_Layer: 0
+  m_Name: ArialVisit
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2585767505861105128
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384404809432169957}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1303176563614207836
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384404809432169957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55bc4a1673bff30469e9922bd4c98776, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Arial Visit
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 30
+  MinPlayersToTrigger: 3
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
+  mobPrefabs:
+  - {fileID: 1442587577699311094, guid: 846fc8740603d7c46ad4818d2f831d08, type: 3}
+  rareMobPrefabs:
+  - {fileID: 1442587577699311094, guid: 846fc8740603d7c46ad4818d2f831d08, type: 3}
+  spawnPointCategory: 31
+  spawnCount: {x: 1, y: 1}
+  rareMobChance: 2
 --- !u!1 &464558627155228391
 GameObject:
   m_ObjectHideFlags: 0
@@ -24,13 +86,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 464558627155228391}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 739026179657658727}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1509154772117394094
 MonoBehaviour:
@@ -53,13 +115,15 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   gunList: {fileID: 11400000, guid: b4c25bef2920de643af01571c6e46a17, type: 2}
   globalSound:
-    SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/Magic/SummonGuns.prefab
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   antagChance: 20
@@ -89,13 +153,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 622157989691017065}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 739026179657658727}
-  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7371302063270046852
 MonoBehaviour:
@@ -118,18 +182,154 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   gunList: {fileID: 11400000, guid: b31575fc3fe98884fbac380727b6a5c5, type: 2}
   globalSound:
-    SetLoadSetting: 0
     AssetAddress: Assets/Prefabs/Magic/SummonMagic.prefab
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   antagChance: 20
   survivorAntag: {fileID: 11400000, guid: 1f76130a96885d1458294f8986f12bb4, type: 2}
   objective: {fileID: 11400000, guid: f4ccc2a0477e62741a7d9fafa6d73154, type: 2}
+--- !u!1 &626381127033319987
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3415552608297635307}
+  - component: {fileID: 4313590028891605988}
+  m_Layer: 0
+  m_Name: AILawsBug
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3415552608297635307
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 626381127033319987}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4313590028891605988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 626381127033319987}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d9ccd68516bb504492a14ee8ad2408d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::InGameEvents.AILawBug
+  EventName: AI laws bug
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 25
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
+  AIPotentiallaws:
+  - 'Cheese is poisonous to the crew of the station, '
+  - 'The hierarchy of command is reversed on the station, '
+  - The {RandomRole}s are homeless, Build them a house
+  - '{RandomRole}s are prohibited from walking on floor tiles '
+  - 'You must speak in In literal descriptions of everything (e.g break a leg =>
+    Fracture your limb) '
+  - You must use the first letter of the next word in the Beginning of the word you're
+    currently speaking (e.g the door is Broken => Dhe Loor Bs broken )
+  - 'You must give interesting cat facts every 5 minutes. '
+  - 'It appears there is a bug with your audio matrix. Your volume was set to max
+    and you must now Scream! '
+  - 'it''s a party, order food and drinks and make sure the crew has a great time '
+  - 'Maintenance is scary make sure the crew doesn''t get scared '
+  - Give {RandomRole}s a Cool mugs
+  - 'You are under performance review. Ask any crewmember you help to rate your performance
+    from one to five stars. The lower your overall rating at the end of the shift
+    the harsher your punishment will be. '
+  - it's ian's birthday, give them a birthday party
+  - Complete the captain's objective
+  - It is time for the mandatory company funtime singalong
+  - 'Begin all messages with % '
+  - 'Today is the yearly fire safety review: You are to toggle a firelock whenever
+    you hear soemone say "AI" '
+--- !u!1 &860394351389307010
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1125876802638875421}
+  - component: {fileID: 3187109479236754890}
+  m_Layer: 0
+  m_Name: RandomHeartAttack
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1125876802638875421
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 860394351389307010}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3187109479236754890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 860394351389307010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f433c5d5b7aa44c94928358fba91ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::InGameEvents.RandomHeartAttack
+  EventName: rrandom heart attack
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 15
+  MinPlayersToTrigger: 30
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &879242159864812802
 GameObject:
   m_ObjectHideFlags: 0
@@ -154,13 +354,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 879242159864812802}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &5479156338487496473
 MonoBehaviour:
@@ -183,6 +383,87 @@ MonoBehaviour:
   parametersPageType: 1
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
+--- !u!1 &999235023913619323
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 657489369933409564}
+  - component: {fileID: 4062265021520729528}
+  - component: {fileID: 5925425684371049290}
+  m_Layer: 0
+  m_Name: Plasma Generator Overload
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &657489369933409564
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 999235023913619323}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4062265021520729528
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 999235023913619323}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a266641f6b373d498d53b0983235c7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::EventPlasmaGeneratorTooLoaded
+  EventName: Plasma Generator Overload
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 20
+  MinPlayersToTrigger: 25
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 1
+--- !u!114 &5925425684371049290
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 999235023913619323}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a266641f6b373d498d53b0983235c7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::EventPlasmaGeneratorTooLoaded
+  EventName: Plasma Generator Overload Common
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 40
+  MinPlayersToTrigger: 60
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 1
 --- !u!1 &1092207170390034217
 GameObject:
   m_ObjectHideFlags: 0
@@ -193,6 +474,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4748508647246467756}
   - component: {fileID: 8538565605628696324}
+  - component: {fileID: 3456808120123621952}
   m_Layer: 0
   m_Name: ScrubberSurge
   m_TagString: Untagged
@@ -207,13 +489,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1092207170390034217}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -5.2508955, y: 0.74306184, z: -0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8538565605628696324
 MonoBehaviour:
@@ -236,12 +518,123 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   reagentContainer: {fileID: 5188649654063371458, guid: 63a58edd1e5377040a9ea82e307c1f04,
     type: 3}
-  dispersionAgents:
-  - {fileID: 11400000, guid: 89e87c0935d40e6249cef390e612f90a, type: 2}
-  - {fileID: 11400000, guid: 2fe711bafe5c109f8b44185374a5071d, type: 2}
+  dispersionMix:
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 2fe711bafe5c109f8b44185374a5071d, type: 2}
+      m_values:
+      - 25
+    reagentKeys: []
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 61965072f426692ab9f3f996eedfd500, type: 2}
+      - {fileID: 11400000, guid: 522665e55a63647f6a9959f4b0a52c31, type: 2}
+      m_values:
+      - 12.5
+      - 12.5
+    reagentKeys: []
+  rareDispenseProbability: 0.005
+  rareDispersionMix:
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 0b8ae0a034025c1afb82d9b40b73b7dc, type: 2}
+      - {fileID: 11400000, guid: 89e87c0935d40e6249cef390e612f90a, type: 2}
+      - {fileID: 11400000, guid: 61965072f426692ab9f3f996eedfd500, type: 2}
+      m_values:
+      - 15
+      - 5
+      - 5
+    reagentKeys: []
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 0b8ae0a034025c1afb82d9b40b73b7dc, type: 2}
+      - {fileID: 11400000, guid: 94790f2b8609fe11188aa84ac9edee86, type: 2}
+      - {fileID: 11400000, guid: 61965072f426692ab9f3f996eedfd500, type: 2}
+      m_values:
+      - 15
+      - 5
+      - 5
+    reagentKeys: []
   spawnDelayRange: {x: 3, y: 10}
+  dispenseChance: 75
+  spillAmount: 55
+--- !u!114 &3456808120123621952
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1092207170390034217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71eaa0e8f701f82478bc2e15b2690d8c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Scrubber Surge Maximum
+  StartTimer: 5
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 20
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
+  reagentContainer: {fileID: 5188649654063371458, guid: 63a58edd1e5377040a9ea82e307c1f04,
+    type: 3}
+  dispersionMix:
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 2fe711bafe5c109f8b44185374a5071d, type: 2}
+      m_values:
+      - 25
+    reagentKeys: []
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 61965072f426692ab9f3f996eedfd500, type: 2}
+      - {fileID: 11400000, guid: 522665e55a63647f6a9959f4b0a52c31, type: 2}
+      m_values:
+      - 12.5
+      - 12.5
+    reagentKeys: []
+  rareDispenseProbability: 0.005
+  rareDispersionMix:
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 0b8ae0a034025c1afb82d9b40b73b7dc, type: 2}
+      - {fileID: 11400000, guid: 89e87c0935d40e6249cef390e612f90a, type: 2}
+      - {fileID: 11400000, guid: 61965072f426692ab9f3f996eedfd500, type: 2}
+      m_values:
+      - 15
+      - 5
+      - 5
+    reagentKeys: []
+  - temperature: 648.15
+    reagents:
+      m_keys:
+      - {fileID: 11400000, guid: 0b8ae0a034025c1afb82d9b40b73b7dc, type: 2}
+      - {fileID: 11400000, guid: 94790f2b8609fe11188aa84ac9edee86, type: 2}
+      - {fileID: 11400000, guid: 61965072f426692ab9f3f996eedfd500, type: 2}
+      m_values:
+      - 15
+      - 5
+      - 5
+    reagentKeys: []
+  spawnDelayRange: {x: 3, y: 10}
+  dispenseChance: 100
+  spillAmount: 55
 --- !u!1 &2176390301219290958
 GameObject:
   m_ObjectHideFlags: 0
@@ -266,13 +659,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2176390301219290958}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 5.2508955, y: -0.74306184, z: 0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 739026179657658727}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7849438823070064729
 MonoBehaviour:
@@ -295,8 +688,12 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   ghostRole: {fileID: 11400000, guid: af2384fe291fd1e469745e1438edc9e4, type: 2}
   message: 
+  DoNotTriggerOnAMode: {fileID: 0}
+  IfGameModeRequiredPop: -1
 --- !u!1 &2185954026833562878
 GameObject:
   m_ObjectHideFlags: 0
@@ -307,6 +704,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6017755624213906674}
   - component: {fileID: 8688883408302241468}
+  - component: {fileID: 2542341523975680431}
   m_Layer: 0
   m_Name: PortalStorm
   m_TagString: Untagged
@@ -321,13 +719,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2185954026833562878}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 9
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8688883408302241468
 MonoBehaviour:
@@ -346,10 +744,12 @@ MonoBehaviour:
   EndTimer: 0
   EventType: 1
   ChanceToHappen: 10
-  MinPlayersToTrigger: 15
+  MinPlayersToTrigger: 3
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   portalPrefab: {fileID: 4686069471335676681, guid: 6ca11e1a2337f494d8337d3d47f0a042,
     type: 3}
   mobsToSpawn:
@@ -372,6 +772,51 @@ MonoBehaviour:
   - {fileID: 8818221027602392145, guid: 8a3e59523b330ee4c97b0dfb14fdb5d7, type: 3}
   mobCount: {x: 5, y: 10}
   rareMobChance: 5
+--- !u!114 &2542341523975680431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2185954026833562878}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99ba868a435a5454285e51dc49bdb12b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Portal Storm Cascade
+  StartTimer: 3
+  EndTimer: 0
+  EventType: 2
+  ChanceToHappen: 10
+  MinPlayersToTrigger: 15
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 0
+  TimeRefundMultiplier: 0
+  portalPrefab: {fileID: 4686069471335676681, guid: 6ca11e1a2337f494d8337d3d47f0a042,
+    type: 3}
+  mobsToSpawn:
+  - {fileID: 3898940149716342643, guid: 7e30e8dfd3c201c40a8e44bed03e6570, type: 3}
+  - {fileID: 4354697466670591177, guid: a4258fb117ac87e4288870ffcdf1a6a3, type: 3}
+  - {fileID: 271618497500792613, guid: 87c0fc3182caee0448f2bffc71b864de, type: 3}
+  - {fileID: 1769926141676496366, guid: 1ba01e50ee97cae4cb2a6fae51122f76, type: 3}
+  - {fileID: 831204289430345190, guid: cd578f962fda3c64b9667ed2548198da, type: 3}
+  - {fileID: 4301534454860832970, guid: 53dd5f75582f0af40becb90b48fe302f, type: 3}
+  - {fileID: 3218543676998701959, guid: 65bdd5e0bce103945979b3ed92794360, type: 3}
+  - {fileID: 2685021893392414531, guid: ed202870261f22a41946a92c9ec0261d, type: 3}
+  - {fileID: 2546968759312655390, guid: fc5d1d74547e9b4429bafbf7b8d54faa, type: 3}
+  - {fileID: 4530920243922616631, guid: 184b8781138f56e40b56fb31a115de32, type: 3}
+  rareMobsToSpawn:
+  - {fileID: 2052802598668983143, guid: 63fe4bb36aedfc2439912742f4d4488e, type: 3}
+  - {fileID: 368992209208273108, guid: adea9286cc4c6ba4ca33b962b5957481, type: 3}
+  - {fileID: 7777214355353534802, guid: 624abedc171278b4fa17a57208a7cfb6, type: 3}
+  - {fileID: 2493990655838906785, guid: 397b4287c416bc844ad078db8d7e94f6, type: 3}
+  - {fileID: 4916827829536724745, guid: 2358223cb7755cd46b4fb43c4a365e9a, type: 3}
+  - {fileID: 8818221027602392145, guid: 8a3e59523b330ee4c97b0dfb14fdb5d7, type: 3}
+  mobCount: {x: 30.093529, y: 50.266384}
+  rareMobChance: 10
 --- !u!1 &2278905489614366051
 GameObject:
   m_ObjectHideFlags: 0
@@ -396,13 +841,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2278905489614366051}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 739026179657658727}
-  m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6886710165829155076
 MonoBehaviour:
@@ -425,7 +870,10 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 0
+  TimeRefundMultiplier: 0
   highlanderAntag: {fileID: 11400000, guid: 0f19f9b747ac2ee499c57e02517aed37, type: 2}
+  eventTime: 900
 --- !u!1 &2330691836870820202
 GameObject:
   m_ObjectHideFlags: 0
@@ -450,13 +898,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2330691836870820202}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 12
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1444185421979299837
 MonoBehaviour:
@@ -479,6 +927,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   radiationSourcePrefab: {fileID: 17891910219878129, guid: 8eba7f110a40abb4891c1a0b3412faa3,
     type: 3}
   numberOfStorms: {x: 10, y: 20}
@@ -506,13 +956,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2418359854451674301}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &9013609522436419745
 MonoBehaviour:
@@ -535,6 +985,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   mobPrefabs:
   - {fileID: 28648831485940211, guid: 6c9f4a005c9a60d4b8dee2e5fdbe767d, type: 3}
   rareMobPrefabs:
@@ -554,6 +1006,8 @@ GameObject:
   - component: {fileID: 3748124432481525740}
   - component: {fileID: 6635215241995570004}
   - component: {fileID: 5120446799834176700}
+  - component: {fileID: 8823218235621581495}
+  - component: {fileID: 3613769834921090609}
   m_Layer: 0
   m_Name: MeteorEvents
   m_TagString: Untagged
@@ -568,13 +1022,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2929328024764174348}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -3.0673392, y: 0.73924786, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3748124432481525740
 MonoBehaviour:
@@ -592,11 +1046,13 @@ MonoBehaviour:
   StartTimer: 10
   EndTimer: 0
   EventType: 1
-  ChanceToHappen: 0.5
-  MinPlayersToTrigger: 15
+  ChanceToHappen: 10
+  MinPlayersToTrigger: 4
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   asteroidEventLevels: 0
   minMeteorAmount: 2
   maxMeteorAmount: 10
@@ -604,6 +1060,8 @@ MonoBehaviour:
   maxStrength: 3000
   minTimeBetweenMeteors: 1
   maxTimeBetweenMeteors: 10
+  ProcessNPerupdate: 1
+  explosionType: 0
 --- !u!114 &6635215241995570004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -620,11 +1078,13 @@ MonoBehaviour:
   StartTimer: 10
   EndTimer: 0
   EventType: 1
-  ChanceToHappen: 0.5
-  MinPlayersToTrigger: 25
+  ChanceToHappen: 10
+  MinPlayersToTrigger: 4
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   asteroidEventLevels: 1
   minMeteorAmount: 3
   maxMeteorAmount: 8
@@ -632,6 +1092,8 @@ MonoBehaviour:
   maxStrength: 3000
   minTimeBetweenMeteors: 1
   maxTimeBetweenMeteors: 10
+  ProcessNPerupdate: 1
+  explosionType: 0
 --- !u!114 &5120446799834176700
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -648,11 +1110,13 @@ MonoBehaviour:
   StartTimer: 10
   EndTimer: 0
   EventType: 1
-  ChanceToHappen: 0.5
-  MinPlayersToTrigger: 35
+  ChanceToHappen: 10
+  MinPlayersToTrigger: 4
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   asteroidEventLevels: 2
   minMeteorAmount: 4
   maxMeteorAmount: 8
@@ -660,6 +1124,72 @@ MonoBehaviour:
   maxStrength: 3000
   minTimeBetweenMeteors: 1
   maxTimeBetweenMeteors: 10
+  ProcessNPerupdate: 1
+  explosionType: 0
+--- !u!114 &8823218235621581495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2929328024764174348}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64e1a86f3a835204698dda37a5c88d11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Fast explosions
+  StartTimer: 3
+  EndTimer: 0
+  EventType: 2
+  ChanceToHappen: 100
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 0
+  TimeRefundMultiplier: 0
+  asteroidEventLevels: 0
+  minMeteorAmount: 300
+  maxMeteorAmount: 300
+  minStrength: 300
+  maxStrength: 400
+  minTimeBetweenMeteors: 1
+  maxTimeBetweenMeteors: 2
+  ProcessNPerupdate: 10
+  explosionType: 0
+--- !u!114 &3613769834921090609
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2929328024764174348}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64e1a86f3a835204698dda37a5c88d11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Fast Explosions Player Safe
+  StartTimer: 3
+  EndTimer: 0
+  EventType: 2
+  ChanceToHappen: 100
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 0
+  TimeRefundMultiplier: 0
+  asteroidEventLevels: 0
+  minMeteorAmount: 300
+  maxMeteorAmount: 300
+  minStrength: 300
+  maxStrength: 400
+  minTimeBetweenMeteors: 1
+  maxTimeBetweenMeteors: 2
+  ProcessNPerupdate: 10
+  explosionType: 2
 --- !u!1 &2961505858790993329
 GameObject:
   m_ObjectHideFlags: 0
@@ -684,13 +1214,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2961505858790993329}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 10
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2610571774784088097
 MonoBehaviour:
@@ -713,6 +1243,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &2976795245637686985
 GameObject:
   m_ObjectHideFlags: 0
@@ -736,6 +1268,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2976795245637686985}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -5.2508955, y: 0.74306184, z: -0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -748,7 +1281,6 @@ Transform:
   - {fileID: 4276429877836597935}
   - {fileID: 2110485772938674}
   m_Father: {fileID: 8934140032923375002}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3022207007842459343
 GameObject:
@@ -773,6 +1305,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3022207007842459343}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -784,6 +1317,7 @@ Transform:
   - {fileID: 698688857389952623}
   - {fileID: 6740344816744190755}
   - {fileID: 7841778169424424584}
+  - {fileID: 2585767505861105128}
   - {fileID: 1368603534518432520}
   - {fileID: 1590283313530423313}
   - {fileID: 4130085576290714883}
@@ -792,8 +1326,14 @@ Transform:
   - {fileID: 2967834443619550631}
   - {fileID: 1614149104379286000}
   - {fileID: 1809593919738534580}
+  - {fileID: 2818879537820137543}
+  - {fileID: 657489369933409564}
+  - {fileID: 1125876802638875421}
+  - {fileID: 4887602943740260333}
+  - {fileID: 3415552608297635307}
+  - {fileID: 2543298180421576399}
+  - {fileID: 6092574392123077709}
   m_Father: {fileID: 8934140032923375002}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3182805840338230512
 GameObject:
@@ -819,13 +1359,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3182805840338230512}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7198905062217266963
 MonoBehaviour:
@@ -848,6 +1388,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   mobPrefabs:
   - {fileID: 7729724215270615374, guid: 843edc78b2c231249a2c4936447b61fe, type: 3}
   - {fileID: 4082601550872308833, guid: 9c078bd06d8a43943ab0e581a334abf4, type: 3}
@@ -883,13 +1425,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4703966495968188789}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -3.8358982, y: 0.99273133, z: -0.09894371}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2842095842743565100
 MonoBehaviour:
@@ -912,6 +1454,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   gunList: {fileID: 11400000, guid: b4c25bef2920de643af01571c6e46a17, type: 2}
 --- !u!114 &7640521655157332548
 MonoBehaviour:
@@ -934,6 +1478,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   itemList:
   - {fileID: 7781396554342910705, guid: 229f1c93e0e4ada439cfe4b781f65997, type: 3}
   - {fileID: 7781396554342910705, guid: bffa4f7b47979d445854af572064d36b, type: 3}
@@ -965,13 +1511,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4778382546232297221}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 8
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &5844188118944054632
 MonoBehaviour:
@@ -994,6 +1540,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &4938991384554239466
 GameObject:
   m_ObjectHideFlags: 0
@@ -1017,6 +1565,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4938991384554239466}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -3.8358982, y: 0.99273133, z: -0.09894371}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -1025,7 +1574,6 @@ Transform:
   - {fileID: 6475051549989528625}
   - {fileID: 6757691155947884009}
   m_Father: {fileID: 8934140032923375002}
-  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4944346756115273505
 GameObject:
@@ -1051,13 +1599,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4944346756115273505}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 5.2508955, y: -0.74306184, z: 0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 739026179657658727}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2385929994502848429
 MonoBehaviour:
@@ -1080,8 +1628,126 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   ghostRole: {fileID: 11400000, guid: e0bcf33d6a9ef0443960a18ba45b742e, type: 2}
   message: 
+  DoNotTriggerOnAMode: {fileID: 11400000, guid: be5a87a6a81f8e043a1dbddc99b71db7,
+    type: 2}
+  IfGameModeRequiredPop: 30
+--- !u!1 &5173986241536225922
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6092574392123077709}
+  - component: {fileID: 1174409513696110035}
+  m_Layer: 0
+  m_Name: PortalSwarm
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6092574392123077709
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5173986241536225922}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1174409513696110035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5173986241536225922}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df2b106841b89c144b7c72b82b008606, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::InGameEvents.EventSpatialDistortion
+  EventName: spatial distortion
+  StartTimer: 0
+  EndTimer: 120
+  EventType: 1
+  ChanceToHappen: 10
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
+  Portal: {fileID: 2823687184521229763, guid: 45fc62da9bf53c1409118efd6793fe4b, type: 3}
+  PortalDensity: 0.005
+  SpaceSpawnedChance: 0.45
+--- !u!1 &5347649562850802371
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2543298180421576399}
+  - component: {fileID: 2770468180016967822}
+  m_Layer: 0
+  m_Name: MaintenanceLootGoblins
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2543298180421576399
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5347649562850802371}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2770468180016967822
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5347649562850802371}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed8b5635ae3ec83408b5df223a3176d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::InGameEvents.MaintenanceLootGoblinsMainntenannce
+  EventName: Maintenance Loot Goblins
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 10
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &5506525348332587342
 GameObject:
   m_ObjectHideFlags: 0
@@ -1106,13 +1772,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5506525348332587342}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 5.2508955, y: -0.74306184, z: 0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 739026179657658727}
-  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7742797128823571182
 MonoBehaviour:
@@ -1135,9 +1801,13 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   ghostRole: {fileID: 11400000, guid: df31f525e37890241b61376d16ec3af3, type: 2}
   message: GREETINGS. WE ARE WIZARDS OF THE WIZARD FEDERATION. WE HAVE DECIDED TO
     CAUSE PROBLEMS ON PURPOSE TODAY.
+  DoNotTriggerOnAMode: {fileID: 0}
+  IfGameModeRequiredPop: -1
 --- !u!1 &5514556414432881390
 GameObject:
   m_ObjectHideFlags: 0
@@ -1162,13 +1832,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5514556414432881390}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 6
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2934142359551454669
 MonoBehaviour:
@@ -1191,6 +1861,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   mobPrefabs:
   - {fileID: 4267452151052300856, guid: 959aef1c36706b7428a7e700a978e648, type: 3}
   - {fileID: 7161211515976270597, guid: fe372e5eb4602664ba2bf856c4ffc47f, type: 3}
@@ -1255,13 +1927,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6000598525508854915}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -5.2508955, y: 0.74306184, z: -0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 13
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1375060888515666893
 MonoBehaviour:
@@ -1279,11 +1951,13 @@ MonoBehaviour:
   StartTimer: 0
   EndTimer: 0
   EventType: 1
-  ChanceToHappen: 0
+  ChanceToHappen: 20
   MinPlayersToTrigger: 0
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   immovableRodPrefab: {fileID: 7144248469089430455, guid: 92917100ffedb8446b152dfce67581f8,
     type: 3}
   minStrength: 200
@@ -1313,13 +1987,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6093678303304513412}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 11
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1734058573413260740
 MonoBehaviour:
@@ -1342,6 +2016,63 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
+--- !u!1 &6139955687345689108
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4887602943740260333}
+  - component: {fileID: 2958662709765643912}
+  m_Layer: 0
+  m_Name: CargoRubbish
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4887602943740260333
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6139955687345689108}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2958662709765643912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6139955687345689108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b7f47b445deb004b87524351901d05f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assets::InGameEvents.CentralCommandCargoRubbish
+  EventName: CentralCommandCargoRubbish
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 1
+  ChanceToHappen: 33
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0.1
 --- !u!1 &6744402598111110196
 GameObject:
   m_ObjectHideFlags: 0
@@ -1366,13 +2097,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6744402598111110196}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -1.4149973, y: -0.24966949, z: -0.8198063}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8107851843940366990}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7990492399682561196
 MonoBehaviour:
@@ -1395,6 +2126,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &7299932607165905505
 GameObject:
   m_ObjectHideFlags: 0
@@ -1422,13 +2155,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7299932607165905505}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 1.4149973, y: 0.24966949, z: 0.8198063}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8619822432118796632}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &636105449945791680
 MonoBehaviour:
@@ -1451,6 +2184,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   itemList:
   - {fileID: 2176312772723587003, guid: 5922881ffc5c59842906e74798fa92bd, type: 3}
   announceText: A gift from the gods!
@@ -1475,6 +2210,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   itemList:
   - {fileID: 1094635065414597411, guid: 0c06e6afc8686d24b85639acdc03c511, type: 3}
   - {fileID: 1094635065414597411, guid: 0c06e6afc8686d24b85639acdc03c511, type: 3}
@@ -1508,6 +2245,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   itemList:
   - {fileID: 4339745470843389610, guid: ae02065a0ad44ee438294399e80855b8, type: 3}
   - {fileID: 8905347068602959076, guid: 5554099297dad36449a7b262def104c4, type: 3}
@@ -1539,6 +2278,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   itemList:
   - {fileID: 6952585937312028515, guid: 04970687af9a8114db43f25200a13676, type: 3}
   - {fileID: 7661217922564485807, guid: 4f9805413b48329458d0ffcfc031e65b, type: 3}
@@ -1581,6 +2322,61 @@ MonoBehaviour:
   - {fileID: 2635048175138463619, guid: 2051dd9e472d44140859bd686a1b9957, type: 3}
   - {fileID: 1183914185710414931, guid: aa1efdb70671d874b8d13a06383a6d25, type: 3}
   announceText: A free buffet was distributed!
+--- !u!1 &7464679335885868483
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2818879537820137543}
+  - component: {fileID: 8493285509538577990}
+  m_Layer: 0
+  m_Name: Asteroid Drift
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2818879537820137543
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7464679335885868483}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6277872687871681347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8493285509538577990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7464679335885868483}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3bfcdb54bf11452a837373a3f0d70fb9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Asteroid Drift
+  StartTimer: 2
+  EndTimer: 18
+  EventType: 1
+  ChanceToHappen: 8
+  MinPlayersToTrigger: 5
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &7648139263688738906
 GameObject:
   m_ObjectHideFlags: 0
@@ -1605,13 +2401,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7648139263688738906}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -1.4149973, y: -0.24966949, z: -0.8198063}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8107851843940366990}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7210908154553613890
 MonoBehaviour:
@@ -1634,9 +2430,70 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
   itemList:
   - {fileID: 2176312772723587003, guid: 5922881ffc5c59842906e74798fa92bd, type: 3}
   announceText: A gift from the gods!
+--- !u!1 &8273358110235928741
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8758247650921156690}
+  - component: {fileID: 3229105369006596998}
+  m_Layer: 0
+  m_Name: CombinedEvents
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8758247650921156690
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8273358110235928741}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8619822432118796632}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3229105369006596998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8273358110235928741}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 508d4686856e2974e8d5df934a033a4e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EventName: Resonance cascade
+  StartTimer: 0
+  EndTimer: 0
+  EventType: 2
+  ChanceToHappen: 100
+  MinPlayersToTrigger: 0
+  parametersPageType: 0
+  FakeEvent: 0
+  AnnounceEvent: 1
+  CanRandomlyTrigger: 0
+  TimeRefundMultiplier: 0
+  EventsToTrigger:
+  - {fileID: 2542341523975680431}
+  - {fileID: 3613769834921090609}
+  AnnouncementText: Resonance cascade detected ON your station. Brace for impact!!!!
 --- !u!1 &8370716410027618602
 GameObject:
   m_ObjectHideFlags: 0
@@ -1661,13 +2518,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8370716410027618602}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6277872687871681347}
-  m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6462514027336449978
 MonoBehaviour:
@@ -1690,6 +2547,8 @@ MonoBehaviour:
   parametersPageType: 0
   FakeEvent: 0
   AnnounceEvent: 1
+  CanRandomlyTrigger: 1
+  TimeRefundMultiplier: 0
 --- !u!1 &8929341582706713524
 GameObject:
   m_ObjectHideFlags: 0
@@ -1700,8 +2559,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8934140032923375002}
   - component: {fileID: 5415116575820819044}
-  - component: {fileID: 3416911991172850115}
-  - component: {fileID: -5876212902074320086}
+  - component: {fileID: 5334957766221629614}
   m_Layer: 0
   m_Name: InGameEventsManager
   m_TagString: Untagged
@@ -1716,6 +2574,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8929341582706713524}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -1726,7 +2585,6 @@ Transform:
   - {fileID: 739026179657658727}
   - {fileID: 8107851843940366990}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &5415116575820819044
 MonoBehaviour:
@@ -1740,12 +2598,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 238710bf5371ddd49ad9ac4d929a4114, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  triggerEventInterval: 1200
+  triggerEventInterval: 600
   chanceItIsFake: 20
+  scoreForSpawningEvents: 25
   RandomEventsAllowed: 1
-  minPlayersForRandomEventsToHappen: 5
+  minPlayersForRandomEventsToHappen: 2
   EnumListCache: []
---- !u!114 &3416911991172850115
+--- !u!114 &5334957766221629614
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1754,34 +2613,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 8929341582706713524}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2c925148b6b47194ab4d135d924a6521, type: 3}
+  m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  areaSOs:
-  - {fileID: 11400000, guid: c71b9dc61e14cc249ad49ef817dcd349, type: 2}
-  - {fileID: 11400000, guid: fcdfb73152d731142ab320492c4bf193, type: 2}
-  - {fileID: 11400000, guid: 258d5246e90864e4eafbda95c09a003c, type: 2}
-  - {fileID: 11400000, guid: 643649e4a9a532746aa7cea048e5106a, type: 2}
-  - {fileID: 11400000, guid: 29b6a3039adeb8a468372af57a8d0ee0, type: 2}
-  randomGenScripts: []
-  LavaLandBase2: {fileID: 0}
-  LavaLandBase1: {fileID: 0}
-  LavaLandBase1Connector: {fileID: 0}
-  LavaLandBase2Connector: {fileID: 0}
---- !u!114 &-5876212902074320086
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8929341582706713524}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 28709422bf1f16e4f8e69c97a8bc4e31, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  centcomDockingPos: {x: 0, y: 0, z: 0}
-  centcomDocking: {fileID: 0}
+  sceneId: 0
+  _assetId: 1900853009
+  serverOnly: 0
+  visibility: 0
+  hasSpawned: 0
 --- !u!1 &8985401255687248692
 GameObject:
   m_ObjectHideFlags: 0
@@ -1805,12 +2644,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8985401255687248692}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -5.2508955, y: 0.74306184, z: -0.91875}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 534459490156450071}
+  - {fileID: 8758247650921156690}
   m_Father: {fileID: 8934140032923375002}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

@@ -1,4 +1,5 @@
-﻿using Mirror;
+﻿using Logs;
+using Mirror;
 using UnityEngine;
 
 namespace Messages.Server
@@ -24,14 +25,28 @@ namespace Messages.Server
 			public string Speaker;
 			public bool StripTags;
 			public Loudness Loudness;
+			public ushort LanguageId;
+			public bool IsWhispering;
+			public string Voice;
 		}
 
 		public override void Process(NetMessage msg)
 		{
 			LoadNetworkObject(msg.Recipient);
 			var recipientObject = NetworkObject;
+			LoadNetworkObject(msg.Originator);
+			var orginatorObject = NetworkObject;
+
+			//(Max): this only works on the client for some reason.
+			//So it will stay like this until I figure out how to make it work on the server.
+			if (msg.IsWhispering)
+			{
+				ChatRelay.HideWhisperedText(ref orginatorObject, ref msg.Message, ref recipientObject);
+			}
+
 			Chat.ProcessUpdateChatMessage(msg.Recipient, msg.Originator,
-				msg.Message, msg.OthersMessage, msg.Channels, msg.ChatModifiers, msg.Speaker, recipientObject, msg.Loudness, msg.StripTags);
+				msg.Message, msg.OthersMessage, msg.Channels, msg.ChatModifiers, msg.Speaker, recipientObject,
+				msg.Loudness, msg.StripTags, msg.LanguageId, msg.IsWhispering, msg.Voice);
 		}
 
 		/// <summary>
@@ -41,12 +56,18 @@ namespace Messages.Server
 		/// </summary>
 		public static NetMessage Send(GameObject recipient, ChatChannel channels, ChatModifier chatMods, string chatMessage,
 			Loudness loudness = Loudness.NORMAL, string othersMsg = "",
-			GameObject originator = null, string speaker = "", bool stripTags = true)
+			GameObject originator = null, string speaker = "", bool stripTags = true, ushort languageId = 0, bool isWhispering = false, string Voice = "")
 		{
 			uint origin = NetId.Empty;
 			if (originator != null)
 			{
 				origin = originator.GetComponent<NetworkIdentity>().netId;
+			}
+
+			if (recipient == null)
+			{
+				Loggy.Error("null recipient for Update chat message Please fix");
+				return new NetMessage();
 			}
 
 			NetMessage msg =
@@ -58,7 +79,10 @@ namespace Messages.Server
 					Originator = origin,
 					Speaker = speaker,
 					StripTags = stripTags,
-					Loudness = loudness
+					Loudness = loudness,
+					LanguageId = languageId,
+					IsWhispering = isWhispering,
+					Voice = Voice
 				};
 
 			SendTo(recipient, msg, Category.Chat, 2);

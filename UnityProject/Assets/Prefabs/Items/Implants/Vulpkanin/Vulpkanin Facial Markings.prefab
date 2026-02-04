@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1201516008082455910, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
+        type: 3}
+      propertyPath: _assetId
+      value: 44381373
+      objectReference: {fileID: 0}
     - target: {fileID: 1201516008082455910, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
         type: 3}
       propertyPath: m_AssetId
@@ -85,6 +91,17 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1717291329471442864, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
         type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1717291329471442864, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 5e9ac88966a35d34a9fd90c34e1ddaa0,
+        type: 2}
+    - target: {fileID: 1717291329471442864, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
+        type: 3}
       propertyPath: inventoryMoveSound.AssetAddress
       value: null
       objectReference: {fileID: 0}
@@ -93,6 +110,12 @@ PrefabInstance:
       propertyPath: inventoryRemoveSound.AssetAddress
       value: null
       objectReference: {fileID: 0}
+    - target: {fileID: 2378934203328871246, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
+        type: 3}
+      propertyPath: SpritePrefab
+      value: 
+      objectReference: {fileID: 6942059413232065587, guid: e8b6e62b5bddd3c41b86fa61d898ac8b,
+        type: 3}
     - target: {fileID: 2378934203328871246, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
         type: 3}
       propertyPath: LobbyCustomisation
@@ -125,10 +148,24 @@ PrefabInstance:
       propertyPath: initialVariantIndex
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 4935539326687624021, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 6dda2899405f60f41b278475aa065caa,
+        type: 2}
+    - target: {fileID: 5296840151121956031, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
+        type: 3}
+      propertyPath: parentID
+      value: 1ce21cfcc54d23d42825f0d4a9b15d49
+      objectReference: {fileID: 0}
     - target: {fileID: 5296840151121956031, guid: 1ce21cfcc54d23d42825f0d4a9b15d49,
         type: 3}
       propertyPath: foreverID
       value: b78f904a6ec847c4cb4e52d1f484bc23
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1ce21cfcc54d23d42825f0d4a9b15d49, type: 3}

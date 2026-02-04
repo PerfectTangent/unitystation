@@ -6,15 +6,15 @@ using UnityEngine;
 using Mirror;
 using Systems.Electricity;
 using HealthV2;
+using SecureStuff;
 
 namespace Objects.Medical
 {
 	public class DNAScanner : NetworkBehaviour, IServerSpawn, IAPCPowerable, IExaminable, IEscapable,
 			ICheckedInteractable<HandApply>, ICheckedInteractable<MouseDrop>
 	{
-		[NonSerialized]
-		public LivingHealthMasterBase occupant;
-		public string statusString;
+		[NonSerialized] public LivingHealthMasterBase occupant;
+		[PlayModeOnly] public string statusString;
 
 		public bool Powered => powered;
 		[SyncVar(hook = nameof(SyncPowered))] private bool powered;
@@ -141,7 +141,7 @@ namespace Objects.Medical
 		{
 			if (occupant != null)
 			{
-				spriteHandler.ChangeSprite((int) (powered
+				spriteHandler.SetCatalogueIndexSprite((int) (powered
 						? ScannerState.ClosedPoweredWithOccupant
 						: ScannerState.ClosedUnpoweredWithOccupant));
 				return;
@@ -149,11 +149,11 @@ namespace Objects.Medical
 
 			if (powered)
 			{
-				spriteHandler.ChangeSprite((int) (closet.IsOpen ? ScannerState.OpenPowered : ScannerState.ClosedPowered));
+				spriteHandler.SetCatalogueIndexSprite((int) (closet.IsOpen ? ScannerState.OpenPowered : ScannerState.ClosedPowered));
 			}
 			else
 			{
-				spriteHandler.ChangeSprite((int) (closet.IsOpen ? ScannerState.OpenUnpowered : ScannerState.ClosedUnpowered));
+				spriteHandler.SetCatalogueIndexSprite((int) (closet.IsOpen ? ScannerState.OpenUnpowered : ScannerState.ClosedUnpowered));
 			}
 		}
 
@@ -171,6 +171,13 @@ namespace Objects.Medical
 					closet.SetLock(ClosetControl.Lock.Unlocked);
 				}
 			}
+			UpdateSprites();
+		}
+
+		public void EntityTryEscape(GameObject entity, Action ifCompleted, MoveAction moveAction)
+		{
+			occupant = null;
+			closet.SetDoor(ClosetControl.Door.Opened);
 			UpdateSprites();
 		}
 
@@ -193,13 +200,6 @@ namespace Objects.Medical
 			{
 				powerInit = true;
 			}
-		}
-
-		public void EntityTryEscape(GameObject entity, Action ifCompleted)
-		{
-			occupant = null;
-			closet.SetDoor(ClosetControl.Door.Opened);
-			UpdateSprites();
 		}
 
 		#endregion

@@ -25,13 +25,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7996566660215339404}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8028225034354838132
 MonoBehaviour:
@@ -169,6 +169,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 3c5dd2fb539456b44a6b6a8b8d093fee, type: 2}
     - {fileID: 11400000, guid: 3214955e90b8e1b499a512de8293e3a0, type: 2}
     - {fileID: 11400000, guid: 35ba8d69422199145bf1d50789dbe3fd, type: 2}
+    - {fileID: 11400000, guid: f523dc0c8df175354be9cb87d074e652, type: 2}
   logs:
     recipeList: []
   roll:

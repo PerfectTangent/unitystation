@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 306869321605523731, guid: 23da5cf6be2781344b9040c388022fa5,
@@ -23,6 +24,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 4d52b92e693f73c4aa3cbe4bf87ccc07,
         type: 2}
+    - target: {fileID: 2247903263642239621, guid: 23da5cf6be2781344b9040c388022fa5,
+        type: 3}
+      propertyPath: parentID
+      value: 23da5cf6be2781344b9040c388022fa5
+      objectReference: {fileID: 0}
     - target: {fileID: 2247903263642239621, guid: 23da5cf6be2781344b9040c388022fa5,
         type: 3}
       propertyPath: foreverID
@@ -48,6 +54,11 @@ PrefabInstance:
         type: 3}
       propertyPath: initialIntegrity
       value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 5052093646653092700, guid: 23da5cf6be2781344b9040c388022fa5,
+        type: 3}
+      propertyPath: _assetId
+      value: 156271768
       objectReference: {fileID: 0}
     - target: {fileID: 5052093646653092700, guid: 23da5cf6be2781344b9040c388022fa5,
         type: 3}
@@ -119,6 +130,14 @@ PrefabInstance:
       propertyPath: maxCapacity
       value: 125
       objectReference: {fileID: 0}
+    - target: {fileID: 8446784865745132868, guid: 23da5cf6be2781344b9040c388022fa5,
+        type: 3}
+      propertyPath: BasePurity
+      value: 44
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 306869321605523731, guid: 23da5cf6be2781344b9040c388022fa5, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 23da5cf6be2781344b9040c388022fa5, type: 3}

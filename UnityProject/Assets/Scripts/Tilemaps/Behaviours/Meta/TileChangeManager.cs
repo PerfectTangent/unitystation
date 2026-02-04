@@ -15,9 +15,12 @@ public class TileChangeManager : MonoBehaviour
 
 	private TileChangeList changeList = new TileChangeList(); //it is not static so okay
 
+	private TileChangeList frameChangeList = new TileChangeList(); //it is not static so okay
+
+
 	public Vector3IntEvent OnFloorOrPlatingRemoved = new Vector3IntEvent();
 
-	private SubsystemManager subsystemManager;
+	private MatrixSystemManager subsystemManager;
 
 
 	private readonly Dictionary<Layer, Dictionary<Vector3Int, TileChangeEntry>> PresentTiles =
@@ -29,7 +32,7 @@ public class TileChangeManager : MonoBehaviour
 	/// <summary>
 	/// subsystem manager for these tiles
 	/// </summary>
-	public SubsystemManager SubsystemManager => subsystemManager;
+	public MatrixSystemManager SubsystemManager => subsystemManager;
 
 	private InteractableTiles interactableTiles;
 
@@ -41,10 +44,38 @@ public class TileChangeManager : MonoBehaviour
 	public MetaTileMap MetaTileMap => metaTileMap;
 
 
+	public void OnEnable()
+	{
+		if (CustomNetworkManager.IsServer == false) return;
+		UpdateManager.Add( CallbackType.LATE_UPDATE, SendTileUpdates);
+	}
+
+	public void OnDisable()
+	{
+		if (CustomNetworkManager.IsServer == false) return;
+		UpdateManager.Remove(CallbackType.LATE_UPDATE, SendTileUpdates);
+	}
+
+	public void SendTileUpdates()
+	{
+		if (frameChangeList.List.Count > 0)
+		{
+			UpdateTileMessage.SendTo(gameObject, null, frameChangeList);
+		}
+
+		frameChangeList.List.Clear();
+	}
+
+
+	private void OnDestroy()
+	{
+		networkMatrix = null;
+	}
+
 	private void Awake()
 	{
 		metaTileMap = GetComponentInChildren<MetaTileMap>();
-		subsystemManager = GetComponent<SubsystemManager>();
+		subsystemManager = GetComponent<MatrixSystemManager>();
 		interactableTiles = GetComponent<InteractableTiles>();
 		networkMatrix = GetComponent<NetworkedMatrix>();
 	}
@@ -120,6 +151,7 @@ public class TileChangeManager : MonoBehaviour
 			{
 				preExistingTileChange.TileChangeToSet(RelatedTileLocation);
 			}
+			frameChangeList.List.Add(preExistingTileChange);
 			return;
 		}
 
@@ -166,6 +198,7 @@ public class TileChangeManager : MonoBehaviour
 		}
 
 		changeList.List.Add(TileChange);
+		frameChangeList.List.Add(TileChange);
 	}
 }
 

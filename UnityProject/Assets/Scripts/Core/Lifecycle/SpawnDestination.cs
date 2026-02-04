@@ -1,5 +1,7 @@
 
+using Core;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Defines where an object should be spawned.
@@ -9,7 +11,7 @@ public class SpawnDestination
 	/// <summary>
 	/// World position to spawn at. Defaults to HiddenPos.
 	/// </summary>
-	public readonly Vector3 WorldPosition;
+	public Vector3 WorldPosition;
 
 	/// <summary>
 	/// Parent transform to spawn under. This does not usually need to be specified because the RegisterTile
@@ -30,11 +32,11 @@ public class SpawnDestination
 	/// <summary>
 	/// if the object that commands the spawn is inside a storage (like a locker), spawn it inside it too
 	/// </summary>
-	public readonly PushPull SharePosition;
+	public readonly UniversalObjectPhysics SharePosition;
 
 
 	private SpawnDestination(Vector3 worldPosition, Transform parent, Quaternion localRotation,
-		bool cancelIfImpassable, PushPull sharePosition = null)
+		bool cancelIfImpassable, UniversalObjectPhysics sharePosition = null)
 	{
 		WorldPosition = worldPosition;
 		Parent = parent;
@@ -53,7 +55,7 @@ public class SpawnDestination
 	/// <param name="cancelIfImpassable">If true, the spawn will be cancelled if the location being spawned into is totally impassable.</param>
 	/// <returns></returns>
 	public static SpawnDestination At(Vector3? worldPosition = null, Transform parent = null,
-		Quaternion? rotation = null, bool cancelIfImpassable = false, PushPull sharePosition = null)
+		Quaternion? rotation = null, bool cancelIfImpassable = false, UniversalObjectPhysics sharePosition = null)
 	{
 		return new SpawnDestination(worldPosition.GetValueOrDefault(TransformState.HiddenPos),
 			DefaultParent(parent, worldPosition), rotation.GetValueOrDefault(Quaternion.identity), cancelIfImpassable, sharePosition);
@@ -68,7 +70,7 @@ public class SpawnDestination
 	/// <returns></returns>
 	public static SpawnDestination At(GameObject existingObject, bool cancelIfImpassable = false)
 	{
-		var position = existingObject.WorldPosServer();
+		var position = existingObject.AssumedWorldPosServer();
 		var parent = existingObject.transform.parent;
 		var localRotation = existingObject.transform.localRotation;
 		return At(position, parent, localRotation, cancelIfImpassable);

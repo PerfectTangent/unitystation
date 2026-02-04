@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections;
+using Core;
 using Mirror;
 using UnityEngine;
 using Items.Food;
 using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Items.Dice
 {
@@ -19,7 +21,7 @@ namespace Items.Dice
 
 		private Transform dieTransform;
 		private SpriteHandler faceOverlayHandler;
-		private CustomNetTransform netTransform;
+		private UniversalObjectPhysics ObjectPhysics ;
 		private Cookable cookable;
 
 		private const float ROLL_TIME = 1; // In seconds.
@@ -44,7 +46,7 @@ namespace Items.Dice
 			// This assumes that the Face GameObject, responsible for handling the dice sprite overlays,
 			// is in the second position of the dice hierarchy.
 			faceOverlayHandler = transform.GetChild(1).GetComponent<SpriteHandler>();
-			netTransform = GetComponent<CustomNetTransform>();
+			ObjectPhysics = GetComponent<UniversalObjectPhysics>();
 			cookable = GetComponent<Cookable>();
 		}
 
@@ -59,23 +61,23 @@ namespace Items.Dice
 
 		private void OnEnable()
 		{
-			netTransform.OnThrowStart.AddListener(ThrowStart);
-			netTransform.OnThrowEnd.AddListener(ThrowEnd);
-
+			ObjectPhysics.OnThrowStart.AddListener(ThrowStart);
+			ObjectPhysics.OnImpact.AddListener(ThrowEnd);
+			ObjectPhysics.OnThrowEnd.AddListener(ThrowEndOld);
 			if (cookable != null && isRiggable)
 			{
-				cookable.OnCooked += Cook;
+				cookable.OnCooked.AddListener( Cook );
 			}
 		}
 
 		private void OnDisable()
 		{
-			netTransform.OnThrowStart.RemoveListener(ThrowStart);
-			netTransform.OnThrowEnd.RemoveListener(ThrowEnd);
-
+			ObjectPhysics.OnThrowStart.RemoveListener(ThrowStart);
+			ObjectPhysics.OnImpact.RemoveListener(ThrowEnd);
+			ObjectPhysics.OnThrowEnd.RemoveListener(ThrowEndOld);
 			if (cookable != null)
 			{
-				cookable.OnCooked -= Cook;
+				cookable.OnCooked.RemoveListener( Cook );
 			}
 		}
 
@@ -127,16 +129,25 @@ namespace Items.Dice
 
 		#region Throwing
 
-		private void ThrowStart(ThrowInfo throwInfo)
+		private void ThrowStart(UniversalObjectPhysics throwInfo)
 		{
-			if (throwInfo.ThrownBy.GetComponent<NetworkIdentity>() == null) return;
+			if (throwInfo.thrownBy.OrNull()?.GetComponent<NetworkIdentity>() == null) return;
 
-			Chat.AddActionMsgToChat(throwInfo.ThrownBy, $"You throw the {dieName}...", $"{throwInfo.ThrownBy.ExpensiveName()} throws the {dieName}...");
+			Chat.AddActionMsgToChat(throwInfo?.thrownBy?.gameObject, $"You throw the {dieName}...", $"{throwInfo?.thrownBy?.gameObject?.ExpensiveName()} throws the {dieName}...");
 		}
 
-		private void ThrowEnd(ThrowInfo throwInfo)
+		private void ThrowEndOld(UniversalObjectPhysics throwInfo)
 		{
 			this.RestartCoroutine(WaitForSide(), ref waitForSide);
+		}
+
+		private void ThrowEnd(UniversalObjectPhysics throwInfo, Vector2 Force)
+		{
+			if (Force.magnitude > 0.01f)
+			{
+				this.RestartCoroutine(WaitForSide(), ref waitForSide);
+			}
+
 		}
 
 		private IEnumerator WaitForSide()
@@ -149,7 +160,7 @@ namespace Items.Dice
 
 			result = GetSide();
 			UpdateOverlay();
-			Chat.AddLocalMsgToChat(GetMessage(), gameObject);
+			Chat.AddActionMsgToChat(gameObject, GetMessage());
 		}
 
 		#endregion Throwing
@@ -160,7 +171,7 @@ namespace Items.Dice
 		{
 			while (IsRolling)
 			{
-				faceOverlayHandler.ChangeSpriteVariant(Random.Range(0, sides));
+				faceOverlayHandler.SetSpriteVariant(Random.Range(0, sides));
 				yield return WaitFor.Seconds(0.1f);
 			}
 		}
@@ -185,7 +196,7 @@ namespace Items.Dice
 		private void UpdateOverlay()
 		{
 			transform.Rotate(Vector3.zero, Space.World);
-			faceOverlayHandler.ChangeSpriteVariant(result - 1);
+			faceOverlayHandler.SetSpriteVariant(result - 1);
 		}
 
 		protected virtual int GetSide()

@@ -25,7 +25,7 @@ namespace Objects.Kitchen
 	/// Otherwise, any food item that doesn't have the cookable component will be cooked using
 	/// the legacy way, of converting to cooked when the processor's timer finishes.
 	/// </summary>
-	public class FoodProcessor : NetworkBehaviour, IAPCPowerable, IServerSpawn
+	public class FoodProcessor : NetworkBehaviour, IAPCPowerable, IServerSpawn, IRefreshParts
 	{
 		private const int TIME_PER_ITEM = 4;
 
@@ -46,7 +46,8 @@ namespace Objects.Kitchen
 
 		private RegisterTile registerTile;
 		private SpriteHandler spriteHandler;
-		private ItemStorage storage;
+
+		public ItemStorage storage;
 
 		public bool IsOperating => currentState is ProcessorRunning;
 		public Vector3Int WorldPosition => registerTile.WorldPosition;
@@ -73,7 +74,6 @@ namespace Objects.Kitchen
 		{
 			registerTile = GetComponent<RegisterTile>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
-			storage = GetComponent<ItemStorage>();
 			_ = fullSource = AudioManager.GetAddressableAudioSourceFromCache(fullAudio);
 			_ = turnOnSource = AudioManager.GetAddressableAudioSourceFromCache(turnOnAudio);
 		}
@@ -81,31 +81,26 @@ namespace Objects.Kitchen
 		public void OnSpawnServer(SpawnInfo spawn)
 		{
 			SetState(new ProcessorUnpowered(this));
+		}
 
-			// Get the machine stock parts used in this instance and get the tier of each part.
-
-			IDictionary<GameObject, int> builtParts = GetComponent<Machine>().PartsInFrame;
-
-			ICollection<GameObject> parts = builtParts.Keys;
-
-			ItemAttributesV2 partAttributes;
-
+		// Get the machine stock parts used in this instance and get the tier of each part.
+		public void RefreshParts(List<PartReference> partsInFrame, Machine Frame)
+		{
 			// Collection is unorganized so run through the whole list.
-			foreach (GameObject part in parts)
+			foreach (var part in partsInFrame)
 			{
-				partAttributes = part.GetComponent<ItemAttributesV2>();
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.Manipulator))
+				if (part.itemTrait == MachinePartsItemTraits.Instance.Manipulator)
 				{
 					// Manipulator tier determines process speed. For each tier above 1,
 					// the time it takes to process a single object is reduced by 1 second.
-					manipTier = part.GetComponent<StockTier>().Tier;
+					manipTier = part.tier;
 				}
 
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MatterBin))
+				if (part.itemTrait ==  MachinePartsItemTraits.Instance.MatterBin)
 				{
 					// Bin tier determines product number. The amount of product
 					// per input object is equal to the bin tier.
-					binTier = part.GetComponent<StockTier>().Tier;
+					binTier = part.tier;
 				}
 			}
 		}
@@ -211,6 +206,7 @@ namespace Objects.Kitchen
 		[ClientRpc]
 		private void RpcHaltProcessorAnim()
 		{
+			if (CustomNetworkManager.IsHeadless || CustomNetworkManager.IsServer) return;
 			AnimateProcessor(0, 0.0f, 0.0f, 0.0f);
 		}
 
@@ -354,7 +350,7 @@ namespace Objects.Kitchen
 			{
 				this.processor = processor;
 				StateMsgForExamine = "idle";
-				processor.spriteHandler.ChangeSprite(0);
+				processor.spriteHandler.SetCatalogueIndexSprite(0);
 				processor.HaltProcessor();
 			}
 
@@ -393,7 +389,7 @@ namespace Objects.Kitchen
 			{
 				this.processor = processor;
 				StateMsgForExamine = "running";
-				processor.spriteHandler.ChangeSprite(1);
+				processor.spriteHandler.SetCatalogueIndexSprite(1);
 			}
 
 			public override void ToggleActive()	{ }
@@ -426,7 +422,7 @@ namespace Objects.Kitchen
 				this.processor = processor;
 				StateMsgForExamine = "unpowered";
 				//processor.AnimateProcessor(0);
-				processor.spriteHandler.ChangeSprite(0);
+				processor.spriteHandler.SetCatalogueIndexSprite(0);
 				processor.HaltProcessor();
 			}
 

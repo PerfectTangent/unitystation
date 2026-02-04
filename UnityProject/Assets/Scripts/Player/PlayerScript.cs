@@ -1,80 +1,134 @@
+using System;
+using System.Collections.Generic;
 using System.Text;
+using Actions.V2;
+using Core.Utils;
+using Detective;
 using Systems.Ai;
 using UnityEngine;
 using Mirror;
 using HealthV2;
 using Player;
-using Player.Movement;
-using UI.Action;
 using Items;
+using Messages.Client.GhostRoles;
+using Messages.Server;
+using Player.Language;
+using ScriptableObjects;
+using Systems.Character;
+using Systems.StatusesAndEffects;
+using UI.Systems.Tooltips.HoverTooltips;
+using UnityEngine.Events;
+using UnityEngine.Serialization;
+using Changeling;
+using Core;
+using HealthV2.Living.Mutations.Surface;
+using Logs;
+using Messages.Server.LocalGuiMessages;
+using Mobs.Traversal;
+using Systems.Faith;
+using UI.Core.Alerts;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
-public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActionGUI
+public class PlayerScript : NetworkBehaviour, IAdminInfo, IPlayerPossessable, IHoverTooltip
 {
-	/// maximum distance the player needs to be to an object to interact with it
-	public const float interactionDistance = 1.5f;
+	public GameObject GameObject => gameObject;
+	public uint PossessingID => possessingID;
+	public Mind PossessingMind { get; set; }
+	public IPlayerPossessable PossessedBy { get; set; }
+	public MindNIPossessingEvent OnPossessedBy { get; set; } = new MindNIPossessingEvent();
 
-	public Mind mind;
-	public ConnectedPlayer connectedPlayer;
+	//NOTE SyncVar Only visible to owner
+	[SyncVar(hook = nameof(SyncPossessingID))] private uint possessingID;
 
-	/// <summary>
-	/// Current character settings for this player.
-	/// </summary>
-	public CharacterSettings characterSettings = new CharacterSettings();
+	public IPlayerPossessable Itself => this as IPlayerPossessable;
 
-	[HideInInspector, SyncVar(hook = nameof(SyncPlayerName))] public string playerName = " ";
+	public Mind Mind => PossessingMind;
+	public PlayerInfo PlayerInfo;
 
-	[HideInInspector, SyncVar(hook = nameof(SyncVisibleName))] public string visibleName = " ";
-	public PlayerNetworkActions playerNetworkActions { get; set; }
+	[FormerlySerializedAs("playerStateSettings")] [SerializeField]
+	private PlayerTypeSettings playerTypeSettings = null;
 
-	public WeaponNetworkActions weaponNetworkActions { get; set; }
+	public PlayerTypeSettings PlayerTypeSettings => playerTypeSettings;
+	public PlayerTypes PlayerType => playerTypeSettings.PlayerType;
 
-	public OrientationEnum CurrentDirection => playerDirectional.CurrentDirection;
+	public ChatModifier inventorySpeechModifiers = ChatModifier.None;
+
+
+	public CharacterSheet characterSettings => PlayerScriptVisible.characterSettings;
+
+
+	public string playerName => PlayerScriptVisible.playerName;
+
+
+	public string visibleName => PlayerScriptVisible.visibleName;
+
+	public PlayerNetworkActions PlayerNetworkActions { get; private set; }
+
+	public WeaponNetworkActions WeaponNetworkActions { get; private set; }
+
+	public OrientationEnum CurrentDirection => PlayerDirectional.CurrentDirection;
+
 	/// <summary>
 	/// Will be null if player is a ghost.
 	/// </summary>
-	public PlayerHealthV2 playerHealth { get; set; }
+	public PlayerHealthV2 playerHealth { get; private set; }
 
-	public PlayerMove playerMove { get; set; }
-	public PlayerSprites playerSprites { get; set; }
+	public MovementSynchronisation playerMove { get; private set; }
+	public PlayerSprites playerSprites { get; private set; }
+
+	public PlayerScriptVisible PlayerScriptVisible;
 
 	/// <summary>
 	/// Will be null if player is a ghost.
 	/// </summary>
-	public ObjectBehaviour pushPull { get; set; }
+	public UniversalObjectPhysics ObjectPhysics { get; private set; }
 
-	public Rotatable playerDirectional { get; set; }
+	public Rotatable PlayerDirectional { get; private set; }
 
-	public PlayerSync PlayerSync;
+	public MovementSynchronisation PlayerSync;
 
 	public Equipment Equipment { get; private set; }
 
-	public RegisterPlayer registerTile { get; set; }
+	public RegisterPlayer RegisterPlayer { get; private set; }
 
 	private PlayerCrafting playerCrafting;
 
 	public PlayerCrafting PlayerCrafting => playerCrafting;
 
-	public PlayerOnlySyncValues PlayerOnlySyncValues { get; private set; }
+	public HasCooldowns Cooldowns { get; private set; }
 
-	public HasCooldowns Cooldowns { get; set; }
+	public MobLanguages MobLanguages { get; private set; }
 
-	public MouseInputController mouseInputController { get; set; }
+	public MouseInputController MouseInputController { get; set; }
 
-	public ChatIcon chatIcon { get; private set; }
+	public ChatIcon ChatIcon { get; private set; }
+
+	public StatusEffectManager StatusEffectManager { get; private set; }
+
+	[field: SerializeField] public PlayerFaith PlayerFaith { get; private set; }
+	[field: SerializeField] public PlayerParticle Particles { get; private set; }
+
+	[field: SerializeField] public DimPlayerLightController DimPlayerLightController { get; private set; }
+	[field: SerializeField] public BodyAlertManager BodyAlerts { get; private set; }
+	[field: SerializeField] public MobTraversal Traversal { get; private set; }
+	[field: SerializeField] public GroupedAccess Access { get; private set; }
+	[field: SerializeField] public ActionManager PlayerButtonedActions { get; private set; }
+	[field: SerializeField] public BodySpritesInvisbility PlayerAlpha { get; private set; }
+	public ActionManager PlayerButtonedMindActions => Mind?.PlayerButtonedActions;
+
+	public PlayerStats PlayerStats { get; private set; }
 
 	/// <summary>
 	/// Serverside world position.
 	/// Outputs correct world position even if you're hidden (e.g. in a locker)
 	/// </summary>
-	public Vector3Int AssumedWorldPos => pushPull.AssumedWorldPositionServer();
-
-	[SyncVar] public Vector3Int SyncedWorldPos = new Vector3Int(0,0,0);
+	public Vector3Int AssumedWorldPos => ObjectPhysics.registerTile.WorldPosition;
 
 	/// <summary>
 	/// World position of the player.
 	/// Returns InvalidPos if you're hidden (e.g. in a locker)
-	/// </summary>
-	public Vector3Int WorldPos => registerTile.WorldPosition;
+	/// </summary>If the
+	public Vector3Int WorldPos => RegisterPlayer.WorldPosition;
 
 	/// <summary>
 	/// This player's item storage.
@@ -84,99 +138,103 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 	private static bool verified;
 	private static ulong SteamID;
 
-	private Vector3IntEvent onTileReached = new Vector3IntEvent();
-	public Vector3IntEvent OnTileReached() => onTileReached;
-
 	public float RTT;
-
-	[HideInInspector]
-	public bool RcsMode;
-	[HideInInspector]
-	public MatrixMove RcsMatrixMove;
-
-	private bool isUpdateRTT;
 	private float waitTimeForRTTUpdate = 0f;
-
-	/// <summary>
-	/// Whether a player is connected in the game object this script is on, valid serverside only
-	/// </summary>
-	public bool HasSoul => connectionToClient != null;
-
-	[SerializeField]
-	private PlayerStates playerState = PlayerStates.Normal;
-	public PlayerStates PlayerState => playerState;
-
-	public enum PlayerStates
-	{
-		Normal,
-		Ghost,
-		Blob,
-		Ai
-	}
-
-	[SerializeField]
-	private ActionData actionData = null;
-	public ActionData ActionData => actionData;
 
 	//The object the player will receive chat and send chat from.
 	//E.g. usually same object as this script but for Ai it will be their core object
 	//Serverside only
-	[SerializeField]
-	private GameObject playerChatLocation = null;
+	[SerializeField] private GameObject playerChatLocation = null;
 	public GameObject PlayerChatLocation => playerChatLocation;
+
+	[SerializeField]
+	//TODO move this to somewhere else?
+	private bool canVentCrawl = false;
+	public bool CanVentCrawl => canVentCrawl;
+	/// <summary>
+	/// Whether a player is connected in the game object this script is on, valid serverside only
+	/// </summary>
+	public bool HasSoul => connectionToClient != null;
+	private bool isUpdateRTT;
+
+	public Action OnActionControlPlayer { get; set; }
+	public Action OnActionPossess { get; set; }
+	[field: SerializeField] public UnityEvent OnBodyPossesedByPlayer { get; set; } = new UnityEvent();
+	[field: SerializeField] public UnityEvent OnBodyUnPossesedByPlayer { get; set; } = new UnityEvent();
+
+	[field: SerializeField] public UnityEvent OnBodyControlledByPlayer { get; set; }
+	[field: SerializeField] public UnityEvent OnBodyUnControlledByPlayer { get; set; }
+
+
+	public Action<Intent> OnIntentChange;
+	public Action OnLayDown;
+
+	private System.Random RNG = new System.Random();
+	public int ClueHandsImprintInverseChance = 55;
+	public int ClueUniformImprintInverseChance = 65;
+	public int ClueSpeciesImprintInverseChance = 85;
+
+	public event Action OnVisibleNameChange;
+
+	/// maximum distance the player needs to be to an object to interact with it
+	public const float INTERACTION_DISTANCE = 1.5f;
+	public const float INTERACTION_DISTANCE_EXTENDED = 1.75f;
+
+	private ChangelingMain changeling = null;
+	public ChangelingMain Changeling
+	{
+		get
+		{
+			if (changeling == null)
+			{
+				if (CustomNetworkManager.IsServer)
+				{
+					if (playerHealth != null && playerHealth.brain != null && playerHealth.brain.gameObject.TryGetComponent<ChangelingMain>(out var change))
+						changeling = change;
+				} else
+				{
+					changeling = UIManager.Instance.displayControl.hudChangeling.ChangelingMain;
+				}
+			}
+			return changeling;
+		}
+	}
 
 	#region Lifecycle
 
-	private void Awake()
+	protected virtual void Awake()
 	{
 		playerSprites = GetComponent<PlayerSprites>();
-		playerNetworkActions = GetComponent<PlayerNetworkActions>();
-		registerTile = GetComponent<RegisterPlayer>();
+		PlayerNetworkActions = GetComponent<PlayerNetworkActions>();
+		RegisterPlayer = GetComponent<RegisterPlayer>();
 		playerHealth = GetComponent<PlayerHealthV2>();
-		pushPull = GetComponent<ObjectBehaviour>();
-		weaponNetworkActions = GetComponent<WeaponNetworkActions>();
-		mouseInputController = GetComponent<MouseInputController>();
-		chatIcon = GetComponentInChildren<ChatIcon>(true);
-		playerMove = GetComponent<PlayerMove>();
-		playerDirectional = GetComponent<Rotatable>();
+		ObjectPhysics = GetComponent<UniversalObjectPhysics>();
+		WeaponNetworkActions = GetComponent<WeaponNetworkActions>();
+		MouseInputController = GetComponent<MouseInputController>();
+		ChatIcon = GetComponentInChildren<ChatIcon>(true);
+		playerMove = GetComponent<MovementSynchronisation>();
+		PlayerDirectional = GetComponent<Rotatable>();
 		DynamicItemStorage = GetComponent<DynamicItemStorage>();
 		Equipment = GetComponent<Equipment>();
 		Cooldowns = GetComponent<HasCooldowns>();
-		PlayerOnlySyncValues = GetComponent<PlayerOnlySyncValues>();
 		playerCrafting = GetComponent<PlayerCrafting>();
-		PlayerSync = GetComponent<PlayerSync>();
-	}
-
-	public override void OnStartClient()
-	{
-		Init();
-		SyncPlayerName(playerName, playerName);
-	}
-
-	// isLocalPlayer is always called after OnStartClient
-	public override void OnStartLocalPlayer()
-	{
-		Init();
-		waitTimeForRTTUpdate = 0f;
-
-		if (IsGhost == false)
-		{
-			UIManager.Internals.SetupListeners();
-			UIManager.Instance.panelHudBottomController.SetupListeners();
-		}
-
-		isUpdateRTT = true;
-	}
-
-	// You know the drill
-	public override void OnStartServer()
-	{
-		Init();
+		PlayerSync = GetComponent<MovementSynchronisation>();
+		StatusEffectManager = GetComponent<StatusEffectManager>();
+		MobLanguages = GetComponent<MobLanguages>();
+		PlayerFaith ??= GetComponent<PlayerFaith>();
+		Particles ??= GetComponent<PlayerParticle>();
+		DimPlayerLightController ??= GetComponent<DimPlayerLightController>();
+		PlayerStats = GetComponent<PlayerStats>();
+		BodyAlerts = GetComponent<BodyAlertManager>();
+		Traversal ??= GetComponent<MobTraversal>();
+		Access ??= GetComponent<GroupedAccess>();
+		PlayerScriptVisible ??= GetComponent<PlayerScriptVisible>();
+		PlayerButtonedActions ??= GetComponent<ActionManager>();
+		PlayerAlpha ??= GetComponent<BodySpritesInvisbility>();
 	}
 
 	private void OnEnable()
 	{
-		EventManager.AddHandler(Event.PlayerRejoined, Init);
 		EventManager.AddHandler(Event.GhostSpawned, OnPlayerBecomeGhost);
 		EventManager.AddHandler(Event.PlayerRejoined, OnPlayerReturnedToBody);
 
@@ -187,75 +245,106 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 
 	private void OnDisable()
 	{
-		EventManager.RemoveHandler(Event.PlayerRejoined, Init);
 		EventManager.RemoveHandler(Event.GhostSpawned, OnPlayerBecomeGhost);
 		EventManager.RemoveHandler(Event.PlayerRejoined, OnPlayerReturnedToBody);
 
-		if(CustomNetworkManager.IsHeadless) return;
+		if (CustomNetworkManager.IsHeadless) return;
 		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 	}
 
 
-	public void Init()
+	public void InitPossess(Mind mind)
 	{
-		if (isLocalPlayer)
+		if (mind.CurrentCharacterSettings != null && characterSettings == null)
+		{
+			PlayerScriptVisible.SetcharacterSettings(mind.CurrentCharacterSettings);
+		}
+	}
+
+	public void Init(Mind mind)
+	{
+		OnBodyControlledByPlayer?.Invoke();
+
+		if (isServer)
+		{
+			if (string.IsNullOrWhiteSpace(playerName))
+			{
+				if (mind.CurrentCharacterSettings != null)
+				{
+					PlayerScriptVisible.SyncPlayerName(mind.name, mind.CurrentCharacterSettings.Name);
+				}
+				else
+				{
+					PlayerScriptVisible.SyncPlayerName(mind.name, mind.name);
+				}
+			}
+		}
+
+
+
+		if ((CustomNetworkManager.IsServer == false) || isOwned)
 		{
 			EnableLighting(true);
 			UIManager.ResetAllUI();
 			GetComponent<MouseInputController>().enabled = true;
 
-			if (UIManager.Instance.statsTab.window.activeInHierarchy == false)
+			if (UIManager.Instance?.statsTab?.window?.activeInHierarchy == false)
 			{
 				UIManager.Instance.statsTab.window.SetActive(true);
 			}
 
-			IPlayerControllable input = PlayerSync;
 
-			if (TryGetComponent<AiMouseInputController>(out var aiMouseInputController))
-			{
-				input = aiMouseInputController;
-			}
-
-			PlayerManager.SetPlayerForControl(gameObject, input);
-
-			if (playerState == PlayerStates.Ghost)
+			if (PlayerType == PlayerTypes.Ghost)
 			{
 				if (PlayerList.Instance.IsClientAdmin)
 				{
 					UIManager.LinkUISlots(ItemStorageLinkOrigin.adminGhost);
 				}
+
 				// stop the crit notification and change overlay to ghost mode
-				SoundManager.Stop("Critstate");
-				UIManager.PlayerHealthUI.heartMonitor.overlayCrits.SetState(OverlayState.death);
+				SoundManager.ClientStop("Critstate", true);
+				OverlayCrits.Instance.SetState(OverlayState.death);
 				// show ghosts
 				var mask = Camera2DFollow.followControl.cam.cullingMask;
 				mask |= 1 << LayerMask.NameToLayer("Ghosts");
 				Camera2DFollow.followControl.cam.cullingMask = mask;
-
+				UIManager.Display.RejoinedEvent();
+				RequestAvailableGhostRolesMessage.SendMessage();
 			}
 			//Normal players
 			else if (IsPlayerSemiGhost == false)
 			{
+
 				UIManager.LinkUISlots(ItemStorageLinkOrigin.localPlayer);
 				// Hide ghosts
 				var mask = Camera2DFollow.followControl.cam.cullingMask;
 				mask &= ~(1 << LayerMask.NameToLayer("Ghosts"));
 				Camera2DFollow.followControl.cam.cullingMask = mask;
+				UIManager.Display.RejoinedEvent();
+
+				HandsController.Instance.PickAcctiveHandController();
 			}
 			//Players like blob or Ai
 			else
 			{
 				// stop the crit notification and change overlay to ghost mode
-				SoundManager.Stop("Critstate");
-				UIManager.PlayerHealthUI.heartMonitor.overlayCrits.SetState(OverlayState.death);
+				SoundManager.ClientStop("Critstate", true);
+				OverlayCrits.Instance.SetState(OverlayState.death);
 				// hide ghosts
 				var mask = Camera2DFollow.followControl.cam.cullingMask;
 				mask &= ~(1 << LayerMask.NameToLayer("Ghosts"));
 				Camera2DFollow.followControl.cam.cullingMask = mask;
+				UIManager.Display.RejoinedEvent();
 			}
 
 			EventManager.Broadcast(Event.UpdateChatChannels);
 			UpdateStatusTabUI();
+
+			AmbientSoundArea.TriggerRefresh();
+
+			waitTimeForRTTUpdate = 0f;
+
+			isUpdateRTT = true;
 		}
 	}
 
@@ -264,7 +353,7 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 	//Client Side Only
 	private void UpdateMe()
 	{
-		if (isUpdateRTT && hasAuthority)
+		if (isUpdateRTT && isOwned)
 		{
 			RTTUpdate();
 		}
@@ -276,30 +365,31 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 		if (waitTimeForRTTUpdate > 0.5f)
 		{
 			waitTimeForRTTUpdate = 0f;
-			RTT = (float)NetworkTime.rtt;
+			RTT = (float) NetworkTime.rtt;
 			if (playerHealth != null)
 			{
 				playerHealth.RTT = RTT;
 			}
+
 			CmdUpdateRTT(RTT);
 		}
 	}
 
 	private void UpdateStatusTabUI()
 	{
-		if(StatsTab.Instance == null) return;
+		if (StatsTab.Instance == null) return;
 		StatsTab.Instance.UpdateCurrentMap();
 		StatsTab.Instance.UpdateGameMode();
 		StatsTab.Instance.UpdateRoundTime();
 		switch (GameManager.Instance.CurrentRoundState)
 		{
-			case(RoundState.Started):
+			case (RoundState.Started):
 				StatsTab.Instance.UpdateRoundStatus("Started");
 				break;
-			case(RoundState.PreRound):
+			case (RoundState.PreRound):
 				StatsTab.Instance.UpdateRoundStatus("Preround");
 				break;
-			case(RoundState.Ended):
+			case (RoundState.Ended):
 				StatsTab.Instance.UpdateRoundStatus("Ended! Restarting soon..");
 				break;
 			default:
@@ -316,18 +406,6 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 		{
 			playerHealth.RTT = rtt;
 		}
-	}
-
-	[Command(requiresAuthority = false)]
-	public void UpdateLastSyncedPosition()
-	{
-		SetLastRecordedPosition();
-	}
-
-	[Server]
-	private void SetLastRecordedPosition()
-	{
-		SyncedWorldPos = gameObject.AssumedWorldPosServer().CutToInt();
 	}
 
 	/// <summary>
@@ -347,10 +425,10 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 	private void EnableLighting(bool enable)
 	{
 		// Get the lighting system
-		var lighting = Camera.main.GetComponent<LightingSystem>();
+		var lighting = Camera.main?.GetComponent<LightingSystem>();
 		if (!lighting)
 		{
-			Logger.LogWarning("Local Player can't find lighting system on Camera.main", Category.Lighting);
+			Loggy.Warning("Local Player can't find lighting system on Camera.main", Category.Lighting);
 			return;
 		}
 
@@ -359,29 +437,44 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 
 	private void OnPlayerReturnedToBody()
 	{
-		Logger.Log("Local player become Ghost", Category.Ghosts);
+		Loggy.Info("Local player become Ghost", Category.Ghosts);
 		EnableLighting(true);
 	}
 
 	private void OnPlayerBecomeGhost()
 	{
-		Logger.Log("Local player returned to the body", Category.Ghosts);
+		Loggy.Info("Local player returned to the body", Category.Ghosts);
 		EnableLighting(false);
+		OnBodyUnPossesedByPlayer?.Invoke();
 	}
 
-	public void SyncPlayerName(string oldValue, string value)
+
+	[RightClickMethod]
+	public void Possess()
 	{
-		playerName = value;
-		gameObject.name = value;
-		RefreshVisibleName();
+		if (PlayerList.Instance.IsClientAdmin)
+		{
+			PlayerManager.LocalMindScript.SetPossessingObject(this.gameObject);
+			if (isServer == false)
+			{
+
+				PlayerManager.LocalMindScript.CmdRequestPossess(this.gameObject.NetId());
+			}
+		}
 	}
 
-	public bool IsHidden => !PlayerSync.ClientState.Active;
+
+	public bool IsHidden => PlayerSync.IsVisible == false;
 
 	/// <summary>
-	/// True if this player is a ghost, meaning they exist in the ghost layer
+	/// True if this player is a ghost
 	/// </summary>
-	public bool IsGhost => (PlayerState == PlayerStates.Normal) == false;
+	public bool IsGhost => PlayerType == PlayerTypes.Ghost;
+
+	/// <summary>
+	/// True if this player is a normal player prefab (not ghost, Ai, blob, etc)
+	/// </summary>
+	public bool IsNormal => PlayerType == PlayerTypes.Normal;
 
 	/// <summary>
 	/// Same as is ghost, but also true when player inside his dead body
@@ -395,25 +488,18 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 			{
 				isDeadOrGhost = playerHealth.IsDead;
 			}
+
 			return isDeadOrGhost;
 		}
 	}
 
 	// If the player acts like a ghost but is still playing ingame, used for blobs and in the future maybe AI.
-	public bool IsPlayerSemiGhost => playerState == PlayerStates.Blob || playerState == PlayerStates.Ai;
-
-	public void ReturnGhostToBody()
-	{
-		var ghost = mind?.ghost;
-		if (ghost != null)
-		{
-			ghost.playerNetworkActions.GhostEnterBody();
-		}
-	}
+	public bool IsPlayerSemiGhost => PlayerType == PlayerTypes.Blob || PlayerType == PlayerTypes.Ai;
 
 	public object Chat { get; internal set; }
 
-	public bool IsGameObjectReachable(GameObject go, bool isServer, float interactDist = interactionDistance, GameObject context=null)
+	public bool IsGameObjectReachable(GameObject go, bool isServer, float interactDist = INTERACTION_DISTANCE,
+		GameObject context = null)
 	{
 		var rt = go.RegisterTile();
 		if (rt)
@@ -428,103 +514,85 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 
 	/// The smart way:
 	///  <inheritdoc cref="IsPositionReachable(Vector3, bool, float, GameObject)"/>
-	public bool IsRegisterTileReachable(RegisterTile otherObject, bool isServer, float interactDist = interactionDistance, GameObject context=null)
+	public bool IsRegisterTileReachable(RegisterTile otherObject, bool isServer,
+		float interactDist = INTERACTION_DISTANCE, GameObject context = null)
 	{
-		return Validations.IsReachableByRegisterTiles(registerTile, otherObject, isServer, interactDist, context: context);
+		return Validations.IsReachableByRegisterTiles(RegisterPlayer, otherObject, isServer, interactDist,
+			context: context);
 	}
+
 	///     Checks if the player is within reach of something
 	/// <param name="otherPosition">The position of whatever we are trying to reach</param>
 	/// <param name="isServer">True if being executed on server, false otherwise</param>
 	/// <param name="interactDist">Maximum distance of interaction between the player and other objects</param>
 	/// <param name="context">If not null, will ignore collisions caused by this gameobject</param>
-	public bool IsPositionReachable(Vector3 otherPosition, bool isServer, float interactDist = interactionDistance, GameObject context = null)
+	public bool IsPositionReachable(Vector3 otherPosition, bool isServer, float interactDist = INTERACTION_DISTANCE,
+		GameObject context = null)
 	{
-		return Validations.IsReachableByPositions(isServer ? registerTile.WorldPositionServer : registerTile.WorldPositionClient, otherPosition, isServer, interactDist, context: context);
+		return Validations.IsReachableByPositions(
+			RegisterPlayer.transform.position, otherPosition, isServer,
+			interactDist, context: context);
 	}
 
-	/// <summary>
-	/// Sets the IC name for this player and refreshes the visible name. Name will be kept if respawned.
-	/// </summary>
-	/// <param name="newName">The new name to give to the player.</param>
-	public void SetPermanentName(string newName)
-	{
-		characterSettings.Name = newName;
-		playerName = newName;
-		RefreshVisibleName();
-	}
 
 	public ChatChannel GetAvailableChannelsMask(bool transmitOnly = true)
 	{
-		if (IsDeadOrGhost && !IsPlayerSemiGhost)
-		{
-			ChatChannel ghostTransmitChannels = ChatChannel.Ghost | ChatChannel.OOC;
-			ChatChannel ghostReceiveChannels = ChatChannel.Examine | ChatChannel.System | ChatChannel.Combat |
-				ChatChannel.Binary | ChatChannel.Command | ChatChannel.Common | ChatChannel.Engineering |
-				ChatChannel.Medical | ChatChannel.Science | ChatChannel.Security | ChatChannel.Service
-				| ChatChannel.Supply | ChatChannel.Syndicate;
+		ChatChannel transmitChannels = playerTypeSettings.TransmitChannels;
+		ChatChannel receiveChannels = playerTypeSettings.ReceiveChannels;
 
-			if (transmitOnly)
-			{
-				return ghostTransmitChannels;
-			}
-			return ghostTransmitChannels | ghostReceiveChannels;
+		//Can't move this to PlayerStateSettings as we need this for when in body and dead
+		if (playerHealth != null && playerHealth.IsDead)
+		{
+			transmitChannels = ChatChannel.Ghost | ChatChannel.OOC;
+			receiveChannels = ChatChannel.Examine | ChatChannel.System | ChatChannel.Combat |
+			                  ChatChannel.Binary | ChatChannel.Command | ChatChannel.Common |
+			                  ChatChannel.Engineering | ChatChannel.Medical | ChatChannel.Science |
+			                  ChatChannel.Security | ChatChannel.Service | ChatChannel.Supply |
+			                  ChatChannel.Syndicate | ChatChannel.Alien | ChatChannel.Blob;
 		}
 
-		if (playerState == PlayerStates.Ai)
+		//Ai channels limited when not allowed to use radio
+		if (PlayerType == PlayerTypes.Ai)
 		{
-			ChatChannel aiTransmitChannels = ChatChannel.OOC | ChatChannel.Local | ChatChannel.Binary | ChatChannel.Command
-											 | ChatChannel.Common | ChatChannel.Engineering |
-											 ChatChannel.Medical | ChatChannel.Science | ChatChannel.Security | ChatChannel.Service
-											 | ChatChannel.Supply;
-			ChatChannel aiReceiveChannels = ChatChannel.Examine | ChatChannel.System | ChatChannel.Combat |
-											   ChatChannel.Binary | ChatChannel.Command | ChatChannel.Common | ChatChannel.Engineering |
-											   ChatChannel.Medical | ChatChannel.Science | ChatChannel.Security | ChatChannel.Service
-											   | ChatChannel.Supply;
-
 			if (GetComponent<AiPlayer>().AllowRadio == false)
 			{
-				aiTransmitChannels = ChatChannel.OOC | ChatChannel.Local;
-				aiReceiveChannels = ChatChannel.Examine | ChatChannel.System | ChatChannel.Combat;
+				transmitChannels = ChatChannel.Binary | ChatChannel.OOC | ChatChannel.Local;
+				receiveChannels = ChatChannel.Binary | ChatChannel.Local | ChatChannel.Examine |
+				                  ChatChannel.System | ChatChannel.Combat;
 			}
-
-			if (transmitOnly)
-			{
-				return aiTransmitChannels;
-			}
-			return aiTransmitChannels | aiReceiveChannels;
-		}
-
-		if (playerState == PlayerStates.Blob)
-		{
-			ChatChannel blobTransmitChannels = ChatChannel.Blob | ChatChannel.OOC;
-			ChatChannel blobReceiveChannels = ChatChannel.Examine | ChatChannel.System | ChatChannel.Combat;
-
-			if (transmitOnly)
-			{
-				return blobTransmitChannels;
-			}
-
-			return blobTransmitChannels | blobReceiveChannels;
 		}
 
 		//TODO: Checks if player can speak (is not gagged, unconcious, has no mouth)
-		ChatChannel transmitChannels = ChatChannel.OOC | ChatChannel.Local;
-
-		var playerStorage = gameObject.GetComponent<DynamicItemStorage>();
-		if (playerStorage != null)
+		if (playerTypeSettings.CheckForRadios)
 		{
-			foreach (var earSlot in playerStorage.GetNamedItemSlots(NamedSlot.ear))
+			var playerStorage = gameObject.GetComponent<DynamicItemStorage>();
+			if (playerStorage != null)
 			{
-				if(earSlot.IsEmpty) continue;
-				if(earSlot.Item.TryGetComponent<Headset>(out var headset) == false) continue;
-				if(headset.isEMPed) continue;
+				foreach (var earSlot in playerStorage.GetNamedItemSlots(NamedSlot.ear))
+				{
+					if (earSlot.IsEmpty) continue;
+					if (earSlot.Item.TryGetComponent<Headset>(out var headset) == false) continue;
+					if (headset.isEMPed) continue;
 
-				EncryptionKeyType key = headset.EncryptionKey;
-				transmitChannels = transmitChannels | EncryptionKey.Permissions[key];
+					EncryptionKeyType key = headset.EncryptionKey;
+					transmitChannels |= EncryptionKey.Permissions[key];
+				}
 			}
 		}
 
-		ChatChannel receiveChannels = ChatChannel.Examine | ChatChannel.System | ChatChannel.Combat;
+		var CombinedRadioAccess = gameObject.GetComponent<CombinedRadioAccess>();
+		if (CombinedRadioAccess != null)
+		{
+			transmitChannels |= CombinedRadioAccess.GetChannels();
+		}
+
+
+		var BodyPartRadioAccess = gameObject.GetComponent<BodyPartRadioAccess>(); //TODO interface?
+		if (BodyPartRadioAccess != null)
+		{
+			transmitChannels |= BodyPartRadioAccess.AvailableChannels;
+		}
+
 
 		if (transmitOnly)
 		{
@@ -534,10 +602,18 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 		return transmitChannels | receiveChannels;
 	}
 
-	// Syncvisiblename
-	public void SyncVisibleName(string oldValue, string value)
+
+	public void SetVisibleName()
 	{
-		visibleName = value;
+		try
+		{
+			OnVisibleNameChange?.Invoke();
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
 	}
 
 	// Update visible name.
@@ -545,7 +621,7 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 	{
 		string newVisibleName;
 
-		if (IsGhost || Equipment.IsIdentityObscured() == false)
+		if (IsNormal == false || Equipment.IsIdentityObscured() == false)
 		{
 			newVisibleName = playerName; // can see face so real identity is known
 		}
@@ -555,7 +631,7 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 			newVisibleName = Equipment.GetPlayerNameByEquipment();
 		}
 
-		SyncVisibleName(newVisibleName, newVisibleName);
+		PlayerScriptVisible.SyncVisibleName(newVisibleName, newVisibleName);
 	}
 
 	// Tooltips inspector bar
@@ -563,26 +639,87 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 	{
 		if (gameObject.IsAtHiddenPos()) return;
 		UIManager.SetToolTip = visibleName;
+		UIManager.SetHoverToolTip = gameObject;
+
 	}
 
 	public void OnMouseExit()
 	{
 		UIManager.SetToolTip = "";
+		UIManager.SetHoverToolTip = null;
 	}
 
-	public void OnMatrixRotate(MatrixRotationInfo rotationInfo)
+	public void OnInteract(TargetedInteraction interaction, Component interactable)
 	{
-		//We need to handle lighting stuff for matrix rotations for local player:
-		if (PlayerManager.LocalPlayer == gameObject && rotationInfo.IsClientside)
+		if (interaction == null) return;
+		if (IsNormal == false) return;
+		if (ComponentManager.TryGetUniversalObjectPhysics(interactable.gameObject, out var uop) == false) return;
+
+		if ((this.gameObject.AssumedWorldPosServer() - uop.OfficialPosition ).magnitude >
+		    PlayerScript.INTERACTION_DISTANCE_EXTENDED) //If telekinesis was used play effect I assume TODO test , also return maybe because you can't Put fingerprint on something far away
 		{
-			if (rotationInfo.IsStarting)
+			PlayEffect.SendToAll(interactable.gameObject, "TelekinesisEffect");
+		}
+
+
+		if (uop.attributes.HasComponent == false) return;
+
+		var details = uop.attributes.Component.AppliedDetails;
+		if (details == null) return;
+
+		if (RNG.Next(0, 100) > ClueHandsImprintInverseChance)
+		{
+			bool wearingGloves = false;
+			var slotGlove = DynamicItemStorage.GetNamedItemSlots(NamedSlot.hands).PickRandom();
+			if (slotGlove != null && slotGlove.Item != null)
 			{
-				Camera2DFollow.followControl.lightingSystem.matrixRotationMode = true;
+				wearingGloves = true;
+				details.AddDetail(new Detail
+				{
+					CausedByInstanceID = slotGlove.Item.gameObject.GetInstanceID(),
+					Description = $" A fibre from a {slotGlove.Item.gameObject.ExpensiveName()}",
+					DetailType = DetailType.Fibre
+				});
 			}
-			else if (rotationInfo.IsEnding)
+
+			if (wearingGloves == false)
 			{
-				Camera2DFollow.followControl.lightingSystem.matrixRotationMode = false;
+				var slot = DynamicItemStorage.GetActiveHandSlot();
+				if (slot != null)
+				{
+					details.AddDetail(new Detail
+					{
+						CausedByInstanceID = slot.ItemStorage.gameObject.GetInstanceID(),
+						Description = $" A fingerprint ",
+						DetailType = DetailType.Fingerprints
+					});
+				}
 			}
+		}
+
+
+		if (RNG.Next(0, 100) > ClueUniformImprintInverseChance)
+		{
+			var slot = DynamicItemStorage.GetNamedItemSlots(NamedSlot.uniform).PickRandom();
+			if (slot != null && slot.Item != null)
+			{
+				details.AddDetail(new Detail
+				{
+					CausedByInstanceID = slot.Item.gameObject.GetInstanceID(),
+					Description = $" A fibre from a {slot.Item.gameObject.ExpensiveName()}",
+					DetailType = DetailType.Fibre
+				});
+			}
+		}
+
+		if (RNG.Next(0, 100) > ClueSpeciesImprintInverseChance)
+		{
+			details.AddDetail(new Detail
+			{
+				CausedByInstanceID = this.gameObject.GetInstanceID(),
+				Description = playerSprites.RaceBodyparts.Base.ClueString,
+				DetailType = DetailType.SpeciesIdentify
+			});
 		}
 	}
 
@@ -591,9 +728,9 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 		var stringBuilder = new StringBuilder();
 
 		stringBuilder.AppendLine($"Name: {characterSettings.Name}");
-		stringBuilder.AppendLine($"Acc: {characterSettings.Username}");
+		stringBuilder.AppendLine($"Acc: {PlayerInfo?.Username}");
 
-		if(connectionToClient == null)
+		if (connectionToClient == null)
 		{
 			stringBuilder.AppendLine("Has No Soul");
 		}
@@ -603,23 +740,116 @@ public class PlayerScript : NetworkBehaviour, IMatrixRotation, IAdminInfo, IActi
 			stringBuilder.AppendLine($"Is Alive: {playerHealth.IsDead == false} Health: {playerHealth.OverallHealth}");
 		}
 
-		if (mind !=null && mind.IsAntag)
+		if (Mind != null && Mind.IsAntag)
 		{
 			stringBuilder.Insert(0, "<color=yellow>");
-			stringBuilder.AppendLine($"Antag: {mind.GetAntag().Antagonist.AntagJobType}");
-			stringBuilder.AppendLine($"Objectives : {mind.GetAntag().GetObjectiveSummary()}</color>");
+			stringBuilder.AppendLine($"Antag: {Mind.GetAntag().Antagonist.AntagJobType}");
+			stringBuilder.AppendLine($"Objectives : {Mind.GetAntag().GetObjectiveSummary()}</color>");
 		}
 
 		return stringBuilder.ToString();
 	}
 
-	public void CallActionClient()
+	//Used for Admins to VV function to toggle vent crawl as for some reason in build VV variable isnt working
+	public void ToggleVentCrawl()
 	{
-		playerNetworkActions.CmdAskforAntagObjectives();
+		canVentCrawl = !canVentCrawl;
 	}
 
-	public void ActivateAntagAction(bool state)
+	public void OnDestroy()
 	{
-		UIActionManager.ToggleLocal(this, state);
+		Itself.PreImplementedOnDestroy();
 	}
+
+	public void OnPossessPlayer(Mind mind, IPlayerPossessable parent)
+	{
+		if (mind == null) return;
+		if (IsNormal && parent == null &&  playerTypeSettings.PlayerType != PlayerTypes.Ghost)//Can't be possessed directly
+		{
+			mind.SetPossessingObject(playerHealth.OrNull()?.brain.OrNull()?.gameObject);
+			mind.StopGhosting();
+			return;
+		}
+		else
+		{
+			InitPossess(mind);
+		}
+		OnBodyPossesedByPlayer?.Invoke();
+	}
+
+	public void OnControlPlayer(Mind mind)
+	{
+		if (mind == null)
+		{
+			OnBodyUnControlledByPlayer?.Invoke();
+			return;
+		}
+		Init(mind);
+	}
+
+	public void SyncPossessingID(uint previouslyPossessing, uint currentlyPossessing)
+	{
+		possessingID = currentlyPossessing;
+		Itself.PreImplementedSyncPossessingID(previouslyPossessing, currentlyPossessing);
+	}
+
+	#region TOOLTIPDATA
+
+	public string HoverTip()
+	{
+		StringBuilder finalText = new StringBuilder();
+		if (characterSettings == null) return finalText.ToString();
+		finalText.Append($"A {characterSettings.Species}.");
+		finalText.Append($" {characterSettings.TheyPronoun(this)}/{characterSettings.TheirPronoun(this)}.");
+		finalText.AppendLine($"\n{PlayerFaith?.ToleranceCheckForReligion()}");
+		return finalText.ToString();
+	}
+
+	public string CustomTitle()
+	{
+		return visibleName;
+	}
+
+	public Sprite CustomIcon()
+	{
+		// (Max): I tried making the custom icon use the player's face but there is no way to properly grab their face sprites
+		// Because the character customisation stuff does not have an methods to grab this data easily and when you do eventually grab it
+		// by looping through all sprites in PlayerSprties; you just get an empty sprite. Also all bodyPart sprites don't have their bodyPartType enum
+		// set for some odd reason so you can't just do an enum check and have to use regex for name detection (gameObject.name).
+		// Do you see why I keep begging you, Bod, to look at this? Because character sprites are a mess to work with
+		// and trying to create anything with it is near impossible and you're the only one who actually knows how to work with this.
+		return null;
+	}
+
+	public List<Sprite> IconIndicators()
+	{
+		//TODO: add indicators for players.
+		return null;
+	}
+
+	public List<TextColor> InteractionsStrings()
+	{
+		TextColor inspectText = new TextColor
+		{
+			Text = "Shift + Left Click: Inspect",
+			Color = Color.white
+		};
+
+		List<TextColor> interactions = new List<TextColor>();
+		interactions.Add(inspectText);
+		return interactions;
+	}
+
+	#endregion
+}
+
+[Flags]
+public enum PlayerTypes
+{
+	None = 0,
+	Normal = 1 << 0,
+	Ghost = 1 << 1,
+	Blob = 1 << 2,
+	Ai = 1 << 3,
+	Alien = 1 << 4
 }

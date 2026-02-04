@@ -62,12 +62,12 @@ namespace Systems.Atmospherics
 
 					if (superSaturation)
 					{
-						gasMix.AddGas(Gas.Tritium, plasmaBurnRate);
+						gasMix.AddGasWithTemperature(Gas.Tritium, plasmaBurnRate, gasMix.Temperature);
 					}
 					else
 					{
-						gasMix.AddGas(Gas.CarbonDioxide, plasmaBurnRate * 0.75f);
-						gasMix.AddGas(Gas.WaterVapor, plasmaBurnRate * 0.25f);
+						gasMix.AddGasWithTemperature(Gas.CarbonDioxide, plasmaBurnRate * 0.75f, gasMix.Temperature);
+						gasMix.AddGasWithTemperature(Gas.WaterVapor, plasmaBurnRate * 0.25f, gasMix.Temperature);
 					}
 
 					energyReleased += AtmosDefines.FIRE_PLASMA_ENERGY_RELEASED * plasmaBurnRate;
@@ -87,7 +87,7 @@ namespace Systems.Atmospherics
 			if (gasMix.Temperature > AtmosDefines.FIRE_MINIMUM_TEMPERATURE_TO_EXIST)
 			{
 				//Dont do expose as we are off the main thread
-				node.ReactionManager.ExposeHotspot(node.Position, doExposure: false);
+				node.ReactionManager.ExposeHotspot(node.LocalPosition, doExposure: false);
 			}
 		}
 	}

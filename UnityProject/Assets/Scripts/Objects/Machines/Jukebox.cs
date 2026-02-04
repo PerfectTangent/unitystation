@@ -1,20 +1,25 @@
-﻿using Mirror;
+﻿using System.Collections;
+using Mirror;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using Systems.Electricity;
 using AddressableReferences;
 using Audio.Containers;
+using Items.Bar;
 using Messages.Server;
 using Messages.Server.SoundMessages;
+using Systems.Explosions;
+using Systems.Interaction;
 
 namespace Objects
 {
 	/// <summary>
 	/// A machine that plays music choosen by it's user's tastes in a cool place like a lounge or a bar.
 	/// </summary>
-	public class Jukebox : NetworkBehaviour, IAPCPowerable
+	public class Jukebox : NetworkBehaviour, IAPCPowerable, ICheckedInteractable<HandApply>, ICheckedInteractable<AiActivate>
 	{
 		/// <summary>
 		/// How many watts at 240 V the Jukebox uses when not in use
@@ -57,12 +62,18 @@ namespace Objects
 
 		private AudioSourceParameters audioSourceParameters;
 
-		[SerializeField]
-		private AudioClipsArray adminMusic = null;
-
 		private List<AddressableAudioSource> musics;
 
-		private string guid = "";
+		private List<string> guid = new();
+
+		[SerializeField]
+		private ItemTrait keyItemTrait;
+		[SerializeField]
+		private ItemTrait vinylRecordItemTrait;
+
+		[SerializeField] private AddressableAudioSource openingStorageSound;
+		[SerializeField] private AddressableAudioSource closingStorageSound;
+		[SerializeField] private AddressableAudioSource satisfyingClick;
 
 		/// <summary>
 		/// The current state of the jukebox powered/overpowered/underpowered/no power
@@ -77,38 +88,36 @@ namespace Objects
 		private Integrity integrity;
 		private APCPoweredDevice power;
 		private RegisterTile registerTile;
+		public ItemStorage vinylStorage;
 		private int currentSongTrackIndex = 0;
 		private float startPlayTime;
 		private bool secondLoadAttempt;
 
+		private bool isOpened = false;
 		public bool IsPlaying { get; set; } = false;
 
-		public string TrackPosition {
-			get {
-				return $"{currentSongTrackIndex + 1} / {musics.Count}";
-			}
-		}
+		public string TrackPosition => $"{currentSongTrackIndex + 1} / {musics.Count}";
 
-		public string SongName {
-			get {
+		public string SongName
+		{
+			get
+			{
 				string songName = musics[currentSongTrackIndex].AudioSource.clip.name;
 				return $"{songName.Split('_')[0]}";
 			}
 		}
 
-		public string Artist {
-			get {
+		public string Artist
+		{
+			get
+			{
 				string songName = musics[currentSongTrackIndex].AudioSource.clip.name;
 				string artist = songName.Contains("_") ? songName.Split('_')[1] : "Unknown";
 				return $"{artist}";
 			}
 		}
 
-		public string PlayStopButtonPrefabImage {
-			get {
-				return IsPlaying ? "GUI_Jukebox_Stop" : "GUI_Jukebox_Play";
-			}
-		}
+		public string PlayStopButtonPrefabImage => IsPlaying ? "GUI_Jukebox_Stop" : "GUI_Jukebox_Play";
 
 		#region Lifecycle
 
@@ -118,10 +127,10 @@ namespace Objects
 			power = GetComponent<APCPoweredDevice>();
 			registerTile = GetComponent<RegisterTile>();
 			integrity = GetComponent<Integrity>();
-			integrity.OnApplyDamage.AddListener(OnDamageReceived);
+			integrity.OnApplyDamage += OnDamageReceived;
 
-			audioSourceParameters = new AudioSourceParameters(volume: Volume, spatialBlend: 1, spread: Spread,
-				minDistance: MinSoundDistance, maxDistance: MaxSoundDistance, mixerType: MixerType.Muffled,
+			audioSourceParameters = new AudioSourceParameters(volume: Volume, spatialBlend: 2, spread: Spread,
+				minDistance: MinSoundDistance, maxDistance: MaxSoundDistance, mixerType: MixerType.JukeBox,
 				volumeRolloffType: VolumeRolloffType.EaseInAndOut);
 		}
 
@@ -132,16 +141,15 @@ namespace Objects
 
 		private async Task InternalStart()
 		{
-			// We want the same musics that are in the lobby,
-			// so, I copy it's playlist here instead of managing two different playlists in UnityEditor.
 			musics = new List<AddressableAudioSource>();
-
-			foreach (var audioSource in adminMusic.AddressableAudioSource)
+			foreach (ItemSlot itemSlot in vinylStorage.GetOccupiedSlots())
 			{
-				var song = await AudioManager.GetAddressableAudioSourceFromCache(new List<AddressableAudioSource> { audioSource });
-				musics.Add(song);
+				if (itemSlot.ItemObject.TryGetComponent<VinylRecord>(out var vinyl))
+				{
+					var song = await AudioManager.GetAddressableAudioSourceFromCache(new List<AddressableAudioSource> { vinyl.music });
+					musics.Add(song);
+				}
 			}
-
 			UpdateGUI();
 		}
 
@@ -167,82 +175,72 @@ namespace Objects
 			// We didn't use "AudioSource.isPlaying" here because of a racing condition between PlayNetworkAtPos latency and Update.
 			if (IsPlaying && Time.time > startPlayTime + musics[currentSongTrackIndex].AudioSource.clip.length)
 			{
-				// The fun isn't over, we just finished the current track.  We just start playing the next one (or stop if it was the last one).
-				if (NextSong() == false)
-				{
-					Stop();
-				}
+				NextSong();
 			}
 		}
 
 		public async Task Play()
 		{
 			// Too much damage stops the jukebox from being able to play
-			if (integrity.integrity > integrity.initialIntegrity / 2)
+			if (integrity.integrity < integrity.initialIntegrity / 2)
 			{
-				SoundManager.StopNetworked(guid);
-				IsPlaying = true;
-				spriteHandler.SetSpriteSO(SpritePlaying);
-				guid  = await SoundManager.PlayNetworkedAtPosAsync(musics[currentSongTrackIndex], registerTile.WorldPositionServer, audioSourceParameters, false, true, sourceObj: gameObject);
-				startPlayTime = Time.time;
-				UpdateGUI();
+				SparkUtil.TrySpark(gameObject);
+				return;
 			}
+
+			await StopAllGuids();
+			IsPlaying = true;
+			StartCoroutine(UpdateSprites(SpritePlaying));
+			guid.Add(await SoundManager.PlayNetworkedAtPosAsync(musics[currentSongTrackIndex], registerTile.WorldPositionServer, audioSourceParameters, false, true, sourceObj: gameObject));
+			startPlayTime = Time.time;
+			UpdateGUI();
 		}
 
-		public void Stop()
+		public async Task Stop(bool autoplay = false)
 		{
-			IsPlaying = false;
-
+			if (autoplay == false) IsPlaying = false;
 			if (integrity.integrity >= integrity.initialIntegrity / 2)
-				spriteHandler.SetSpriteSO(SpriteIdle);
+			{
+				StartCoroutine(UpdateSprites(SpriteIdle));
+			}
 			else
-				spriteHandler.SetSpriteSO(SpriteDamaged);
-
-			SoundManager.StopNetworked(guid);
+			{
+				StartCoroutine(UpdateSprites(SpriteDamaged));
+			}
+			await Task.Run(StopAllGuids);
 
 			UpdateGUI();
 		}
 
-		public void PreviousSong()
+		private Task StopAllGuids()
 		{
-			if (currentSongTrackIndex > 0)
+			foreach (var id in guid)
 			{
-				if (IsPlaying)
-				{
-					SoundManager.StopNetworked(guid);
-				}
-
-				currentSongTrackIndex--;
-				UpdateGUI();
-
-				if (IsPlaying)
-				{
-					_ = Play();
-				}
+				SoundManager.StopNetworked(id);
 			}
+			guid.Clear();
+
+			return Task.CompletedTask;
 		}
 
-		public bool NextSong()
+		public async void PreviousSong()
 		{
-			if (currentSongTrackIndex < musics.Count - 1)
-			{
-				if (IsPlaying)
-				{
-					SoundManager.StopNetworked(guid);
-				}
+			await Stop(true);
+			if (currentSongTrackIndex <= 0) currentSongTrackIndex = musics.Count - 1;
+			currentSongTrackIndex--;
+			UpdateGUI();
 
-				currentSongTrackIndex++;
-				UpdateGUI();
+			if (IsPlaying) _ = Play();
+		}
 
-				if (IsPlaying)
-				{
-					_ = Play();
-				}
+		public async void NextSong()
+		{
+			await Stop(true);
+			if (currentSongTrackIndex >= musics.Count - 1) currentSongTrackIndex = -1;
+			currentSongTrackIndex++;
+			UpdateGUI();
 
-				return true;
-			}
-
-			return false;
+			if (IsPlaying) _ = Play();
 		}
 
 		public void VolumeChange(float newVolume)
@@ -251,15 +249,21 @@ namespace Objects
 
 			audioSourceParameters.IsMute = newVolume <= 0;
 
-			ChangeAudioSourceParametersMessage.SendToAll(guid, audioSourceParameters);
+			if(guid.Count != 0) ChangeAudioSourceParametersMessage.SendToAll(guid[0], audioSourceParameters);
 		}
 
 		private void OnDamageReceived(DamageInfo damageInfo)
 		{
 			if (integrity.integrity <= integrity.initialIntegrity / 2)
 			{
-				Stop();
+				_ = Stop();
 			}
+		}
+
+		private IEnumerator UpdateSprites(SpriteDataSO spriteDataSo)
+		{
+			spriteHandler.SetSpriteSO(spriteDataSo);
+			yield return null;
 		}
 
 		private void UpdateGUI()
@@ -322,5 +326,128 @@ namespace Objects
 		}
 
 		#endregion
+
+		public bool WillInteract(HandApply interaction, NetworkSide side)
+		{
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (interaction.TargetObject != gameObject) return false;
+			return interaction.HandObject == null ||
+			       Validations.HasItemTrait(interaction.UsedObject, keyItemTrait) ||
+			       Validations.HasItemTrait(interaction.UsedObject, vinylRecordItemTrait);
+		}
+
+		public void ServerPerformInteraction(HandApply interaction)
+		{
+			if (interaction.HandObject == null && isOpened == false)
+			{
+				if (vinylStorage.HasAnyOccupied() && musics.Count > 0)
+				{
+					TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType.Jukebox, TabAction.Open );
+				}
+				else
+				{
+					Chat.AddExamineMsg(interaction.Performer, "The jukebox is silent. A red LED labeled \"No Records\" blinks.");
+				}
+			}
+			else
+			{
+				if (Validations.HasItemTrait(interaction.UsedObject, keyItemTrait))
+				{
+					ToggleLock(interaction);
+				}
+				else if (isOpened && (interaction.HandObject == null || Validations.HasItemTrait(interaction.UsedObject, vinylRecordItemTrait)))
+				{
+					TransferRecord(interaction);
+				}
+			}
+		}
+
+		private void ToggleLock(HandApply interaction)
+		{
+			Chat.AddActionMsgToChat(
+				interaction.Performer,
+				$"You {(isOpened ? "close" : "open")} the jukebox vinyl record storage.",
+				$"{interaction.Performer.ExpensiveName()} {(isOpened ? "closes" : "opens")} the jukebox vinyl record storage."
+			);
+
+			if (isOpened)
+			{
+				SoundManager.PlayNetworkedAtPos(closingStorageSound, gameObject.AssumedWorldPosServer());
+				//repopulate track list
+				secondLoadAttempt = false;
+				_ = InternalStart();
+			}
+			else
+			{
+				SoundManager.PlayNetworkedAtPos(openingStorageSound, gameObject.AssumedWorldPosServer());
+				_ = Stop();
+				currentSongTrackIndex = 0;
+			}
+			isOpened = !isOpened;
+		}
+
+		private void TransferRecord(HandApply interaction)
+		{
+			bool isRemoving = interaction.HandObject == null;
+
+			switch (isRemoving)
+			{
+				case true when vinylStorage.HasAnyOccupied() == false:
+					Chat.AddActionMsgToChat(
+						interaction.Performer,
+						"You reach into the jukebox, but find it empty.",
+						$"{interaction.Performer.ExpensiveName()} reaches into the jukebox, but finds it empty."
+					);
+					return;
+
+				case true:
+					Chat.AddActionMsgToChat(
+						interaction.Performer,
+						"You carefully remove a record from the jukebox.",
+						$"{interaction.Performer.ExpensiveName()} carefully removes a record from the jukebox."
+					);
+					break;
+				default:
+					SoundManager.PlayNetworkedAtPos(
+						satisfyingClick,
+						gameObject.AssumedWorldPosServer()
+					);
+					Chat.AddActionMsgToChat(
+						interaction.Performer,
+						"You insert a record into the jukebox with a satisfying click.",
+						$"{interaction.Performer.ExpensiveName()} inserts a record into the jukebox with a satisfying click."
+					);
+					break;
+			}
+
+			ItemSlot targetSlot = vinylStorage.GetIndexedSlots().FirstOrDefault(slot => isRemoving ? slot.Item != null : slot.Item == null);
+			if (targetSlot != null)
+			{
+				ItemSlot from = isRemoving ? targetSlot : interaction.HandSlot;
+				ItemSlot to = isRemoving ? interaction.HandSlot : targetSlot;
+				Inventory.ServerTransfer(from, to);
+			}
+		}
+
+		public bool WillInteract(AiActivate interaction, NetworkSide side)
+		{
+			if (interaction.ClickType != AiActivate.ClickTypes.NormalClick) return false;
+
+			if (DefaultWillInteract.AiActivate(interaction, side) == false) return false;
+
+			return true;
+		}
+
+		public void ServerPerformInteraction(AiActivate interaction)
+		{
+			if (isOpened == false && vinylStorage.HasAnyOccupied() && musics.Count > 0)
+			{
+				TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType.Jukebox, TabAction.Open );
+			}
+			else
+			{
+				Chat.AddExamineMsg(interaction.Performer, "The jukebox is silent. A red LED labeled \"No Records\" blinks.");
+			}
+		}
 	}
 }

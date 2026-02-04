@@ -12,7 +12,7 @@ namespace UI.SpellBook
 	public class GUI_SpellBook : NetTab
 	{
 		[SerializeField]
-		private NetLabel pointsCounter = default;
+		private NetText_label pointsCounter = default;
 		[SerializeField]
 		private EmptyItemList categoryList = default;
 		[SerializeField]
@@ -62,7 +62,7 @@ namespace UI.SpellBook
 			else if (entry is SpellBookArtifact artifactEntry)
 			{
 				spellBook.SpawnArtifacts(artifactEntry);
-				ServerCloseTabFor(spellBook.GetLastReader()); // We close tab so that the player is aware of the dropping pod.
+				ServerCloseTabFor(spellBook.GetLastReader()); // We close tab so that the player is aware of the dropping pod. This should get converted to an equip func
 			}
 			else if (entry is SpellBookRitual ritualEntry)
 			{
@@ -80,7 +80,7 @@ namespace UI.SpellBook
 
 		private void UpdatePoints()
 		{
-			pointsCounter.SetValueServer($"Points: {Points}");
+			pointsCounter.MasterSetValue($"Points: {Points}");
 		}
 
 		private void GenerateCategories()

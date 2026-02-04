@@ -1,13 +1,17 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using AdminCommands;
 using UnityEngine;
 using Mirror;
-using NaughtyAttributes;
+using Systems.Clearance;
 using Systems.Interaction;
-using Systems.ObjectConnection;
 using Doors;
 using CustomInspectors;
+using Items;
+using Shared.Systems.ObjectConnection;
+using Systems.Electricity;
+using Util.Independent.FluentRichText;
 
 namespace Objects.Wallmounts
 {
@@ -15,28 +19,27 @@ namespace Objects.Wallmounts
 	/// Allows object to function as a door switch - opening / closing door when clicked.
 	/// </summary>
 	[ExecuteInEditMode]
-	public class DoorSwitch : ImnterfaceMultitoolGUI, ISubscriptionController, ICheckedInteractable<HandApply>, IMultitoolMasterable,
-		IServerSpawn, ICheckedInteractable<AiActivate>
+	public class DoorSwitch : ImnterfaceMultitoolGUI, ISubscriptionController, ICheckedInteractable<HandApply>,
+		IMultitoolMasterable,
+		IServerSpawn, ICheckedInteractable<AiActivate>, IRightClickable
 	{
 		private SpriteRenderer spriteRenderer;
 		public Sprite greenSprite;
 		public Sprite offSprite;
 		public Sprite redSprite;
 
-		[Header("Access Restrictions for ID")] [Tooltip("Is this door restricted?")]
-		public bool restricted;
-
-		[Tooltip("Access level to limit door if above is set.")] [ShowIf(nameof(restricted))]
-		public Access access;
-
 		[SerializeField] [Tooltip("List of doors that this switch can control")]
-		private List<DoorController> doorControllers = new List<DoorController>();
 
 		private List<DoorMasterController> NewdoorControllers = new List<DoorMasterController>();
+		public int NewDoorCount => NewdoorControllers.Count;
 
 		private bool buttonCoolDown = false;
-		private AccessRestrictions accessRestrictions;
+		private ClearanceRestricted clearanceRestricted;
 
+		public APCPoweredDevice thisAPCPoweredDevice { get; private set; }
+
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 		public void OnSpawnServer(SpawnInfo info)
 		{
 		}
@@ -51,59 +54,70 @@ namespace Objects.Wallmounts
 			//This is needed because you can no longer apply shutterSwitch prefabs (it will move all of the child sprite positions)
 			gameObject.layer = LayerMask.NameToLayer("WallMounts");
 			spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-			accessRestrictions = gameObject.AddComponent<AccessRestrictions>();
-			if (restricted)
-			{
-				accessRestrictions.restriction = access;
-			}
+			clearanceRestricted = GetComponent<ClearanceRestricted>();
+			thisAPCPoweredDevice = GetComponent<APCPoweredDevice>();
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			return true;
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (buttonCoolDown)
-				return;
-			buttonCoolDown = true;
-			StartCoroutine(CoolDown());
+			if (TestCoolDown() == false) return;
 
-			if (accessRestrictions != null && restricted)
+			var storage = interaction.Performer.OrNull()?.GetComponent<DynamicItemStorage>();
+
+			if (storage != null)
 			{
-				if (!accessRestrictions.CheckAccess(interaction.Performer))
+				var emag = Emag.GetEmagInDynamicItemStorage(storage);
+				if (emag != null)
 				{
-					RpcPlayButtonAnim(false);
+					if (emag.UseCharge(interaction))
+					{
+						RunDoorController(interaction);
+						RpcPlayButtonAnim(false);
+						return;
+					}
+				}
+			}
+
+			if (clearanceRestricted.HasClearance(interaction.Performer) == false)
+			{
+				RpcPlayButtonAnim(false);
+				Chat.AddActionMsgToChat(interaction.Performer,
+					$"The {gameObject.ExpensiveName()} makes a loud buzz as it denies {interaction.PerformerPlayerScript.visibleName}'s clearance.");
+				return;
+			}
+			RunDoorController(interaction);
+		}
+
+		public void RunDoorController(HandApply interaction = null)
+		{
+			if (NewdoorControllers.Count == 0)
+			{
+				if (interaction != null) Chat.AddExamineMsg(interaction.Performer, "There doesn't seem to be anything connected to this button.");
+				return;
+			}
+
+			if (thisAPCPoweredDevice != null)
+			{
+				if (APCPoweredDevice.IsOn(thisAPCPoweredDevice.State) == false)
+				{
+					if (interaction != null) Chat.AddExamineMsg(interaction.Performer, "There doesn't seem to be power connected to this button.".Color(Color.red));
 					return;
 				}
 			}
 
-			RunDoorController();
 			RpcPlayButtonAnim(true);
-		}
 
-		public void RunDoorController()
-		{
-			if (doorControllers.Count == 0 && NewdoorControllers.Count == 0)
+			if (interaction != null)
 			{
-				return;
-			}
-
-			foreach (var door in doorControllers)
-			{
-				// Door doesn't exist anymore - shuttle crash, admin smash, etc.
-				if (door == null) continue;
-
-				if (door.IsClosed)
-				{
-					door.TryOpen(null);
-				}
-				else
-				{
-					door.TryClose();
-				}
+				Chat.AddActionMsgToChat(interaction.Performer,
+					$"{interaction.PerformerPlayerScript.visibleName} interacts with the {gameObject.ExpensiveName()}, " +
+					$"and a small chirp can be heard as it approves {interaction.PerformerPlayerScript.characterSettings.TheirPronoun(interaction.PerformerPlayerScript)} clearance.");
 			}
 
 			foreach (var door in NewdoorControllers)
@@ -113,11 +127,39 @@ namespace Objects.Wallmounts
 
 				if (door.IsClosed)
 				{
-					door.TryOpen(null);
+					door.PulseTryOpen(bypassSoftware: true);
 				}
 				else
 				{
-					door.TryClose();
+					door.PulseTryClose(bypassSoftware: true);
+				}
+			}
+		}
+
+		public void OpenDoors()
+		{
+			foreach (var door in NewdoorControllers)
+			{
+				// Door doesn't exist anymore - shuttle crash, admin smash, etc.
+				if (door == null) continue;
+
+				if (door.IsClosed)
+				{
+					door.PulseTryOpen(bypassSoftware: true);
+				}
+			}
+		}
+
+		public void CloseDoors()
+		{
+			foreach (var door in NewdoorControllers)
+			{
+				// Door doesn't exist anymore - shuttle crash, admin smash, etc.
+				if (door == null) continue;
+
+				if (door.IsClosed == false)
+				{
+					door.PulseTryClose(bypassSoftware: true);
 				}
 			}
 		}
@@ -128,6 +170,17 @@ namespace Objects.Wallmounts
 			yield return WaitFor.Seconds(1.2f);
 			buttonCoolDown = false;
 		}
+
+		public bool TestCoolDown()
+		{
+			if (buttonCoolDown)
+				return false;
+			buttonCoolDown = true;
+			StartCoroutine(CoolDown());
+
+			return true;
+		}
+
 
 		[ClientRpc]
 		public void RpcPlayButtonAnim(bool status)
@@ -184,15 +237,6 @@ namespace Objects.Wallmounts
 				return;
 
 			//Highlighting all controlled doors with red lines and spheres
-			Gizmos.color = new Color(1, 0.5f, 0, 1);
-			for (int i = 0; i < doorControllers.Count; i++)
-			{
-				var doorController = doorControllers[i];
-				if (doorController == null) continue;
-				Gizmos.DrawLine(sprite.transform.position, doorController.transform.position);
-				Gizmos.DrawSphere(doorController.transform.position, 0.25f);
-			}
-
 			for (int i = 0; i < NewdoorControllers.Count; i++)
 			{
 				var doorController = NewdoorControllers[i];
@@ -204,8 +248,7 @@ namespace Objects.Wallmounts
 
 		private void OnDrawGizmos()
 		{
-			if ((doorControllers.Count == 0 || doorControllers.Any(controller => controller == null)) ||
-			    (NewdoorControllers.Count == 0 || NewdoorControllers.Any(controller => controller == null)))
+			if ((NewdoorControllers.Count == 0 || NewdoorControllers.Any(controller => controller == null)))
 			{
 				Gizmos.DrawIcon(transform.position, "noDoor");
 			}
@@ -218,13 +261,7 @@ namespace Objects.Wallmounts
 			foreach (var potentialObject in potentialObjects)
 			{
 				var doorController = potentialObject.GetComponent<DoorMasterController>();
-				if (doorController == null)
-				{
-					var OlddoorController = potentialObject.GetComponent<DoorController>();
-					if (OlddoorController == null )continue;
-					AddDoorControllerFromScene(OlddoorController);
-				}
-				else
+				if (doorController != null)
 				{
 					NewAddDoorControllerFromScene(doorController);
 				}
@@ -233,18 +270,6 @@ namespace Objects.Wallmounts
 			}
 
 			return approvedObjects;
-		}
-
-		public void AddDoorControllerFromScene(DoorController doorController)
-		{
-			if (doorControllers.Contains(doorController))
-			{
-				doorControllers.Remove(doorController);
-			}
-			else
-			{
-				doorControllers.Add(doorController);
-			}
 		}
 
 		public void NewAddDoorControllerFromScene(DoorMasterController doorController)
@@ -275,7 +300,6 @@ namespace Objects.Wallmounts
 		public void ServerPerformInteraction(AiActivate interaction)
 		{
 			RunDoorController();
-			RpcPlayButtonAnim(true);
 		}
 
 		#endregion
@@ -285,9 +309,26 @@ namespace Objects.Wallmounts
 		[SerializeField] private MultitoolConnectionType conType = MultitoolConnectionType.DoorButton;
 		public MultitoolConnectionType ConType => conType;
 
-		public bool MultiMaster => true;
+		public bool MultiMaster => true; //TODO
 		int IMultitoolMasterable.MaxDistance => int.MaxValue;
 
 		#endregion
+
+		public RightClickableResult GenerateRightClickOptions()
+		{
+			if (PlayerList.HasTAGClient(TAG.ADMIN_PRESS_BUTTON) == false ||
+			    KeyboardInputManager.Instance.CheckKeyAction(KeyAction.ShowAdminOptions, KeyboardInputManager.KeyEventType.Hold) == false)
+			{
+				return null;
+			}
+
+			return RightClickableResult.Create()
+				.AddAdminElement("Activate", AdminPressButton);
+		}
+
+		private void AdminPressButton()
+		{
+			AdminCommandsManager.Instance.CmdActivateButton(gameObject);
+		}
 	}
 }

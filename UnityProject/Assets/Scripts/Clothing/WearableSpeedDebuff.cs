@@ -17,12 +17,27 @@ namespace Clothing
 		private float walkingSpeedDebuff = 0.5f;
 
 
-		public float RunningSpeedModifier => -runningSpeedDebuff;
+		public float RunningSpeedModifier
+		{
+			get
+			{
+				if (SpeedDebuffRemoved) return 0;
+				return -runningSpeedDebuff;
+			}
+		}
 
-		public float WalkingSpeedModifier => -walkingSpeedDebuff;
+		public float WalkingSpeedModifier
+		{
+			get
+			{
+				if (SpeedDebuffRemoved) return 0;
+				return -walkingSpeedDebuff;
+			}
+		}
 
 		public float CrawlingSpeedModifier => 0;
 
+		public bool SpeedDebuffRemoved = false;
 
 		[SerializeField]
 		[Tooltip("In what slot should this debuff take place")]
@@ -36,7 +51,8 @@ namespace Clothing
 			{
 				ApplyDebuff();
 			}
-			else if (IsTakingOff(info))
+
+			if (IsTakingOff(info))
 			{
 				RemoveDebuff();
 			}
@@ -49,7 +65,7 @@ namespace Clothing
 				return false;
 			}
 
-			player = info.ToRootPlayer.OrNull()?.PlayerScript;
+			player = info.ToPlayer.OrNull()?.PlayerScript;
 
 			return player != null && info.ToSlot.NamedSlot == slot;
 		}
@@ -61,7 +77,7 @@ namespace Clothing
 				return false;
 			}
 
-			player = info.FromRootPlayer.OrNull()?.PlayerScript;
+			player = info.ToPlayer.OrNull()?.PlayerScript;
 
 			return player != null && info.FromSlot.NamedSlot == slot;
 		}

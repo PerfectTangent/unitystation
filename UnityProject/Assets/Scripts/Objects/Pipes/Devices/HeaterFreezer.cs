@@ -7,13 +7,16 @@ using Systems.Atmospherics;
 using Systems.Electricity;
 using Systems.Interaction;
 using Items;
+using Logs;
 using Machines;
 using Objects.Machines;
+using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 
 
 namespace Objects.Atmospherics
 {
-	public class HeaterFreezer : MonoPipe, IExaminable, IRefreshParts, IInitialParts
+	public class HeaterFreezer : MonoPipe, IExaminable, IRefreshParts
 	{
 		[SerializeField]
 		private float initalMinTemperature = 170;
@@ -29,12 +32,19 @@ namespace Objects.Atmospherics
 		private float currentTemperature;
 		public float CurrentTemperature => currentTemperature;
 
-		[SerializeField]
+		[SerializeField, FormerlySerializedAs("targetTemperature")]
+		public float InitialTargetTemperature = 298.15f;
+
+
 		private float targetTemperature = 298.15f;
 		public float TargetTemperature => targetTemperature;
 
 		[SerializeField]
 		private float idleWattUsage = 100;
+
+		[SerializeField]
+		private float MaxWattUsage = 5000;
+
 
 		[SerializeField]
 		private HeaterFreezerType type = HeaterFreezerType.Freezer;
@@ -43,7 +53,7 @@ namespace Objects.Atmospherics
 		private bool isOn;
 		public bool IsOn => isOn;
 
-		private float heatCapacity = 0;
+		private float Efficiency = 0;
 
 		private APCPoweredDevice apcPoweredDevice;
 		public APCPoweredDevice ApcPoweredDevice => apcPoweredDevice;
@@ -54,10 +64,11 @@ namespace Objects.Atmospherics
 
 		public override void Awake()
 		{
+			targetTemperature = InitialTargetTemperature;
 			base.Awake();
 
 			apcPoweredDevice = GetComponent<APCPoweredDevice>();
-			apcPoweredDevice.OnStateChangeEvent.AddListener(PowerStateChange);
+			apcPoweredDevice.OnStateChangeEvent += PowerStateChange;
 
 			machine = GetComponent<Machine>();
 		}
@@ -65,35 +76,71 @@ namespace Objects.Atmospherics
 		private void OnDisable()
 		{
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, Loop);
-			apcPoweredDevice.OnStateChangeEvent.RemoveListener(PowerStateChange);
+			apcPoweredDevice.OnStateChangeEvent -= (PowerStateChange);
+		}
+
+		private void OnDestroy()
+		{
+			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, Loop);
+			apcPoweredDevice.OnStateChangeEvent -= (PowerStateChange);
 		}
 
 		public override void TickUpdate()
 		{
 			pipeData.mixAndVolume.EqualiseWithOutputs(pipeData.Outputs);
 
-			//Only work when powered and online
-			if(apcPoweredDevice.State == PowerState.Off || isOn == false) return;
+			if (isOn == false)
+			{
+				apcPoweredDevice.Wattusage = idleWattUsage;
+				return;
+			}
 
-			var airHeatCapacity = pipeData.mixAndVolume.WholeHeatCapacity;
-			var combinedHeatCapacity = heatCapacity + airHeatCapacity;
+			//Only work when powered and online
+			if (apcPoweredDevice.State == PowerState.Off)
+			{
+				//Not enough current to run stuff but still  the same resistance
+				//TODO Use drop voltage to add a little bit of heat/Remove heat so watts don't disappear into nothing
+				return;
+			}
+
+			var AvailableMachineThroughput = MaxWattUsage * Efficiency; //Basically heat capacity of the machine
+
 			var oldTemperature = pipeData.mixAndVolume.Temperature;
+			var airHeatCapacity = pipeData.mixAndVolume.WholeHeatCapacity;
+			var combinedHeatCapacity = AvailableMachineThroughput + airHeatCapacity; //gas + heating plate
+
+
+			//ok,
+			//How this works basically because You're equalising to objects
+			//the heating/cooling plate always stays the same temperature,
+			//so, the gas can lose and gain heat
+			//so for example if you're heating up the gas,
+			//the calculation says that the heating plate loses loads of energy into the gas
+			//but because it's been replenished( is static in terms of calculation )
+			//Then that means it always goes up Till the Temperatures are the same
+
+			//yes I know MaxWattUsage Is a bit funky
 
 			if (combinedHeatCapacity > 0)
 			{
-				var combinedEnergy = heatCapacity * targetTemperature + airHeatCapacity * oldTemperature;
+				// heating plate Capacity*  temperature of heating plate
+				var combinedEnergy = AvailableMachineThroughput * targetTemperature + airHeatCapacity * oldTemperature;
 				pipeData.mixAndVolume.Temperature = combinedEnergy / combinedHeatCapacity;
 			}
 
 			var temperatureDelta = Mathf.Abs(oldTemperature - pipeData.mixAndVolume.Temperature);
+
 			if (temperatureDelta > 1)
 			{
-				apcPoweredDevice.Wattusage = (heatCapacity * temperatureDelta) / 10 + idleWattUsage;
+				apcPoweredDevice.Wattusage = MaxWattUsage;
 			}
 			else
 			{
 				apcPoweredDevice.Wattusage = idleWattUsage;
 			}
+
+
+
 
 			currentTemperature = pipeData.mixAndVolume.Temperature;
 			ThreadSafeUpdateGui();
@@ -122,7 +169,7 @@ namespace Objects.Atmospherics
 			//If close enough see more detail
 			if ((worldPos - registerTile.WorldPositionServer).sqrMagnitude <= 2)
 			{
-				stringBuilder.AppendLine($"The status display reads: Efficiency <b>{(heatCapacity / 5000 ) * 100}%.</b>");
+				stringBuilder.AppendLine($"The status display reads: Efficiency <b>{(Efficiency ) * 100}%.</b>");
 				stringBuilder.AppendLine(
 					$"Temperature range <b>{initalMinTemperature}K - {maxTemperature}K ({Celsius(initalMinTemperature)}C - {Celsius(maxTemperature)}C)</b>.");
 			}
@@ -139,35 +186,19 @@ namespace Objects.Atmospherics
 
 		#region Machine Parts
 
-		public void RefreshParts(IDictionary<GameObject, int> partsInFrame)
+		public void RefreshParts(List<PartReference> partsInFrame, Machine Frame )
 		{
 			var rating = 0;
 
 			ItemAttributesV2 partAttributes;
-			foreach (var part in partsInFrame)
-			{
-				partAttributes = part.Key.GetComponent<ItemAttributesV2>();
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MatterBin))
-				{
-					rating += part.Key.GetComponent<StockTier>().Tier * part.Value;
-				}
-			}
+			rating += Frame.RatingOfPartsForTrait(MachinePartsItemTraits.Instance.MatterBin);
 
-			heatCapacity = 5000 * (Mathf.Pow((rating - 1), 2));
+			Efficiency = (Mathf.Pow((rating - 1), 2));
 
 			if (type == HeaterFreezerType.Freezer || type == HeaterFreezerType.Both)
 			{
 				var minTempRating = 0;
-
-				foreach (var part in partsInFrame)
-				{
-					partAttributes = part.Key.GetComponent<ItemAttributesV2>();
-					if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MicroLaser))
-					{
-						minTempRating += part.Key.GetComponent<StockTier>().Tier * part.Value;
-					}
-				}
-
+				minTempRating += Frame.RatingOfPartsForTrait(MachinePartsItemTraits.Instance.MicroLaser);
 				minTemperature = Mathf.Max(TemperatureUtils.ZERO_CELSIUS_IN_KELVIN -
 				                           (initalMinTemperature + minTempRating * 15), AtmosDefines.SPACE_TEMPERATURE);
 				targetTemperature = minTemperature;
@@ -181,79 +212,9 @@ namespace Objects.Atmospherics
 			{
 				var maxTempRating = 0;
 
-				foreach (var part in partsInFrame)
-				{
-					partAttributes = part.Key.GetComponent<ItemAttributesV2>();
-					if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MicroLaser))
-					{
-						maxTempRating += part.Key.GetComponent<StockTier>().Tier * part.Value;
-					}
-				}
-
+				maxTempRating += Frame.RatingOfPartsForTrait(MachinePartsItemTraits.Instance.MicroLaser);
 				maxTemperature = 293.15f + (initalMaxTemperature * maxTempRating);
 				targetTemperature = maxTemperature;
-			}
-			else
-			{
-				maxTemperature = initalMaxTemperature;
-			}
-
-			UpdateGui();
-		}
-
-		public void InitialParts(IDictionary<ItemTrait, int> basicPartsUsed)
-		{
-			var heatCapacityRating = 0;
-
-			foreach (var part in basicPartsUsed)
-			{
-				if (part.Key == MachinePartsItemTraits.Instance.MatterBin)
-				{
-					//Only basic matter bins so add 1 * amount there is
-					heatCapacityRating += part.Value;
-				}
-			}
-
-			heatCapacity = 5000 * (Mathf.Pow((heatCapacityRating - 1), 2));
-
-			if (type == HeaterFreezerType.Freezer || type == HeaterFreezerType.Both)
-			{
-				var minTempRating = 0;
-
-				foreach (var part in basicPartsUsed)
-				{
-					if (part.Key == MachinePartsItemTraits.Instance.MicroLaser)
-					{
-						//Only MicroLasers so add 1 * amount there is
-						minTempRating += part.Value;
-					}
-				}
-
-				minTemperature = Mathf.Max(TemperatureUtils.ZERO_CELSIUS_IN_KELVIN -
-				                           (initalMinTemperature + minTempRating * 15), AtmosDefines.SPACE_TEMPERATURE);
-				targetTemperature = minTemperature;
-			}
-			else
-			{
-				minTemperature = initalMinTemperature;
-			}
-
-			if (type == HeaterFreezerType.Heater || type == HeaterFreezerType.Both)
-			{
-				var maxTempRating = 0;
-
-				foreach (var part in basicPartsUsed)
-				{
-					if (part.Key == MachinePartsItemTraits.Instance.MicroLaser)
-					{
-						//Only MicroLasers so add 1 * amount there is
-						maxTempRating += part.Value;
-					}
-				}
-
-				maxTemperature = 293.15f + (initalMaxTemperature * maxTempRating);
-				targetTemperature = maxTemperature;
-
 			}
 			else
 			{
@@ -279,11 +240,7 @@ namespace Objects.Atmospherics
 					$"{interaction.Performer.ExpensiveName()} rotates the {gameObject.ExpensiveName()}.",
 					() =>
 					{
-						pipeData.OnDisable();
-
-						directional.RotateBy(1);
-
-						SetUpPipes();
+						RotatePipe(1);
 					});
 
 				return;
@@ -307,6 +264,12 @@ namespace Objects.Atmospherics
 				return;
 			}
 
+			if (apcPoweredDevice.State == PowerState.Off)
+			{
+				Chat.AddExamineMsg(interaction.Performer, " looks like it's not powered or Connected to an APC");
+				return;
+			}
+
 			TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType.ThermoMachine, TabAction.Open);
 		}
 
@@ -327,7 +290,7 @@ namespace Objects.Atmospherics
 
 		#endregion
 
-		private void PowerStateChange(Tuple<PowerState, PowerState> states)
+		private void PowerStateChange(PowerState old , PowerState newState)
 		{
 			if (isOn == false)
 			{
@@ -335,7 +298,7 @@ namespace Objects.Atmospherics
 				return;
 			}
 
-			ChangeSprite(states.Item2 != PowerState.Off);
+			ChangeSprite(newState != PowerState.Off);
 		}
 
 		public void TogglePower(bool newState)
@@ -352,13 +315,13 @@ namespace Objects.Atmospherics
 			if (type == HeaterFreezerType.Both)
 			{
 				//0 is freezer off, 1 is freezer on, 2 is heater off, 3 is heater on
-				spritehandler.ChangeSprite(newState ? targetTemperature > currentTemperature ? 3 : 1
+				spritehandler.SetCatalogueIndexSprite(newState ? targetTemperature > currentTemperature ? 3 : 1
 					: targetTemperature > currentTemperature ? 2 : 0);
 			}
 			else
 			{
 				//0 is off, 1 is heater/freezer depending on prefab
-				spritehandler.ChangeSprite(newState ? 1 : 0);
+				spritehandler.SetCatalogueIndexSprite(newState ? 1 : 0);
 			}
 		}
 
@@ -369,7 +332,7 @@ namespace Objects.Atmospherics
 
 			if (type == HeaterFreezerType.Both && isOn)
 			{
-				spritehandler.ChangeSprite(targetTemperature > currentTemperature ? 3 : 1);
+				spritehandler.SetCatalogueIndexSprite(targetTemperature > currentTemperature ? 3 : 1);
 			}
 
 			UpdateGui();
@@ -392,6 +355,11 @@ namespace Objects.Atmospherics
 
 		private void UpdateGui()
 		{
+			if (this == null)
+			{
+				OnDisable();
+				return;
+			}
 			var peppers = NetworkTabManager.Instance.GetPeepers(gameObject, NetTabType.ThermoMachine);
 			if(peppers.Count == 0) return;
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using Mirror;
 using UnityEngine;
 
@@ -12,13 +13,14 @@ namespace Messages.Server.SpritesMessages
 
 		public struct NetMessage : NetworkMessage
 		{
-			public List<KeyValuePair<SpriteHandler, SpriteHandlerManager.SpriteChange>> Data;
+			public IEnumerable<KeyValuePair<SpriteHandler, SpriteHandlerManager.SpriteChange>> Data;
+			public IEnumerable<KeyValuePair<string, SpriteHandlerManager.SpriteChange>> DataSpecial;
 			//public string SerialiseData;
 		}
 
 		public override void Process(NetMessage msg)
 		{
-			if (CustomNetworkManager.Instance._isServer)
+			if (CustomNetworkManager.IsServer)
 				return;
 
 			List<SpriteUpdateEntry> spriteUpdateList = new List<SpriteUpdateEntry>();
@@ -39,11 +41,9 @@ namespace Messages.Server.SpritesMessages
 
 		private bool ProcessEntry(SpriteUpdateEntry spriteUpdateEntry)
 		{
-			if (NetworkIdentity.spawned.ContainsKey(spriteUpdateEntry.id) == false)
-				return false;
-			var networkIdentity = NetworkIdentity.spawned[spriteUpdateEntry.id];
-			if (networkIdentity == null)
-				return false;
+			var spawned = CustomNetworkManager.Spawned;
+			if (spawned.TryGetValue(spriteUpdateEntry.id, out var networkIdentity) == false) return false;
+			if (networkIdentity == null) return false;
 
 			if (SpriteHandlerManager.PresentSprites.ContainsKey(networkIdentity) == false ||
 			    SpriteHandlerManager.PresentSprites[networkIdentity].ContainsKey(spriteUpdateEntry.name) == false)
@@ -65,13 +65,13 @@ namespace Messages.Server.SpritesMessages
 				{
 					var argument = spriteUpdateEntry.arg[argumentIndex];
 					argumentIndex++;
-					spriteHandler.ChangeSpriteVariant(argument, false);
+					spriteHandler.SetSpriteVariant(argument, false);
 				}
 				else if (spriteOperation == SpriteOperation.CataloguePage)
 				{
 					var argument = spriteUpdateEntry.arg[argumentIndex];
 					argumentIndex++;
-					spriteHandler.ChangeSprite(argument, false);
+					spriteHandler.SetCatalogueIndexSprite(argument, false);
 				}
 				else if (spriteOperation == SpriteOperation.AnimateOnce)
 				{
@@ -139,7 +139,26 @@ namespace Messages.Server.SpritesMessages
 			}
 		}
 
+		public static void SendToSpecified(NetworkConnection recipient,
+			Dictionary<string, SpriteHandlerManager.SpriteChange> toSend)
+		{
+			foreach (var changeChunk in toSend.Chunk(2000))
+			{
+				var msg = GenerateMessage(changeChunk);
+				SendTo(recipient, msg);
+			}
+		}
+
 		public static void SendToAll(Dictionary<SpriteHandler, SpriteHandlerManager.SpriteChange> toSend)
+		{
+			foreach (var changeChunk in toSend.Chunk(2000))
+			{
+				var msg = GenerateMessage(changeChunk);
+				SendToAll(msg);
+			}
+		}
+
+		public static void SendToAll(Dictionary<string, SpriteHandlerManager.SpriteChange> toSend)
 		{
 			foreach (var changeChunk in toSend.Chunk(2000))
 			{
@@ -150,10 +169,18 @@ namespace Messages.Server.SpritesMessages
 
 
 		private static NetMessage GenerateMessage(
+			IEnumerable<KeyValuePair<string, SpriteHandlerManager.SpriteChange>> toSend)
+		{
+			var msg = new NetMessage();
+			msg.DataSpecial = toSend;
+			return msg;
+		}
+
+		private static NetMessage GenerateMessage(
 			IEnumerable<KeyValuePair<SpriteHandler, SpriteHandlerManager.SpriteChange>> toSend)
 		{
 			var msg = new NetMessage();
-			msg.Data = toSend.ToList();
+			msg.Data = toSend;
 			return msg;
 		}
 
@@ -168,7 +195,7 @@ namespace Messages.Server.SpritesMessages
 
 		public enum SpriteOperation
 		{
-			PresentSpriteSet,
+			PresentSpriteSet = 1,
 			VariantIndex,
 			CataloguePage,
 			AnimateOnce,
@@ -183,33 +210,63 @@ namespace Messages.Server.SpritesMessages
 
 	public static class SpriteUpdateMessageReaderWriters
 	{
+		public enum SpriteOperation
+		{
+			PresentSpriteSet = 1,
+			VariantIndex,
+			CataloguePage,
+			AnimateOnce,
+			PushTexture,
+			Empty,
+			PushClear,
+			ClearPallet,
+			SetColour,
+			Pallet
+		}
+
 		public static SpriteUpdateMessage.NetMessage Deserialize(this NetworkReader reader)
 		{
+			var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
 			var message = new SpriteUpdateMessage.NetMessage();
 			SpriteUpdateMessage.SpriteUpdateEntry UnprocessedData = null;
 			while (true)
 			{
 				UnprocessedData = null;
 				bool ProcessSection = true;
+				bool SkipSection = false;
+
 				uint NetID = reader.ReadUInt();
 				if (NetID == 0)
 				{
 					break;
 				}
 
-				if (NetworkIdentity.spawned.ContainsKey(NetID) == false || NetworkIdentity.spawned[NetID] == null)
+				if ((spawned.ContainsKey(NetID) == false || spawned[NetID] == null) && NetID != NetId.Invalid)
 				{
 					ProcessSection = false;
 				}
 
 				string Name = reader.ReadString();
-				if (ProcessSection == false ||
-				    NetworkIdentity.spawned.ContainsKey(NetID) == false ||
-				    SpriteHandlerManager.PresentSprites.ContainsKey(NetworkIdentity.spawned[NetID]) == false ||
-				    SpriteHandlerManager.PresentSprites[NetworkIdentity.spawned[NetID]].ContainsKey(Name) == false)
+				if (NetID != NetId.Invalid)
 				{
-					ProcessSection = false;
+					if (ProcessSection == false ||
+					    spawned.ContainsKey(NetID) == false ||
+					    SpriteHandlerManager.PresentSprites.ContainsKey(spawned[NetID]) == false ||
+					    SpriteHandlerManager.PresentSprites[spawned[NetID]].ContainsKey(Name) == false)
+					{
+						ProcessSection = false;
+					}
 				}
+				else
+				{
+					if (SpriteHandlerManager.SpecialPresentSprites.ContainsKey(Name) == false || SpriteHandlerManager.SpecialPresentSprites[Name] == null)
+					{
+						ProcessSection = false;
+						SkipSection = true;
+					}
+				}
+
+
 
 				if (ProcessSection == false)
 				{
@@ -219,7 +276,18 @@ namespace Messages.Server.SpritesMessages
 				}
 
 				SpriteHandler SP = null;
-				if (ProcessSection) SP = SpriteHandlerManager.PresentSprites[NetworkIdentity.spawned[NetID]][Name];
+				if (ProcessSection)
+				{
+					if (NetID != NetId.Invalid)
+					{
+						SP = SpriteHandlerManager.PresentSprites[spawned[NetID]][Name];
+					}
+					else
+					{
+						SP = SpriteHandlerManager.SpecialPresentSprites[Name];
+					}
+				}
+
 
 				while (true)
 				{
@@ -227,7 +295,7 @@ namespace Messages.Server.SpritesMessages
 
 					if (Operation == 255)
 					{
-						if (ProcessSection == false)
+						if (ProcessSection == false && SkipSection == false)
 						{
 							SpriteUpdateMessage.UnprocessedData.Add(UnprocessedData);
 						}
@@ -235,7 +303,7 @@ namespace Messages.Server.SpritesMessages
 						break;
 					}
 
-					if (Operation == 1)
+					if (Operation == (byte) SpriteOperation.PresentSpriteSet)
 					{
 						int SpriteID = reader.ReadInt();
 						if (ProcessSection)
@@ -246,7 +314,7 @@ namespace Messages.Server.SpritesMessages
 							}
 							catch (Exception e)
 							{
-								Logger.Log(e.StackTrace);
+								Loggy.Info(e.ToString());
 							}
 						}
 						else
@@ -257,12 +325,20 @@ namespace Messages.Server.SpritesMessages
 					}
 
 
-					if (Operation == 2)
+					if (Operation == (byte) SpriteOperation.VariantIndex)
 					{
 						int Variant = reader.ReadInt();
 						if (ProcessSection)
 						{
-							SP.ChangeSpriteVariant(Variant, networked: false);
+							try
+							{
+								SP.SetSpriteVariant(Variant, networked: false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
+
 						}
 						else
 						{
@@ -271,12 +347,20 @@ namespace Messages.Server.SpritesMessages
 						}
 					}
 
-					if (Operation == 3)
+					if (Operation == (byte) SpriteOperation.CataloguePage)
 					{
 						int Sprite = reader.ReadInt();
 						if (ProcessSection)
 						{
-							SP.ChangeSprite(Sprite, false);
+							try
+							{
+								SP.SetCatalogueIndexSprite(Sprite, false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
+
 						}
 						else
 						{
@@ -285,12 +369,19 @@ namespace Messages.Server.SpritesMessages
 						}
 					}
 
-					if (Operation == 4)
+					if (Operation == (byte) SpriteOperation.AnimateOnce)
 					{
 						int SpriteAnimate = reader.ReadInt();
 						if (ProcessSection)
 						{
-							SP.AnimateOnce(SpriteAnimate, false);
+							try
+							{
+								SP.AnimateOnce(SpriteAnimate, false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
 						}
 						else
 						{
@@ -299,11 +390,18 @@ namespace Messages.Server.SpritesMessages
 						}
 					}
 
-					if (Operation == 5)
+					if (Operation ==  (byte) SpriteOperation.PushTexture)
 					{
 						if (ProcessSection)
 						{
-							SP.PushTexture(false);
+							try
+							{
+								SP.PushTexture(false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
 						}
 						else
 						{
@@ -311,11 +409,19 @@ namespace Messages.Server.SpritesMessages
 						}
 					}
 
-					if (Operation == 6)
+					if (Operation == (byte) SpriteOperation.Empty)
 					{
 						if (ProcessSection)
 						{
-							SP.Empty(false);
+							try
+							{
+								SP.Empty(false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
+
 						}
 						else
 						{
@@ -324,11 +430,18 @@ namespace Messages.Server.SpritesMessages
 					}
 
 
-					if (Operation == 7)
+					if (Operation == (byte) SpriteOperation.PushClear)
 					{
 						if (ProcessSection)
 						{
-							SP.PushClear(false);
+							try
+							{
+								SP.PushClear(false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
 						}
 						else
 						{
@@ -336,11 +449,18 @@ namespace Messages.Server.SpritesMessages
 						}
 					}
 
-					if (Operation == 8)
+					if (Operation == (byte) SpriteOperation.ClearPallet)
 					{
 						if (ProcessSection)
 						{
-							SP.ClearPalette(false);
+							try
+							{
+								SP.ClearPalette(false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
 						}
 						else
 						{
@@ -349,29 +469,38 @@ namespace Messages.Server.SpritesMessages
 					}
 
 
-					if (Operation == 9)
+					if (Operation == (byte) SpriteOperation.SetColour)
 					{
 						Color TheColour = reader.ReadColor();
 						if (ProcessSection)
 						{
 							if (SP)
 							{
-								//TODO: remove this check - registering arrives after the sprite update, all clients will disconnect after a runtime
-								//removing and readding a bodypart through surgery would cause it, since the network identity already exists unlike the creation of a new human
-								SP.SetColor(TheColour, false);
+								try
+								{
+									//TODO: remove this check - registering arrives after the sprite update, all clients will disconnect after a runtime
+									//removing and readding a bodypart through surgery would cause it, since the network identity already exists unlike the creation of a new human
+									SP.SetColor(TheColour, false);
+								}
+								catch (Exception e)
+								{
+									Loggy.Info(e.ToString());
+								}
+
 							}
 						}
 						else
 						{
 							UnprocessedData.call.Add(SpriteUpdateMessage.SpriteOperation.SetColour);
-							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt(TheColour.r * 255)));
-							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt(TheColour.g * 255)));
-							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt(TheColour.b * 255)));
-							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt(TheColour.a * 255)));
+							//TODO Review HDR colours?
+							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt( Mathf.Clamp( TheColour.r, 0f, 1f) * 255)));
+							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt( Mathf.Clamp( TheColour.g, 0f, 1f) * 255)));
+							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt( Mathf.Clamp( TheColour.b, 0f, 1f)  * 255)));
+							UnprocessedData.arg.Add(Convert.ToChar(Mathf.RoundToInt( Mathf.Clamp( TheColour.a, 0f, 1f) * 255)));
 						}
 					}
 
-					if (Operation == 10)
+					if (Operation == (byte) SpriteOperation.Pallet)
 					{
 						int paletteCount = reader.ReadByte();
 						List<Color> Colours = new List<Color>();
@@ -382,7 +511,14 @@ namespace Messages.Server.SpritesMessages
 
 						if (ProcessSection)
 						{
-							SP.SetPaletteOfCurrentSprite(Colours, false);
+							try
+							{
+								SP.SetPaletteOfCurrentSprite(Colours, false);
+							}
+							catch (Exception e)
+							{
+								Loggy.Info(e.ToString());
+							}
 						}
 						else
 						{
@@ -405,74 +541,98 @@ namespace Messages.Server.SpritesMessages
 
 		public static void Serialize(this NetworkWriter writer, SpriteUpdateMessage.NetMessage message)
 		{
-			foreach (var keyValuePair in message.Data)
+			if (message.Data != null)
 			{
-				var spriteChange = keyValuePair.Value;
-				writer.WriteUInt(keyValuePair.Key.GetMasterNetID().netId);
-				writer.WriteString(keyValuePair.Key.name);
-
-				if (spriteChange.PresentSpriteSet != -1)
+				foreach (var keyValuePair in message.Data)
 				{
-					writer.WriteByte((byte) 1);
-					writer.WriteInt(spriteChange.PresentSpriteSet);
+					var netid = keyValuePair.Key.GetMasterNetID();
+					if (netid.netId == 0) continue; //If it is zero it is invalid and will also cause the network message to explode and die
+					var spriteChange = keyValuePair.Value;
+					writer.WriteUInt(netid.netId);
+					writer.WriteString(keyValuePair.Key.name);
+					RightChange(writer, spriteChange);
 				}
-
-				if (spriteChange.VariantIndex != -1)
-				{
-					writer.WriteByte((byte) 2);
-					writer.WriteInt(spriteChange.VariantIndex);
-				}
-
-				if (spriteChange.CataloguePage != -1)
-				{
-					writer.WriteByte((byte) 3);
-					writer.WriteInt(spriteChange.CataloguePage);
-				}
-
-				if (spriteChange.AnimateOnce)
-				{
-					writer.WriteByte((byte) 4);
-					writer.WriteInt(spriteChange.CataloguePage);
-				}
-
-				if (spriteChange.PushTexture)
-				{
-					writer.WriteByte((byte) 5);
-				}
-
-				if (spriteChange.Empty)
-				{
-					writer.WriteByte((byte) 6);
-				}
-
-				if (spriteChange.PushClear)
-				{
-					writer.WriteByte((byte) 7);
-				}
-
-				if (spriteChange.ClearPalette)
-				{
-					writer.WriteByte((byte) 8);
-				}
-
-				if (spriteChange.SetColour != null)
-				{
-					writer.WriteByte((byte) 9);
-					writer.WriteColor(spriteChange.SetColour.Value);
-				}
-
-				if (spriteChange.Palette != null)
-				{
-					writer.WriteByte((byte) 10);
-					writer.WriteByte((byte) spriteChange.Palette.Count);
-					foreach (Color Colour in spriteChange.Palette)
-					{
-						writer.WriteColor(Colour);
-					}
-				}
-				writer.WriteByte((byte) 255);
 			}
+
+
+			if (message.DataSpecial != null)
+			{
+				foreach (var keyValuePair in message.DataSpecial)
+				{
+					var spriteChange = keyValuePair.Value;
+					writer.WriteUInt(NetId.Invalid);
+					writer.WriteString(keyValuePair.Key);
+					RightChange(writer, spriteChange);
+				}
+			}
+
+
 			writer.WriteUInt(0);
+		}
+
+
+		private static void RightChange(NetworkWriter writer, SpriteHandlerManager.SpriteChange spriteChange)
+		{
+			if (spriteChange.PresentSpriteSet != -1)
+			{
+				writer.WriteByte((byte) SpriteOperation.PresentSpriteSet);
+				writer.WriteInt(spriteChange.PresentSpriteSet);
+			}
+
+			if (spriteChange.VariantIndex != -1)
+			{
+				writer.WriteByte((byte) SpriteOperation.VariantIndex);
+				writer.WriteInt(spriteChange.VariantIndex);
+			}
+
+			if (spriteChange.CataloguePage != -1)
+			{
+				writer.WriteByte((byte) SpriteOperation.CataloguePage);
+				writer.WriteInt(spriteChange.CataloguePage);
+			}
+
+			if (spriteChange.AnimateOnce)
+			{
+				writer.WriteByte((byte) SpriteOperation.AnimateOnce);
+				writer.WriteInt(spriteChange.CataloguePage);
+			}
+
+			if (spriteChange.PushTexture)
+			{
+				writer.WriteByte((byte) SpriteOperation.PushTexture);
+			}
+
+			if (spriteChange.Empty)
+			{
+				writer.WriteByte((byte) SpriteOperation.Empty);
+			}
+
+			if (spriteChange.PushClear)
+			{
+				writer.WriteByte((byte) SpriteOperation.PushClear);
+			}
+
+			if (spriteChange.ClearPalette)
+			{
+				writer.WriteByte((byte) SpriteOperation.ClearPallet);
+			}
+
+			if (spriteChange.SetColour != null)
+			{
+				writer.WriteByte((byte) SpriteOperation.SetColour);
+				writer.WriteColor(spriteChange.SetColour.Value);
+			}
+
+			if (spriteChange.Palette != null)
+			{
+				writer.WriteByte((byte) SpriteOperation.Pallet);
+				writer.WriteByte((byte) spriteChange.Palette.Count);
+				foreach (Color Colour in spriteChange.Palette)
+				{
+					writer.WriteColor(Colour);
+				}
+			}
+			writer.WriteByte((byte) 255);
 		}
 	}
 }

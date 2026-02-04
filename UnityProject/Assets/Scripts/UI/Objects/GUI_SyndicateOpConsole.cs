@@ -9,7 +9,7 @@ namespace SyndicateOps
 		private SyndicateOpConsole console;
 
 		[SerializeField]
-		private NetLabel timerLabel = null;
+		private NetText_label timerLabel = null;
 
 		public override void OnEnable()
 		{
@@ -51,7 +51,7 @@ namespace SyndicateOps
 			string min = Mathf.FloorToInt((console.Timer) / 60).ToString();
 			string sec = ((console.Timer) % 60).ToString();
 			sec = sec.Length >= 2 ? sec : "0" + sec;
-			timerLabel.SetValueServer($"{min}:{sec}");
+			timerLabel.MasterSetValue($"{min}:{sec}");
 		}
 
 		public void ServerDeclareWar(string DeclerationMessage)

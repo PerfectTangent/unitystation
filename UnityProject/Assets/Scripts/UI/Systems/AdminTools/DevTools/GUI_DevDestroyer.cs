@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Core;
 using UnityEngine;
 using Messages.Client.DevSpawner;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace UI.AdminTools
@@ -45,17 +47,17 @@ namespace UI.AdminTools
 			if (CommonInput.GetMouseButtonDown(0))
 			{
 				var hits = MouseUtils.GetOrderedObjectsUnderMouse(layerMask,
-					go => go.GetComponent<CustomNetTransform>() != null);
-				if (hits.Any())
+					go => go.GetComponent<UniversalObjectPhysics>() != null, useMappedItems : DevCameraControls.Instance.MappingItemState).ToArray();
+				if (hits.Any() == false) return;
+				var target = hits.First().GetComponentInParent<UniversalObjectPhysics>().gameObject;
+				if (target == null) return;
+				if (CustomNetworkManager.IsServer)
 				{
-					if (CustomNetworkManager.IsServer)
-					{
-						_ = Despawn.ServerSingle(hits.First().GetComponentInParent<CustomNetTransform>().gameObject);
-					}
-					else
-					{
-						DevDestroyMessage.Send(hits.First().GetComponentInParent<CustomNetTransform>().gameObject);
-					}
+					_ = Despawn.ServerSingle(target);
+				}
+				else
+				{
+					DevDestroyMessage.Send(target);
 				}
 			}
 		}

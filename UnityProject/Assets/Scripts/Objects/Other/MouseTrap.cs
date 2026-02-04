@@ -4,6 +4,7 @@ using Systems.MobAIs;
 using UnityEngine.EventSystems;
 using UnityEngine;
 using HealthV2;
+using Logs;
 
 
 namespace Objects.Other
@@ -21,11 +22,13 @@ namespace Objects.Other
 		private bool trapInSnare;
 		public bool IsArmed => isArmed;
 
-		public void Awake()
+		protected override void Awake()
 		{
+			base.Awake();
+
 			if (trapPreview == null)
 			{
-				Logger.LogError($"{gameObject} spawned with a null trapPreview. We can't get it on awake due to the existence of two SpriteHandlers!");
+				Loggy.Error($"{gameObject} spawned with a null trapPreview. We can't get it on awake due to the existence of two SpriteHandlers!");
 			}
 		}
 
@@ -93,7 +96,7 @@ namespace Objects.Other
 			var sprite = slot.Item.gameObject.GetComponentInChildren<SpriteHandler>();
 			if (sprite.GetCurrentSpriteSO() == null)
 			{
-				trapPreview.SetSprite(sprite.CurrentSprite);
+				trapPreview.SetSpriteNonNetworked(sprite.CurrentSprite);
 				return;
 			}
 			trapPreview.SetSpriteSO(sprite.GetCurrentSpriteSO());
@@ -101,7 +104,7 @@ namespace Objects.Other
 
 		public override bool WillAffectPlayer(PlayerScript playerScript)
 		{
-			return playerScript.IsGhost == false;
+			return playerScript.PlayerType == PlayerTypes.Normal;
 		}
 
 		public override void OnPlayerStep(PlayerScript playerScript)
@@ -131,7 +134,7 @@ namespace Objects.Other
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.UsedObject == null) return false;
 			return true;
 		}

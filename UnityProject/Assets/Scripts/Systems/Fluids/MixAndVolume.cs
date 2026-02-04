@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
+using Core.Utils;
 using ScriptableObjects.Atmospherics;
 using Chemistry;
+using Core.RootSillys;
+using Logs;
 using Systems.Atmospherics;
 
 
@@ -21,9 +23,18 @@ namespace Systems.Pipes
 			get => mix.InternalEnergy + gasMix.InternalEnergy;
 			set
 			{
-				var InWholeHeatCapacity = WholeHeatCapacity;
-				if (CodeUtilities.IsEqual(InWholeHeatCapacity, 0))
+
+				if (value.IsUnreasonableNumber() && value != 0)
 				{
+					Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE MixAndVolume InternalEnergy Invalid number!!!! {value}");
+					return;
+				}
+
+				var InWholeHeatCapacity = WholeHeatCapacity;
+				if (MathUtils.IsEqual(InWholeHeatCapacity, 0))
+				{
+					mix.Temperature = 0;
+					gasMix.SetTemperature(0);
 					return;
 				}
 
@@ -39,7 +50,7 @@ namespace Systems.Pipes
 		{
 			get
 			{
-				if (CodeUtilities.IsEqual(WholeHeatCapacity, 0))
+				if (MathUtils.IsEqual(WholeHeatCapacity, 0))
 				{
 					return 0;
 				}
@@ -50,9 +61,14 @@ namespace Systems.Pipes
 			}
 			set
 			{
-				var internalEnergy = (value * WholeHeatCapacity);
-				mix.InternalEnergy = internalEnergy;
-				gasMix.InternalEnergy = internalEnergy;
+				if (value.IsUnreasonableNumber() && value != 0)
+				{
+					Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE MixAndVolume Temperature Invalid number!!!! {value}");
+					return;
+				}
+
+				mix.Temperature = value;
+				gasMix.Temperature = value;
 			}
 		}
 
@@ -92,6 +108,15 @@ namespace Systems.Pipes
 			return mix;
 		}
 
+		/// <summary>
+		/// Only use this if you know what you're doing
+		/// </summary>
+		/// <returns></returns>
+		public void SetReagentMix(ReagentMix newReagentMix)
+		{
+			mix = newReagentMix;
+		}
+
 		public void Add(MixAndVolume mixAndVolume, bool changeVolume = true)
 		{
 			float internalEnergy = mixAndVolume.InternalEnergy + this.InternalEnergy;
@@ -118,11 +143,23 @@ namespace Systems.Pipes
 			this.InternalEnergy = internalEnergy;
 		}
 
+		public void Remove(Vector2 Amount)
+		{
+			mix.Take(Amount.x);
+			if (gasMix.Moles != 0)
+			{
+				var Percentage = -(Mathf.Min(Amount.y, gasMix.Moles) / gasMix.Moles);
+
+				gasMix.MultiplyGas(Percentage+1 );
+			}
+
+		}
+
 		public Tuple<ReagentMix, GasMix> Take(MixAndVolume inMixAndVolume, bool removeVolume = true)
 		{
-			if (CodeUtilities.IsEqual(Volume, 0))
+			if (MathUtils.IsEqual(Volume, 0))
 			{
-				Logger.LogError("Tried to take from pipe but its volume was 0!", Category.Pipes);
+				Loggy.Error("Tried to take from pipe but its volume was 0!", Category.Pipes);
 			}
 
 			var percentage = inMixAndVolume.Volume / Volume;
@@ -152,16 +189,23 @@ namespace Systems.Pipes
 
 
 			gasMix = GasMix.FromTemperature(newOne, gasMix.Temperature, gasVolume);
-
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
 			return new Tuple<ReagentMix, GasMix>(returnMix,
 				GasMix.FromTemperature(removeNewOne, gasMix.Temperature, removeGasVolume));
 		}
 
 		public void Divide(float divideAmount, bool changeVolume = true)
 		{
-			if (CodeUtilities.IsEqual(divideAmount, 0))
+
+			if (divideAmount.IsUnreasonableNumber())
 			{
-				Logger.LogError("Tried to divide pipe contents, but the amount to divide by was 0!", Category.Pipes);
+				Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE MixAndVolume divideAmount Invalid number!!!! {divideAmount}");
+				return;
+			}
+
+			if (MathUtils.IsEqual(divideAmount, 0))
+			{
+				Loggy.Error("Tried to divide pipe contents, but the amount to divide by was 0!", Category.Pipes);
 			}
 
 			float gasVolume = gasMix.Volume;
@@ -184,10 +228,18 @@ namespace Systems.Pipes
 			}
 
 			gasMix = GasMix.FromTemperature(newOne, gasMix.Temperature, gasVolume);
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
 		}
 
 		public void Multiply(float multiplyAmount, bool changeVolume = true)
 		{
+
+			if (multiplyAmount.IsUnreasonableNumber())
+			{
+				Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE MixAndVolume multiplyAmount Invalid number!!!! {multiplyAmount}");
+				return;
+			}
+
 			var gasVolume = gasMix.Volume;
 			if (changeVolume)
 			{
@@ -207,6 +259,7 @@ namespace Systems.Pipes
 			}
 
 			gasMix = GasMix.FromTemperature(newOne, gasMix.Temperature, gasVolume);
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
 		}
 
 		public MixAndVolume Clone()
@@ -239,14 +292,14 @@ namespace Systems.Pipes
 					toRemoveGas = gasMix.GasData.GetGasMoles(gas);
 				}
 
-				var transferredEnergy = toRemoveGas * gas.MolarHeatCapacity * gasMix.Temperature;
+				var transferredEnergy = toRemoveGas * gas.MolarHeatCapacity * Temperature;
 
 				gasMix.RemoveGas(gas, toRemoveGas);
 
-				var cachedInternalEnergy = toTransfer.InternalEnergy + transferredEnergy; //- TransferredEnergy;
+				var cachedInternalEnergy = this.InternalEnergy + transferredEnergy;
 
-				toTransfer.gasMix.AddGas(gas, toRemoveGas);
-				toTransfer.gasMix.InternalEnergy = cachedInternalEnergy;
+				toTransfer.gasMix.AddGasWithTemperature(gas, toRemoveGas,Temperature );
+				toTransfer.InternalEnergy = cachedInternalEnergy;
 			}
 
 			if (reagent != null)
@@ -264,14 +317,18 @@ namespace Systems.Pipes
 
 
 				var transferredEnergy = toRemoveGas * reagent.heatDensity * mix.Temperature;
-				var cachedInternalEnergy = mix.InternalEnergy;
-				mix.Subtract(reagent, toRemoveGas);
-				mix.InternalEnergy = cachedInternalEnergy - transferredEnergy;
 
-				cachedInternalEnergy = toTransfer.mix.InternalEnergy;
+				var cachedInternalEnergy = InternalEnergy;
+				mix.Subtract(reagent, toRemoveGas);
+				InternalEnergy = cachedInternalEnergy - transferredEnergy;
+
+
+
+				cachedInternalEnergy = toTransfer.InternalEnergy;
+
 				toTransfer.mix.Add(reagent, toRemoveGas);
 				cachedInternalEnergy += transferredEnergy;
-				toTransfer.mix.InternalEnergy = cachedInternalEnergy;
+				toTransfer.InternalEnergy = cachedInternalEnergy;
 			}
 		}
 
@@ -286,11 +343,17 @@ namespace Systems.Pipes
 			{
 				GasMix.TransferGas(toTransfer.gasMix, gasMix, amount.y);
 			}
+
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
+
 		}
 
 		public GasMix EqualiseWithExternal(GasMix inGasMix)
 		{
-			return gasMix.MergeGasMix(inGasMix);
+			var mix = gasMix.MergeGasMix(inGasMix);
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
+			return mix;
+
 		}
 
 		public void EqualiseWith(PipeData another, bool equaliseGas, bool equaliseLiquid)
@@ -304,9 +367,9 @@ namespace Systems.Pipes
 			{
 				float totalVolume = Volume + PipeFunctions.PipeOrNet(another).Volume;
 				float totalReagents = mix.Total + PipeFunctions.PipeOrNet(another).mix.Total;
-				if (CodeUtilities.IsEqual(totalVolume, 0))
+				if (MathUtils.IsEqual(totalVolume, 0))
 				{
-					Logger.LogError("Tried to equalise two pipes, but their total volume was 0!", Category.Pipes);
+					Loggy.Error("Tried to equalise two pipes, but their total volume was 0!", Category.Pipes);
 				}
 
 				float targetDensity = totalReagents / totalVolume;
@@ -325,6 +388,8 @@ namespace Systems.Pipes
 						anotherAmount - PipeFunctions.PipeOrNet(another).mix.Total);
 				}
 			}
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
+			PipeFunctions.PipeOrNet(another).Temperature = PipeFunctions.PipeOrNet(another).Temperature; //Reinitialise is temperature to equal out oddities
 		}
 
 		public void EqualiseWithMultiple(List<PipeData> others, bool equaliseGas, bool equaliseLiquid)
@@ -348,9 +413,9 @@ namespace Systems.Pipes
 					totalReagents += PipeFunctions.PipeOrNet(pipe).mix.Total;
 				}
 
-				if (CodeUtilities.IsEqual(totalVolume, 0))
+				if (MathUtils.IsEqual(totalVolume, 0))
 				{
-					Logger.LogError("Tried to equalise multiple pipes, but their total volume was 0!", Category.Pipes);
+					Loggy.Error("Tried to equalise multiple pipes, but their total volume was 0!", Category.Pipes);
 				}
 
 				var targetDensity = totalReagents / totalVolume;
@@ -367,6 +432,8 @@ namespace Systems.Pipes
 						targetDensity * PipeFunctions.PipeOrNet(pipe).Volume);
 				}
 			}
+
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
 		}
 
 		public void EqualiseWithOutputs(List<PipeData> others)
@@ -412,6 +479,7 @@ namespace Systems.Pipes
 		public void SetVolume(float newVolume)
 		{
 			gasMix.Volume = newVolume;
+			Temperature = Temperature; //Reinitialise is temperature to equal out oddities
 		}
 
 		public override string ToString()
@@ -423,6 +491,26 @@ namespace Systems.Pipes
 			}
 
 			return $"Volume > {Volume} Mix > {mix} gasMix > {gasMix.ToString()} gases > " + Returnstring;
+		}
+
+		public float this[GasOrReagent index]
+		{
+			get
+			{
+				if (index.Gas != null)
+				{
+					return gasMix.GetMoles(index.Gas);
+				}
+				else if (index.Reagent != null)
+				{
+					return mix[index.Reagent];
+				}
+				else
+				{
+					Loggy.Error("You tried passing in GasOrReagent With no Gas Or Reagent, silly Billy");
+					return 0;
+				}
+			}
 		}
 	}
 }

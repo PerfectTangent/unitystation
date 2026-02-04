@@ -11,8 +11,7 @@ namespace ScriptableObjects.Audio
 {
 	public class FootstepSounds : MonoBehaviour
 	{
-		[SerializeField]
-		[FormerlySerializedAs("DefaultFloorSound")]
+		[SerializeField] [FormerlySerializedAs("DefaultFloorSound")]
 		private FloorSounds defaultFloorSound;
 
 		private static FootstepSounds instance;
@@ -23,32 +22,31 @@ namespace ScriptableObjects.Audio
 		}
 
 		public static void PlayerFootstepAtPosition(Vector3 worldPos,
-			PlayerSync playerSync)
+			MovementSynchronisation playerSync)
 		{
-			if (playerSync.playerScript.registerTile.IsLayingDown == false)
+			if (playerSync.playerScript.RegisterPlayer.IsLayingDown == false)
 			{
-				var stepType = GetFootStepType(playerSync);
-				playerSync.Step = !playerSync.Step;
+				if(playerSync.playerScript.Mind == null) return;
 
-				if (playerSync.Step)
-				{
-					FootstepAtPosition(
-						worldPos,
-						stepType,
-						playerSync.playerScript.mind.StepSound,
-						playerSync.gameObject,
-						playerSync.playerScript.registerTile.Matrix.MatrixInfo);
-				}
+				var stepType = GetFootStepType(playerSync);
+
+				FootstepAtPosition(
+					worldPos,
+					stepType,
+					playerSync.playerScript.Mind.StepSound,
+					playerSync.gameObject,
+					playerSync.playerScript.RegisterPlayer.Matrix.MatrixInfo);
 			}
 			else
 			{
 				ShuffleAtPosition(worldPos);
 			}
-
 		}
 
-		private static StepType GetFootStepType(PlayerSync playerSync)
+		private static StepType GetFootStepType(MovementSynchronisation playerSync)
 		{
+			if(playerSync.playerScript.Equipment == null) return StepType.Barefoot;
+
 			foreach (var itemSlot in playerSync.playerScript.Equipment.ItemStorage.GetNamedItemSlots(NamedSlot.feet))
 			{
 				if (itemSlot.Item != null)
@@ -60,14 +58,14 @@ namespace ScriptableObjects.Audio
 			//TODO find player's specie and return CLAW if needed
 
 			return StepType.Barefoot;
-
 		}
 
 
 		private static void ShuffleAtPosition(Vector3 worldPos)
 		{
 			var audioSourceParameters = new AudioSourceParameters(pitch: Random.Range(0.7f, 1.2f));
-			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Crawl1, worldPos, audioSourceParameters, polyphonic: true);
+			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Crawl1, worldPos, audioSourceParameters,
+				polyphonic: true);
 		}
 
 		/// <summary>
@@ -77,7 +75,8 @@ namespace ScriptableObjects.Audio
 		/// <param name="worldPos">Where in the world is this sound coming from. Also used to get the type of tile</param>
 		/// <param name="stepType">What kind of step does the creature walking have</param>
 		/// <param name="override">if assigned, it will override the default footstep sound.</param>
-		private static void FootstepAtPosition(Vector3 worldPos, StepType stepType, FloorSounds @override = null, GameObject footstepSource = null, MatrixInfo matrixInfoCache = null)
+		private static void FootstepAtPosition(Vector3 worldPos, StepType stepType, FloorSounds @override = null,
+			GameObject footstepSource = null, MatrixInfo matrixInfoCache = null)
 		{
 			var matrixInfo = matrixInfoCache ?? MatrixManager.AtPoint(worldPos.RoundToInt(), false);
 
@@ -102,6 +101,7 @@ namespace ScriptableObjects.Audio
 					{
 						addressableAudioSource = instance.defaultFloorSound.Barefoot;
 					}
+
 					break;
 				case StepType.Shoes:
 					addressableAudioSource = floorTileSounds.OrNull()?.Shoes;
@@ -109,6 +109,7 @@ namespace ScriptableObjects.Audio
 					{
 						addressableAudioSource = instance.defaultFloorSound.Shoes;
 					}
+
 					break;
 				case StepType.Claw:
 					addressableAudioSource = floorTileSounds.OrNull()?.Claw;
@@ -116,6 +117,7 @@ namespace ScriptableObjects.Audio
 					{
 						addressableAudioSource = instance.defaultFloorSound.Claw;
 					}
+
 					break;
 				default:
 					addressableAudioSource = instance.defaultFloorSound.Shoes;
@@ -128,4 +130,3 @@ namespace ScriptableObjects.Audio
 		}
 	}
 }
-

@@ -1,8 +1,11 @@
+using System.Linq;
 using Doors.Modules;
 using Messages.Server;
 using Messages.Server.SoundMessages;
 using UnityEngine;
 using Objects.Construction;
+using Systems.Clearance;
+using Systems.Clearance.Utils;
 using Systems.Interaction;
 
 namespace Doors
@@ -29,9 +32,13 @@ namespace Doors
 
 		public bool Panelopen => panelopen;
 
+		[SerializeField] private bool allowHackingPanel = true;
+		public bool AllowHackingPanel => allowHackingPanel;
+
 		private DoorMasterController doorMasterController;
 		private BoltsModule boltsModule;
 		private WeldModule weldModule;
+		private PowerModule powerModule;
 		private Integrity integrity;
 
 		private void Awake()
@@ -39,6 +46,7 @@ namespace Doors
 			doorMasterController = GetComponent<DoorMasterController>();
 			boltsModule = GetComponentInChildren<BoltsModule>();
 			weldModule = GetComponentInChildren<WeldModule>();
+			powerModule = GetComponentInChildren<PowerModule>();
 
 			if (CustomNetworkManager.IsServer == false) return;
 
@@ -58,10 +66,16 @@ namespace Doors
 			if (Validations.HasUsedComponent<AirlockPainter>(interaction))
 				return true;
 
-			if (CheckWeld() && CheckBolts() && doorMasterController.HasPower == false)
+			if (Panelopen && AllowHackingPanel && (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Cable) ||
+					Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Wirecutter)))
+				return true;
+
+			if (CheckWeld() && CheckBolts() && CheckPower())
 			{
 				return Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Crowbar);
 			}
+
+				//TODO add pins here//TODO check if clicking on pins region
 
 			return false;
 		}
@@ -75,7 +89,7 @@ namespace Doors
 			}
 			else
 			{
-				return weldModule.CanDoorStateChange() == false; //Door has to be welded to allow Deconstruction
+				return weldModule.IsWelded; //Door has to be welded to allow Deconstruction
 			}
 
 		}
@@ -88,27 +102,44 @@ namespace Doors
 			}
 			else
 			{
-				return boltsModule.CanDoorStateChange();
+				return !boltsModule.BoltsDown;
 			}
+		}
+
+		public bool CheckPower()
+		{
+			if (powerModule == null)
+			{
+				return true;
+			}
+			return !powerModule.HasPower;
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Screwdriver))
+			if (Panelopen && AllowHackingPanel)
+			{
+				if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Cable) ||
+					Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Wirecutter))
+				{
+					TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType.HackingPanel, TabAction.Open);
+					return;
+				}
+			}
+
+			if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Screwdriver) && AllowHackingPanel)
 			{
 				panelopen = !panelopen;
 				if (panelopen)
 				{
 					DoorAnimatorV2.AddPanelOverlay();
 					Chat.AddActionMsgToChat(interaction.Performer,
-						$"You unscrew the {gameObject.ExpensiveName()}'s cable panel.",
 						$"{interaction.Performer.ExpensiveName()} unscrews {gameObject.ExpensiveName()}'s cable panel.");
 				}
 				else
 				{
 					DoorAnimatorV2.RemovePanelOverlay();
 					Chat.AddActionMsgToChat(interaction.Performer,
-						$"You screw in the {gameObject.ExpensiveName()}'s cable panel.",
 						$"{interaction.Performer.ExpensiveName()} screws in {gameObject.ExpensiveName()}'s cable panel.");
 
 					//Force close net tab when panel is closed
@@ -122,7 +153,7 @@ namespace Doors
 					interaction.Performer.AssumedWorldPosServer(), audioSourceParameters, sourceObj: gameObject);
 			}
 
-			if (CheckWeld() && CheckBolts() && !doorMasterController.HasPower)
+			if (CheckWeld() && CheckBolts() && CheckPower())
 			{
 				if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Crowbar) && airlockAssemblyPrefab)
 				{
@@ -159,14 +190,15 @@ namespace Doors
 			integrity.OnWillDestroyServer.RemoveListener(WhenDestroyed);
 
 			//When spawning the assembly prefab in the object's place, copy it's access restrictions.
-			AccessRestrictions airlockAccess = GetComponentInChildren<AccessRestrictions>();
+			ClearanceRestricted airlockAccess = GetComponentInChildren<ClearanceRestricted>();
 
 			//(Max) : This seems like it's prone to error, I recommend making the assembly part inside of the door prefab itself and not another one.
 			var doorAssembly = Spawn.ServerPrefab(airlockAssemblyPrefab, SpawnDestination.At(gameObject)).GameObject;
 			if (doorAssembly != null && AirlockElectronicsPrefab != null && airlockAccess != null &&
 			    doorAssembly.TryGetComponent<AirlockAssembly>(out var assembly))
 			{
-				assembly.ServerInitFromComputer(AirlockElectronicsPrefab, airlockAccess.restriction, doorMasterController.isWindowedDoor);
+				assembly.ServerInitFromComputer(AirlockElectronicsPrefab,
+					airlockAccess.RequiredClearance.FirstOrDefault(), doorMasterController.isWindowedDoor);
 			}
 
 			_ = Despawn.ServerSingle(gameObject);

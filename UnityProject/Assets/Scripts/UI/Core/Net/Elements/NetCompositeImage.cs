@@ -1,4 +1,5 @@
 using System.Collections;
+using Logs;
 using UnityEngine;
 using Mirror;
 using UnityEngine.UI;
@@ -19,7 +20,7 @@ namespace UI.Core.NetUI
 
 		public override string Value {
 			get => ObjectNetId.ToString();
-			set {
+			protected set {
 				//don't update if it's the same sprite
 				if (ObjectNetId.ToString() != value && uint.TryParse(value, out var result))
 				{
@@ -27,7 +28,7 @@ namespace UI.Core.NetUI
 					ObjectNetId = result;
 
 					//Don't need to resolve shit and render images on server
-					if (MasterTab.IsServer)
+					if (containedInTab.IsMasterTab)
 					{
 						externalChange = false;
 						return;
@@ -67,25 +68,28 @@ namespace UI.Core.NetUI
 		{
 			if (id == NetId.Empty)
 			{
-				Logger.LogWarningFormat("{0} tried to wait on an empty (0) id", Category.Server, this.GetType().Name);
+				Loggy.Warning().Format("{0} tried to wait on an empty (0) id", Category.Server, this.GetType().Name);
 				yield break;
 			}
 
+			var spawned =
+				CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
+
 			int tries = 0;
-			while (!NetworkIdentity.spawned.ContainsKey(id))
+			while (spawned.ContainsKey(id) == false)
 			{
 				if (tries++ > 10)
 				{
-					Logger.LogWarningFormat("{0} could not find object with id {1}", Category.Server, this.GetType().Name, id);
+					Loggy.Warning().Format("{0} could not find object with id {1}", Category.Server, this.GetType().Name, id);
 					yield break;
 				}
 
 				yield return WaitFor.EndOfFrame;
 			}
 
-			ResolvedObject = NetworkIdentity.spawned[id].gameObject;
+			ResolvedObject = spawned[id].gameObject;
 		}
 
-		public override void ExecuteServer(ConnectedPlayer subject) { }
+		public override void ExecuteServer(PlayerInfo subject) { }
 	}
 }

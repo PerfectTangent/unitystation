@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Logs;
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using NaughtyAttributes;
 using NaughtyAttributes.Editor;
+using Shared.Editor;
 
 namespace Core.Editor
 {
@@ -82,13 +84,14 @@ namespace Core.Editor
 			var quickLoadLabel = new GUIContent(
 					"Quick Load",
 					"At runtime, skips the lobby scene and boots you straight into the map.");
+
+
 			EditorGUILayout.Toggle(quickLoadLabel, QuickLoad.IsEnabled);
+
 			if (EditorGUI.EndChangeCheck())
 			{
 				QuickLoad.Toggle();
 			}
-
-			EditorGUILayout.Space();
 
 			target = (BuildTarget)EditorGUILayout.EnumPopup("Target Platform", target);
 			if (BuildPipeline.IsBuildTargetSupported(default, target) == false)
@@ -126,7 +129,7 @@ namespace Core.Editor
 
 			GUILayout.Space(20);
 
-			if (EditorUIUtils.BigAssButton("Build"))
+			if (EditorUIUtils.BigButton("Build"))
 			{
 				Build();
 			}
@@ -203,12 +206,12 @@ namespace Core.Editor
 
 			if (report.summary.result == BuildResult.Succeeded)
 			{
-				Logger.Log($"Build complete. ({timeStr})");
+				Loggy.Info($"Build complete. ({timeStr})");
 			}
 
 			if (report.summary.result == BuildResult.Failed)
 			{
-				Logger.LogError($"Build failed! ({timeStr})");
+				Loggy.Error($"Build failed! ({timeStr})");
 			}
 		}
 	}

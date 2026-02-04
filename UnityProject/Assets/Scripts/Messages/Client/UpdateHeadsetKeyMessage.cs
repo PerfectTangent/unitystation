@@ -1,6 +1,7 @@
 ﻿using Mirror;
 using UnityEngine;
 using Items;
+using Logs;
 
 namespace Messages.Client
 {
@@ -21,7 +22,7 @@ namespace Messages.Client
 			{
 				//Failfast
 
-				Logger.LogWarning($"Headset invalid, processing stopped: {ToString()}",Category.Chat);
+				Loggy.Warning($"Headset invalid, processing stopped: {ToString()}",Category.Chat);
 				return;
 			}
 
@@ -52,9 +53,9 @@ namespace Messages.Client
 			}
 		}
 
-		private static void setKey(ConnectedPlayer player, GameObject headsetGO, GameObject keyGO)
+		private static void setKey(PlayerInfo player, GameObject headsetGO, GameObject keyGO)
 		{
-			var pna = player.Script.playerNetworkActions;
+			var pna = player.Script.PlayerNetworkActions;
 			if ( pna.HasItem(keyGO) )
 			{
 				Headset headset = headsetGO.GetComponent<Headset>();
@@ -64,7 +65,7 @@ namespace Messages.Client
 			}
 		}
 
-		private static void detachKey(GameObject headsetGO, ConnectedPlayer player)
+		private static void detachKey(GameObject headsetGO, PlayerInfo player)
 		{
 			Headset headset = headsetGO.GetComponent<Headset>();
 			var encryptionKey =
@@ -73,7 +74,7 @@ namespace Messages.Client
 
 			if (encryptionKey.Successful == false)
 			{
-				Logger.LogError($"Headset key instantiation for {player.Name} failed, spawn aborted",Category.Chat);
+				Loggy.Error($"Headset key instantiation for {player.Name} failed, spawn aborted",Category.Chat);
 				return;
 			}
 
@@ -105,7 +106,7 @@ namespace Messages.Client
 			EncryptionKeyType encryptionKeyTypeOfKey = encryptionkey.GetComponent<EncryptionKey>().Type;
 			if ( encryptionKeyTypeOfHeadset != EncryptionKeyType.None || encryptionKeyTypeOfKey == EncryptionKeyType.None )
 			{
-//			Logger.LogWarning($"Failed to validate update of {headset.name} {encryptionkey.name} ({ToString()})");
+//			Loggy.LogWarning($"Failed to validate update of {headset.name} {encryptionkey.name} ({ToString()})");
 				return false;
 			}
 
@@ -118,7 +119,7 @@ namespace Messages.Client
 			EncryptionKeyType encryptionKeyType = headset.GetComponent<Headset>().EncryptionKey;
 			if ( encryptionKeyType == EncryptionKeyType.None )
 			{
-//			Logger.LogWarning($"Failed to validate removal of encryption key from {headset.name} ({ToString()})");
+//			Loggy.LogWarning($"Failed to validate removal of encryption key from {headset.name} ({ToString()})");
 				return false;
 			}
 

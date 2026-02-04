@@ -33,7 +33,7 @@ namespace Messages.Client
 
 			if (msg.IsGhost)
 			{
-				if (playerScript.IsGhost && PlayerList.Instance.IsAdmin(playerScript.connectedPlayer.UserId))
+				if (playerScript.IsGhost &&  PlayerList.HasTAGServer(TAG.ADMIN_GHOST_INVENTORY, playerScript.PlayerInfo.AccountId))
 				{
 					FinishTransfer();
 				}
@@ -44,12 +44,18 @@ namespace Messages.Client
 
 			if (targetSlot.NamedSlot == NamedSlot.handcuffs)
 			{
-				targetObject.GetComponent<PlayerMove>().TryUnCuff(targetObject, playerObject);
+				targetObject.GetComponent< MovementSynchronisation>().TryUnCuff(targetObject, playerObject);
 				return;
 			}
 
 			int speed;
-			if (!targetSlot.IsEmpty)
+			if (targetSlot.NamedSlot is NamedSlot.leftHand or NamedSlot.rightHand && playerSlot.IsOccupied && targetSlot.IsEmpty)
+			{
+				Chat.AddActionMsgToChat(playerObject, $"You try to put the {playerSlot.ItemObject.ExpensiveName()} on {targetObject.ExpensiveName()}...",
+					$"{playerObject.ExpensiveName()} tries to put the {playerSlot.ItemObject.ExpensiveName()} on {targetObject.ExpensiveName()}.");
+				speed = 0;
+			}
+			else if (targetSlot.IsEmpty == false)
 			{
 				Chat.AddActionMsgToChat(playerObject, $"You try to remove {targetObject.ExpensiveName()}'s {targetSlot.ItemObject.ExpensiveName()}...",
 					$"{playerObject.ExpensiveName()} tries to remove {targetObject.ExpensiveName()}'s {targetSlot.ItemObject.ExpensiveName()}.");
@@ -119,8 +125,10 @@ namespace Messages.Client
 				IsGhost = isGhost
 			};
 
+			var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
+
 			msg.StorageIndexOnPlayer = 0;
-			foreach (var itemStorage in NetworkIdentity.spawned[playerSlot.ItemStorageNetID].GetComponents<ItemStorage>())
+			foreach (var itemStorage in spawned[playerSlot.ItemStorageNetID].GetComponents<ItemStorage>())
 			{
 				if (itemStorage == playerSlot.ItemStorage)
 				{
@@ -131,7 +139,7 @@ namespace Messages.Client
 			}
 
 			msg.StorageIndexOnGameObject = 0;
-			foreach (var itemStorage in NetworkIdentity.spawned[targetSlot.ItemStorageNetID].GetComponents<ItemStorage>())
+			foreach (var itemStorage in spawned[targetSlot.ItemStorageNetID].GetComponents<ItemStorage>())
 			{
 				if (itemStorage == targetSlot.ItemStorage)
 				{

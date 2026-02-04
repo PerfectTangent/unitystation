@@ -1,20 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Shared.Systems.ObjectConnection;
 using UnityEngine;
 using Systems.Electricity.NodeModules;
-using Systems.ObjectConnection;
-
 
 namespace Objects.Engineering
 {
-	public class ReactorTurbine : MonoBehaviour, INodeControl, IMultitoolSlaveable, IMultitoolMasterable, ICheckedInteractable<HandApply>
+	public class ReactorTurbine : MonoBehaviour, INodeControl, IMultitoolSlaveable, IMultitoolMasterable, ICheckedInteractable<HandApply>, IServerSpawn
 	{
 		public ModuleSupplyingDevice moduleSupplyingDevice;
 		public GameObject ConstructMaterial;
 		[SerializeField]
 		private int droppedMaterialAmount = 25;
 		public ReactorBoiler Boiler;
-
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 		#region Lifecycle
 
 		private void Start()
@@ -22,18 +20,23 @@ namespace Objects.Engineering
 			moduleSupplyingDevice = GetComponent<ModuleSupplyingDevice>();
 		}
 
+		public void OnSpawnServer(SpawnInfo info)
+		{
+			moduleSupplyingDevice?.TurnOnSupply();
+		}
+
 		private void OnEnable()
 		{
-			if (CustomNetworkManager.Instance._isServer == false) return;
+			if (CustomNetworkManager.IsServer == false) return;
 
 			UpdateManager.Add(CycleUpdate, 1);
 			//moduleSupplyingDevice = this.GetComponent<ModuleSupplyingDevice>();
-			moduleSupplyingDevice?.TurnOnSupply();
+
 		}
 
 		private void OnDisable()
 		{
-			if (CustomNetworkManager.Instance._isServer == false) return;
+			if (CustomNetworkManager.IsServer == false) return;
 
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, CycleUpdate);
 			moduleSupplyingDevice?.TurnOffSupply();
@@ -45,8 +48,7 @@ namespace Objects.Engineering
 		{
 			if (Boiler != null)
 			{
-				//Logger.Log("  moduleSupplyingDevice.ProducingWatts " +   moduleSupplyingDevice.ProducingWatts);
-				moduleSupplyingDevice.ProducingWatts = (float)Boiler.OutputEnergy;
+				moduleSupplyingDevice.ProducingWatts  = (moduleSupplyingDevice.ProducingWatts  + (float)Boiler.OutputEnergy) / 2;
 			}
 			else
 			{
@@ -63,7 +65,7 @@ namespace Objects.Engineering
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (!Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Welder)) return false;
 
 			return true;
@@ -89,7 +91,7 @@ namespace Objects.Engineering
 		/// <summary>
 		/// is the function to denote that it will be pooled or destroyed immediately after this function is finished, Used for cleaning up anything that needs to be cleaned up before this happens
 		/// </summary>
-		/// 
+		///
 		//public void OnDespawnServer(DespawnInfo info)
 		//{
 		//	Spawn.ServerPrefab(ConstructMaterial, gameObject.AssumedWorldPosServer(), count: droppedMaterialAmount);
@@ -104,13 +106,12 @@ namespace Objects.Engineering
 		MultitoolConnectionType IMultitoolLinkable.ConType => MultitoolConnectionType.BoilerTurbine;
 
 		// Master connection
-		bool IMultitoolMasterable.MultiMaster => false;
 		int IMultitoolMasterable.MaxDistance => int.MaxValue;
 
 		// Slave connection
 		IMultitoolMasterable IMultitoolSlaveable.Master => Boiler;
 		bool IMultitoolSlaveable.RequireLink => true;
-		bool IMultitoolSlaveable.TrySetMaster(PositionalHandApply interaction, IMultitoolMasterable master)
+		bool IMultitoolSlaveable.TrySetMaster(GameObject performer, IMultitoolMasterable master)
 		{
 			SetMaster(master);
 			return true;

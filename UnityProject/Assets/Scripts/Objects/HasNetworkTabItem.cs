@@ -1,6 +1,5 @@
 ﻿using System;
 using Messages.Server;
-using Mirror;
 using UnityEngine;
 
 namespace Items
@@ -12,6 +11,9 @@ namespace Items
 		///     This mean it can open up NetTabs when the object is activated in the hand
 		/// </summary>
 		[Tooltip("Network tab to display.")] public NetTabType NetTabType = NetTabType.None;
+		[SerializeField] private bool requiresAltClick = false;
+
+		[SerializeField] private bool disabled = false;
 
 		[NonSerialized] private GameObject playerInteracted;
 
@@ -22,10 +24,15 @@ namespace Items
 		{
 			return playerInteracted;
 		}
+
 		public bool WillInteract(HandActivate interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side))
-				return false;
+			if (disabled) return false;
+
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+
+			if (requiresAltClick && interaction.IsAltClick == false) return false;
+
 			playerInteracted = interaction.Performer;
 			return true;
 		}

@@ -1,15 +1,13 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using Messages.Server;
-using Messages.Client;
 using Messages.Client.GhostRoles;
 using Messages.Server.GhostRoles;
 using NaughtyAttributes;
 using ScriptableObjects;
-using UI.Systems.Ghost;
+using UnityEngine.Events;
+using System.Linq;
 
 namespace Systems.GhostRoles
 {
@@ -37,6 +35,9 @@ namespace Systems.GhostRoles
 		public readonly Dictionary<uint, GhostRoleClient> clientAvailableRoles = new Dictionary<uint, GhostRoleClient>();
 		private uint currentKeyIndex = 0; // For key generation when adding new roles.
 
+		private readonly UnityEvent<GhostRoleClient> clientUpdatedRole = new UnityEvent<GhostRoleClient>();
+		public UnityEvent<GhostRoleClient> ClientUpdatedRole => clientUpdatedRole;
+
 		#region Lifecycle
 
 		private void Awake()
@@ -49,16 +50,20 @@ namespace Systems.GhostRoles
 			{
 				Destroy(this);
 			}
-		}
 
-		private void OnEnable()
-		{
 			EventManager.AddHandler(Event.RoundStarted, OnRoundRestart);
+			EventManager.AddHandler(Event.SceneUnloading, CleanUI);
 		}
 
-		private void OnDisable()
+		public void OnDestroy()
 		{
+			EventManager.RemoveHandler(Event.SceneUnloading, CleanUI);
 			EventManager.RemoveHandler(Event.RoundStarted, OnRoundRestart);
+		}
+
+		private void CleanUI()
+		{
+			UIManager.GhostRoleWindow.Cleanup();
 		}
 
 		private void OnRoundRestart()
@@ -71,6 +76,8 @@ namespace Systems.GhostRoles
 			{
 				ServerCreateRole(role);
 			}
+
+			EventManager.Broadcast(Event.GhostRolesInitialized);
 		}
 
 		#endregion Lifecycle
@@ -86,19 +93,26 @@ namespace Systems.GhostRoles
 			int roleIndex = GhostRoles.FindIndex(r => r == roleData);
 			if (roleIndex < 0)
 			{
-				Logger.LogError(
+				Loggy.Error(
 					$"Ghost role \"{roleData}\" was not found in {nameof(GhostRoleList)} SO! Cannot inform clients about the ghost role.", Category.Ghosts);
 				return default;
 			}
 
-			GhostRoleServer role = new GhostRoleServer(roleIndex);
+			GhostRoleServer role = new GhostRoleServer(roleIndex, currentKeyIndex);
 			uint key = ServerAddRole(role);
 			role.OnTimerExpired += () =>
 			{
+				GhostRoleUpdateMessage.SendToClients(key);
+				serverAvailableRoles.Remove(key);
+
+			};
+			role.OnMaxPlayersReached += () =>
+			{
+				GhostRoleUpdateMessage.SendToClients(key);
 				serverAvailableRoles.Remove(key);
 			};
 
-			GhostRoleUpdateMessage.SendToDead(key);
+			GhostRoleUpdateMessage.SendToClients(key);
 
 			return key;
 		}
@@ -109,8 +123,32 @@ namespace Systems.GhostRoles
 		/// <param name="key">The key used to identify the role for modifying. Returned by <see cref="ServerCreateRole(GhostRoleData)"/>"/></param>
 		public void ServerUpdateRole(uint key, int minPlayers, int maxPlayers, float timeRemaining)
 		{
-			serverAvailableRoles[key].UpdateRole(minPlayers, maxPlayers, timeRemaining);
-			GhostRoleUpdateMessage.SendToDead(key);
+			try
+			{
+				serverAvailableRoles[key].UpdateRole(minPlayers, maxPlayers, timeRemaining);
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+			}
+			GhostRoleUpdateMessage.SendToClients(key);
+		}
+
+		/// <summary>
+		/// Update an existing ghost role via its key, on the server. The changes will be sent to all dead players.
+		/// </summary>
+		/// <param name="key">The key used to identify the role for modifying. Returned by <see cref="ServerCreateRole(GhostRoleData)"/>"/></param>
+		public void ServerUpdateRole(uint key, int minPlayers, int maxPlayers, float timeRemaining, int newRoleIndex)
+		{
+			try
+			{
+				serverAvailableRoles[key].UpdateRole(minPlayers, maxPlayers, timeRemaining, newRoleIndex);
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+			}
+			GhostRoleUpdateMessage.SendToClients(key);
 		}
 
 		/// <summary>
@@ -123,34 +161,38 @@ namespace Systems.GhostRoles
 		{
 			if (typeIndex > GhostRoles.Count)
 			{
-				Logger.LogError($"Ghost role index does not exist in {nameof(GhostRoleList)}! Cannot add to local available ghost role list.", Category.Ghosts);
+				Loggy.Error($"Ghost role index does not exist in {nameof(GhostRoleList)}! Cannot add to local available ghost role list.", Category.Ghosts);
 				return default;
 			}
 
 			if (clientAvailableRoles.ContainsKey(key) == false)
 			{
-				GhostRoleClient newRole = new GhostRoleClient(typeIndex, playerCount, timeRemaining);
+				GhostRoleClient newRole = new GhostRoleClient(typeIndex, playerCount, timeRemaining, key);
 				clientAvailableRoles.Add(key, newRole);
 				newRole.OnTimerExpired += () =>
 				{
 					clientAvailableRoles.Remove(key);
 				};
 
-				UIManager.Display.hudBottomGhost.NewGhostRoleAvailable(GhostRoles[typeIndex]);
+				if (PlayerManager.LocalPlayerScript.IsDeadOrGhost)
+					UIManager.Display.hudBottomGhost.NewGhostRoleAvailable(GhostRoles[typeIndex], newRole);
 			}
 
 			GhostRoleClient role = clientAvailableRoles[key];
-			role.UpdateRole(minPlayers, maxPlayers, timeRemaining, playerCount);
+			role.UpdateRole(minPlayers, maxPlayers, timeRemaining, playerCount, typeIndex);
 
 			// Will be exactly -1 if timeout is set as indefinite.
 			if (timeRemaining <= 0 && timeRemaining != -1)
 			{
 				UIManager.GhostRoleWindow.RemoveEntry(key);
 				clientAvailableRoles.Remove(key);
+				clientUpdatedRole.Invoke(role);
+				UIManager.Instance.displayControl.hudBottomGhost.UpdateIcon();
 				return default;
 			}
 
 			UIManager.GhostRoleWindow.AddOrUpdateEntry(key, role);
+			clientUpdatedRole.Invoke(role);
 			return clientAvailableRoles[key];
 		}
 
@@ -172,7 +214,7 @@ namespace Systems.GhostRoles
 		/// </summary>
 		/// <param name="player">The player to be assigned to the role.</param>
 		/// <param name="key">The unique key the ghost role instance is associated with.</param>
-		public void ServerGhostRequestRole(ConnectedPlayer player, uint key)
+		public void ServerGhostRequestRole(PlayerInfo player, uint key)
 		{
 			ServerTryAddPlayerToRole(player, key);
 		}
@@ -185,16 +227,16 @@ namespace Systems.GhostRoles
 		{
 			if (serverAvailableRoles.ContainsKey(key) == false)
 			{
-				Logger.LogWarning("Tried to remove ghost role instance that doesn't or no longer exists.", Category.Ghosts);
+				Loggy.Warning("Tried to remove ghost role instance that doesn't or no longer exists.", Category.Ghosts);
 				return;
 			}
 
 			serverAvailableRoles[key].TimeRemaining = -2; // -2 distinguishes from normal timer expiry and an indefinite role
-			GhostRoleUpdateMessage.SendToDead(key);
+			GhostRoleUpdateMessage.SendToClients(key);
 			serverAvailableRoles.Remove(key);
 		}
 
-		private bool ServerPlayerIsQueued(ConnectedPlayer player)
+		private bool ServerPlayerIsQueued(PlayerInfo player)
 		{
 			RemoveOfflineWaitingPlayers();
 			foreach (KeyValuePair<uint, GhostRoleServer> kvp in serverAvailableRoles)
@@ -205,7 +247,7 @@ namespace Systems.GhostRoles
 			return false;
 		}
 
-		private GhostRoleResponseCode VerifyPlayerCanQueue(ConnectedPlayer player, uint key)
+		private GhostRoleResponseCode VerifyPlayerCanQueue(PlayerInfo player, uint key)
 		{
 			if (PlayerList.Instance.loggedOff.Contains(player)) return GhostRoleResponseCode.Error;
 
@@ -221,12 +263,12 @@ namespace Systems.GhostRoles
 
 			GhostRoleServer role = serverAvailableRoles[key];
 
-			if (role.RoleData.TargetOccupation != null && PlayerList.Instance.CheckJobBanState(player.UserId, role.RoleData.TargetOccupation.JobType) == false)
+			if (role.RoleData.TargetOccupation != null && PlayerList.Instance.IsJobBanned(player.AccountId, role.RoleData.TargetOccupation.JobType))
 			{
 				return GhostRoleResponseCode.JobBanned;
 			}
 
-			if (role.RoleData.TargetAntagonist != null && PlayerList.Instance.CheckJobBanState(player.UserId, role.RoleData.TargetAntagonist.AntagJobType) == false)
+			if (role.RoleData.TargetAntagonist != null && PlayerList.Instance.IsJobBanned(player.AccountId, role.RoleData.TargetAntagonist.AntagJobType))
 			{
 				return GhostRoleResponseCode.JobBanned;
 			}
@@ -255,7 +297,7 @@ namespace Systems.GhostRoles
 			return currentKeyIndex;
 		}
 
-		private void ServerTryAddPlayerToRole(ConnectedPlayer player, uint key)
+		private void ServerTryAddPlayerToRole(PlayerInfo player, uint key)
 		{
 			RemoveOfflineWaitingPlayers();
 			GhostRoleResponseCode responseCode = VerifyPlayerCanQueue(player, key);
@@ -272,7 +314,7 @@ namespace Systems.GhostRoles
 					role.AddPlayer(player);
 				}
 
-				GhostRoleUpdateMessage.SendToDead(key);
+				GhostRoleUpdateMessage.SendToClients(key);
 			}
 
 			GhostRoleResponseMessage.SendTo(player, key, responseCode);
@@ -281,7 +323,7 @@ namespace Systems.GhostRoles
 		/// <summary>
 		/// Remove player from waiting for a role
 		/// </summary>
-		public void ServerRemoveWaitingPlayer(uint key, ConnectedPlayer player)
+		public void ServerRemoveWaitingPlayer(uint key, PlayerInfo player)
 		{
 			var role = serverAvailableRoles[key];
 			role.WaitingPlayers.Remove(player);
@@ -305,7 +347,7 @@ namespace Systems.GhostRoles
 		/// <summary>
 		/// Remove player from all waiting roles
 		/// </summary>
-		public void ServerRemoveWaitingPlayer(ConnectedPlayer player)
+		public void ServerRemoveWaitingPlayer(PlayerInfo player)
 		{
 			foreach (var role in serverAvailableRoles)
 			{

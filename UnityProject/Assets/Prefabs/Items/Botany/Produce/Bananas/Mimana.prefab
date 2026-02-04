@@ -5,11 +5,12 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -4849632247437526332, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
-      propertyPath: fermentedReagents.m_keys.Array.data[0]
+      propertyPath: 'fermentedReagents.m_keys.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 8793f7df0383b0ecab6135d747619fd6,
         type: 2}
@@ -21,6 +22,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 2435075956048476708, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
+      propertyPath: parentID
+      value: b29d3b3d0eac3a84d9ef700d10f41b3a
+      objectReference: {fileID: 0}
+    - target: {fileID: 2435075956048476708, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
       propertyPath: foreverID
       value: 34da2b139e809884a9410b7686b957db
       objectReference: {fileID: 0}
@@ -30,12 +36,22 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: d69ae207eee6c5a44a921da1b3783585,
         type: 2}
+    - target: {fileID: 5458374433224336869, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: BasePurity
+      value: 44
+      objectReference: {fileID: 0}
     - target: {fileID: 7014878094720629310, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
       propertyPath: seedPacket
       value: 
       objectReference: {fileID: 2183613956859422213, guid: 40d216ce05a669448a2ccef3beb60899,
         type: 3}
+    - target: {fileID: 8711559072216288253, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: _assetId
+      value: 16928188
+      objectReference: {fileID: 0}
     - target: {fileID: 8711559072216288253, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
       propertyPath: m_AssetId
@@ -114,9 +130,33 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
-      propertyPath: relatedRecipes.Array.data[5].recipe
+      propertyPath: relatedRecipes.Array.data[1].recipe
       value: 
       objectReference: {fileID: 11400000, guid: 1de3551e79c953742b2e9acbb629efa6,
+        type: 2}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: ffd22b20cb7c2ce48a874e4fff53416d,
+        type: 2}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[3].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 5fc58e7f5539fd640b45456546d19073,
+        type: 2}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[4].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 01495aa97f1f15d4c81002c4e2fc7918,
+        type: 2}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[5].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: e8c7eb77ca403f94db0de97ed0d8d5f5,
         type: 2}
     - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
@@ -150,8 +190,33 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
-      propertyPath: relatedRecipes.Array.data[5].ingredientIndex
+      propertyPath: relatedRecipes.Array.data[1].ingredientIndex
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].ingredientIndex
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[3].ingredientIndex
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[4].ingredientIndex
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[5].ingredientIndex
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[6].ingredientIndex
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9149777364655013791, guid: b29d3b3d0eac3a84d9ef700d10f41b3a,
         type: 3}
@@ -184,4 +249,7 @@ PrefabInstance:
       value: It's an excellent prop for a mime.
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b29d3b3d0eac3a84d9ef700d10f41b3a, type: 3}

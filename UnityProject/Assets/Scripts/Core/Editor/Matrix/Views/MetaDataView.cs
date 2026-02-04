@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Shared.Editor;
 using Systems.Atmospherics;
 using UnityEditor;
 using UnityEngine;
@@ -36,13 +37,14 @@ public class MetaDataView : BasicView
 		localChecks.Add(new HeatCapacity());
 		localChecks.Add(new RadiationLevel());
 		localChecks.Add(new ElectricityVision());
+		localChecks.Add(new AtmosIsOccupied());
+		localChecks.Add(new HasSmoke());
 	}
 
 	public override void DrawContent()
 	{
-		for (var i = 0; i < localChecks.Count; i++)
+		foreach (var check in localChecks)
 		{
-			Check<MetaDataLayer> check = localChecks[i];
 			check.Active = GUILayout.Toggle(check.Active, check.Label);
 		}
 	}
@@ -182,7 +184,7 @@ public class MetaDataView : BasicView
 			{
 				if (neighbor != null)
 				{
-					Vector3 p2 = LocalToWorld(neighbor.ReactionManager, neighbor.Position);
+					Vector3 p2 = LocalToWorld(neighbor.ReactionManager, neighbor.LocalPosition);
 
 					p2 = WorldToLocal(source, p2);
 
@@ -203,7 +205,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.Pressure:0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.Pressure:0.###}", p, false);
 			}
 		}
 	}
@@ -219,7 +221,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{(node.GasMix.Temperature):0.##}", p, false);
+				GizmoUtils.DrawText($"{(node.GasMixLocal.Temperature):0.##}", p, false);
 			}
 		}
 	}
@@ -253,7 +255,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.Moles:0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.Moles:0.###}", p, false);
 			}
 		}
 	}
@@ -269,7 +271,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.Volume:0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.Volume:0.###}", p, false);
 			}
 		}
 	}
@@ -402,7 +404,7 @@ public class MetaDataView : BasicView
 		public override void DrawGizmo(MetaDataLayer source, Vector3Int position)
 		{
 			MetaDataNode node = source.Get(position, false);
-			if (node.IsSlippery)
+			if (node.Allslippery)
 			{
 				GizmoUtils.DrawCube( position, Color.cyan, true );
 			}
@@ -420,7 +422,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.GetMoles(Gas.Plasma):0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.GetMoles(Gas.Plasma):0.###}", p, false);
 			}
 		}
 	}
@@ -436,7 +438,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.GetMoles(Gas.Oxygen):0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.GetMoles(Gas.Oxygen):0.###}", p, false);
 			}
 		}
 	}
@@ -452,7 +454,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.GetMoles(Gas.Nitrogen):0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.GetMoles(Gas.Nitrogen):0.###}", p, false);
 			}
 		}
 	}
@@ -468,7 +470,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.GetMoles(Gas.CarbonDioxide):0.###}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.GetMoles(Gas.CarbonDioxide):0.###}", p, false);
 			}
 		}
 	}
@@ -484,7 +486,7 @@ public class MetaDataView : BasicView
 			if (node.Exists)
 			{
 				Vector3 p = LocalToWorld(source, position);
-				GizmoUtils.DrawText($"{node.GasMix.GasesArray.Count}", p, false);
+				GizmoUtils.DrawText($"{node.GasMixLocal.GasesArray.Count}", p, false);
 			}
 		}
 	}
@@ -501,6 +503,61 @@ public class MetaDataView : BasicView
 			{
 				Vector3 p = LocalToWorld(source, position);
 				GizmoUtils.DrawText($"{node.RoomNumber}", p, false);
+			}
+		}
+	}
+
+
+	private class HasSmoke : Check<MetaDataLayer>
+	{
+		public override string Label { get; } = "Smoke";
+
+		public override void DrawLabel(MetaDataLayer source, Vector3Int position)
+		{
+			MetaDataNode node = source.Get(position, false);
+
+			if (node.SmokeNode.IsActive)
+			{
+				GizmoUtils.DrawCube(position, Color.gray);
+			}
+		}
+	}
+
+	private class AtmosIsOccupied : Check<MetaDataLayer>
+	{
+		public override string Label { get; } = "Occupied Directions";
+
+		public override void DrawLabel(MetaDataLayer source, Vector3Int positionInt)
+		{
+			MetaDataNode node = source.Get(positionInt, false);
+
+			if (node.OccupiedType.HasFlag(NodeOccupiedType.None)) return;
+			if (node.Exists == false) return;
+
+			if (node.OccupiedType.HasFlag(NodeOccupiedType.Full))
+			{
+				GizmoUtils.DrawCube(positionInt, Color.yellow, size: 0.2f);
+				return;
+			}
+
+			if (node.OccupiedType.HasFlag(NodeOccupiedType.Up))
+			{
+				GizmoUtils.DrawCube(new Vector3(positionInt.x, positionInt.y + 0.25f, positionInt.z), Color.red, size: 0.2f);
+			}
+
+			if (node.OccupiedType.HasFlag(NodeOccupiedType.Down))
+			{
+				GizmoUtils.DrawCube(new Vector3(positionInt.x, positionInt.y  - 0.25f, positionInt.z), Color.green, size: 0.2f);
+			}
+
+			if (node.OccupiedType.HasFlag(NodeOccupiedType.Left))
+			{
+				GizmoUtils.DrawCube(new Vector3(positionInt.x - 0.25f, positionInt.y, positionInt.z), Color.blue, size: 0.2f);
+			}
+
+			if (node.OccupiedType.HasFlag(NodeOccupiedType.Right))
+			{
+				GizmoUtils.DrawCube(new Vector3(positionInt.x + 0.25f, positionInt.y, positionInt.z), Color.magenta, size: 0.2f);
 			}
 		}
 	}

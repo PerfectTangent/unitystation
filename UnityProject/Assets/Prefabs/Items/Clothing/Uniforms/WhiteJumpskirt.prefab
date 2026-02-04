@@ -5,11 +5,18 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2726562748708793534, guid: aef71bd913d83874d9f74091bafbbe2b,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 0e8fa356252af3a47a69508c078d5cad,
+        type: 2}
+    - target: {fileID: 2726562748708793534, guid: aef71bd913d83874d9f74091bafbbe2b,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 0e8fa356252af3a47a69508c078d5cad,
         type: 2}
@@ -35,7 +42,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2949180335528821948, guid: aef71bd913d83874d9f74091bafbbe2b,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: c212384c8b9aafd49b4855af9a7de1e1,
         type: 2}
@@ -116,6 +123,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8143802182970714765, guid: aef71bd913d83874d9f74091bafbbe2b,
         type: 3}
+      propertyPath: _assetId
+      value: 1919303010
+      objectReference: {fileID: 0}
+    - target: {fileID: 8143802182970714765, guid: aef71bd913d83874d9f74091bafbbe2b,
+        type: 3}
       propertyPath: m_AssetId
       value: 8bda5e1206675f84aa0f70b7bd6a4811
       objectReference: {fileID: 0}
@@ -136,4 +148,7 @@ PrefabInstance:
       value: A standard issue colored jumpskirt. Variety is the spice of life!
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: aef71bd913d83874d9f74091bafbbe2b, type: 3}

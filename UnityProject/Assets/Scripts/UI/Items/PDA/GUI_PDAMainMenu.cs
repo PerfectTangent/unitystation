@@ -7,8 +7,8 @@ namespace UI.Items.PDA
 	public class GUI_PDAMainMenu : NetPage, IPageReadyable
 	{
 		[SerializeField] private GUI_PDA controller = null;
-		[SerializeField] private NetLabel idLabel = null;
-		[SerializeField] private NetLabel lightLabel = null;
+		[SerializeField] private NetText_label idLabel = null;
+		[SerializeField] private NetText_label lightLabel = null;
 
 		private IDCard IDCard => controller.PDA.GetIDCard();
 
@@ -68,12 +68,12 @@ namespace UI.Items.PDA
 
 		private void UpdateFlashlightText()
 		{
-			lightLabel.SetValueServer(controller.PDA.FlashlightOn ? "Flashlight (ON)" : "Flashlight (OFF)");
+			lightLabel.MasterSetValue(controller.PDA.FlashlightOn ? "Flashlight (ON)" : "Flashlight (OFF)");
 		}
 
 		private void SetIDStatus(string status)
 		{
-			idLabel.SetValueServer(status);
+			idLabel.MasterSetValue(status);
 		}
 	}
 }

@@ -5,16 +5,17 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using Mirror;
 using Core.Editor.Attributes;
+using UnityEngine.EventSystems;
+using UnityEngine.UIElements;
 
 
 /// <summary>
 /// <see cref="RegisterTile"/> for an object, adds additional logic to
 /// make object passable / impassable.
 /// </summary>
-[ExecuteInEditMode]
-public class RegisterObject : RegisterTile
+public class RegisterObject : RegisterTile, IPointerEnterHandler, IPointerExitHandler
 {
-	[PrefabModeOnly]
+
 	public bool AtmosPassable = true;
 
 	[NonSerialized]
@@ -25,20 +26,20 @@ public class RegisterObject : RegisterTile
 	[SyncVar(hook = nameof(SetCrawlingPassable))]
 	public bool CrawlPassable = false;
 
-	[PrefabModeOnly]
+
 	[Tooltip("If true, this object won't block players from interacting with other objects")]
 	public bool ReachableThrough = true;
 
 
 	private bool initialAtmosPassable;
 
-	[SerializeField, FormerlySerializedAs("Passable"), PrefabModeOnly]
+	[SerializeField, FormerlySerializedAs("Passable") ]
 	private bool initialPassable;
 
-	[SerializeField, FormerlySerializedAs("CrawlPassable"), PrefabModeOnly]
+	[SerializeField, FormerlySerializedAs("CrawlPassable") ]
 	private bool initialCrawlPassable;
 
-	[SerializeField, PrefabModeOnly]
+	[SerializeField ]
 	private List<PassableExclusionTrait> passableExclusionsToThis = default;
 
 	protected override void Awake()
@@ -116,6 +117,9 @@ public class RegisterObject : RegisterTile
 
 	public override bool IsAtmosPassable(Vector3Int enteringFrom, bool isServer)
 	{
+		//If despawning then always be atmos passable
+		if (Active == false) return true;
+
 		return AtmosPassable || (isServer ? LocalPositionServer == TransformState.HiddenPos : LocalPositionClient == TransformState.HiddenPos );
 	}
 
@@ -141,8 +145,9 @@ public class RegisterObject : RegisterTile
 
 	#region UI Mouse Actions
 
-	public void OnHoverStart()
+	public void OnPointerEnter(PointerEventData eventData)
 	{
+		UIManager.SetHoverToolTip = gameObject;
 		if (GetComponent<Attributes>())
 		{
 			return;
@@ -159,9 +164,24 @@ public class RegisterObject : RegisterTile
 		UIManager.SetToolTip = r.Replace(name, " ");
 	}
 
-	public void OnHoverEnd()
+	public void OnPointerExit(PointerEventData eventData)
 	{
 		UIManager.SetToolTip = "";
+		UIManager.SetHoverToolTip = null;
+	}
+
+	public void OnDisable()
+	{
+#if UNITY_EDITOR
+		return;
+#endif
+		if (Application.isBatchMode) return;
+		if (CustomNetworkManager.IsServer) return;
+		if (UIManager.Instance.HoverTooltipUI.CurrentlyOverObjectPub == gameObject)
+		{
+			UIManager.SetToolTip = "";
+			UIManager.SetHoverToolTip = null;
+		}
 	}
 
 	#endregion

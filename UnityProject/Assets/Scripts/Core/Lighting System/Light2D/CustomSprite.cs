@@ -2,7 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Logs;
+using SecureStuff;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Light2D
 {
@@ -13,12 +16,15 @@ namespace Light2D
     /// which gives much better performance for small meshes than StaticBatchingUtility.Combine.
     /// </summary>
     [ExecuteInEditMode]
-    public class CustomSprite : MonoBehaviour
+    public class CustomSprite : MonoBehaviour, INewMappedOnSpawn
     {
         /// <summary>
         /// Vertex color of mesh.
         /// </summary>
-        public Color Color = Color.white;
+        [NonSerialized] public Color Color = Color.white;
+
+        [FormerlySerializedAs("Color")]
+        public Color InitialColour = Color.white;
 
         /// <summary>
         /// Sprite from which mesh will be generated.
@@ -66,8 +72,30 @@ namespace Light2D
             get { return _meshRenderer.isPartOfStaticBatch; }
         }
 
+
+        [NaughtyAttributes.Button()]
+        public void ForceUpdateColour()
+        {
+	        Color = InitialColour;
+        }
+
+
+        public void OnNewMappedOnSpawn()
+        {
+	        if (Color == Color.white)
+	        {
+		        Color = InitialColour;
+	        }
+        }
+
         protected virtual void OnEnable()
         {
+	        if (Color == Color.white)
+	        {
+		        Color = InitialColour;
+	        }
+
+
 	        if (Application.isPlaying == false)
 	        {
 		        TryReleaseMesh();
@@ -93,12 +121,18 @@ namespace Light2D
             if (_meshFilter == null)
                 _meshFilter = gameObject.AddComponent<MeshFilter>();
 
-#if UNITY_EDITOR
-            if (Material == null)
-            {
-                Material = Resources.GetBuiltinResource<Material>("Sprites-Default.mat");
-            }
-#endif
+
+	        try
+	        {
+		        if (Material == null)
+		        {
+			        Material = CommonMaterials.Instance.DefaultLightMaterial;
+		        }
+	        }
+	        catch (Exception e)
+	        {
+		        Debug.LogError(e.ToString());
+	        }
 
             TryReleaseMesh();
             _meshFilter.sharedMesh = _mesh = new Mesh();
@@ -116,7 +150,12 @@ namespace Light2D
 
         protected virtual void Start()
         {
+	        if (Color == Color.white)
+	        {
+		        Color = InitialColour;
+	        }
             UpdateMeshData(true);
+
         }
 
         private void OnWillRenderObject()

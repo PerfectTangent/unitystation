@@ -1,16 +1,23 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using InGameGizmos;
 using Items;
+using Mirror;
+using ScriptableObjects;
+using TileManagement;
+using TileMap.Behaviours;
 using Tiles;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Random = UnityEngine.Random;
 
 namespace Systems.Scenes
 {
 	/// <summary>
 	/// Lava Land Random Cave Generator, modified version from this: https://www.youtube.com/watch?v=xNqqfABXTNQ, https://www.dropbox.com/s/qggbs7hnapj6136/ProceduralTilemaps.zip?dl=0
 	/// </summary>
-	public class LavaLandRandomGenScript : MonoBehaviour
+	public class LavaLandRandomGenScript : ItemMatrixSystemInit, ISelectionGizmo
 	{
 
 		public int iniChance;
@@ -19,24 +26,25 @@ namespace Systems.Scenes
 
 		public int deathLimit;
 
-		public int numR;
+		[NonSerialized] public int numR;
 
 		private int[,] terrainMap;
+		[SyncVar]
 		public Vector3Int tmpSize;
-		public Tilemap topMap;
-		//public Tilemap botMap;
-		public TileBase topTile;
-		//public AnimatedTile botTile;
 
 		public LayerTile wallTile;
 
 		int width;
 		int height;
 
+		private readonly Vector3 GIZMO_OFFSET = new Vector3(-0.5f, -0.5f, 0);
+
 		private TileChangeManager tileChangeManager;
 
 		[SerializeField]
 		private RandomItemSpot mobPools = null;
+
+		private GameGizmoSquare GameGizmoSquare;
 
 		private void Start()
 		{
@@ -44,6 +52,16 @@ namespace Systems.Scenes
 
 
 			tileChangeManager = transform.parent.parent.parent.GetComponent<TileChangeManager>();
+		}
+
+		private void OnDestroy()
+		{
+			if (LavaLandManager.Instance != null)
+			{
+				LavaLandManager.Instance.randomGenScripts.Remove(this);
+			}
+
+			tileChangeManager = null;
 		}
 
 		public void DoSim()
@@ -75,7 +93,8 @@ namespace Systems.Scenes
 					if (terrainMap[x, y] != 1)
 					{
 
-						tileChangeManager.MetaTileMap.SetTile(pos, wallTile);
+						tileChangeManager.MetaTileMap.SetTile(pos, wallTile, MapSaveRecord : true);
+
 
 						//Commented out below sets bottom tile, but we don't need to for lavaland
 						//botMap.SetTile(new Vector3Int(-x + width / 2, -y + height / 2, 0), botTile);
@@ -98,6 +117,7 @@ namespace Systems.Scenes
 
 			foreach (var itemSpot in itemSpots)
 			{
+				if (itemSpot == null) continue;
 				if(itemSpot.TryGetComponent<RandomItemSpot>(out var spot) == false) continue;
 
 				var tile = spot.GetComponent<RegisterTile>();
@@ -173,6 +193,32 @@ namespace Systems.Scenes
 			}
 
 			return newMap;
+		}
+
+		private void OnDrawGizmos()
+		{
+			Gizmos.color = Color.green;
+			var size = tmpSize.To3();
+
+			Gizmos.DrawWireCube(transform.position + GIZMO_OFFSET, size);
+		}
+
+
+		public void OnSelected()
+		{
+			GameGizmoSquare.OrNull()?.Remove();
+			GameGizmoSquare = GameGizmomanager.AddNewSquareStaticClient(this.gameObject, GIZMO_OFFSET, Color.green, BoxSize: tmpSize.To3());
+		}
+
+		public void OnDeselect()
+		{
+			GameGizmoSquare.OrNull()?.Remove();
+			GameGizmoSquare = null;
+		}
+
+		public void UpdateGizmos()
+		{
+			GameGizmoSquare.transform.localScale = tmpSize.To3();
 		}
 	}
 }

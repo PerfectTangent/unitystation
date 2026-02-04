@@ -12,7 +12,7 @@ public class CablePlacementVisualisation : MonoBehaviour
 	/// Prefab used to visualise cable placement
 	/// </summary>
 	[SerializeField] private GameObject cablePlacementVisualisationPrefab = null;
-	private GameObject cablePlacementVisualisation;
+	private static GameObject cablePlacementVisualisation;
 
 	/// <summary>
 	/// color of startPoint(point on which you press mouse button down)
@@ -39,16 +39,16 @@ public class CablePlacementVisualisation : MonoBehaviour
 	/// <summary>
 	/// grid of points
 	/// </summary>
-	private Dictionary<Connection, SpriteRenderer> connectionPointRenderers;
+	private static Dictionary<Connection, SpriteRenderer> connectionPointRenderers;
 	/// <summary>
 	/// lineRenderer used to render line between points
 	/// </summary>
-	private LineRenderer lineRenderer;
+	private static LineRenderer lineRenderer;
 
 	/// <summary>
 	/// variable used to restore default color after hover
 	/// </summary>
-	private Color defaultPointColor;
+	private static Color defaultPointColor;
 
 	/// <summary>
 	/// last mouse position used in OnHover() to determine if player hovers other tile
@@ -62,20 +62,22 @@ public class CablePlacementVisualisation : MonoBehaviour
 	private void Awake()
 	{
 		// instantiate prefab
-		cablePlacementVisualisation = Instantiate(cablePlacementVisualisationPrefab);
-		cablePlacementVisualisation.SetActive(false);
-
-		// init grid
-		connectionPointRenderers = new Dictionary<Connection, SpriteRenderer>();
-		for (int i = 0; i < 9; i++)
+		if (cablePlacementVisualisation == null)
 		{
-			connectionPointRenderers[(Connection)i + 1] = cablePlacementVisualisation.transform.GetChild(i).GetComponent<SpriteRenderer>();
-		}
+			cablePlacementVisualisation = Instantiate(cablePlacementVisualisationPrefab);
+			cablePlacementVisualisation.SetActive(false);
 
-		// get default color from first point
-		defaultPointColor = connectionPointRenderers[Connection.Overlap].color;
-		// get line renderer
-		lineRenderer = cablePlacementVisualisation.GetComponent<LineRenderer>();
+			// init grid
+			connectionPointRenderers = new Dictionary<Connection, SpriteRenderer>();
+			for (int i = 0; i < 9; i++)
+			{
+				connectionPointRenderers[(Connection)i + 1] = cablePlacementVisualisation.transform.GetChild(i).GetComponent<SpriteRenderer>();
+			}
+			// get default color from first point
+			defaultPointColor = connectionPointRenderers[Connection.Overlap].color;
+			// get line renderer
+			lineRenderer = cablePlacementVisualisation.GetComponent<LineRenderer>();
+		}
 	}
 
 	private void OnEnable()
@@ -94,10 +96,9 @@ public class CablePlacementVisualisation : MonoBehaviour
 		if (!cablePlacementVisualisation.activeSelf) return;
 
 
-		if (PlayerManager.LocalPlayer.RegisterTile().Matrix.IsMovable)
+		if (PlayerManager.LocalPlayerObject.RegisterTile().Matrix.IsMovable)
 		{
-			cablePlacementVisualisation.transform.localRotation = PlayerManager.LocalPlayer.RegisterTile().Matrix.MatrixMove
-				.FacingOffsetFromInitial.Quaternion;
+			cablePlacementVisualisation.transform.localRotation = PlayerManager.LocalPlayerObject.RegisterTile().Matrix.MatrixMove.NetworkedMatrixMove.TargetTransform.rotation;
 		}
 		else
 		{
@@ -106,7 +107,7 @@ public class CablePlacementVisualisation : MonoBehaviour
 
 
 		// get releative mouse position
-		Vector2 releativeMousePosition = MouseUtils.MouseToWorldPos().ToLocal(PlayerManager.LocalPlayer.RegisterTile().Matrix) - cablePlacementVisualisation.transform.position.ToLocal(PlayerManager.LocalPlayer.RegisterTile().Matrix);
+		Vector2 releativeMousePosition = MouseUtils.MouseToWorldPos().ToLocal(PlayerManager.LocalPlayerObject.RegisterTile().Matrix) - cablePlacementVisualisation.transform.position.ToLocal(PlayerManager.LocalPlayerObject.RegisterTile().Matrix);
 		// get nearest point
 		int x = Mathf.RoundToInt(releativeMousePosition.x * 2);
 		int y = 2 - Mathf.RoundToInt(releativeMousePosition.y * 2);
@@ -163,7 +164,7 @@ public class CablePlacementVisualisation : MonoBehaviour
 	private void Build()
 	{
 		if (startPoint == endPoint || target == null) return;
-		var Register = PlayerManager.LocalPlayer.RegisterTile();
+		var Register = PlayerManager.LocalPlayerObject.RegisterTile();
 
 		Vector3 Position = Vector3.zero;
 
@@ -173,12 +174,12 @@ public class CablePlacementVisualisation : MonoBehaviour
 		}
 		else
 		{
-			var InQuaternion = Register.Matrix.MatrixMove.FacingOffsetFromInitial.Quaternion;
-			Position = cablePlacementVisualisation.transform.position + (InQuaternion * new Vector3(0.5f, 0.5f, 0));
+			 var InQuaternion = Register.Matrix.MatrixMove.NetworkedMatrixMove.TargetTransform.rotation;
+			 Position = cablePlacementVisualisation.transform.position + (InQuaternion * new Vector3(0.5f, 0.5f, 0));
 		}
 
 
-		Vector2 targetVector = Position.ToLocal(PlayerManager.LocalPlayer.RegisterTile().Matrix); // transform.position ( - transform.position); //TODO? what? is this
+		Vector2 targetVector = Position.ToLocal(PlayerManager.LocalPlayerObject.RegisterTile().Matrix); // transform.position ( - transform.position); //TODO? what? is this
 
 		ConnectionApply cableApply = ConnectionApply.ByLocalPlayer(target, startPoint, endPoint, targetVector);
 
@@ -327,7 +328,7 @@ public class CablePlacementVisualisation : MonoBehaviour
 			var mousePosition = MouseUtils.MouseToWorldPos().RoundToInt();
 
 			// if distance is greater than interaction distance
-			if (Vector2.Distance(transform.position, (Vector3)mousePosition) > PlayerScript.interactionDistance)
+			if (Vector2.Distance(transform.position, (Vector3)mousePosition) > PlayerScript.INTERACTION_DISTANCE)
 			{
 				DisableVisualisation();
 				return;
@@ -342,10 +343,10 @@ public class CablePlacementVisualisation : MonoBehaviour
 				var metaTileMap = MatrixManager.AtPoint(mousePosition, false).MetaTileMap;
 				var topTile = metaTileMap.GetTile(metaTileMap.WorldToCell(mousePosition), true, excludeNonIntractable : true );
 
-				if (topTile && (topTile.LayerType == LayerType.Base || topTile.LayerType == LayerType.Underfloor))
+				if (topTile && (topTile.LayerType == LayerType.Base || topTile.LayerType.IsUnderFloor()))
 				{
 					// move cable placement visualisation to rounded mouse position and enable it
-					var RegisterTile = PlayerManager.LocalPlayer.RegisterTile();
+					var RegisterTile = PlayerManager.LocalPlayerObject.RegisterTile();
 
 					if (RegisterTile.Matrix.IsMovable == false)
 					{
@@ -354,8 +355,8 @@ public class CablePlacementVisualisation : MonoBehaviour
 					}
 					else
 					{
-						var InQuaternion = RegisterTile.Matrix.MatrixMove
-							.FacingOffsetFromInitial.Quaternion;
+						 var InQuaternion = RegisterTile.Matrix.MatrixMove
+						 	.NetworkedMatrixMove.TargetTransform.rotation;
 
 						cablePlacementVisualisation.transform.position = mousePosition - (InQuaternion * (new Vector3(0.5f, 0.5f, 0))) ;
 						cablePlacementVisualisation.SetActive(true);

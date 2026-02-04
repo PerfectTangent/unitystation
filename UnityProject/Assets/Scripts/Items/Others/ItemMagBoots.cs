@@ -14,9 +14,10 @@ namespace Items.Others
 		private SpriteHandler spriteHandler;
 		private ItemAttributesV2 itemAttributesV2;
 		private Pickupable pickupable;
-		private PlayerMove playerMove;
+		private MovementSynchronisation playerMove;
 		private ItemActionButton actionButton;
 
+		[SyncVar(hook = nameof(SyncClientState))]
 		private bool isOn = false;
 
 		public float RunningSpeedModifier => runSpeedDebuff;
@@ -58,13 +59,13 @@ namespace Items.Others
 
 		public void OnInventoryMoveServer(InventoryMove info)
 		{
-			if (info.ToRootPlayer != null)
+			if (info.ToPlayer != null)
 			{
-				playerMove = info.ToRootPlayer.PlayerScript.playerMove;
+				playerMove = info.ToPlayer.PlayerScript.playerMove;
 			}
-			else if (info.FromRootPlayer != null)
+			else if (info.FromPlayer != null)
 			{
-				playerMove = info.FromRootPlayer.PlayerScript.playerMove;
+				playerMove = info.FromPlayer.PlayerScript.playerMove;
 			}
 
 			if (isOn)
@@ -89,7 +90,7 @@ namespace Items.Others
 		{
 			isOn = true;
 			ApplyEffect();
-			spriteHandler.ChangeSprite((int) SpriteState.On);
+			spriteHandler.SetCatalogueIndexSprite((int) SpriteState.On);
 			pickupable.RefreshUISlotImage();
 		}
 
@@ -97,22 +98,45 @@ namespace Items.Others
 		{
 			isOn = false;
 			RemoveEffect();
-			spriteHandler.ChangeSprite((int) SpriteState.Off);
+			spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Off);
 			pickupable.RefreshUISlotImage();
+		}
+
+		private void SyncClientState(bool OldState, bool NewState)
+		{
+			if (OldState)
+			{
+				RemoveEffect();
+			}
+
+			if (NewState)
+			{
+				ApplyEffect();
+			}
 		}
 
 		private void ApplyEffect()
 		{
 			itemAttributesV2.AddTrait(CommonTraits.Instance.NoSlip);
-			playerMove.AddModifier(this);
-			playerMove.PlayerScript.pushPull.ServerSetPushable(false);
+			if (isServer)
+			{
+				playerMove.AddModifier(this);
+				playerMove.CanBeWindPushed = false;
+				playerMove.HasOwnGravity = true;
+			}
+
+
 		}
 
 		private void RemoveEffect()
 		{
 			itemAttributesV2.RemoveTrait(CommonTraits.Instance.NoSlip);
-			playerMove.RemoveModifier(this);
-			playerMove.PlayerScript.pushPull.ServerSetPushable(true);
+			if (isServer)
+			{
+				playerMove.RemoveModifier(this);
+				playerMove.CanBeWindPushed = true;
+				playerMove.HasOwnGravity = false;
+			}
 		}
 	}
 }

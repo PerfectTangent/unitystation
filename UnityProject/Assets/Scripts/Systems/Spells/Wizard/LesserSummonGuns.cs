@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using NaughtyAttributes;
 using AddressableReferences;
+using Logs;
 
 namespace Systems.Spells.Wizard
 {
@@ -28,7 +29,7 @@ namespace Systems.Spells.Wizard
 		[SerializeField, BoxGroup("Settings"), Range(0, 1)]
 		private float timeBetweenPortals = 0.3f;
 
-		public override bool CastSpellServer(ConnectedPlayer caster)
+		public override bool CastSpellServer(PlayerInfo caster)
 		{
 			StartCoroutine(SpawnPortals(caster.Script.WorldPos));
 
@@ -53,7 +54,7 @@ namespace Systems.Spells.Wizard
 			SoundManager.PlayNetworkedAtPos(LesserSummonGunsSFX, position);
 		}
 
-		private bool SpawnGunInHand(ConnectedPlayer caster)
+		private bool SpawnGunInHand(PlayerInfo caster)
 		{
 			SpawnResult result = Spawn.ServerPrefab(gunPrefab, caster.Script.WorldPos);
 			if (result.Successful)
@@ -65,7 +66,7 @@ namespace Systems.Spells.Wizard
 				return true;
 			}
 
-			Logger.LogError($"Failed to spawn {gunPrefab} for {this}!", Category.Spells);
+			Loggy.Error($"Failed to spawn {gunPrefab} for {this}!", Category.Spells);
 			return false;
 		}
 

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 774114496202381458, guid: 8e4c205a853b5d44bb1b793530feaefe,
@@ -25,13 +26,13 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 774114496202381458, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[0]
+      propertyPath: 'SubCatalogue.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 7b60e624c76e3db49a8c55ea210ec4e6,
         type: 2}
     - target: {fileID: 774114496202381458, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[1]
+      propertyPath: 'SubCatalogue.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: 9acd88ac94dc4dd46ae1bcff0e001963,
         type: 2}
@@ -102,6 +103,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4409890578738218794, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
+      propertyPath: _assetId
+      value: 3632866260
+      objectReference: {fileID: 0}
+    - target: {fileID: 4409890578738218794, guid: 8e4c205a853b5d44bb1b793530feaefe,
+        type: 3}
       propertyPath: m_AssetId
       value: 17045812469b8c649babb925c6965066
       objectReference: {fileID: 0}
@@ -133,7 +139,7 @@ PrefabInstance:
     - target: {fileID: 5258920263574484114, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.00000004371139
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5258920263574484114, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
@@ -148,7 +154,7 @@ PrefabInstance:
     - target: {fileID: 5258920263574484114, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5258920263574484114, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
@@ -179,7 +185,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300000, guid: 9549affdc09f82f4790d437aca170d58,
+      objectReference: {fileID: 21300002, guid: 9549affdc09f82f4790d437aca170d58,
         type: 3}
     - target: {fileID: 5444563050315388511, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
@@ -216,22 +222,22 @@ PrefabInstance:
     - target: {fileID: 8325943561578412539, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.00000004371139
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8325943561578412539, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 8325943561578412539, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 8325943561578412539, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -1
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 8325943561578412539, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
@@ -245,10 +251,26 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9196119485141273601, guid: 8e4c205a853b5d44bb1b793530feaefe,
         type: 3}
+      propertyPath: parentID
+      value: 8e4c205a853b5d44bb1b793530feaefe
+      objectReference: {fileID: 0}
+    - target: {fileID: 9196119485141273601, guid: 8e4c205a853b5d44bb1b793530feaefe,
+        type: 3}
       propertyPath: foreverID
       value: 17045812469b8c649babb925c6965066
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5255355345183453768, guid: 8e4c205a853b5d44bb1b793530feaefe,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3138898577607490365}
+    - targetCorrespondingSourceObject: {fileID: 5255355345183453768, guid: 8e4c205a853b5d44bb1b793530feaefe,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6016527632689788989}
   m_SourcePrefab: {fileID: 100100000, guid: 8e4c205a853b5d44bb1b793530feaefe, type: 3}
 --- !u!1 &870856855002174042 stripped
 GameObject:
@@ -268,6 +290,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5aeab22facc7c0949914afac2a41267f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
   spritehandler: {fileID: 5639939868946462848}
   SpawnOnDeconstruct: {fileID: 0}
   registerTile: {fileID: 8415061280567833106}
@@ -275,24 +300,29 @@ MonoBehaviour:
     PipeLayer: 1
     Connections:
       Directions:
-      - Bool: 0
-        pipeType: 1
-        PortType: 0
-        flagLogic: 0
-      - Bool: 0
-        pipeType: 1
-        PortType: 0
-        flagLogic: 0
       - Bool: 1
+        MappedNeeded: 1
         pipeType: 1
         PortType: 3
         flagLogic: 0
       - Bool: 0
+        MappedNeeded: 0
+        pipeType: 1
+        PortType: 0
+        flagLogic: 0
+      - Bool: 0
+        MappedNeeded: 0
+        pipeType: 1
+        PortType: 0
+        flagLogic: 0
+      - Bool: 0
+        MappedNeeded: 0
         pipeType: 1
         PortType: 0
         flagLogic: 0
     CustomLogic: 0
     NetCompatible: 0
+    SelfSufficient: 0
     mixAndVolume:
       mix:
         temperature: 273.15
@@ -303,12 +333,12 @@ MonoBehaviour:
       gasMix:
         GasData:
           GasesArray: []
-        Pressure: 0
+        pressure: 0
         Volume: 2.5
-        Temperature: 293.15
+        temperature: 293.15
     MonoPipe: {fileID: 0}
   Colour: {r: 1, g: 1, b: 1, a: 1}
-  spawnedFromItem: 0
+  spawnedFromItem: 1
   directional: {fileID: 0}
   initalMinTemperature: 170
   initalMaxTemperature: 293.15
@@ -327,13 +357,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 819809cff2481914d883a6e1fefb4edd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
-  MethodRotation: 0
+  MethodRotation: 3
   ChangeSprites: 1
   isChangingSO: 0
-  CurrentDirection: 3
+  CurrentDirection: 1
+  SynchroniseCurrentDirection: 1
   IgnoreServerUpdatesIfLocalPlayer: 0
+  MatrixRotateUpdate: 1
   IsAtmosphericDevice: 1
   doNotResetOtherSpriteOptions: 0
 --- !u!210 &2511276323556255466 stripped

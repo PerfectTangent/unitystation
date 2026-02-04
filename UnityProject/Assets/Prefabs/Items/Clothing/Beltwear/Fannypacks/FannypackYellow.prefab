@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3599511477918261910, guid: 50df01ef60a031640b4faafe2df999ce,
@@ -12,12 +13,23 @@ PrefabInstance:
       propertyPath: initialName
       value: yellow fannypack
       objectReference: {fileID: 0}
+    - target: {fileID: 3599511477918261910, guid: 50df01ef60a031640b4faafe2df999ce,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 0aaf4da959979a74c8067f4fe7955bbd,
+        type: 2}
     - target: {fileID: 3884468714001317544, guid: 50df01ef60a031640b4faafe2df999ce,
         type: 3}
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 21300000, guid: ceda362ad9bdb8c4e8695b9caeccf3ea,
         type: 3}
+    - target: {fileID: 3930982433497919552, guid: 50df01ef60a031640b4faafe2df999ce,
+        type: 3}
+      propertyPath: _assetId
+      value: 520761809
+      objectReference: {fileID: 0}
     - target: {fileID: 3930982433497919552, guid: 50df01ef60a031640b4faafe2df999ce,
         type: 3}
       propertyPath: m_AssetId
@@ -95,7 +107,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4640309205536689155, guid: 50df01ef60a031640b4faafe2df999ce,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 72a9f8765c3aca048984146e43b565c8,
         type: 2}
@@ -105,10 +117,24 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 0aaf4da959979a74c8067f4fe7955bbd,
         type: 2}
+    - target: {fileID: 7088539496839198323, guid: 50df01ef60a031640b4faafe2df999ce,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 0aaf4da959979a74c8067f4fe7955bbd,
+        type: 2}
+    - target: {fileID: 8044321523661799833, guid: 50df01ef60a031640b4faafe2df999ce,
+        type: 3}
+      propertyPath: parentID
+      value: 50df01ef60a031640b4faafe2df999ce
+      objectReference: {fileID: 0}
     - target: {fileID: 8044321523661799833, guid: 50df01ef60a031640b4faafe2df999ce,
         type: 3}
       propertyPath: foreverID
       value: 9c351fb2a6ddfae46831b2ded6b969a7
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 50df01ef60a031640b4faafe2df999ce, type: 3}

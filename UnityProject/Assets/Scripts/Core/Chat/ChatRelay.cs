@@ -6,11 +6,15 @@ using UnityEngine;
 using Systems.MobAIs;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Core.Admin.Logs;
+using Managers;
 using Systems.Ai;
 using Messages.Server;
 using Messages.Server.SoundMessages;
-using Objects.Telecomms;
+using Player;
+using Player.Language;
 using Systems.Communications;
+using TMPro;
 using UI.Chat_UI;
 
 /// <summary>
@@ -24,10 +28,12 @@ public class ChatRelay : NetworkBehaviour
 	private ChatChannel namelessChannels;
 	private LayerMask layerMask;
 	private LayerMask npcMask;
-	private LayerMask itemsMask;
 
 	private bool radioCheckIsOnCooldown = false;
 	[SerializeField] private float radioCheckRadius = 4f;
+	private float whisperFalloffDistance = 2.5f;
+
+	private static readonly List<string> whisperPrefix = new List<string> { "w!", "/w" };
 
 	private RconManager rconManager;
 
@@ -56,21 +62,46 @@ public class ChatRelay : NetworkBehaviour
 		                   ChatChannel.Combat;
 		layerMask = LayerMask.GetMask("Door Closed");
 		npcMask = LayerMask.GetMask("NPC");
-		itemsMask = LayerMask.GetMask("Items");
 
 		rconManager = RconManager.Instance;
+	}
+
+	private void WhisperCheck(ChatEvent chatEvent)
+	{
+		var willWhisper = whisperPrefix.Any(prefix => chatEvent.message.Contains(prefix));
+		chatEvent.IsWhispering = willWhisper;
 	}
 
 	[Server]
 	public void PropagateChatToClients(ChatEvent chatEvent)
 	{
-		List<ConnectedPlayer> players = PlayerList.Instance.AllPlayers;
-		Loudness loud = chatEvent.VoiceLevel;
+		List<PlayerInfo> players = PlayerList.Instance.AllPlayers;
+		if (chatEvent.originator != null) WhisperCheck(chatEvent);
+
+		bool DistanceCheck(Vector3 playerPos, float distancevalue)
+		{
+			if (Vector2.Distance(chatEvent.position, playerPos) > distancevalue)
+			{
+				//Player in the list is too far away for local chat, remove them:
+				return false;
+			}
+
+			//Within range, but check if they are in another room or hiding behind a wall
+			if (MatrixManager.Linecast(chatEvent.position, LayerTypeSelection.Walls,
+				    layerMask, playerPos).ItHit)
+			{
+				//If it hit a wall remove that player
+				return false;
+			}
+
+			//Player can see the position
+			return true;
+		}
 
 		//Local chat range checks:
-		if (chatEvent.channels.HasFlag(ChatChannel.Local)
-		    || chatEvent.channels.HasFlag(ChatChannel.Combat)
-		    || chatEvent.channels.HasFlag(ChatChannel.Action))
+		if (chatEvent.channels.HasFlagFast(ChatChannel.Local)
+		    || chatEvent.channels.HasFlagFast(ChatChannel.Combat)
+		    || chatEvent.channels.HasFlagFast(ChatChannel.Action))
 		{
 			for (int i = players.Count - 1; i >= 0; i--)
 			{
@@ -87,7 +118,7 @@ public class ChatRelay : NetworkBehaviour
 					continue;
 				}
 
-				if (players[i].Script.IsGhost && players[i].Script.IsPlayerSemiGhost == false)
+				if (players[i].Script.IsGhost)
 				{
 					//send all to ghosts
 					continue;
@@ -102,21 +133,24 @@ public class ChatRelay : NetworkBehaviour
 				//Send chat to PlayerChatLocation pos, usually just the player object but for AI is its vessel
 				var playerPosition = players[i].Script.PlayerChatLocation.OrNull()?.AssumedWorldPosServer()
 				                     ?? players[i].Script.gameObject.AssumedWorldPosServer();
-
+				//Get chatrange stat from playerstats
+				var playerStats = players[i].Script.PlayerStats;
+				var playerHearing = playerStats == null ? 14f : playerStats.GetTotalStat(PlayerStats.Stat.LocalChatRange);
 				//Do player position to originator distance check
-				if (DistanceCheck(playerPosition) == false)
+				if (DistanceCheck(playerPosition, playerHearing) == false)
 				{
 					//Distance check failed so if we are Ai, then try send action and combat messages to their camera location
 					//as well as if possible
-					if (chatEvent.channels.HasFlag(ChatChannel.Local) == false &&
-					    players[i].Script.PlayerState == PlayerScript.PlayerStates.Ai &&
+					if (chatEvent.channels.HasFlagFast(ChatChannel.Local) == false &&
+					    players[i].Script.PlayerType == PlayerTypes.Ai &&
 					    players[i].Script.TryGetComponent<AiPlayer>(out var aiPlayer) &&
 					    aiPlayer.IsCarded == false)
 					{
 						playerPosition = players[i].Script.gameObject.AssumedWorldPosServer();
 
 						//Check camera pos
-						if (DistanceCheck(playerPosition))
+						//AI doesnt have ears so just pass 14f
+						if (DistanceCheck(playerPosition, 14f))
 						{
 							//Camera can see player, allow Ai to see action/combat messages
 							continue;
@@ -126,30 +160,7 @@ public class ChatRelay : NetworkBehaviour
 					//Player failed distance checks remove them
 					players.RemoveAt(i);
 				}
-
-				bool DistanceCheck(Vector3 playerPos)
-				{
-					//TODO maybe change this to (chatEvent.position - playerPos).sqrMagnitude > 196f to avoid square root for performance?
-					if (Vector2.Distance(chatEvent.position, playerPos) > 14f)
-					{
-						//Player in the list is too far away for local chat, remove them:
-						return false;
-					}
-
-					//Within range, but check if they are in another room or hiding behind a wall
-					if (MatrixManager.Linecast(chatEvent.position, LayerTypeSelection.Walls,
-						layerMask, playerPos).ItHit)
-					{
-						//If it hit a wall remove that player
-						return false;
-					}
-
-					//Player can see the position
-					return true;
-				}
 			}
-
-
 
 			if (chatEvent.originator != null)
 			{
@@ -158,10 +169,12 @@ public class ChatRelay : NetworkBehaviour
 				foreach (Collider2D coll in npcs)
 				{
 					var npcPosition = coll.gameObject.AssumedWorldPosServer();
+					if ((npcPosition - chatEvent.position).magnitude > 16) continue;
 					if (MatrixManager.Linecast(chatEvent.position, LayerTypeSelection.Walls,
 						layerMask, npcPosition).ItHit == false)
 					{
 						//NPC is in hearing range, pass the message on: Physics2D.OverlapCircleAll(chatEvent.originator.AssumedWorldPosServer(), 8f, itemsMask);
+						//TODO: Make mobAI use chat influencer to avoid dependency
 						var mobAi = coll.GetComponent<MobAI>();
 						if (mobAi != null)
 						{
@@ -174,69 +187,177 @@ public class ChatRelay : NetworkBehaviour
 			}
 		}
 
+		ChatChannel channel = chatEvent.channels;
+
+		if (channel.HasFlagFast(ChatChannel.Combat) || channel.HasFlagFast(ChatChannel.Local) ||
+		    channel.HasFlagFast(ChatChannel.System) || channel.HasFlagFast(ChatChannel.Examine) ||
+		    channel.HasFlagFast(ChatChannel.Action))
+		{
+
+			//Check here to avoid speaking in local when speaking on non verbal channels
+			//If local chat check for any Chat.NonVerbalChannels in all the channels sent and don't do local
+			var doNotDoLocal = channel.HasFlagFast(ChatChannel.Local) &&
+			                   (chatEvent.allChannels & Chat.NonVerbalChannels) != 0;
+
+			if (doNotDoLocal)
+			{
+				//Basically if we shouldn't do local due to channels containing binary or some other nonverbal (see above)
+				//Then AND in all SpeechChannels, remove local if there none then it means we don't need to be verbal
+				//As a channel such as command wont be there
+				//This whole system allows for e.g Ai to speak to command and binary (and so do local), but if only binary
+				//then no local (Yes it's complicated just for that)
+				var channelsCleaned = chatEvent.allChannels;
+				channelsCleaned &= Chat.SpeechChannels;
+				channelsCleaned ^= ChatChannel.Local;
+				doNotDoLocal = channelsCleaned == ChatChannel.None;
+
+				if(doNotDoLocal) return;
+			}
+
+			for (int i = 0; i < players.Count; i++)
+			{
+				SendMessage(chatEvent, players[i].GameObject, channel);
+			}
+
+			return;
+		}
+
 		for (var i = 0; i < players.Count; i++)
 		{
-			ChatChannel channels = chatEvent.channels;
+			channel = chatEvent.channels;
 
-			if (channels.HasFlag(ChatChannel.Combat) || channels.HasFlag(ChatChannel.Local) ||
-			    channels.HasFlag(ChatChannel.System) || channels.HasFlag(ChatChannel.Examine) ||
-			    channels.HasFlag(ChatChannel.Action))
-			{
-				//Binary check here to avoid speaking in local when speaking on binary
-				if (!channels.HasFlag(ChatChannel.Binary) ||
-				    (players[i].Script.IsGhost && players[i].Script.IsPlayerSemiGhost == false))
-				{
-					UpdateChatMessage.Send(players[i].GameObject, channels, chatEvent.modifiers, chatEvent.message,
-						loud, chatEvent.messageOthers,
-						chatEvent.originator, chatEvent.speaker, chatEvent.stripTags);
-
-					continue;
-				}
-			}
+			ChatChannel Mask = ChatChannel.None;
 
 			if (players[i].Script == null)
 			{
-				channels &= ChatChannel.OOC;
+				Mask |= ChatChannel.OOC;
 			}
 			else
 			{
-				channels &= players[i].Script.GetAvailableChannelsMask(false);
+				Mask |= players[i].Script.GetAvailableChannelsMask(false);
 			}
 
-			//if the mask ends up being a big fat 0 then don't do anything
-			if (channels != ChatChannel.None)
+			if (players[i].HasTAGServer(TAG.ADMIN_LOGS))
 			{
-				UpdateChatMessage.Send(players[i].GameObject, channels, chatEvent.modifiers, chatEvent.message, loud,
-					chatEvent.messageOthers,
-					chatEvent.originator, chatEvent.speaker, chatEvent.stripTags);
+				Mask |= ChatChannel.Admin;
 			}
+
+			channel &= Mask;
+
+			//if the mask ends up being a big fat 0 then don't do anything
+			if (channel != ChatChannel.None)
+			{
+				SendMessage(chatEvent, players[i].GameObject, channel);
+			}
+		}
+
+		string message = $"{chatEvent.speaker} {chatEvent.message}";
+		if ((namelessChannels & chatEvent.channels) != chatEvent.channels)
+		{
+			message = $"<b>[{chatEvent.channels}]</b> {message}";
+		}
+
+		if (channel != ChatChannel.Admin)
+		{
+			AdminLogsManager.AddNewLog(
+				null,
+				$"Chat: {message}",
+				LogCategory.MISC
+			);
 		}
 
 		if (rconManager != null)
 		{
-			string message = $"{chatEvent.speaker} {chatEvent.message}";
-			if ((namelessChannels & chatEvent.channels) != chatEvent.channels)
-			{
-				message = $"<b>[{chatEvent.channels}]</b> {message}";
-			}
-
 			RconManager.AddChatLog(message);
 		}
+	}
+
+	private static void SendMessage(ChatEvent chatEvent, GameObject playerToSend, ChatChannel channel)
+	{
+		var copiedString = chatEvent.message;
+		PlayerScript playerScript = null;
+		ushort languageId = 0;
+
+		//Check to see if the target player can understand the language!
+		if (chatEvent.modifiers.HasFlag(ChatModifier.Emote) == false &&
+		    chatEvent.language != null && playerToSend.TryGetComponent(out playerScript))
+		{
+			languageId = chatEvent.language.LanguageUniqueId;
+
+			copiedString = LanguageManager.Scramble(chatEvent.language, playerScript, string.Copy(chatEvent.message));
+		}
+
+		if (chatEvent.IsWhispering)
+		{
+			foreach (var prefix in whisperPrefix)
+			{
+				copiedString = copiedString.Replace(prefix, "");
+			}
+		}
+
+		if (string.IsNullOrWhiteSpace(chatEvent.message)) return;
+
+		UpdateChatMessage.Send(playerToSend, channel, chatEvent.modifiers, copiedString, chatEvent.VoiceLevel,
+			chatEvent.messageOthers, chatEvent.originator, chatEvent.speaker, chatEvent.stripTags, languageId, chatEvent.IsWhispering, chatEvent.Voice);
+		if(chatEvent.ShowChatBubble) ShowChatBubbleToPlayer( playerToSend, ref chatEvent, copiedString);
+	}
+
+	public static void ShowChatBubbleToPlayer(GameObject toShowTo, ref ChatEvent chatEvent, string msg)
+	{
+		if (chatEvent.originator == null) return;
+
+		if (chatEvent.channels != ChatChannel.Local) return;
+
+		if (chatEvent.modifiers.HasFlag(ChatModifier.Emote)) return;
+
+		if (chatEvent.modifiers.HasFlag(ChatModifier.Mute)) return;
+
+		if (chatEvent.IsWhispering)
+		{
+			if ((toShowTo.transform.position - chatEvent.originator.transform.position).magnitude > 1.5f)
+			{
+				msg = HideWhisperedText(ref msg);
+			}
+		}
+
+		ShowChatBubbleMessage.SendTo(toShowTo,  chatEvent.originator, msg, chatEvent.language);
+	}
+
+	public static void HideWhisperedText(ref GameObject originator, ref string message, ref GameObject playerToSend)
+	{
+		if (originator == null || playerToSend == originator) return;
+		if (Vector2.Distance(originator.AssumedWorldPosServer(), playerToSend.AssumedWorldPosServer()) < Instance.whisperFalloffDistance) return;
+		message = HideWhisperedText(ref message);
+	}
+
+	public static string HideWhisperedText(ref string message)
+	{
+		var msg = string.Empty;
+		foreach (var character in message.ToList())
+		{
+			var c = character;
+			if (DMMath.Prob(50))
+			{
+				c = '*';
+			}
+			msg += c;
+		}
+		return msg;
 	}
 
 	private ChatEvent CheckForRadios(ChatEvent chatEvent)
 	{
 		HandleRadioCheckCooldown();
-		var SBRSpamCheck = false;
+
 		// Only spoken messages should be forwarded
-		if (chatEvent.channels.HasFlag(ChatChannel.Local) == false)
+		if (chatEvent.channels.HasFlagFast(ChatChannel.Local) == false)
 		{
 			return chatEvent;
 		}
 
 		//Check for chat three tiles around the player
 		foreach (Collider2D coll in Physics2D.OverlapCircleAll(chatEvent.position,
-			radioCheckRadius, itemsMask))
+			radioCheckRadius))
 		{
 			if (chatEvent.originator == coll.gameObject) continue;
 			if (coll.gameObject.TryGetComponent<IChatInfluencer>(out var listener) == false || listener.WillInfluenceChat() == false) continue;
@@ -262,26 +383,36 @@ public class ChatRelay : NetworkBehaviour
 	[Client]
 	public void AddAdminPrivMessageToClient(string message)
 	{
-		trySendingTTS(message);
+		trySendingTTS(message, "", MaryTTS.AudioSynthType.NormalSpeech);
 
 		ChatUI.Instance.AddAdminPrivEntry(message);
 	}
 
 	[Client]
+	public void AddPrayerPrivMessageToClient(string message)
+	{
+		trySendingTTS(message, "", MaryTTS.AudioSynthType.NormalSpeech);
+
+		ChatUI.Instance.AddChatEntry(message);
+	}
+
+	[Client]
 	public void AddMentorPrivMessageToClient(string message)
 	{
-		trySendingTTS(message);
+		trySendingTTS(message, "", MaryTTS.AudioSynthType.NormalSpeech);
 
 		ChatUI.Instance.AddMentorPrivEntry(message);
 	}
 
 	[Client]
 	public void UpdateClientChat(string message, ChatChannel channels, bool isOriginator, GameObject recipient,
-		Loudness loudness, ChatModifier modifiers)
+		Loudness loudness, ChatModifier modifiers, ushort languageId = 0, bool isWhispering = false, string Voice = "", uint originatorNetId = UInt32.MinValue)
 	{
-		if (string.IsNullOrEmpty(message)) return;
+		if (string.IsNullOrWhiteSpace(message)) return;
+		MaryTTS.AudioSynthType synthType = MaryTTS.AudioSynthType.NormalSpeech;
+		if (Channels.RadioChannels.HasFlag(channels)) synthType = MaryTTS.AudioSynthType.Radio;
 
-		trySendingTTS(message);
+		trySendingTTS(message, Voice, synthType, isOriginator ? UInt32.MinValue : originatorNetId);
 
 		if (PlayerManager.LocalPlayerScript == null)
 		{
@@ -291,8 +422,8 @@ public class ChatRelay : NetworkBehaviour
 		if (channels != ChatChannel.None)
 		{
 			// replace action messages with chat bubble
-			if (channels.HasFlag(ChatChannel.Combat) || channels.HasFlag(ChatChannel.Action) ||
-			    channels.HasFlag(ChatChannel.Examine) || modifiers.HasFlag(ChatModifier.Emote))
+			if (channels.HasFlagFast(ChatChannel.Combat) || channels.HasFlagFast(ChatChannel.Action) ||
+			    channels.HasFlagFast(ChatChannel.Examine) || modifiers.HasFlag(ChatModifier.Emote))
 			{
 				if (isOriginator)
 				{
@@ -300,9 +431,12 @@ public class ChatRelay : NetworkBehaviour
 				}
 			}
 
-			ChatUI.Instance.AddChatEntry(message);
+			var languageSprite = GetLanguageSprite(languageId);
+
+			ChatUI.Instance.AddChatEntry(message, languageSprite);
 		}
-		AudioSourceParameters audioSourceParameters = new AudioSourceParameters();
+
+		AudioSourceParameters audioSourceParameters = new AudioSourceParameters(spatialBlend: 1);
 		switch (channels)
 		{
 			case ChatChannel.Syndicate:
@@ -333,25 +467,54 @@ public class ChatRelay : NetworkBehaviour
 
 	}
 
+	private static TMP_SpriteAsset GetLanguageSprite(ushort languageId)
+	{
+		var language = LanguageManager.Instance.GetLanguageById(languageId);
+
+		if (PlayerManager.LocalPlayerScript != null &&
+		    PlayerManager.LocalPlayerScript.TryGetComponent<MobLanguages>(out var playerLanguages) && language != null)
+		{
+			var canUnderstand = playerLanguages.CanUnderstandLanguage(language);
+
+			switch (canUnderstand)
+			{
+				case true when (language.Flags & LanguageFlags.HideIconIfUnderstood) != 0:
+				case false when (language.Flags & LanguageFlags.HideIconIfNotUnderstood) != 0:
+					return null;
+				default:
+					return language.ChatSprite;
+			}
+		}
+
+		return null;
+	}
+
 	/// <summary>
 	/// Sends a message to TTS to vocalize.
 	/// They are required to contain the saysChar.
 	/// Messages must also contain at least one letter from the alphabet.
 	/// </summary>
 	/// <param name="message">The message to try to vocalize.</param>
-	private void trySendingTTS(string message)
+	private void trySendingTTS(string message, string Voice, MaryTTS.AudioSynthType type, uint originNetId = uint.MinValue)
 	{
-		if (UIManager.Instance.ttsToggle)
+		if (!UIManager.Instance.ttsToggle) return;
+		message = Regex.Replace(message, @"<[^>]*>", String.Empty); // Style tags
+		int saysCharIndex = message.IndexOf(saysChar);
+		if (saysCharIndex != -1)
 		{
-			message = Regex.Replace(message, @"<[^>]*>", String.Empty); // Style tags
-			int saysCharIndex = message.IndexOf(saysChar);
-			if (saysCharIndex != -1)
+			string messageAfterSaysChar = message.Substring(message.IndexOf(saysChar) + 1);
+			bool hasLetter = false;
+			for (int i = 0; i < messageAfterSaysChar.Length; i++)
 			{
-				string messageAfterSaysChar = message.Substring(message.IndexOf(saysChar) + 1);
-				if (messageAfterSaysChar.Length > 0 && messageAfterSaysChar.Any(char.IsLetter))
+				if (char.IsLetter(messageAfterSaysChar[i]))
 				{
-					MaryTTS.Instance.Synthesize(messageAfterSaysChar);
+					hasLetter = true;
+					break;
 				}
+			}
+			if (messageAfterSaysChar.Length > 0 && hasLetter)
+			{
+				MaryTTS.Instance.Synthesize(messageAfterSaysChar, type, Voice, originNetId);
 			}
 		}
 	}

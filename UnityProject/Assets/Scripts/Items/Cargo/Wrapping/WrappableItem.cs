@@ -1,4 +1,5 @@
 ﻿using System;
+using Logs;
 using NaughtyAttributes;
 using UnityEngine;
 
@@ -75,7 +76,7 @@ namespace Items.Cargo.Wrapping
 					result = festivePackagePrefab;
 					break;
 				default:
-					Logger.LogError($"Tried to wrap {gameObject} with unknown type of paper", Category.Cargo);
+					Loggy.Error($"Tried to wrap {gameObject} with unknown type of paper", Category.Cargo);
 					result = normalPackagePrefab;
 					break;
 			}

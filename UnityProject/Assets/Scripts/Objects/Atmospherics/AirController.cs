@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using Core.Admin.Logs;
 using UnityEngine;
 using NaughtyAttributes;
 using ScriptableObjects.Atmospherics;
 using Systems.Atmospherics;
 using Systems.Electricity;
-using Systems.ObjectConnection;
 using Objects.Wallmounts;
+using Shared.Systems.ObjectConnection;
+using Systems.Clearance;
 using UI.Objects.Atmospherics.Acu;
+using Items;
 
 
 namespace Objects.Atmospherics
@@ -47,7 +49,7 @@ namespace Objects.Atmospherics
 	/// </list></remarks>
 	/// </summary>
 	[RequireComponent(typeof(WallmountBehavior))]
-	[RequireComponent(typeof(AccessRestrictions))]
+	[RequireComponent(typeof(ClearanceRestricted))]
 	public class AirController : MonoBehaviour, IServerSpawn, IAPCPowerable, IMultitoolMasterable, ICheckedInteractable<HandApply>, IExaminable
 	{
 		[InfoBox("Several presets exist for server rooms, cold rooms, etc. Add as desired.")]
@@ -62,11 +64,11 @@ namespace Objects.Atmospherics
 
 		[SerializeField]
 		[Tooltip("Whether the ACU should be an air quality sampling source. " +
-				"Disable if the ACU is not in the room it controls. Important to disable for Atmospherics reservoir ACUs.")]
+		         "Disable if the ACU is not in the room it controls. Important to disable for Atmospherics reservoir ACUs.")]
 		private bool acuSamplesAir = true;
 
 		private MetaDataNode facingMetaNode;
-		private AccessRestrictions accessRestrictions;
+		private ClearanceRestricted restricted;
 		private SpriteHandler spriteHandler;
 
 		/// <summary>Invoked when the air controller's state changes.</summary>
@@ -92,18 +94,25 @@ namespace Objects.Atmospherics
 
 		private readonly AcuSample acuSample = new AcuSample();
 
+		private bool isEmagged = false;
+
 		#region Lifecycle
 
 		private bool IsReady => facingMetaNode != null;
 
 		private void Awake()
 		{
-			accessRestrictions = GetComponent<AccessRestrictions>();
+			restricted = GetComponent<ClearanceRestricted>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
 
 			Thresholds = initialAcuThresholds.Clone();
 			GasLevelStatus = new AcuStatus[Gas.Gases.Count];
+		}
+
+		private void Start()
+		{
 			DesiredMode = initialOperatingMode;
+			SetOperatingMode(DesiredMode);
 		}
 
 		private void OnDisable()
@@ -125,12 +134,13 @@ namespace Objects.Atmospherics
 		}
 
 		#endregion
-
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 		private void PeriodicUpdate()
 		{
 			UpdateAtmosphericAverage();
 			UpdateStatusProperties();
-			spriteHandler.ChangeSprite((int)OverallStatus);
+			spriteHandler.SetCatalogueIndexSprite((int)OverallStatus);
 
 			// Cycle will vacuum air, and then refill.
 			if (DesiredMode == AcuMode.Cycle && AtmosphericAverage.Pressure < AtmosConstants.ONE_ATMOSPHERE / 20)
@@ -149,12 +159,14 @@ namespace Objects.Atmospherics
 			AtmosphericAverage.Clear();
 			foreach (IAcuControllable device in ConnectedDevices)
 			{
-				AtmosphericAverage.AddSample(device.AtmosphericSample);
+				var sample = device.AtmosphericSample;
+				if (sample == null) continue;
+				AtmosphericAverage.AddSample(sample);
 			}
 
 			if (acuSamplesAir)
 			{
-				acuSample.FromGasMix(facingMetaNode.GasMix);
+				acuSample.FromGasMix(facingMetaNode.GasMixLocal);
 				AtmosphericAverage.AddSample(acuSample);
 			}
 		}
@@ -186,12 +198,12 @@ namespace Objects.Atmospherics
 				if (gasDetected && Thresholds.GasMoles.ContainsKey(gas) == false)
 				{
 					// Let thresholds know about this unrecognized gas, but values are undetermined (let a technician set them).
-					Thresholds.GasMoles.Add(gas, AcuThresholds.UnknownValues);
+					Thresholds.GasMoles.Add(gas, AcuThresholds.UnknownValueslist);
 				}
 
 				GasLevelStatus[gas] = gasDetected
-						? GetMetricStatus(Thresholds.GasMoles[gas], AtmosphericAverage.GetGasMoles(gas))
-						: AcuStatus.Nominal;
+					? GetMetricStatus(Thresholds.GasMoles[gas], AtmosphericAverage.GetGasMoles(gas))
+					: AcuStatus.Nominal;
 				CompositionStatus = GasLevelStatus[gas] > CompositionStatus? GasLevelStatus[gas] : CompositionStatus;
 			}
 
@@ -200,7 +212,23 @@ namespace Objects.Atmospherics
 			OverallStatus = CompositionStatus > OverallStatus ? CompositionStatus : OverallStatus;
 		}
 
-		private AcuStatus GetMetricStatus(float[] thresholds, float value)
+		private AcuStatus GetMetricStatus( List<float> thresholds, float value)
+		{
+			for (int i = 0; i < thresholds.Count; i++)
+			{
+				// ACU does not have thresholds data set for this newly-registered gas.
+				if (float.IsNaN(thresholds[i])) return AcuStatus.Caution;
+			}
+
+			if (value < thresholds[0]) return AcuStatus.Alert;
+			if (value > thresholds[3]) return AcuStatus.Alert;
+			if (value > thresholds[2]) return AcuStatus.Caution;
+			if (value < thresholds[1]) return AcuStatus.Caution;
+
+			return AcuStatus.Nominal;
+		}
+
+		private AcuStatus GetMetricStatus( float[] thresholds, float value)
 		{
 			for (int i = 0; i < thresholds.Length; i++)
 			{
@@ -233,13 +261,19 @@ namespace Objects.Atmospherics
 			if (IsWriteable == false) return;
 
 			DesiredMode = mode;
+			SetDevicesOperatingMode(mode);
+			OnStateChanged?.Invoke();
+		}
+
+		public void SetDevicesOperatingMode(AcuMode mode)
+		{
 			foreach (var device in ConnectedDevices)
 			{
 				device.SetOperatingMode(mode);
 			}
 
-			OnStateChanged?.Invoke();
 		}
+
 
 		public void ResetThresholds()
 		{
@@ -258,18 +292,39 @@ namespace Objects.Atmospherics
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-			return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Id);
+			return interaction.HandObject != null && interaction.IsAltClick == false;
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (accessRestrictions.CheckAccessCard(interaction.HandObject))
+			if (isEmagged) return;
+
+			if (Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Emag) && interaction.HandObject.TryGetComponent<Emag>(out var emag) && emag.EmagHasCharges())
+			{
+				IsLocked = false;
+				isEmagged = true;
+
+				emag.UseCharge(interaction);
+
+				Chat.AddActionMsgToChat(interaction.Performer,
+					$"The air controller unit sparks as you wave the emag across it.",
+					$"You hear sparking from somewhere nearby...");
+
+				return;
+			}
+
+			if (restricted.HasClearance(interaction.HandObject))
 			{
 				IsLocked = !IsLocked;
 
 				Chat.AddActionMsgToChat(interaction.Performer,
-						$"You {(IsLocked ? "lock" : "unlock")} the air controller unit.",
-						$"{interaction.PerformerPlayerScript.visibleName} {(IsLocked ? "locks" : "unlocks")} the air controller unit.");
+					$"You {(IsLocked ? "lock" : "unlock")} the air controller unit.",
+					$"{interaction.PerformerPlayerScript.visibleName} {(IsLocked ? "locks" : "unlocks")} the air controller unit.");
+				AdminLogsManager.AddNewLog(
+					interaction.Performer,
+					$"{interaction.PerformerPlayerScript.visibleName} has {(IsLocked ? "locked" : "unlocked")} a air control unit at {gameObject.ExpensiveName()}.",
+					LogCategory.Interaction,
+					Severity.SUSPICOUS);
 
 				OnStateChanged?.Invoke();
 			}
@@ -278,18 +333,20 @@ namespace Objects.Atmospherics
 		public string Examine(Vector3 worldPos = default)
 		{
 			var situation =
-					OverallStatus == AcuStatus.Nominal ? "a nominal atmosphere"
-					: OverallStatus == AcuStatus.Caution ? "to take caution"
-					: OverallStatus == AcuStatus.Alert ? "a hazardous environment" : "nothing";
+				OverallStatus switch
+				{
+					AcuStatus.Nominal => "a nominal atmosphere",
+					AcuStatus.Caution => "to take caution",
+					AcuStatus.Alert => "a hazardous environment",
+					_ => "nothing"
+				};
 
 			if (IsPowered)
 			{
 				return $"The display is indicating {situation}, and the controls are {(IsLocked ? "locked" : "unlocked")}.";
 			}
-			else
-			{
-				return $"The unit appears to be unpowered, and the controls are {(IsLocked ? "locked" : "unlocked")}.";
-			}
+
+			return $"The unit appears to be unpowered, and the controls are {(IsLocked ? "locked" : "unlocked")}.";
 		}
 
 		#endregion
@@ -309,16 +366,18 @@ namespace Objects.Atmospherics
 					// StateUpdate() can be invoked before OnEnable() or before the matrix is ready.
 					if (IsReady)
 					{
-						spriteHandler.ChangeSprite((int) AcuStatus.Nominal);
+						spriteHandler.SetCatalogueIndexSprite((int) AcuStatus.Nominal);
 						UpdateManager.Add(PeriodicUpdate, 3);
 						PeriodicUpdate();
+						SetDevicesOperatingMode(DesiredMode);
 					}
 					break;
 				case PowerState.Off:
 					OverallStatus = AcuStatus.Off;
 					IsPowered = false;
 					UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, PeriodicUpdate);
-					spriteHandler.ChangeSprite((int) AcuStatus.Off);
+					spriteHandler.SetCatalogueIndexSprite((int) AcuStatus.Off);
+					SetDevicesOperatingMode(AcuMode.Off);
 					break;
 			}
 
@@ -332,11 +391,11 @@ namespace Objects.Atmospherics
 		#region Multitool
 
 		MultitoolConnectionType IMultitoolLinkable.ConType => MultitoolConnectionType.Acu;
-		bool IMultitoolMasterable.MultiMaster => false;
 		int IMultitoolMasterable.MaxDistance => 30;
 
 		public void AddSlave(IAcuControllable device)
 		{
+			if (ConnectedDevices.Contains(device)) return;
 			ConnectedDevices.Add(device);
 			device.SetOperatingMode(DesiredMode);
 

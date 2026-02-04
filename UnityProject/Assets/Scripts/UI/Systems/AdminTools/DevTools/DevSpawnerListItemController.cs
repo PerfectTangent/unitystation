@@ -1,9 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
+using Core.Admin.Logs;
+using InGameGizmos;
 using Items;
 using Messages.Client.DevSpawner;
+using Objects.Atmospherics;
+using Systems.Pipes;
+using UI.Systems.AdminTools.DevTools.Search;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
+using Util;
 using Image = UnityEngine.UI.Image;
 
 
@@ -31,8 +39,13 @@ public class DevSpawnerListItemController : MonoBehaviour
 	// so we can escape while drawing - enabled while drawing, disabled when done
 	private EscapeKeyTarget escapeKeyTarget;
 
-	private LightingSystem lightingSystem;
 	private bool cachedLightingState;
+
+	public Vector3? StartPressPosition = null;
+
+	public GameGizmoLine GameGizmoLine;
+
+	public bool HasRotatable = false;
 
 	private void Awake()
 	{
@@ -43,7 +56,6 @@ public class DevSpawnerListItemController : MonoBehaviour
 	private void OnEnable()
 	{
 		escapeKeyTarget = GetComponent<EscapeKeyTarget>();
-		lightingSystem = Camera.main.GetComponent<LightingSystem>();
 		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
 	}
 
@@ -70,6 +82,9 @@ public class DevSpawnerListItemController : MonoBehaviour
 		detailText.text = "Prefab";
 
 		titleText.text = resultDoc.Prefab.name;
+
+		HasRotatable = prefab.GetComponent<Rotatable>();
+
 	}
 
 	private void UpdateMe()
@@ -77,6 +92,7 @@ public class DevSpawnerListItemController : MonoBehaviour
 		if (selectedItem == this)
 		{
 			cursorObject.transform.position = MouseUtils.MouseToWorldPos();
+
 			if (CommonInput.GetMouseButtonDown(0))
 			{
 				//Ignore spawn if pointer is hovering over GUI
@@ -84,7 +100,49 @@ public class DevSpawnerListItemController : MonoBehaviour
 				{
 					return;
 				}
-				TrySpawn();
+
+				if (HasRotatable == false)
+				{
+					if (KeyboardInputManager.IsAltActionKeyPressed())
+					{
+						TrySpawn(null, MouseUtils.MouseToWorldPos());
+					}
+					else
+					{
+						TrySpawn(null, MouseUtils.MouseToWorldPos().RoundToInt());
+					}
+				}
+				else
+				{
+					StartPressPosition = cursorObject.transform.position;
+
+					GameGizmoLine = GameGizmomanager.AddNewLineStaticClient(null, StartPressPosition.Value.RoundToInt() , null,StartPressPosition.Value  , Color.green);
+				}
+			}
+
+			if (GameGizmoLine != null && StartPressPosition != null)
+			{
+				GameGizmoLine.To = StartPressPosition.Value.RoundToInt()+ ((cursorObject.transform.position - StartPressPosition).Value.ToOrientationEnum()
+					.ToLocalVector3());
+
+				GameGizmoLine.UpdateMe();
+			}
+
+			if (CommonInput.GetMouseButtonUp(0) && HasRotatable && StartPressPosition != null)
+			{
+				GameGizmoLine.OrNull()?.Remove();
+				GameGizmoLine = null;
+				cursorObject.transform.position = StartPressPosition.Value;
+				if (KeyboardInputManager.IsAltActionKeyPressed())
+				{
+					TrySpawn( ( MouseUtils.MouseToWorldPos() - StartPressPosition).Value.ToOrientationEnum(), StartPressPosition);
+				}
+				else
+				{
+					TrySpawn( ( MouseUtils.MouseToWorldPos() - StartPressPosition).Value.ToOrientationEnum(), StartPressPosition.Value.RoundToInt());
+				}
+
+				StartPressPosition = null;
 			}
 		}
 	}
@@ -99,9 +157,26 @@ public class DevSpawnerListItemController : MonoBehaviour
 			escapeKeyTarget.enabled = false;
 			selectedItem = null;
 			drawingMessage.SetActive(false);
-			lightingSystem.enabled = cachedLightingState;
+			Camera.main.GetComponent<LightingSystem>().enabled = cachedLightingState;
 		}
 	}
+
+	public void OnSelectedParent()
+	{
+		var PrefabTracker = prefab.GetComponent<PrefabTracker>();
+		if (PrefabTracker == null) return;
+		Destroy(this.gameObject);
+		GUI_DevSpawner.Instance.Search(PrefabTracker.ParentID);
+	}
+
+	public void OnSelectedShowChildren()
+	{
+		var PrefabTracker = prefab.GetComponent<PrefabTracker>();
+		if (PrefabTracker == null) return;
+		Destroy(this.gameObject);
+		GUI_DevSpawner.Instance.Search(PrefabTracker.ForeverID);
+	}
+
 
 	public void OnSelected()
 	{
@@ -112,12 +187,24 @@ public class DevSpawnerListItemController : MonoBehaviour
 				//tell the other selected one that it's time to stop
 				selectedItem.OnEscape();
 			}
+
+			if (GUI_P_Component.VVObjectComponentSelectionActive)
+			{
+				GUI_P_Component.ActiveComponent.SetPrefab(prefab.GetComponent<PrefabTracker>().ForeverID);
+				GUI_P_Component.ActiveComponent.Close();
+				return;
+			}
+
 			//just chosen to be spawned on the map. Put our object under the mouse cursor
 			cursorObject = Instantiate(cursorPrefab, transform.root);
 			SpriteRenderer curRend = cursorObject.GetComponent<SpriteRenderer>();
 			curRend.sprite = image.sprite;
 
-			curRend.material = prefab.GetComponentInChildren<SpriteRenderer>().sharedMaterial;
+			if (prefab.GetComponentInChildren<SpriteRenderer>() != null)
+			{
+				curRend.material = prefab.GetComponentInChildren<SpriteRenderer>().sharedMaterial;
+			}
+
 			MaterialPropertyBlock block = new MaterialPropertyBlock();
 			curRend.GetPropertyBlock(block);
 			if (isPaletted)
@@ -138,8 +225,8 @@ public class DevSpawnerListItemController : MonoBehaviour
 			escapeKeyTarget.enabled = true;
 			selectedItem = this;
 			drawingMessage.SetActive(true);
-			cachedLightingState = lightingSystem.enabled;
-			lightingSystem.enabled = false;
+			cachedLightingState = Camera.main.GetComponent<LightingSystem>().enabled;
+			Camera.main.GetComponent<LightingSystem>().enabled = false;
 		}
 	}
 
@@ -177,20 +264,13 @@ public class DevSpawnerListItemController : MonoBehaviour
 	/// <summary>
 	/// Tries to spawn at the specified position. Lets you spawn anywhere, even impassable places. Go hog wild!
 	/// </summary>
-	private void TrySpawn()
+	private void TrySpawn(OrientationEnum? OrientationEnum, Vector3? MousePosition = null)
 	{
-		Vector3Int position = cursorObject.transform.position.RoundToInt();
+		if (MousePosition == null)
+		{
+			MousePosition = MouseUtils.MouseToWorldPos();
+		}
 
-		if (CustomNetworkManager.IsServer)
-		{
-			Spawn.ServerPrefab(prefab, position);
-			var player = PlayerManager.LocalPlayer.Player();
-			UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(
-					$"{player.Username} spawned a {prefab.name} at {position}", player.UserId);
-		}
-		else
-		{
-			DevSpawnMessage.Send(prefab, (Vector3) position);
-		}
+		DevSpawnMessage.Send(prefab, (Vector3) MousePosition, GUI_DevSpawner.Instance.StackAmount, OrientationEnum, GUI_DevSpawner.Instance.MappingToggle.isOn, KeyboardInputManager.IsAltActionKeyPressed());
 	}
 }

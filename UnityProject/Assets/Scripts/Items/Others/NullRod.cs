@@ -49,7 +49,7 @@ public class NullRod : NetworkBehaviour, IInteractable<HandActivate>, IServerSpa
 
 	public bool WillInteract(HandActivate interaction, NetworkSide side)
 	{
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 		return true;
 	}
@@ -82,7 +82,7 @@ public class NullRod : NetworkBehaviour, IInteractable<HandActivate>, IServerSpa
 		var storage = GetComponent<Pickupable>().ItemSlot.Player.GetComponent<DynamicItemStorage>();
 		int currentTimes = TransformTimes;
 		string oldItem = gameObject.ExpensiveName();
-		Inventory.ServerDespawn(gameObject);
+		_ = Inventory.ServerDespawn(gameObject);
 
 		var item = Spawn.ServerPrefab(obj).GameObject;
 		string newItem = item.ExpensiveName();

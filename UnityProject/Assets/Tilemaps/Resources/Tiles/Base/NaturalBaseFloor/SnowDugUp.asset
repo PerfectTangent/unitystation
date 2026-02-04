@@ -12,11 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c576ac449c2d45d99890dcfa21598645, type: 3}
   m_Name: SnowDugUp
   m_EditorClassIdentifier: 
-  displayName: sand
+  <ForeverID>k__BackingField: 2e46044007b7b374ab53678c0f07fc4f
+  displayName: snow
   description: 
   LayerType: 4
   TileType: 7
   RequiredTiles: []
+  Mass: 1
   floorTileSounds: {fileID: 11400000, guid: 8a557bb6a08766c489c5b59f51354498, type: 2}
   CanSoundOverride: 0
   atmosPassable: 1
@@ -25,6 +27,7 @@ MonoBehaviour:
   passable: 1
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -49,9 +52,15 @@ MonoBehaviour:
     Acid: 50
     Magic: 0
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions:
   - {fileID: 11400000, guid: 6f8c4ea636baad341b27769536862bd5, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 0}
   spawnAmountOnDeconstruct: 1
@@ -60,12 +69,14 @@ MonoBehaviour:
   spawnOnDestroy: {fileID: 0}
   damageOverlayList: {fileID: 0}
   soundOnHit:
-    SetLoadSetting: 0
     AssetAddress: null
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   SoundOnDestroy: []
   sprite: {fileID: 21300000, guid: ae71b76c8a913644e858368f66fa9ce8, type: 3}
+  CanBeHighlightedThroughScanners: 0
+  HighlightObject: {fileID: 0}

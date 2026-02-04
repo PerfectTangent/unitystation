@@ -19,7 +19,7 @@ public struct Orientation : IEquatable<Orientation>
 	/// <summary>
 	/// Euler angle (rotation about the z axis, right is 0 and up is 90).
 	/// </summary>
-	public readonly int Degrees;
+	public int Degrees;
 
 	public Orientation(int degree)
 	{
@@ -41,7 +41,6 @@ public struct Orientation : IEquatable<Orientation>
 		}
 
 	}
-
 
 	public OrientationEnum AsEnum()
 	{
@@ -92,7 +91,7 @@ public struct Orientation : IEquatable<Orientation>
 	/// <summary>
 	/// Vector2Int pointing in the same direction as the orientation.
 	/// </summary>
-	public Vector2Int LocalVectorInt => (Quaternion.Euler(0,0, Degrees) * Vector3Int.right).To2Int();
+	public Vector2Int LocalVectorInt => (Quaternion.Euler(0,0, Degrees) * Vector3Int.right).RoundTo2Int();
 
 	/// <summary>
 	/// Return the orientation that would be reached by rotating clockwise 90 degrees the given number of turns
@@ -104,19 +103,6 @@ public struct Orientation : IEquatable<Orientation>
 		var newIndex = ((OrientationIndex + turns) % clockwiseOrientation.Length + clockwiseOrientation.Length) % clockwiseOrientation.Length;
 		return clockwiseOrientation[newIndex];
 	}
-
-	/// <summary>
-	/// Return the rotation that would be reached by rotating according to the specified offset.
-	///
-	/// For example, if Orientation is Right and offset is Backwards, will return Orientation.Left
-	/// </summary>
-	/// <param name="offset">offset to rotate by</param>
-	/// <returns>the rotation that would be reached by rotating according to the specified offset.</returns>
-	public Orientation Rotate(RotationOffset offset)
-	{
-		return Rotate(offset.Degree / 90);
-	}
-
 
 	public override string ToString()
 	{
@@ -135,33 +121,6 @@ public struct Orientation : IEquatable<Orientation>
 		else
 		{
 			return "Down";
-		}
-	}
-
-	/// <summary>
-	/// Gets the Rotationoffset that would offset this orientation to reach toOrientation.
-	///
-	/// For example if this is Up and toOrientation is Down, returns RotationOffset.Backwards
-	/// </summary>
-	/// <param name="toOrientation">orientation to which the offset should be determined</param>
-	/// <returns>the rotationoffset</returns>
-	public RotationOffset OffsetTo(Orientation toOrientation)
-	{
-		if (this == toOrientation)
-		{
-			return RotationOffset.Same;
-		}
-		if (Rotate(1) == toOrientation)
-		{
-			return RotationOffset.Right;
-		}
-		else if (Rotate(2) == toOrientation)
-		{
-			return RotationOffset.Backwards;
-		}
-		else
-		{
-			return RotationOffset.Left;
 		}
 	}
 
@@ -187,6 +146,17 @@ public struct Orientation : IEquatable<Orientation>
 	{
 		float degree = AngleFromUp(direction);
 		return GetOrientation(degree);
+	}
+
+	/// <summary>
+	/// OrientationEnum pointing the same direction as the specified vector.
+	/// For example if vector is right (1,0), this will return OrientationEnum.Right_By270
+	/// </summary>
+	/// <returns>OrientationEnum pointing in same direction as vector</returns>
+	public static OrientationEnum FromAsEnum( Vector2 direction )
+	{
+		float degree = AngleFromUp(direction);
+		return GetOrientation(degree).AsEnum();
 	}
 
 	public static Orientation GetOrientation(float degree)

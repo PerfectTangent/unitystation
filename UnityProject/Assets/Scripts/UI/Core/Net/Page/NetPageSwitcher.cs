@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using Messages.Server;
 using UnityEngine.Events;
 
@@ -28,11 +29,11 @@ namespace UI.Core.NetUI
 		/// </summary>
 		public PageChangeEvent OnPageChange;
 
-		public override void ExecuteServer(ConnectedPlayer subject) { }
+		public override void ExecuteServer(PlayerInfo subject) { }
 
 		public override string Value {
 			get => CurrentPageIndex.ToString();
-			set {
+			protected set {
 				externalChange = true;
 
 				if (int.TryParse(value, out var parsedValue) && Pages.Count > parsedValue && parsedValue > -1)
@@ -41,7 +42,7 @@ namespace UI.Core.NetUI
 				}
 				else
 				{
-					Logger.LogErrorFormat("'{0}' page switcher: unknown index value {1}", Category.NetUI, gameObject.name, value);
+					Loggy.Error().Format("'{0}' page switcher: unknown index value {1}", Category.NetUI, gameObject.name, value);
 				}
 				externalChange = false;
 			}
@@ -52,7 +53,7 @@ namespace UI.Core.NetUI
 			if (Pages.Count == 0)
 			{
 				Pages = this.GetComponentsOnlyInChildren<NetPage>().ToList();
-				Logger.LogFormat("'{0}' page switcher: dev didn't add any pages to the list, found {1} page(s)",
+				Loggy.Info().Format("'{0}' page switcher: dev didn't add any pages to the list, found {1} page(s)",
 					Category.NetUI, gameObject.name, Pages.Count);
 			}
 
@@ -61,12 +62,12 @@ namespace UI.Core.NetUI
 				if (!DefaultPage)
 				{
 					DefaultPage = Pages[0];
-					Logger.LogFormat("'{0}' page switcher: Default Page not set explicitly, assuming it's {1}", Category.NetUI,
+					Loggy.Info().Format("'{0}' page switcher: Default Page not set explicitly, assuming it's {1}", Category.NetUI,
 						gameObject.name, DefaultPage);
 				}
 			}
 
-			if (MasterTab.IsServer && !StartInitialized)
+			if (containedInTab.IsMasterTab && StartInitialized == false)
 			{
 				//Enabling all pages
 				//so that all elements will be visible during Start()
@@ -80,7 +81,7 @@ namespace UI.Core.NetUI
 
 		public override void AfterInit()
 		{
-			if (MasterTab.IsServer && DefaultPage && !CurrentPage)
+			if (containedInTab.IsMasterTab && DefaultPage && CurrentPage == false)
 			{
 				SetActivePage(DefaultPage);
 			}
@@ -95,7 +96,7 @@ namespace UI.Core.NetUI
 				valuesToSend.Add(entry.ElementValue);
 			}
 
-			TabUpdateMessage.SendToPeepers(MasterTab.Provider, MasterTab.Type, TabAction.Update, valuesToSend.ToArray());
+			TabUpdateMessage.SendToPeepers(containedInTab.Provider, containedInTab.Type, TabAction.Update, valuesToSend.ToArray());
 		}
 
 		/// <summary>
@@ -104,7 +105,7 @@ namespace UI.Core.NetUI
 		/// </summary>
 		public void SetActivePage(NetPage page)
 		{
-			SetValueServer(Pages.IndexOf(page).ToString());
+			MasterSetValue(Pages.IndexOf(page).ToString());
 		}
 
 		/// <summary>
@@ -123,7 +124,7 @@ namespace UI.Core.NetUI
 		{
 			if (!newPage)
 			{
-				Logger.LogErrorFormat("'{0}' page switcher: trying to activate null page", Category.NetUI, gameObject.name);
+				Loggy.Error().Format("'{0}' page switcher: trying to activate null page", Category.NetUI, gameObject.name);
 				return;
 			}
 
@@ -135,18 +136,18 @@ namespace UI.Core.NetUI
 				}
 			}
 
-			Logger.LogTraceFormat("'{0}' page switcher: activating page {1}", Category.NetUI, gameObject.name, newPage);
+			Loggy.Trace().Format("'{0}' page switcher: activating page {1}", Category.NetUI, gameObject.name, newPage);
 
 			newPage.gameObject.SetActive(true);
 
-			if (MasterTab.IsServer)
+			if (containedInTab.IsMasterTab)
 			{
 				OnPageChange.Invoke(CurrentPage, newPage);
 			}
 
 			CurrentPage = newPage;
 
-			MasterTab.RescanElements();
+			containedInTab.RescanElements();
 		}
 
 		/// <summary>
@@ -160,16 +161,16 @@ namespace UI.Core.NetUI
 			int suggestedIndex = CurrentPageIndex + 1;
 			if (wrap)
 			{
-				SetValueServer(Pages.WrappedIndex(suggestedIndex).ToString());
+				MasterSetValue(Pages.WrappedIndex(suggestedIndex).ToString());
 			}
 			else
 			{
 				if (suggestedIndex >= pageCount)
 				{
-					Logger.LogTraceFormat("'{0}' page switcher: no more >> pages to switch to (index={1})", Category.NetUI, gameObject.name, suggestedIndex);
+					Loggy.Trace().Format("'{0}' page switcher: no more >> pages to switch to (index={1})", Category.NetUI, gameObject.name, suggestedIndex);
 					return;
 				}
-				SetValueServer(suggestedIndex.ToString());
+				MasterSetValue(suggestedIndex.ToString());
 			}
 		}
 
@@ -183,16 +184,16 @@ namespace UI.Core.NetUI
 			int suggestedIndex = CurrentPageIndex - 1;
 			if (wrap)
 			{
-				SetValueServer(Pages.WrappedIndex(suggestedIndex).ToString());
+				MasterSetValue(Pages.WrappedIndex(suggestedIndex).ToString());
 			}
 			else
 			{
 				if (suggestedIndex < 0)
 				{
-					Logger.LogTraceFormat("'{0}' page switcher: no more << pages to switch to (index={1})", Category.NetUI, gameObject.name, suggestedIndex);
+					Loggy.Trace().Format("'{0}' page switcher: no more << pages to switch to (index={1})", Category.NetUI, gameObject.name, suggestedIndex);
 					return;
 				}
-				SetValueServer(suggestedIndex.ToString());
+				MasterSetValue(suggestedIndex.ToString());
 			}
 		}
 	}

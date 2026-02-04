@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-using UI.Core.NetUI;
+﻿using UI.Core.NetUI;
 
 namespace UI.Objects.Cargo
 {
@@ -10,20 +8,20 @@ namespace UI.Objects.Cargo
 
 		private ItemTrait materialType;
 
-		public NetLabel labelName;
-		public NetLabel labelAmount;
+		public NetText_label labelName;
+		public NetText_label labelAmount;
 
 		public void DispenseMaterial(int amount)
 		{
-			materialList.materialStorageLink.usedStorage.DispenseSheet(amount, materialType, materialList.materialStorageLink.gameObject.WorldPosServer());
+			materialList.materialStorageLink.usedStorage.DispenseSheet(amount, materialType, materialList.materialStorageLink.gameObject.AssumedWorldPosServer());
 		}
 
 		public void SetValues(ItemTrait material, int amount, GUI_MaterialsList matListDisplay)
 		{
 			materialList = matListDisplay;
 			materialType = material;
-			labelAmount.SetValueServer($"{amount} cm3");
-			labelName.SetValueServer(material.name);
+			labelAmount.MasterSetValue($"{amount} cm3");
+			labelName.MasterSetValue(material.name);
 		}
 	}
 }

@@ -1,9 +1,16 @@
 using System;
 using System.Collections.Generic;
+using Core;
+using Core.RootSillys;
+using Core.Utils;
+using Logs;
 using NaughtyAttributes;
+using Objects.Atmospherics;
 using ScriptableObjects.Atmospherics;
 using Systems.Pipes;
-
+using UnityEngine;
+using UnityEngine.Serialization;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Atmospherics
 {
@@ -18,14 +25,46 @@ namespace Systems.Atmospherics
 
 		public List<GasValues> GasesArray => GasData.GasesArray;
 
+		[SerializeField, FormerlySerializedAs("Pressure")]
+		private float pressure;
+
 		/// <summary>In kPa.</summary>
-		public float Pressure;
+		public float Pressure
+		{
+			get => pressure;
+			set
+			{
+				if (value.IsUnreasonableNumber() && value != 0f)
+				{
+					Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE pressure Invalid number!!!! {value}");
+					return;
+				}
+
+				pressure = Math.Clamp(value, 0, Single.MaxValue);
+			}
+		}
 
 		/// <summary>In cubic metres.</summary>
 		public float Volume;
 
+		[SerializeField, FormerlySerializedAs("Temperature")]
+		private float temperature;
 		/// <summary>In Kelvin.</summary>
-		public float Temperature;
+		public float Temperature
+		{
+			get { return temperature; }
+			set
+			{
+				if (value.IsUnreasonableNumber() && value != 0)
+				{
+					Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE Temperature Invalid number!!!! {value}");
+					return;
+				}
+
+				temperature = Math.Clamp(value, 0, Single.MaxValue);
+			}
+		}
+
 
 		private HashSet<GasSO> cache = new HashSet<GasSO>();
 		private HashSet<GasSO> pipeCache = new HashSet<GasSO>();
@@ -52,8 +91,8 @@ namespace Systems.Atmospherics
 			}
 		}
 
-		public float
-			WholeHeatCapacity //this is the heat capacity for the entire gas mixture, in Joules/Kelvin. gets very big with lots of gas.
+		public float WholeHeatCapacity
+			//this is the heat capacity for the entire gas mixture, in Joules/Kelvin. gets very big with lots of gas.
 		{
 			get
 			{
@@ -72,12 +111,18 @@ namespace Systems.Atmospherics
 			}
 		}
 
-		public float InternalEnergy //This is forgetting the amount of energy inside of the Gas
+		public float InternalEnergy //This is for getting the amount of energy inside of the Gas
 		{
 			get => (WholeHeatCapacity * Temperature);
 
 			set
 			{
+				if (value.IsUnreasonableNumber() && value != 0)
+				{
+					Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE InternalEnergy Invalid number!!!! {value}");
+					return;
+				}
+
 				if (WholeHeatCapacity == 0)
 				{
 					Temperature = 0;
@@ -162,6 +207,36 @@ namespace Systems.Atmospherics
 			return FromPressure(gases, pressure, volume);
 		}
 
+		public static GasMix FromTemperatureAndPressure(GasData gases ,  float temperature,float pressure, float volume = AtmosConstants.TileVolume)
+		{
+			var NeededMoles = AtmosUtils.CalcMoles(pressure, volume, temperature);
+			var ActualMoles = 0f;
+			foreach (var GV in gases.GasesArray)
+			{
+				ActualMoles += GV.Moles;
+			}
+
+			if (Mathf.Approximately(ActualMoles, 0))
+			{
+				Loggy.Error("Inappropriate Input for FromTemperatureAndPressure ", Category.Atmos);
+				return GasMixesSingleton.Instance.air.BaseGasMix;
+			}
+
+			var multiplier = NeededMoles / ActualMoles;
+			var Copygases = gases.Copy();
+			foreach (var GV in Copygases.GasesArray)
+			{
+				GV.Moles *= multiplier;
+			}
+
+			var gaxMix = new GasMix();
+			gaxMix.GasData = Copygases;
+			gaxMix.Pressure = pressure;
+			gaxMix.Volume = volume;
+			gaxMix.Temperature = temperature;
+			return gaxMix;
+		}
+
 		public static GasMix FromPressure(GasData gases, float pressure,
 			float volume = AtmosConstants.TileVolume)
 		{
@@ -179,9 +254,15 @@ namespace Systems.Atmospherics
 		public static void TransferGas(GasMix target, GasMix source, float molesToTransfer,
 			bool doNotTouchOriginalMix = false)
 		{
+			if (target == source)
+			{
+				Loggy.Error("oh god You're transferring a gas mixture itself!!!");
+				return;
+			}
+
 			var sourceStartMoles = source.Moles;
 			molesToTransfer = molesToTransfer.Clamp(0, sourceStartMoles);
-			if (CodeUtilities.IsEqual(molesToTransfer, 0) || CodeUtilities.IsEqual(sourceStartMoles, 0))
+			if (MathUtils.IsEqual(molesToTransfer, 0) || MathUtils.IsEqual(sourceStartMoles, 0))
 				return;
 			var ratio = molesToTransfer / sourceStartMoles;
 			var targetStartMoles = target.Moles;
@@ -194,7 +275,7 @@ namespace Systems.Atmospherics
 				if (gas.GasSO == null) continue;
 
 				var sourceMoles = source.GetMoles(gas.GasSO);
-				if (CodeUtilities.IsEqual(sourceMoles, 0)) continue;
+				if (MathUtils.IsEqual(sourceMoles, 0)) continue;
 
 				var transfer = sourceMoles * ratio;
 
@@ -211,7 +292,7 @@ namespace Systems.Atmospherics
 
 			Listsource.Pool();
 
-			if (CodeUtilities.IsEqual(target.Temperature, source.Temperature))
+			if (MathUtils.IsEqual(target.Temperature, source.Temperature))
 			{
 				target.RecalculatePressure();
 			}
@@ -225,7 +306,7 @@ namespace Systems.Atmospherics
 
 			if (doNotTouchOriginalMix == false)
 			{
-				if (CodeUtilities.IsEqual(ratio, 1)) //transferred everything, source is empty
+				if (MathUtils.IsEqual(ratio, 1)) //transferred everything, source is empty
 				{
 					source.SetPressure(0);
 				}
@@ -318,6 +399,11 @@ namespace Systems.Atmospherics
 			return Pressure * (GetMoles(gas) / Moles);
 		}
 
+		/// <summary>
+		/// Returns the moles of the specified gas in the mix.
+		/// </summary>
+		/// <param name="gas">The gas that you want checked. (Example: Gas.WaterVapor)</param>
+		/// <returns>The amount of moles of a Gas that is within a GasMix.</returns>
 		public float GetMoles(GasSO gas)
 		{
 			return GasData.GetGasMoles(gas);
@@ -349,7 +435,12 @@ namespace Systems.Atmospherics
 				totalVolume += PipeFunctions.PipeOrNet(gasMix).GetGasMix().Volume;
 			}
 
-			var newTemperature = totalInternalEnergy / totalWholeHeatCapacity;
+			var newTemperature = 0f;
+			if (totalWholeHeatCapacity != 0)
+			{
+				newTemperature = totalInternalEnergy / totalWholeHeatCapacity;
+			}
+
 
 			var List = AtmosUtils.CopyGasArray(this.GasData);
 
@@ -461,6 +552,25 @@ namespace Systems.Atmospherics
 			return bigGas; //The returned GasSO will be the gas with the biggest mole count in GasData.GasesArray
 		}
 
+
+		public static GasMix GetEnvironmentalGasMixForObject(UniversalObjectPhysics gameObject)
+		{
+			GasMix ambientGasMix;
+			if (gameObject.ContainedInObjectContainer != null && //Make generic function
+			    gameObject.ContainedInObjectContainer.TryGetComponent<GasContainer>(out var gasContainer))
+			{
+				ambientGasMix = gasContainer.GasMixLocal;
+			}
+			else
+			{
+				var matrix = gameObject.registerTile.Matrix;
+				Vector3Int localPosition = MatrixManager.WorldToLocalInt(gameObject.OfficialPosition, matrix);
+				ambientGasMix = matrix.MetaDataLayer.Get(localPosition).GasMixLocal;
+			}
+
+			return ambientGasMix;
+		}
+
 		/// <summary>
 		/// Set the moles value of a gas inside of a GasMix.
 		/// </summary>
@@ -472,11 +582,21 @@ namespace Systems.Atmospherics
 			RecalculatePressure();
 		}
 
-		public void AddGas(GasSO gas, float moles)
+		public void AddGasWithTemperature(GasSO gas, float moles, float kelvinTemperature)
 		{
+			AddGas(gas, moles, gas.MolarHeatCapacity * moles * kelvinTemperature);
+		}
+
+
+
+		public void AddGas(GasSO gas, float moles, float energyOfAddedGas)
+		{
+			var newInternalenergy = InternalEnergy + energyOfAddedGas;
 			GasData.ChangeMoles(gas, moles);
+			InternalEnergy = newInternalenergy;
 			RecalculatePressure();
 		}
+
 
 		public void RemoveGas(GasSO gas, float moles)
 		{
@@ -484,7 +604,21 @@ namespace Systems.Atmospherics
 			RecalculatePressure();
 		}
 
-		public void Copy(GasMix other)
+		/// <summary>
+		///
+		/// </summary>
+		/// <param name="gas"></param>
+		/// <param name="moles">  Warning!!!! This will have incorrect results if you take more moles than is in the container </param>
+		/// <returns></returns>
+		public float TakeGasReturnEnergy(GasSO gas, float moles)
+		{
+			var energyOfTakingGaslEnergy = moles * gas.MolarHeatCapacity * Temperature;
+			GasData.ChangeMoles(gas, -moles);
+			RecalculatePressure();
+			return energyOfTakingGaslEnergy;
+		}
+
+		public void CopyFrom(GasMix other)
 		{
 			other.GasData.CopyTo(GasData);
 			Pressure = other.Pressure;
@@ -499,7 +633,7 @@ namespace Systems.Atmospherics
 
 		public void Clear()
 		{
-			Temperature = AtmosDefines.SPACE_TEMPERATURE;
+			Temperature = 0;
 
 			GasData.Clear();
 			Pressure = 0;

@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using NaughtyAttributes;
+using Newtonsoft.Json;
 using ScriptableObjects.Atmospherics;
 
 namespace Objects.Atmospherics
@@ -33,19 +35,28 @@ namespace Objects.Atmospherics
 		/// <summary> Useful for newly-added gases where thresholds are unknown and should be set by the technician. </summary>
 		public static readonly float[] UnknownValues = { float.NaN, float.NaN, float.NaN, float.NaN };
 
+		public static readonly List<float> UnknownValueslist = new List<float>() { float.NaN, float.NaN, float.NaN, float.NaN };
+
 		public AcuThresholds Clone()
 		{
-			// Quick way to clone serializable members.
-			return JsonUtility.FromJson<AcuThresholds>(JsonUtility.ToJson(this));
+			var data = new GasThresholdsDictionary();
+				data.CopyFrom(this.GasMoles);
+
+			return new AcuThresholds()
+			{
+				Pressure = (float[]) this.Pressure.Clone(),
+				Temperature = (float[]) this.Temperature.Clone(),
+				GasMoles = data,
+			};
 		}
 	}
 
 	[Serializable]
-	public class GasThresholdsStorage : SerializableDictionary.Storage<float[]> { }
+	public class GasThresholdsStorage : SerializableDictionary.Storage<List<float>> { }
 
 	/// <summary>
 	/// Serializable dictionary to map a <see cref="GasSO"/> to an array of thresholds.
 	/// </summary>
 	[Serializable]
-	public class GasThresholdsDictionary : SerializableDictionary<GasSO, float[], GasThresholdsStorage> { }
+	public class GasThresholdsDictionary : SerializableDictionary<GasSO, List<float>, GasThresholdsStorage> { }
 }

@@ -5,8 +5,15 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3495234765619245072, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: dcdaefe929fb25b409b22cd2b1d4f65a,
+        type: 2}
     - target: {fileID: 3791466462619397166, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
       propertyPath: m_Sprite
@@ -75,12 +82,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4033042375367942854, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
+      propertyPath: _assetId
+      value: 2838637281
+      objectReference: {fileID: 0}
+    - target: {fileID: 4033042375367942854, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
       propertyPath: m_AssetId
       value: e0c0a5beb35967748bf99e5f8dc51871
       objectReference: {fileID: 0}
     - target: {fileID: 7145545764318209269, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: dcdaefe929fb25b409b22cd2b1d4f65a,
+        type: 2}
+    - target: {fileID: 7145545764318209269, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: dcdaefe929fb25b409b22cd2b1d4f65a,
         type: 2}
@@ -96,14 +114,22 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7931175119129480439, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 89d7180507ba26043b36017646b90bce,
         type: 2}
+    - target: {fileID: 7986767595912221471, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: parentID
+      value: ab1e465a59765f84b8691daa8693f857
+      objectReference: {fileID: 0}
     - target: {fileID: 7986767595912221471, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
       propertyPath: foreverID
       value: e0c0a5beb35967748bf99e5f8dc51871
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ab1e465a59765f84b8691daa8693f857, type: 3}

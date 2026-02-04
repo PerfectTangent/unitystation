@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Core;
 using Systems.Electricity;
 using Systems.MobAIs;
 using Managers;
@@ -14,6 +15,8 @@ using Objects.Research;
 using UI.Systems.MainHUD.UI_Bottom;
 using UnityEngine;
 using HealthV2;
+using Logs;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Ai
 {
@@ -22,14 +25,26 @@ namespace Systems.Ai
 	/// This isn't the class which is on the AiCore or InteliCard that is AiVessel
 	/// Sync vars in this class only get sync'd to the object owner
 	/// </summary>
-	public class AiPlayer : NetworkBehaviour, IAdminInfo, IFullyHealable
+	public class AiPlayer : NetworkBehaviour, IAdminInfo, IFullyHealable, IGib
 	{
 		[SerializeField]
 		private GameObject corePrefab = null;
 
+
+		public List<BrainLaws> LinkedCyborgs = new List<BrainLaws>();
+
+
 		[SyncVar(hook = nameof(SyncCore))]
 		//Ai core or card
-		private GameObject vesselObject;
+		private NetworkIdentity IDvesselObject;
+
+		private GameObject vesselObject
+		{
+			get => IDvesselObject.OrNull()?.gameObject;
+			set => SyncCore(IDvesselObject, value.NetWorkIdentity());
+		}
+
+
 		public GameObject VesselObject => vesselObject;
 
 		[SerializeField]
@@ -45,6 +60,8 @@ namespace Systems.Ai
 		//Only valid on core not card
 		private SecurityCamera coreCamera = null;
 		public SecurityCamera CoreCamera => coreCamera;
+
+		private SecurityCamera CurrentSecurityCamera = null;
 
 		//Valid client side and serverside for validations
 		//Client sends message to where it wants to go, server keeps track to do validations
@@ -81,6 +98,10 @@ namespace Systems.Ai
 		[SyncVar(hook = nameof(SyncNumberOfCameras))]
 		private uint numberOfCameras = 100;
 
+		[SyncVar(hook = nameof(SyncFOVRoot))]
+		private NetworkIdentity FOVFollowCamera;
+
+
 		//Client and server accurate
 		private bool isCarded;
 		public bool IsCarded => isCarded;
@@ -105,6 +126,9 @@ namespace Systems.Ai
 		private Coroutine routine;
 
 		private bool isMalf = false;
+
+		public string VOXStringLine = "Assets/Prefabs/AI/VOX/";
+		public string VOXStringLineEnd = ".prefab";
 
 		public bool IsMalf
 		{
@@ -146,6 +170,11 @@ namespace Systems.Ai
 		private void Awake()
 		{
 			playerScript = GetComponent<PlayerScript>();
+			playerScript.OnActionControlPlayer += PlayerEnterBody;
+			playerScript.OnBodyControlledByPlayer.AddListener(PlayerEnterBody);
+			playerScript.OnBodyUnControlledByPlayer.AddListener(PlayerLeaveBody);
+
+
 			cooldowns = GetComponent<HasCooldowns>();
 			lineRenderer = GetComponentInChildren<LineRenderer>();
 		}
@@ -159,7 +188,7 @@ namespace Systems.Ai
 			//Set up laws
 			SetRandomDefaultLawSet();
 
-			var newVesselObject = Spawn.ServerPrefab(corePrefab, playerScript.registerTile.WorldPosition, transform.parent).GameObject;
+			var newVesselObject = Spawn.ServerPrefab(corePrefab, playerScript.RegisterPlayer.WorldPosition, transform.parent).GameObject;
 
 			if (newVesselObject == null)
 			{
@@ -170,7 +199,6 @@ namespace Systems.Ai
 			//Set new vessel
 			ServerSetNewVessel(newVesselObject);
 
-			playerScript.SetPermanentName(playerScript.characterSettings.AiName);
 			newVesselObject.GetComponent<AiVessel>().SetLinkedPlayer(this);
 
 			isCarded = false;
@@ -181,7 +209,7 @@ namespace Systems.Ai
 			base.OnStartClient();
 
 			if(PlayerManager.LocalPlayerScript  == null ||
-			   PlayerManager.LocalPlayerScript.PlayerState != PlayerScript.PlayerStates.Ai) return;
+			   PlayerManager.LocalPlayerScript.PlayerType != PlayerTypes.Ai) return;
 
 			SetSpriteVisibility(true);
 		}
@@ -190,7 +218,7 @@ namespace Systems.Ai
 		{
 			var coreIntegrity = vesselObject.GetComponent<Integrity>();
 			coreIntegrity.OnWillDestroyServer.AddListener(OnCoreDestroy);
-			coreIntegrity.OnApplyDamage.AddListener(OnCoreDamage);
+			coreIntegrity.OnApplyDamage += OnCoreDamage;
 			hasPower = true;
 
 			//Power set up
@@ -202,7 +230,7 @@ namespace Systems.Ai
 					Chat.AddExamineMsgFromServer(gameObject, "Core was unable to connect to APC");
 				}
 
-				apc.OnStateChangeEvent.AddListener(OnCorePowerLost);
+				apc.OnStateChangeEvent += OnCorePowerLost;
 				hasPower = apc.State != PowerState.Off;
 
 				apc.RelatedAPC.OrNull()?.OnPowerNetworkUpdate.AddListener(OnPowerNetworkUpdate);
@@ -221,23 +249,29 @@ namespace Systems.Ai
 
 			var coreIntegrity = vesselObject.GetComponent<Integrity>();
 			coreIntegrity.OnWillDestroyServer.RemoveListener(OnCoreDestroy);
-			coreIntegrity.OnApplyDamage.RemoveListener(OnCoreDamage);
+			coreIntegrity.OnApplyDamage -= OnCoreDamage;
 
 			var apc = vesselObject.GetComponent<APCPoweredDevice>();
 			if (apc != null)
 			{
-				apc.OnStateChangeEvent.RemoveListener(OnCorePowerLost);
+				apc.OnStateChangeEvent -= OnCorePowerLost;
 				apc.RelatedAPC.OrNull()?.OnPowerNetworkUpdate.RemoveListener(OnPowerNetworkUpdate);
 			}
 		}
 
-		public override void OnStartLocalPlayer()
+		public void PlayerLeaveBody()
 		{
-			base.OnStartLocalPlayer();
+			Camera2DFollow.followControl.FOVtarget = null;
+		}
 
+		public void PlayerEnterBody()
+		{
+			if (isOwned == false) return;
+			Camera2DFollow.followControl.FOVtarget = FOVFollowCamera?.transform;;
+			playerScript.Mind.SetPermanentName(playerScript.characterSettings.AiName);
 			Init();
 
-			SyncCore(vesselObject, vesselObject);
+			SyncCore(IDvesselObject, IDvesselObject);
 			SyncPowerState(hasPower, hasPower);
 			CmdSetVisibilityToOtherAis();
 		}
@@ -259,30 +293,33 @@ namespace Systems.Ai
 			}
 		}
 
+
 		/// <summary>
 		/// Sync is used to set up client and to reset stuff for rejoining client
 		/// This is only sync'd to the client which owns this object, due to setting on script
 		/// </summary>
-		[Client]
-		private void SyncCore(GameObject oldCore, GameObject newCore)
+		private void SyncCore(NetworkIdentity oldCore, NetworkIdentity newCore)
 		{
-			vesselObject = newCore;
-			if(newCore == null) return;
+			IDvesselObject = newCore;
+			if(vesselObject == null) return;
 
 			//Something weird with headless and local host triggering the sync even though its set to owner
-			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayer != gameObject) return;
+			if (CustomNetworkManager.IsHeadless) return;
+
+			if (CustomNetworkManager.IsServer && isOwned == false) return;
+
 
 			Init();
 			aiUi.OrNull()?.SetUp(this);
-			coreCamera = newCore.GetComponent<SecurityCamera>();
+			coreCamera = vesselObject.GetComponent<SecurityCamera>();
 
 			//Reset location to core
 			CmdTeleportToCore();
 
-			isCarded = newCore.GetComponent<AiVessel>().IsInteliCard;
+			isCarded = vesselObject.GetComponent<AiVessel>().IsInteliCard;
 			if (isCarded == false)
 			{
-				ClientSetCameraLocation(newCore.transform);
+				ClientSetCameraLocation(vesselObject.transform);
 			}
 
 			//Ask server to force sync laws
@@ -294,7 +331,7 @@ namespace Systems.Ai
 		{
 			hasPower = newState;
 
-			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayer != gameObject) return;
+			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayerObject != gameObject) return;
 
 			Init();
 
@@ -308,7 +345,7 @@ namespace Systems.Ai
 		{
 			power = newValue;
 
-			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayer != gameObject) return;
+			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayerObject != gameObject) return;
 
 			Init();
 
@@ -320,19 +357,29 @@ namespace Systems.Ai
 		{
 			integrity = newValue;
 
-			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayer != gameObject) return;
+			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayerObject != gameObject) return;
 
 			Init();
 
 			aiUi.SetIntegrityLevel(newValue);
 		}
 
+		private void SyncFOVRoot(NetworkIdentity oldValue, NetworkIdentity newValue)
+		{
+			FOVFollowCamera= newValue;
+
+			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayerObject != gameObject) return;
+
+			Camera2DFollow.followControl.FOVtarget = FOVFollowCamera?.transform;
+		}
+
+
 		[Client]
 		private void SyncNumberOfCameras(uint oldValue, uint newValue)
 		{
 			numberOfCameras = newValue;
 
-			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayer != gameObject) return;
+			if (CustomNetworkManager.IsHeadless || PlayerManager.LocalPlayerObject != gameObject) return;
 
 			Init();
 
@@ -344,8 +391,19 @@ namespace Systems.Ai
 		#region Camera Stuff
 
 		[Server]
+		public void SendPlayerCameraToCore()
+		{
+			ServerSetCameraLocation(vesselObject);
+		}
+
+		[Server]
 		public void ServerSetCameraLocation(GameObject newObject, bool ignoreCardCheck = false, bool moveMessage = true)
 		{
+			if (newObject == null)
+			{
+				Loggy.Warning($"AiPlayer {gameObject} has passed a null newObject");
+				return;
+			}
 			//Cant switch cameras when carded
 			if (isCarded && ignoreCardCheck == false)
 			{
@@ -363,25 +421,35 @@ namespace Systems.Ai
 				}
 			}
 
-			if (newObject != null)
-			{
-				//Set location for validation checks
-				cameraLocation = newObject.transform;
+			//Set location for validation checks
+			cameraLocation = newObject.transform;
 
-				//This is to move the player object so we can see the Ai Eye sprite underneath us
-				//TODO for some reason this isnt always working the sprite sometimes stays on the core, or last position
-				playerScript.PlayerSync.SetPosition(cameraLocation.gameObject.WorldPosServer(), true);
-			}
-			else
+			if (newObject.TryGetComponent<SecurityCamera>(out var AsecurityCamera))
 			{
-				cameraLocation = null;
+				CurrentSecurityCamera = AsecurityCamera;
+				SyncFOVRoot(FOVFollowCamera, CurrentSecurityCamera.netIdentity);
 			}
+			else if (isCarded)
+			{
+
+				CurrentSecurityCamera = null;
+				SyncFOVRoot(FOVFollowCamera, null);
+			}
+
+			//This is to move the player object so we can see the Ai Eye sprite underneath us
+			//TODO for some reason this isnt always working the sprite sometimes stays on the core, or last position
+			playerScript.PlayerSync.AppearAtWorldPositionServer(cameraLocation.gameObject.AssumedWorldPosServer(), false);
 
 			//Tell client to move their camera to this new camera
 			FollowCameraAiMessage.Send(gameObject, newObject);
 
+			if (cameraLocation == null)
+			{
+				Loggy.Warning($"AiPlayer {gameObject} trying to use a null camera location");
+				return;
+			}
 			//Add new listeners
-			if (newObject != null && cameraLocation.gameObject != newObject)
+			if (cameraLocation.gameObject != newObject)
 			{
 				//Add power listener
 				if (newObject.TryGetComponent<SecurityCamera>(out var securityCamera))
@@ -390,7 +458,7 @@ namespace Systems.Ai
 				}
 			}
 
-			if (newObject != null && isCarded == false && moveMessage)
+			if (isCarded == false && moveMessage)
 			{
 				Chat.AddExamineMsgFromServer(gameObject, $"You move to the {newObject.ExpensiveName()}");
 			}
@@ -417,11 +485,11 @@ namespace Systems.Ai
 			{
 				if (OpenNetworks.Contains(pairs.Key) == false && newState) continue;
 
-				foreach (var camera in pairs.Value)
+				foreach (var aiCam in pairs.Value)
 				{
-					if (camera.CameraActive || newState == false)
+					if (aiCam.CameraActive || newState == false)
 					{
-						camera.OrNull()?.ToggleAiSprite(newState);
+						aiCam.OrNull()?.ToggleAiSprite(newState);
 					}
 				}
 			}
@@ -475,7 +543,7 @@ namespace Systems.Ai
 			if (hasPower && cameraLocation != null)
 			{
 				var validCameras = GetValidCameras().OrderBy(c =>
-					Vector3.Distance(cameraLocation.position, c.gameObject.WorldPosServer())).ToArray();
+					Vector3.Distance(cameraLocation.position, c.gameObject.AssumedWorldPosServer())).ToArray();
 
 				if (validCameras.Any())
 				{
@@ -509,8 +577,17 @@ namespace Systems.Ai
 
 		[Command]
 		//Used by the Ai teleport tab to move camera
+		public void CmdTeleportTo(Vector3 newCamera)
+		{
+			playerScript.PlayerSync.AppearAtWorldPositionServer(newCamera, false);
+			ServerSetCameraLocation(this.gameObject,moveMessage : false);
+		}
+
+		[Command]
+		//Used by the Ai teleport tab to move camera
 		public void CmdTeleportToCamera(GameObject newCamera, bool moveMessage)
 		{
+			if (newCamera == null) return;
 			if(OnCoolDown(NetworkSide.Server)) return;
 			StartCoolDown(NetworkSide.Server);
 
@@ -520,9 +597,9 @@ namespace Systems.Ai
 				return;
 			}
 
-			if(newCamera == null || newCamera.TryGetComponent<SecurityCamera>(out var securityCamera) == false) return;
+			if (newCamera.TryGetComponent<SecurityCamera>(out var securityCamera) == false) return;
 
-			if(OpenNetworks.Contains(securityCamera.SecurityCameraChannel) == false) return;
+			if (OpenNetworks.Contains(securityCamera.SecurityCameraChannel) == false) return;
 
 			if (hasPower == false)
 			{
@@ -592,13 +669,13 @@ namespace Systems.Ai
 			if (objectToCheck.TryGetComponent<PlayerScript>(out var checkPlayerScript))
 			{
 				//Dont check ghosts
-				if (checkPlayerScript.PlayerState == PlayerScript.PlayerStates.Ghost) return null;
+				if (checkPlayerScript.PlayerType == PlayerTypes.Ghost) return null;
 
 				//Dont check yourself
 				if(checkPlayerScript.gameObject == gameObject) return null;
 
 				//If we are player get position
-				objectPos = checkPlayerScript.registerTile.WorldPosition;
+				objectPos = checkPlayerScript.RegisterPlayer.WorldPosition;
 			}
 			else
 			{
@@ -661,7 +738,7 @@ namespace Systems.Ai
 
 		//Moving the camera using the arrow keys
 		[Client]
-		public void MoveCameraByKey(MoveAction moveAction)
+		public void MoveCameraByKey(Vector2 moveAction)
 		{
 			if (isCarded)
 			{
@@ -670,31 +747,18 @@ namespace Systems.Ai
 			}
 
 			var lowerDegree = 0;
+			CmdTeleportTo(this.transform.position + moveAction.To3());
 
-			switch (moveAction)
-			{
-				case MoveAction.MoveUp:
-					lowerDegree = 0;
-					break;
-				case MoveAction.MoveLeft:
-					lowerDegree = 90;
-					break;
-				case MoveAction.MoveDown:
-					lowerDegree = 180;
-					break;
-				case MoveAction.MoveRight:
-					lowerDegree = 270;
-					break;
-				default:
-					return;
-			}
+			return;
+
 
 			var chosenCameras = new List<SecurityCamera>();
 			var aiPlayerCameraLocation = cameraLocation == null ? vesselObject.AssumedWorldPosServer() : cameraLocation.position;
 
 			foreach (var securityCamera in GetValidCameras())
 			{
-				var securityCameraLocation = securityCamera.gameObject.WorldPosClient();
+				if (securityCamera == null) continue;
+				var securityCameraLocation = securityCamera.gameObject.AssumedWorldPosServer();
 
 				var direction = securityCameraLocation - aiPlayerCameraLocation;
 				var angle = (Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg) - 45;
@@ -714,7 +778,7 @@ namespace Systems.Ai
 			if(chosenCameras.Count == 0) return;
 
 			var sortedCameras = chosenCameras.OrderBy(c =>
-				Vector3.Distance(aiPlayerCameraLocation, c.gameObject.WorldPosClient()));
+				Vector3.Distance(aiPlayerCameraLocation, c.gameObject.AssumedWorldPosServer()));
 
 			//Move to nearest camera
 			CmdTeleportToCamera(sortedCameras.First().gameObject, false);
@@ -810,13 +874,13 @@ namespace Systems.Ai
 				return;
 			}
 
-			if(vesselObject == null || vesselObject.TryGetComponent<ObjectBehaviour>(out var objectBehaviour) == false) return;
+			if(vesselObject == null || vesselObject.TryGetComponent<UniversalObjectPhysics>(out var objectBehaviour) == false) return;
 
-			var newState = objectBehaviour.IsNotPushable;
+			var newState = !objectBehaviour.IsNotPushable;
 
 			Chat.AddActionMsgToChat(gameObject, $"You {(newState ? "disengage" : "engage")} your core floor bolts",
 				$"{vesselObject.ExpensiveName()} {(newState ? "disengages" : "engages")} its floor bolts");
-			objectBehaviour.ServerSetPushable(newState);
+			objectBehaviour.SetIsNotPushable(newState);
 		}
 
 		[Server]
@@ -850,9 +914,9 @@ namespace Systems.Ai
 
 		//Called when the core has lost power
 		[Server]
-		private void OnCorePowerLost(Tuple<PowerState, PowerState> oldAndNewStates)
+		private void OnCorePowerLost(PowerState old , PowerState newState)
 		{
-			if (oldAndNewStates.Item2 == PowerState.Off)
+			if (newState == PowerState.Off)
 			{
 				hasPower = false;
 				allowRadio = false;
@@ -881,12 +945,12 @@ namespace Systems.Ai
 			//Reset distance validation value
 			interactionDistance = 29;
 
-			if (oldAndNewStates.Item1 == PowerState.LowVoltage)
+			if (newState == PowerState.LowVoltage)
 			{
 				Chat.AddExamineMsgFromServer(gameObject, "Your core power is failing!");
 			}
 
-			if (oldAndNewStates.Item1 == PowerState.OverVoltage)
+			if (newState == PowerState.OverVoltage)
 			{
 				Chat.AddExamineMsgFromServer(gameObject, "Your core power voltage is too high!");
 			}
@@ -1115,6 +1179,16 @@ namespace Systems.Ai
 
 		#region Misc actions
 
+
+		[Command]
+		public void CmdChangesSprite()
+		{
+			if(OnCoolDown(NetworkSide.Server)) return;
+			StartCoolDown(NetworkSide.Server);
+
+			vesselObject.GetComponent<AiVessel>().NextCoreSprite();
+		}
+
 		[Command]
 		public void CmdCallShuttle(string reason)
 		{
@@ -1132,7 +1206,7 @@ namespace Systems.Ai
 				Chat.AddExamineMsgFromServer(gameObject, "You must specify a reason to call the shuttle");
 				return;
 			}
-			
+
 			//Remove tags
 			reason = Chat.StripTags(reason);
 
@@ -1193,7 +1267,7 @@ namespace Systems.Ai
 		{
 			foreach (var player in PlayerList.Instance.GetAllPlayers())
 			{
-				if(player.Script.PlayerState != PlayerScript.PlayerStates.Ai) continue;
+				if(player.Script.PlayerType != PlayerTypes.Ai) continue;
 
 				player.Script.GetComponent<AiPlayer>().OrNull()?.TargetRpcSetSpriteVisibility(connectionToClient, isVisible);
 			}
@@ -1240,11 +1314,11 @@ namespace Systems.Ai
 			{
 				//0 is empty, 1 is full, 2 is dead sprite
 				vessel.SetLinkedPlayer(null);
-				vessel.VesselSpriteHandler.ChangeSprite(2);
+				vessel.ShowDead();
 			}
 
 			//Transfer player to ghost
-			PlayerSpawn.ServerSpawnGhost(playerScript.mind);
+			playerScript.Mind.Ghost();
 
 			//Despawn this player object
 			_ = Despawn.ServerSingle(gameObject);
@@ -1274,6 +1348,11 @@ namespace Systems.Ai
 		private void PurgeLoop()
 		{
 			ChangeIntegrity(-1);
+		}
+
+		public void OnGib(bool ignoreNoGibRule = false)
+		{
+			Death();
 		}
 
 		#endregion
@@ -1519,6 +1598,13 @@ namespace Systems.Ai
 		[Server]
 		private void ServerUpdateClientLaws()
 		{
+
+			foreach (var Cyborg in LinkedCyborgs)
+			{
+				Cyborg.SetLaws(aiLaws);
+			}
+
+
 			var data = new List<LawSyncData>();
 
 			foreach (var lawGroup in aiLaws)
@@ -1555,12 +1641,14 @@ namespace Systems.Ai
 		}
 
 		[Command]
-		private void CmdAskForLawUpdate()
+		public void CmdAskForLawUpdate(NetworkConnectionToClient sender = null)
 		{
 			ServerUpdateClientLaws();
 
 			//Sync number of cameras here for new player.
 			SecurityCamera.SyncNumberOfCameras();
+
+			TargetRpcToggleCameras(connectionToClient, true);
 		}
 
 		[ContextMenu("randomise laws")]

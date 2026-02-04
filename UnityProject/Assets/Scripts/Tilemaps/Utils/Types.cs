@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using UnityEngine.Serialization;
 
 public enum TileType
@@ -15,10 +17,14 @@ public enum TileType
 	WindowDamaged,
 	Effects,
 	UnderFloor,
-	ElectricalCable
+	Electrical,
+	Pipe,
+	Disposals,
+	UnderObjectsEffects
 }
 
 //If you change numbers, scene layers will mess up
+[Flags]
 public enum LayerType
 {
 	//None is the same as empty space
@@ -29,9 +35,26 @@ public enum LayerType
 	[Order(4)] Grills = 5,
 	[Order(5)] Tables = 9,
 	[Order(6)] Objects = 2,
-	[Order(7)] Floors = 3,
-	[Order(8)] Underfloor = 8,
-	[Order(9)] Base = 4
+	[Order(7)] UnderObjectsEffects = 13,
+	[Order(8)] Floors = 3,
+	[Order(9)] Underfloor = 8,
+	[Order(10)] Electrical = 10,
+	[Order(11)] Pipe = 11,
+	[Order(12)] Disposals = 12,
+	[Order(13)] Base = 4,
+}
+
+public static class LayerUtil
+{
+	public static bool IsUnderFloor(this LayerType layerType)
+	{
+		return layerType is LayerType.Underfloor or LayerType.Electrical or LayerType.Pipe or LayerType.Disposals;
+	}
+
+	public static bool IsMultilayer(this LayerType layerType)
+	{
+		return layerType is LayerType.Underfloor or LayerType.Electrical or LayerType.Pipe or LayerType.Disposals or LayerType.Effects or LayerType.UnderObjectsEffects;
+	}
 }
 
 [Flags]
@@ -47,8 +70,12 @@ public enum LayerTypeSelection
 	Underfloor = 1 << 6,
 	Base = 1 << 7,
 	Tables = 1 << 8,
+	Electrical = 1 << 9,
+	Pipe = 1 << 10,
+	Disposals = 1 << 11,
+	UnderObjectsEffects = 1 << 12,
+	AllUnderFloor = Underfloor | Electrical | Pipe | Disposals,
 	All = ~None
-
 }
 
 /// <summary>
@@ -56,6 +83,41 @@ public enum LayerTypeSelection
 /// </summary>
 public static class LTSUtil
 {
+	private static readonly LayerType[] StaticLayers = new LayerType[]
+	{
+		LayerType.Effects,
+		LayerType.Walls,
+		LayerType.Windows,
+		LayerType.Grills,
+		LayerType.Objects,
+		LayerType.Floors,
+		LayerType.Underfloor,
+		LayerType.Base,
+		LayerType.Tables,
+		LayerType.Electrical,
+		LayerType.Pipe,
+		LayerType.Disposals,
+		LayerType.UnderObjectsEffects,
+	};
+
+
+	public static List<LayerType> GetLayersBack(LayerTypeSelection SpecifyLayers, List<LayerType> InList)
+	{
+
+		var Count = StaticLayers.Length;
+		for (int i = 0; i < Count; i++)
+		{
+			var Layer = StaticLayers[i];
+			if (IsLayerIn(SpecifyLayers, Layer))
+			{
+				InList.Add(Layer);
+			}
+
+		}
+
+		return InList;
+	}
+
 	public static bool IsLayerIn(LayerTypeSelection SpecifyLayers, LayerType Layer)
 	{
 		LayerTypeSelection LayerCon = LayerType2LayerTypeSelection(Layer);
@@ -85,7 +147,19 @@ public static class LTSUtil
 				return LayerTypeSelection.Base;
 			case LayerType.Tables:
 				return LayerTypeSelection.Tables;
+			case LayerType.Electrical:
+				return LayerTypeSelection.Electrical;
+			case LayerType.Pipe:
+				return LayerTypeSelection.Pipe;
+			case LayerType.Disposals:
+				return LayerTypeSelection.Disposals;
+			case LayerType.UnderObjectsEffects:
+				return LayerTypeSelection.UnderObjectsEffects;
+			default:
+				Loggy.Error($"Failed to have case for: {Layer}");
+				break;
 		}
+
 		return LayerTypeSelection.Base;
 	}
 }

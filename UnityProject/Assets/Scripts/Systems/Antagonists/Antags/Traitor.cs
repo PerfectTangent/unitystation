@@ -14,15 +14,10 @@ namespace Antagonists
 
 		[SerializeField] private Objective aiTraitorObjective;
 
-		public override GameObject ServerSpawn(PlayerSpawnRequest spawnRequest)
-		{
-			// spawn them normally, with their preferred occupation
-			return PlayerSpawn.ServerSpawnPlayer(spawnRequest);
-		}
 
-		public override void AfterSpawn(ConnectedPlayer player)
+		public override void AfterSpawn(Mind NewMind)
 		{
-			if (player.GameObject.TryGetComponent<AiPlayer>(out var aiPlayer))
+			if (NewMind.GetCurrentMob().TryGetComponent<AiPlayer>(out var aiPlayer))
 			{
 				aiPlayer.IsMalf = true;
 				AIObjectives();
@@ -30,7 +25,7 @@ namespace Antagonists
 				return;
 			}
 
-			AntagManager.TryInstallPDAUplink(player, initialTC, false);
+			AntagManager.TryInstallPDAUplink(NewMind, initialTC, false);
 		}
 
 		private void AIObjectives()

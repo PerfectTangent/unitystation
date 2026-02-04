@@ -1,24 +1,55 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using HealthV2;
+using Messages.Server;
+using Mirror;
+using UnityEngine.Serialization;
 
 namespace Doors.Modules
 {
-	public class ElectrifiedDoorModule : DoorModuleBase, IServerSpawn
+	public class ElectrifiedDoorModule : DoorModuleBase, IServerLifecycle
 	{
-		[SerializeField] private int voltageDamage = 9080;
-		[SerializeField] private bool isElectrecuted = false;
+		[SerializeField]
+		private int voltageDamage = 9080;
 
-		public bool IsElectrecuted
+		[SerializeField]
+		private bool isElectrified = false;
+
+		[SerializeField]
+		private SpriteHandler spriteHandler = null;
+
+		public static HashSet<ElectrifiedDoorModule> ElectrifiedDoors { get; private set; } = new HashSet<ElectrifiedDoorModule>();
+
+		public bool IsElectrified
 		{
-			get => isElectrecuted;
-			set => isElectrecuted = value;
+			get => isElectrified;
+			set
+			{
+				isElectrified = value;
+
+				if (isElectrified)
+				{
+					AddToElectrified(this);
+				}
+				else
+				{
+					RemoveFromElectrified(this);
+				}
+			}
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
 			master.HackingProcessBase.RegisterPort(ToggleElectrocution, master.GetType());
 			master.HackingProcessBase.RegisterPort(PreventElectrocution, master.GetType());
+
+			if(isElectrified == false) return;
+			AddToElectrified(this);
+		}
+
+		public void OnDespawnServer(DespawnInfo info)
+		{
+			RemoveFromElectrified(this);
 		}
 
 		public void ToggleElectrocutionInput()
@@ -30,27 +61,33 @@ namespace Doors.Modules
 		{
 			if (master.HasPower == false)
 				return;
-			IsElectrecuted = !IsElectrecuted;
+			IsElectrified = !IsElectrified;
+			master.UpdateGui();
 		}
 
-		public override ModuleSignal OpenInteraction(HandApply interaction, HashSet<DoorProcessingStates> States)
+		public override void OpenInteraction(HandApply interaction, ref HashSet<DoorProcessingStates> States)
 		{
 			if (interaction == null)
 			{
-				return ModuleSignal.Continue;
+				return;
 			}
 
-			return CanElectricute(interaction.Performer);
+			CanElectricute(interaction.Performer);
 		}
 
-		public override ModuleSignal ClosedInteraction(HandApply interaction, HashSet<DoorProcessingStates> States)
+		public override void ClosedInteraction(HandApply interaction, ref HashSet<DoorProcessingStates> States)
 		{
-			return CanElectricute(interaction.Performer);
+			if (interaction == null)
+			{
+				return;
+			}
+
+			CanElectricute(interaction.Performer);
 		}
 
-		public override ModuleSignal BumpingInteraction(GameObject mob, HashSet<DoorProcessingStates> States)
+		public override void BumpingInteraction(GameObject mob, ref HashSet<DoorProcessingStates> States)
 		{
-			return CanElectricute(mob);
+			CanElectricute(mob);
 		}
 
 		public bool PulsePreventElectrocution()
@@ -63,21 +100,21 @@ namespace Doors.Modules
 			master.HackingProcessBase.ReceivedPulse(PreventElectrocution);
 		}
 
-		private ModuleSignal CanElectricute(GameObject mob)
+		private void CanElectricute(GameObject mob)
 		{
 			if (master.HasPower)
 			{
-				if (IsElectrecuted == false)
+				if (IsElectrified == false)
 				{
 					if (PulsePreventElectrocution())
 					{
 						if (PlayerHasInsulatedGloves(mob) == false)
 						{
 							ServerElectrocute(mob);
-							return ModuleSignal.Continue;
+							return;
 						}
 
-						return ModuleSignal.ContinueRegardlessOfOtherModulesStates;
+						return;
 					}
 				}
 				else
@@ -85,13 +122,13 @@ namespace Doors.Modules
 					if (PlayerHasInsulatedGloves(mob) == false)
 					{
 						ServerElectrocute(mob);
-						return ModuleSignal.Continue;
+						return;
 					}
 
-					return ModuleSignal.ContinueRegardlessOfOtherModulesStates;
+					return;
 				}
 			}
-			return ModuleSignal.Continue;
+			return;
 		}
 
 		private bool PlayerHasInsulatedGloves(GameObject mob)
@@ -122,14 +159,50 @@ namespace Doors.Modules
 			healthScript.Electrocute(electrocution);
 		}
 
-		public override bool CanDoorStateChange()
-		{
-			if (master.HasPower && IsElectrecuted)
-			{
-				return false;
-			}
 
-			return true;
+		#region Synthetic sprite
+
+		private static void AddToElectrified(ElectrifiedDoorModule electrifiedDoor)
+		{
+			ElectrifiedDoors.Add(electrifiedDoor);
+
+			ElectrifiedDoorMessage.Send(electrifiedDoor.master, true);
 		}
+
+		private static void RemoveFromElectrified(ElectrifiedDoorModule electrifiedDoor)
+		{
+			ElectrifiedDoors.Remove(electrifiedDoor);
+
+			ElectrifiedDoorMessage.Send(electrifiedDoor.master, false);
+		}
+
+		public void NewSpriteState(bool state)
+		{
+			spriteHandler.SetCatalogueIndexSprite(state ? 1 : 0, false);
+		}
+
+		public static void Rejoined(NetworkConnectionToClient conn)
+		{
+			foreach (var electrifiedDoor in ElectrifiedDoors)
+			{
+				ElectrifiedDoorMessage.SendTo(conn, electrifiedDoor.master, electrifiedDoor.isElectrified);
+			}
+		}
+
+		public static void LeftBody(NetworkConnectionToClient conn)
+		{
+			foreach (var electrifiedDoor in ElectrifiedDoors)
+			{
+				ElectrifiedDoorMessage.SendTo(conn, electrifiedDoor.master, false);
+			}
+		}
+
+		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+		private static void ClearStatics()
+		{
+			ElectrifiedDoors = new HashSet<ElectrifiedDoorModule>();
+		}
+
+		#endregion
 	}
 }

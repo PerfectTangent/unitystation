@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4495058724824268421}
   - component: {fileID: 5712487803982985795}
   - component: {fileID: 2825542358079580298}
+  - component: {fileID: 6859878156347386973}
   m_Layer: 5
   m_Name: DelButton
   m_TagString: Untagged
@@ -34,7 +35,6 @@ RectTransform:
   m_Children:
   - {fileID: 8712892135520232336}
   m_Father: {fileID: 2533791426857076637}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -147,6 +147,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d944563c429d450484b555ba9b1304fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  AddInRunTime: 1
   ServerMethod:
     m_PersistentCalls:
       m_Calls:
@@ -162,6 +163,24 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnMouseEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnMouseExit:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &6859878156347386973
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 259714845884301959}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db2adeded33c7e4598e497ef3363eba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1380618384541160272
 GameObject:
   m_ObjectHideFlags: 0
@@ -194,7 +213,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 912254401221148430}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -268,6 +286,7 @@ GameObject:
   - component: {fileID: 8258368635997972672}
   - component: {fileID: 5618891524059971965}
   - component: {fileID: 3489438360820908466}
+  - component: {fileID: 7331943474869379263}
   m_Layer: 5
   m_Name: DetailsBorder
   m_TagString: Untagged
@@ -289,7 +308,6 @@ RectTransform:
   m_Children:
   - {fileID: 8449010633010083120}
   m_Father: {fileID: 5315045442997327396}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -379,12 +397,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: OpenPopup
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 2535313380722496177}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -414,21 +432,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d944563c429d450484b555ba9b1304fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  AddInRunTime: 1
   ServerMethod:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: SetEditingField
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 2535313380722496177}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnMouseEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnMouseExit:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &7331943474869379263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1527999775792034808}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db2adeded33c7e4598e497ef3363eba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1979487476516273909
 GameObject:
   m_ObjectHideFlags: 0
@@ -442,6 +479,7 @@ GameObject:
   - component: {fileID: 7658463246394157547}
   - component: {fileID: 7632006833373428826}
   - component: {fileID: 1273084836954746913}
+  - component: {fileID: -6525544948015062981}
   m_Layer: 5
   m_Name: CrimeBorder
   m_TagString: Untagged
@@ -463,7 +501,6 @@ RectTransform:
   m_Children:
   - {fileID: 3562387875892835525}
   m_Father: {fileID: 5315045442997327396}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -553,12 +590,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: OpenPopup
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 1022175488335733623}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -588,21 +625,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d944563c429d450484b555ba9b1304fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  AddInRunTime: 1
   ServerMethod:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: SetEditingField
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 1022175488335733623}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnMouseEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnMouseExit:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &-6525544948015062981
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1979487476516273909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db2adeded33c7e4598e497ef3363eba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &3119807726389228833
 GameObject:
   m_ObjectHideFlags: 0
@@ -635,7 +691,6 @@ RectTransform:
   m_Children:
   - {fileID: 6219938971231169786}
   m_Father: {fileID: 5315045442997327396}
-  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -693,6 +748,7 @@ GameObject:
   - component: {fileID: 7216224065586812273}
   - component: {fileID: 3152362182929014948}
   - component: {fileID: 136792942955571487}
+  - component: {fileID: 844517568811127198}
   m_Layer: 5
   m_Name: AuthorBorder
   m_TagString: Untagged
@@ -714,7 +770,6 @@ RectTransform:
   m_Children:
   - {fileID: 431418901911299056}
   m_Father: {fileID: 5315045442997327396}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -804,12 +859,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: OpenPopup
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 4134712336980212214}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -839,21 +894,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d944563c429d450484b555ba9b1304fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  AddInRunTime: 1
   ServerMethod:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: SetEditingField
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 4134712336980212214}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnMouseEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnMouseExit:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &844517568811127198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3387758907386576263}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db2adeded33c7e4598e497ef3363eba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &3479127659329116897
 GameObject:
   m_ObjectHideFlags: 0
@@ -885,7 +959,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6219938971231169786}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -966,7 +1039,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3924687251488457791}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -1063,7 +1135,6 @@ RectTransform:
   - {fileID: 3924687251488457791}
   - {fileID: 2533791426857076637}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -1108,6 +1179,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 785d05ff7fb08a813a3e3aa6bd4f002e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  Poolble: 1
   crimeText: {fileID: 1022175488335733623}
   detailsText: {fileID: 2535313380722496177}
   authorText: {fileID: 4134712336980212214}
@@ -1144,7 +1216,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2333645225655975636}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -1218,6 +1289,7 @@ GameObject:
   - component: {fileID: 8131835226495132226}
   - component: {fileID: 4252508009595941157}
   - component: {fileID: 4475217302035566813}
+  - component: {fileID: 7930891320068940348}
   m_Layer: 5
   m_Name: TimeBorder
   m_TagString: Untagged
@@ -1239,7 +1311,6 @@ RectTransform:
   m_Children:
   - {fileID: 7194766470427656224}
   m_Father: {fileID: 5315045442997327396}
-  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -1329,12 +1400,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: OpenPopup
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 7251991302473854549}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -1364,21 +1435,40 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d944563c429d450484b555ba9b1304fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  AddInRunTime: 1
   ServerMethod:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 3591182647658319701}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: UI.Objects.Security.GUI_SecurityRecordsCrime, Assets
         m_MethodName: SetEditingField
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 7251991302473854549}
-          m_ObjectArgumentAssemblyTypeName: NetLabel, Assets
+          m_ObjectArgumentAssemblyTypeName: UI.Core.NetUI.NetLabel, Assets
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  OnMouseEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnMouseExit:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &7930891320068940348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8019757411898228748}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db2adeded33c7e4598e497ef3363eba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &9080186516185717655
 GameObject:
   m_ObjectHideFlags: 0
@@ -1411,7 +1501,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4633983691573436471}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}

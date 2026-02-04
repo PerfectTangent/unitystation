@@ -5,13 +5,20 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2888345019966124511, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
       propertyPath: relatedRecipes.Array.size
-      value: 3
+      value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 2888345019966124511, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[0].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: fe09abf82e38e4c4ca1d2035d3cc77b7,
+        type: 2}
     - target: {fileID: 2888345019966124511, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
       propertyPath: relatedRecipes.Array.data[1].recipe
@@ -30,6 +37,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: fe09abf82e38e4c4ca1d2035d3cc77b7,
         type: 2}
+    - target: {fileID: 2888345019966124511, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[0].ingredientIndex
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2888345019966124511, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
       propertyPath: relatedRecipes.Array.data[2].ingredientIndex
@@ -53,9 +65,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2987011942256334699, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
-      propertyPath: initialTraits.Array.data[1]
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 07f9813a4a487f746bbd5b5dc2169805,
+        type: 2}
+    - target: {fileID: 2987011942256334699, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: da7ac2d83ddd70245b7d90ded3a879e1,
+        type: 2}
+    - target: {fileID: 2987011942256334699, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 95abdd5454b396049b0e148047ade153,
+        type: 2}
+    - target: {fileID: 2987011942256334699, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 6224c07067e024e4ea84fae73abca725,
         type: 2}
     - target: {fileID: 3273994478765017941, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
@@ -77,6 +107,11 @@ PrefabInstance:
         type: 3}
       propertyPath: Resistances.AcidProof
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3317552745358689725, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: _assetId
+      value: 2795965886
       objectReference: {fileID: 0}
     - target: {fileID: 3317552745358689725, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
@@ -155,8 +190,13 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8585229615259169892, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
+      propertyPath: parentID
+      value: 0c3e7a0b25eff4d33a4f511cfc36b5d9
+      objectReference: {fileID: 0}
+    - target: {fileID: 8585229615259169892, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
       propertyPath: foreverID
-      value: 9836e3299e1fcf54cb6028cd4310ed3c
+      value: scigog
       objectReference: {fileID: 0}
     - target: {fileID: 8638853748845472652, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
@@ -175,7 +215,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8638853748845472652, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 3850cdc5c1b07b14a8a41666801f878a,
         type: 2}
@@ -185,7 +225,20 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 6224c07067e024e4ea84fae73abca725,
         type: 2}
+    - target: {fileID: 8851959254138389390, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 6224c07067e024e4ea84fae73abca725,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3431291279286482953, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2715983244203950774}
   m_SourcePrefab: {fileID: 100100000, guid: 0c3e7a0b25eff4d33a4f511cfc36b5d9, type: 3}
 --- !u!1 &6841223995504525407 stripped
 GameObject:

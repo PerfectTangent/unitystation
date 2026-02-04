@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Mirror;
-using DatabaseAPI;
+using Core.Accounts;
 using Messages.Client.Admin;
 using Messages.Server.AdminTools;
+using Newtonsoft.Json;
 
 
 namespace AdminTools
@@ -18,12 +19,12 @@ namespace AdminTools
 		/// <summary>
 		/// All messages sent and recieved between admins
 		/// </summary>
-		private readonly List<AdminChatMessage> serverAdminLogs = new List<AdminChatMessage>();
+		private readonly List<AdminChatMessage> serverAdminLogs = new();
 
 		/// <summary>
 		/// The admins client local cache for admin to admin chat
 		/// </summary>
-		private readonly List<AdminChatMessage> clientAdminLogs = new List<AdminChatMessage>();
+		private readonly List<AdminChatMessage> clientAdminLogs = new();
 
 		public void ClearLogs()
 		{
@@ -49,7 +50,7 @@ namespace AdminTools
 			var entry = new AdminChatMessage
 			{
 				fromUserid = userId,
-				Message = message
+				Message = GameManager.Instance.RoundTime.ToString(@"hh\:mm\:ss") + " - " + message
 			};
 
 			serverAdminLogs.Add(entry);
@@ -59,7 +60,7 @@ namespace AdminTools
 
 		public void ServerGetUnreadMessages(string adminId, int currentCount, NetworkConnection requestee)
 		{
-			if (!PlayerList.Instance.IsAdmin(adminId)) return;
+			if (PlayerList.HasTAGServer(TAG.ADMIN_LOGS,adminId) == false) return;
 
 			if (currentCount >= serverAdminLogs.Count)
 			{
@@ -86,7 +87,7 @@ namespace AdminTools
 		{
 			if (string.IsNullOrEmpty(unreadMessagesJson)) return;
 
-			var update = JsonUtility.FromJson<AdminChatUpdate>(unreadMessagesJson);
+			var update = JsonConvert.DeserializeObject<AdminChatUpdate>(unreadMessagesJson);
 			clientAdminLogs.AddRange(update.messages);
 
 			chatScroll.AppendChatEntries(update.messages.Cast<ChatEntryData>().ToList());
@@ -94,7 +95,7 @@ namespace AdminTools
 
 		public void OnInputSend(string message)
 		{
-			RequestAdminChatMessage.Send($"{ServerData.Auth.CurrentUser.DisplayName}: {message}");
+			RequestAdminChatMessage.Send($"{PlayerManager.Account.Username}: {message}");
 		}
 	}
 }

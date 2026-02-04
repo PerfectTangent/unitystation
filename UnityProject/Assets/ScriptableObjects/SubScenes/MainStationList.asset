@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: MainStationList
   m_EditorClassIdentifier: 
   MainStations:
-  - SquareStation
-  - OutpostStation
-  - BoxStationV1
-  - FallStation
-  - TestStation
-  - PogStation
-  - UnRealStation
-  - MiniStation
+  - MainStations/SquareStation.json
+  - MainStations/MiniStation.json
+  - MainStations/FallStation.json
+  - MainStations/StarshipStation.json
+  - MainStations/GateStation.json
+  - MainStations/OutpostStation.json
+  - MainStations/CaveStation.json
+  mapsConfig: maps.json
+  AsteroidListOverride: {fileID: 0}

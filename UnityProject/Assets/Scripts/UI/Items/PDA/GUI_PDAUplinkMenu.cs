@@ -22,8 +22,8 @@ namespace UI.Items.PDA
 		public GUI_PDAUplinkCategory categoryPage = null;
 
 		[SerializeField]
-		private NetLabel tcCounter = null;
-		
+		private NetText_label tcCounter = null;
+
 		public void OnPageActivated()
 		{
 			mainController.SetBreadcrumb(ROOT_DIRECTORY);
@@ -38,7 +38,7 @@ namespace UI.Items.PDA
 
 		public void UpdateTCCounter()
 		{
-			tcCounter.SetValueServer($"TC:{mainController.PDA.UplinkTC}");
+			tcCounter.MasterSetValue($"TC:{mainController.PDA.UplinkTC}");
 		}
 
 		public void LockUplink()

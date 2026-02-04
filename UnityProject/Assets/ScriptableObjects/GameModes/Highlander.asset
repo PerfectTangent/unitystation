@@ -24,6 +24,7 @@ MonoBehaviour:
   antagRatio: 1
   minAntags: 0
   maxAntags: 100000
+  hardNumberOfAntagsToSpawn: 0
   forceMinAntags: 0
   teamGameMode: 0
   midRoundAntags: 1
@@ -32,3 +33,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0f19f9b747ac2ee499c57e02517aed37, type: 2}
   allocateJobsToAntags: 0
   nonAntagJobTypes: 06000000160000001700000023000000210000001100000001000000
+  randomSicknesses: 0
+  possibleSicknesses: []
+  randomSicknessRatio: 0.5
+  MainStations: {fileID: 11400000, guid: 9b0018951af67314ca9e85705e0d2ce4, type: 2}
+  AsteroidList: {fileID: 11400000, guid: b1d9059b8db83ab479c9dffdc939b281, type: 2}
+  AdditionalSceneList: {fileID: 11400000, guid: 6370dfaa39db5574aa7cc451537de4f1,
+    type: 2}
+  AwayWorldList: {fileID: 11400000, guid: 9336c6ca9dac2d94eb90f703a23a7484, type: 2}

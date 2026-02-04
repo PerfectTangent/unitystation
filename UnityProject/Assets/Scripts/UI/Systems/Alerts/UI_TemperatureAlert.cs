@@ -1,50 +1,38 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-
-public class UI_TemperatureAlert : TooltipMonoBehaviour
+﻿public class UI_TemperatureAlert : TooltipMonoBehaviour
 {
 	public override string Tooltip => (activeImageIndex < 3) ? "Too Cold" : "Too Hot";
 
-	public Sprite[] statusImages;
 	private int activeImageIndex = -1;
+	private SpriteHandler spriteHandler;
 
-	public Image image;
-
-
-	public void SetTemperatureSprite(float temperature)
+	private void Awake()
 	{
-		if(temperature < 260)
+		spriteHandler = GetComponent<SpriteHandler>();
+	}
+
+	public void SetTemperatureSprite(TemperatureAlert temperature)
+	{
+		switch (temperature)
 		{
-			if(temperature > 210)
-			{
-				SetSprite(2);	// a bit cold
-			}
-			else if(temperature > 160)
-			{
-				SetSprite(1);	// cold
-			}
-			else
-			{
-				SetSprite(0);	// really cold
-			}
-		}
-		else
-		{
-			if(temperature > 460)
-			{
-				SetSprite(5);	// superhot
-			}
-			else if(temperature > 410)
-			{
-				SetSprite(4);	// hot
-			}
-			else
-			{
-				SetSprite(3);	// a bit hot
-			}
+			case TemperatureAlert.TooCold:
+				this.gameObject.SetActive(true);
+				SetSprite(0);	//Really cold
+				break;
+			case TemperatureAlert.Cold:
+				this.gameObject.SetActive(true);
+				SetSprite(1);	//Cold
+				break;
+			case TemperatureAlert.None:
+				this.gameObject.SetActive(false);
+				break;
+			case TemperatureAlert.Hot:
+				this.gameObject.SetActive(true);
+				SetSprite(4);	//Hot
+				break;
+			case TemperatureAlert.TooHot:
+				this.gameObject.SetActive(true);
+				SetSprite(5);	 //Too hot
+				break;
 		}
 	}
 
@@ -53,7 +41,17 @@ public class UI_TemperatureAlert : TooltipMonoBehaviour
 		if(index == activeImageIndex){
 			return;
 		}
+
 		activeImageIndex = index;
-		image.sprite = statusImages[index];
+		spriteHandler.SetCatalogueIndexSprite(index, false);
 	}
+}
+
+public enum TemperatureAlert
+{
+	TooCold,
+	Cold,
+	None,
+	Hot,
+	TooHot
 }

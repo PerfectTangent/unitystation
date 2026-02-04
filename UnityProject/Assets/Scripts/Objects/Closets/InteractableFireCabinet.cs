@@ -47,7 +47,7 @@ namespace Objects.Wallmounts
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (DefaultWillInteract.Default(interaction, side, AllowTelekinesis: false) == false) return false;
 
 			// only allow interactions targeting this
 			if (interaction.TargetObject != gameObject) return false;
@@ -135,7 +135,7 @@ namespace Objects.Wallmounts
 
 		private void ServerSetState(FireCabinetState newState)
 		{
-			spriteHandler.ChangeSprite((int)newState);
+			spriteHandler.SetCatalogueIndexSprite((int)newState);
 		}
 	}
 }

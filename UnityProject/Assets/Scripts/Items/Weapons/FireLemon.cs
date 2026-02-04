@@ -1,10 +1,12 @@
 using System.Collections;
 using System;
 using AddressableReferences;
+using Core;
 using UnityEngine;
 using Mirror;
 using Systems.Botany;
 using Systems.Explosions;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Items.Weapons
 {
@@ -72,12 +74,12 @@ namespace Items.Weapons
 
 		//this object's registerObject
 		private RegisterItem registerItem;
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 
 		private void Start()
 		{
 			registerItem = GetComponent<RegisterItem>();
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 
 			// Set grenade to locked state by default
 			UpdateSprite(LOCKED_SPRITE);
@@ -109,7 +111,7 @@ namespace Items.Weapons
 				return;
 
 			// Toggle the throw action after activation
-			if (interaction.Performer == PlayerManager.LocalPlayer)
+			if (interaction.Performer == PlayerManager.LocalPlayerObject)
 			{
 				UIManager.Action.Throw();
 			}
@@ -143,7 +145,7 @@ namespace Items.Weapons
 		private void UpdateSprite(int sprite)
 		{
 			// Update sprite in game
-			spriteHandler?.ChangeSprite(sprite);
+			spriteHandler?.SetCatalogueIndexSprite(sprite);
 		}
 
 		public void Explode()
@@ -174,7 +176,7 @@ namespace Items.Weapons
 
 			// Get data from grenade before despawning
 			var explosionMatrix = registerItem.Matrix;
-			var worldPos = objectBehaviour.AssumedWorldPositionServer();
+			var worldPos = objectBehaviour.registerTile.WorldPosition;
 
 			// Despawn grenade
 			_ = Despawn.ServerSingle(gameObject);
@@ -182,8 +184,8 @@ namespace Items.Weapons
 			// Explosion here
 			var explosionGO = Instantiate(explosionPrefab, explosionMatrix.transform);
 			explosionGO.transform.position = worldPos;
-			explosionGO.SetExplosionData(Mathf.RoundToInt(finalDamage), finalRadius);
-			explosionGO.Explode(explosionMatrix);
+			explosionGO.SetExplosionData(finalDamage, ExplosionTypes.ExplosionType.Regular, (int)finalRadius);
+			explosionGO.Explode();
 		}
 
 		private void PlayPinSFX(Vector3 position)

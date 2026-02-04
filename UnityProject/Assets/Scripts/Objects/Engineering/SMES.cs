@@ -1,11 +1,13 @@
 using System;
 using System.Collections;
+using Core;
 using UnityEngine;
 using Mirror;
 using Systems.Electricity.NodeModules;
 using Systems.Explosions;
 using Systems.Interaction;
 using Objects.Machines;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Objects.Engineering
@@ -19,7 +21,7 @@ namespace Objects.Engineering
 		[Range(1, 20)]
 		private int indicatorUpdatePeriod = 5;
 		private RegisterTile registerTile;
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 
 		private ElectricalNodeControl electricalNodeControl;
 		private BatterySupplyingModule batterySupplyingModule;
@@ -32,10 +34,10 @@ namespace Objects.Engineering
 		private SpriteHandler outputEnabledIndicator;
 		private SpriteHandler chargeLevelIndicator;
 
-		private bool IsCharging => batterySupplyingModule.ChargingDivider > 0.1f;
+		private bool IsCharging => batterySupplyingModule.ChargingWatts > 10f;
 		private float MaxCharge => batterySupplyingModule.CapacityMax;
-		private float CurrentCharge => batterySupplyingModule.CurrentCapacity;
-		private int ChargePercent => Convert.ToInt32(Math.Round(CurrentCharge * 100 / MaxCharge));
+		private float CurrentCharge => batterySupplyingModule.GetSetCurrentCapacity;
+		private int ChargePercent => Mathf.RoundToInt(CurrentCharge * 100 / MaxCharge);
 
 		private bool isExploding = false;
 
@@ -69,7 +71,7 @@ namespace Objects.Engineering
 			outputEnabledIndicator = transform.GetChild(2).GetComponent<SpriteHandler>();
 			chargeLevelIndicator = transform.GetChild(3).GetComponent<SpriteHandler>();
 			registerTile = GetComponent<RegisterTile>();
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 			machine = GetComponent<Machine>();
 
 			electricalNodeControl = GetComponent<ElectricalNodeControl>();
@@ -101,18 +103,18 @@ namespace Objects.Engineering
 		{
 			if (IsCharging)
 			{
-				chargingIndicator.ChangeSprite((int) ChargingOverlayState.Charging);
+				chargingIndicator.SetCatalogueIndexSprite((int) ChargingOverlayState.Charging);
 			}
 			else
 			{
-				chargingIndicator.ChangeSprite((int) ChargingOverlayState.Discharging);
+				chargingIndicator.SetCatalogueIndexSprite((int) ChargingOverlayState.Discharging);
 			}
 		}
 
 		private void UpdateChargeLevelIndicator()
 		{
 			int chargeIndex = Convert.ToInt32(Math.Round((ChargePercent / 100f) * 4));
-			chargeLevelIndicator.ChangeSprite(chargeIndex);
+			chargeLevelIndicator.SetCatalogueIndexSprite(chargeIndex);
 		}
 
 		#region Interaction
@@ -129,7 +131,7 @@ namespace Objects.Engineering
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.TargetObject != gameObject) return false;
 			if (Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Crowbar))
 			{
@@ -235,7 +237,7 @@ namespace Objects.Engineering
 
 		private void ServerToggleOutputModeOn()
 		{
-			outputEnabledIndicator.ChangeSprite((int) OutputEnabledOverlayState.OutputEnabled);
+			outputEnabledIndicator.SetCatalogueIndexSprite((int) OutputEnabledOverlayState.OutputEnabled);
 			outputEnabledIndicator.PushTexture();
 			electricalNodeControl.TurnOnSupply();
 			outputEnabled = true;
@@ -261,10 +263,10 @@ namespace Objects.Engineering
 			{
 				isExploding = true;
 				TrySpark();
-				Chat.AddLocalMsgToChat($"<color=red>{gameObject.ExpensiveName()} starts to spit out sparks and smoke! No way this can end good...", gameObject);
+				Chat.AddActionMsgToChat(gameObject, $"<color=red>{gameObject.ExpensiveName()} starts to spit out sparks and smoke! No way this can end good...");
 				StartCoroutine(Emp());
 			}
-			batterySupplyingModule.CurrentCapacity -= EmpStrength * 1000;
+			machine.BatteryChangeChargedByDelta(EmpStrength * 100000);
 		}
 
 		private IEnumerator Emp()

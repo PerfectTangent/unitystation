@@ -1,15 +1,15 @@
 ﻿using System;
-using System.Collections.Specialized;
 using System.Collections.Generic;
-using UnityEngine;
-using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
-using DatabaseAPI;
-using System.Collections;
 using System.Threading;
-using System.Threading.Tasks;
-using Managers;
+using DatabaseAPI;
+using Logs;
 using Newtonsoft.Json;
+using SecureStuff;
+using Shared.Managers;
+using UnityEngine;
 using Object = System.Object;
 
 namespace DiscordWebhook
@@ -55,7 +55,7 @@ namespace DiscordWebhook
 				if (!messageSendingInProgress)
 				{
 					messageSendingInProgress = true;
-					ThreadPool.QueueUserWorkItem( SendQueuedMessagesToWebhooks);
+					ThreadPool.QueueUserWorkItem(SendQueuedMessagesToWebhooks);
 				}
 
 				sendingTimer = 0;
@@ -105,7 +105,7 @@ namespace DiscordWebhook
 				if (loggedWebKookError == false)
 				{
 					loggedWebKookError = true;
-					Logger.LogError(e.ToString());
+					Loggy.Error(e.ToString());
 				}
 			}
 
@@ -126,14 +126,12 @@ namespace DiscordWebhook
 			};
 		}
 
-		private void Post(string url, JsonPayloadContent playload)
+		private async void Post(string url, JsonPayloadContent playload)
 		{
-			using (WebClient webClient = new WebClient())
-			{
-				var dataString = JsonConvert.SerializeObject(playload);
-				webClient.Headers.Add(HttpRequestHeader.ContentType, "application/json");
-				webClient.UploadString(url, dataString);
-			}
+			var jsonContent = JsonConvert.SerializeObject(playload);
+			var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+			HttpResponseMessage response = await SafeHttpRequest.PostAsync(url, content);
 		}
 
 		public void AddWebHookMessageToQueue(DiscordWebhookURLs urlToUse, string msg, string username,
@@ -188,6 +186,8 @@ namespace DiscordWebhook
 				msg += queue.Dequeue() + "\n";
 			}
 
+			msg = ObfuscateIpAddress(msg);
+
 			var payLoad = new JsonPayloadContent()
 			{
 				content = msg,
@@ -199,6 +199,14 @@ namespace DiscordWebhook
 			};
 
 			Post(url, payLoad);
+		}
+
+		private string ObfuscateIpAddress(string msg)
+		{
+			//matches IPV4 addresses
+			string pattern = @"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b";
+			string replacement = "xxx.xxx.xxx.xxx";
+			return Regex.Replace(msg, pattern, replacement);
 		}
 
 		private string MsgMentionProcess(string msg, string mentionID = null)
@@ -254,10 +262,18 @@ namespace DiscordWebhook
 		{
 			if (type == LogType.Exception || type == LogType.Error)
 			{
-				GameManager.Instance.errorCounter++;
-				if (ErrorMessageHashSet.Contains(stackTrace))
-					return;
-				GameManager.Instance.uniqueErrorCounter++;
+				bool isUnique = ErrorMessageHashSet.Contains(stackTrace) == false;
+
+				if (GameManager.Instance != null)
+				{
+					GameManager.Instance.errorCounter++;
+					if (isUnique)
+					{
+						GameManager.Instance.uniqueErrorCounter++;
+					}
+				}
+
+				if (isUnique == false) return;
 
 				ErrorMessageHashSet.Add(stackTrace);
 

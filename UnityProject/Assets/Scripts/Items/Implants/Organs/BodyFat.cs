@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿ using System;
+using HealthV2;
+using HealthV2.Living.PolymorphicSystems.Bodypart;
 using Player.Movement;
 using UnityEngine;
 
-namespace HealthV2
+namespace Items.Implants.Organs
 {
 	public class BodyFat : BodyPartFunctionality, IMovementEffect
 	{
@@ -38,13 +38,18 @@ namespace HealthV2
 
 		public float NoticeableDebuffInPoint = 45;
 
-		public bool WasApplyingDebuff = false;
-
 		public bool isFreshBlood;
+
+		public HungerComponent HungerComponent;
+		public ReagentCirculatedComponent ReagentCirculatedComponent;
 
 		public void Awake()
 		{
-			AbsorbedAmount = StartAbsorbedAmount;
+			HungerComponent = this.GetComponentCustom<HungerComponent>();
+			ReagentCirculatedComponent = this.GetComponentCustom<ReagentCirculatedComponent>();
+
+
+			AbsorbedAmount = StartAbsorbedAmount; //TODO Probably should be moved somewhere else?
 		}
 
 		public void SetAbsorbedAmount(float newAbsorbedAmount)
@@ -54,10 +59,12 @@ namespace HealthV2
 
 		public override void ImplantPeriodicUpdate()
 		{
+
+			isFreshBlood = true;
 			base.ImplantPeriodicUpdate();
-			// Logger.Log("Absorbing >" + Absorbing);
-			float NutrimentPercentage = (RelatedPart.BloodContainer[RelatedPart.Nutriment] / RelatedPart.BloodContainer.ReagentMixTotal);
-			//Logger.Log("NutrimentPercentage >" + NutrimentPercentage);
+			// Loggy.Log("Absorbing >" + Absorbing);
+			float NutrimentPercentage = (ReagentCirculatedComponent.AssociatedSystem.BloodPool[HungerComponent.Nutriment] / ReagentCirculatedComponent.AssociatedSystem.BloodPool.Total);
+			//Loggy.Log("NutrimentPercentage >" + NutrimentPercentage);
 			if (NutrimentPercentage < ReleaseNutrimentPercentage)
 			{
 				float ToRelease = ReleaseAmount;
@@ -66,31 +73,30 @@ namespace HealthV2
 					ToRelease = AbsorbedAmount;
 				}
 
-				RelatedPart.BloodContainer.CurrentReagentMix.Add(RelatedPart.Nutriment, ToRelease);
+				ReagentCirculatedComponent.AssociatedSystem.BloodPool.Add(HungerComponent.Nutriment, ToRelease);
 				AbsorbedAmount -= ToRelease;
 				isFreshBlood = false;
-				// Logger.Log("ToRelease >" + ToRelease);
+				// Loggy.Log("ToRelease >" + ToRelease);
 			}
 			else if (isFreshBlood && NutrimentPercentage > AbsorbNutrimentPercentage && AbsorbedAmount < MinuteStoreMaxAmount)
 			{
-				float ToAbsorb = RelatedPart.BloodContainer[RelatedPart.Nutriment];
+				float ToAbsorb = ReagentCirculatedComponent.AssociatedSystem.BloodPool[HungerComponent.Nutriment];
 				if (AbsorbedAmount + ToAbsorb > MinuteStoreMaxAmount)
 				{
 					ToAbsorb = ToAbsorb - ((AbsorbedAmount + ToAbsorb) - MinuteStoreMaxAmount);
 				}
 
-				float Absorbing = RelatedPart.BloodContainer.CurrentReagentMix.Remove(RelatedPart.Nutriment, ToAbsorb);
+				float Absorbing = ReagentCirculatedComponent.AssociatedSystem.BloodPool.Remove(HungerComponent.Nutriment, ToAbsorb);
 				AbsorbedAmount += Absorbing;
-				// Logger.Log("Absorbing >" + Absorbing);
+				// Loggy.Log("Absorbing >" + Absorbing);
 			}
 
-			//Logger.Log("AbsorbedAmount >" + AbsorbedAmount);
+			//Loggy.Log("AbsorbedAmount >" + AbsorbedAmount);
 			//TODOH Proby doesn't need to be updated so often
 			if (DDebuffInPoint < AbsorbedAmount)
 			{
-				WasApplyingDebuff = true;
 				float DeBuffMultiplier = (AbsorbedAmount - DDebuffInPoint) / (MinuteStoreMaxAmount - DDebuffInPoint);
-				// Logger.Log("DeBuffMultiplier >" + DeBuffMultiplier);
+				// Loggy.Log("DeBuffMultiplier >" + DeBuffMultiplier);
 				RunningSpeedModifier = maxRunSpeedDebuff * DeBuffMultiplier;
 				WalkingSpeedModifier = maxWalkingDebuff * DeBuffMultiplier;
 				CrawlingSpeedModifier = maxCrawlDebuff * DeBuffMultiplier;
@@ -100,28 +106,38 @@ namespace HealthV2
 					playerHealthV2.PlayerMove.UpdateSpeeds();
 				}
 			}
+			else
+			{
+				if (RunningSpeedModifier != 0)
+				{
+					RunningSpeedModifier = 0;
+					WalkingSpeedModifier = 0;
+					CrawlingSpeedModifier = 0;
+					var playerHealthV2 = RelatedPart.HealthMaster as PlayerHealthV2;
+					if (playerHealthV2 != null)
+					{
+						playerHealthV2.PlayerMove.UpdateSpeeds();
+					}
+				}
+			}
 
 			if (AbsorbedAmount == 0)
 			{
-				RelatedPart.HungerState = HungerState.Malnourished;
+				HungerComponent.HungerState = HungerState.Malnourished;
 			}
 			else if (AbsorbedAmount < 5) //Five minutes of food
 			{
-				RelatedPart.HungerState = HungerState.Hungry;
+
+				HungerComponent.HungerState = HungerState.Hungry;
 			}
 			else  if (NoticeableDebuffInPoint < AbsorbedAmount)
 			{
-				RelatedPart.HungerState = HungerState.Full;
+				HungerComponent.HungerState = HungerState.Full;
 			}
 			else
 			{
-				RelatedPart.HungerState = HungerState.Normal;
+				HungerComponent.HungerState = HungerState.Normal;
 			}
-		}
-
-		public override void BloodWasPumped()
-		{
-			isFreshBlood = true;
 		}
 
 		[NaughtyAttributes.Button()]
@@ -130,9 +146,9 @@ namespace HealthV2
 			AbsorbedAmount = 0;
 		}
 
-		public override void HealthMasterSet(LivingHealthMasterBase livingHealth)
+		public override void OnAddedToBody(LivingHealthMasterBase livingHealth)
 		{
-			base.HealthMasterSet(livingHealth);
+			base.OnAddedToBody(livingHealth);
 			var playerHealthV2 = RelatedPart.HealthMaster as PlayerHealthV2;
 			if (playerHealthV2 != null)
 			{
@@ -140,10 +156,14 @@ namespace HealthV2
 			}
 		}
 
-		public override void RemovedFromBody(LivingHealthMasterBase livingHealth)
+		public override void OnRemovedFromBody(LivingHealthMasterBase livingHealth, GameObject source = null)
 		{
-			base.RemovedFromBody(livingHealth);
-			RelatedStomach.BodyFats.Remove(this);
+			base.OnRemovedFromBody(livingHealth);
+			if (RelatedStomach != null)
+			{
+				RelatedStomach.BodyFats.Remove(this);
+			}
+
 			var playerHealthV2 = livingHealth as PlayerHealthV2;
 			if (playerHealthV2 != null)
 			{

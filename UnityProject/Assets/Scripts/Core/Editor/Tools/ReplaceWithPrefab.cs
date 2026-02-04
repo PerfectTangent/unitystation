@@ -1,3 +1,7 @@
+using Construction.Conveyors;
+using Core.Sprite_Handler;
+using Light2D;
+using Logs;
 using UnityEngine;
 using UnityEditor;
 
@@ -7,7 +11,7 @@ public class ReplaceWithPrefab : EditorWindow
 	[SerializeField] private GameObject prefab;
 
 	// -- this creates the menu to open the "Replace With Prefab" window
-	[MenuItem("Tools/Replace With Prefab")]
+	[MenuItem("Mapping/Replace With Prefab")]
 	static void CreateReplaceWithPrefab()
 	{
 		EditorWindow.GetWindow<ReplaceWithPrefab>();
@@ -54,7 +58,7 @@ public class ReplaceWithPrefab : EditorWindow
 				// -- if for some reason Unity couldn't perform your request, print an error
 				if (newObject == null)
 				{
-					Logger.LogError("Error instantiating prefab", Category.Editor);
+					Loggy.Error("Error instantiating prefab", Category.Editor);
 					break;
 				}
 
@@ -65,6 +69,64 @@ public class ReplaceWithPrefab : EditorWindow
 				newObject.transform.localRotation = selected.transform.localRotation;
 				newObject.transform.localScale = selected.transform.localScale;
 				newObject.transform.SetSiblingIndex(selected.transform.GetSiblingIndex());
+
+				var selectedRotatable = selected.GetComponent<Rotatable>();
+				var newObjectRotatable = newObject.GetComponent<Rotatable>();
+				if (selectedRotatable != null && newObjectRotatable != null)
+				{
+					newObjectRotatable.FaceDirection(selectedRotatable.CurrentDirection);
+				}
+
+				var selectedLightSprite = selected.GetComponent<LightSprite>();
+				var newObjectLightSprite = newObject.GetComponentInChildren<LightSprite>();
+				if (selectedLightSprite != null && newObjectLightSprite != null)
+				{
+					newObjectLightSprite.InitialColour = selectedLightSprite.InitialColour;
+					newObjectLightSprite.transform.localScale = selected.transform.lossyScale;
+
+					var Handler = newObjectLightSprite.GetComponentInChildren<LightSpriteHandler>();
+
+					var Catalogue = Handler.GetSubCatalogue();
+
+					SpriteDataSO Bright = null;
+					foreach (var srightSO in Catalogue)
+					{
+						if (srightSO.GetFirstSprite == selectedLightSprite.Sprite)
+						{
+							Bright = srightSO;
+							break;
+						}
+
+					}
+
+					if (Bright == null)
+					{
+						Loggy.Error("AAAA > " + selectedLightSprite.Sprite + "selected > " + selected.name);
+					}
+
+					Handler.SetSpriteSO(Bright);
+				}
+
+
+				var Conveyorselected = selected.GetComponent<ConveyorBelt>();
+				var newConveyorselected = newObject.GetComponent<ConveyorBelt>();
+				if (Conveyorselected != null && newConveyorselected != null)
+				{
+					newConveyorselected.CurrentDirection = Conveyorselected.CurrentDirection;
+					newConveyorselected.CurrentStatus = Conveyorselected.CurrentStatus;
+				}
+
+
+				var MobSpawnScripselected = selected.GetComponent<LegacyMobSpawnScript>();
+				var MobSpawnScripnewObject = newObject.GetComponent<LegacyMobSpawnScript>();
+				if (MobSpawnScripselected != null && MobSpawnScripnewObject != null)
+				{
+					MobSpawnScripnewObject.MobToSpawn = MobSpawnScripselected.MobToSpawn;
+				}
+
+
+				newObject.name = selected.name;
+				Undo.RegisterCreatedObjectUndo(newObject, "Replace With Prefabs");
 				// -- now delete the old prefab
 				Undo.DestroyObjectImmediate(selected);
 			}

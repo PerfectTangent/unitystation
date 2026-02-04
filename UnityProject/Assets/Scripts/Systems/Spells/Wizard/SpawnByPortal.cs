@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using Logs;
 using UnityEngine;
 using Messages.Server;
 
@@ -58,7 +59,7 @@ namespace Systems.Spells.Wizard
 			}
 			if (spriteObject == null)
 			{
-				Logger.LogError($"No Sprite object found on {entity}! Cannot animate with {nameof(SpawnByPortal)}.", Category.Spells);
+				Loggy.Error($"No Sprite object found on {entity}! Cannot animate with {nameof(SpawnByPortal)}.", Category.Spells);
 			}
 			float fallingTime = GetFallingTime(settings.PortalHeight);
 

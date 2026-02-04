@@ -4,22 +4,26 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Core;
 using Light2D;
 using Mirror;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using EpPathFinding.cs;
 using HealthV2;
+using Logs;
 using Managers;
 using Strings;
+using Systems.MobAIs;
 using UnityEngine.Profiling;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Blob
 {
 	/// <summary>
 	/// Class which has the logic and data for the blob player
 	/// </summary>
-	public class BlobPlayer : NetworkBehaviour, IAdminInfo
+	public class BlobPlayer : NetworkBehaviour, IAdminInfo, IGib
 	{
 		[SerializeField] private GameObject blobCorePrefab = null;
 		[SerializeField] private GameObject blobNodePrefab = null;
@@ -58,7 +62,7 @@ namespace Blob
 		public int adaptStrainCost = 40;
 		public int rerollStrainsCost = 20;
 
-		private PlayerSync playerSync;
+		private MovementSynchronisation playerSync;
 		private RegisterPlayer registerPlayer;
 		private PlayerScript playerScript;
 		public int numOfTilesForVictory = 400;
@@ -174,37 +178,48 @@ namespace Blob
 		private bool pathSearch;
 
 		private LayerMask layerMask;
+		private LayerMask sporeLayerMask;
 
 		//stores the client linerenderer gameobjects
 		private HashSet<GameObject> clientLinerenderers = new HashSet<GameObject>();
 
+		private Collider2D[] sporesArray = new Collider2D[40];
+
+		private int RoundID = GameManager.RoundID;
+
 		/// <summary>
 		/// The start function of the script called from BlobStarter when player turns into blob, sets up core.
 		/// </summary>
-		public void BlobStart()
+		public void BlobStart(Mind mind)
 		{
-			playerSync = GetComponent<PlayerSync>();
+			playerSync = GetComponent<MovementSynchronisation>();
 			registerPlayer = GetComponent<RegisterPlayer>();
 			playerScript = GetComponent<PlayerScript>();
 
 			if (playerScript == null && (!TryGetComponent(out playerScript) || playerScript == null))
 			{
-				Logger.LogError("Playerscript was null on blob and couldnt be found.", Category.Blob);
+				Loggy.Error("Playerscript was null on blob and couldnt be found.", Category.Blob);
 				return;
 			}
 
-			playerScript.mind.ghost = playerScript;
-			playerScript.mind.body = playerScript;
+			if (mind == null)
+			{
+				Loggy.Error("Mind was null on blob and couldnt be found.", Category.Blob);
+				return;
+			}
+
+			mind.SetPossessingObject(playerScript.gameObject);
+			mind.StopGhosting();
 
 			overmindName = $"Overmind {Random.Range(1, 1001)}";
 
-			playerScript.SetPermanentName(overmindName);
+			mind.SetPermanentName(overmindName);
 
 			var result = Spawn.ServerPrefab(blobCorePrefab, registerPlayer.WorldPositionServer, gameObject.transform.parent);
 
 			if (!result.Successful)
 			{
-				Logger.LogError("Failed to spawn blob core for player!", Category.Blob);
+				Loggy.Error("Failed to spawn blob core for player!", Category.Blob);
 				return;
 			}
 
@@ -212,7 +227,7 @@ namespace Blob
 
 			blobCore = result.GameObject.GetComponent<BlobStructure>();
 
-			var pos = blobCore.GetComponent<CustomNetTransform>().ServerPosition;
+			var pos = blobCore.GetComponent<UniversalObjectPhysics>().transform.position.RoundToInt();
 
 			blobTiles.TryAdd(pos, blobCore);
 			nonSpaceBlobTiles.Add(blobCore.gameObject);
@@ -253,11 +268,12 @@ namespace Blob
 
 		private void Awake()
 		{
-			playerSync = GetComponent<PlayerSync>();
+			playerSync = GetComponent<MovementSynchronisation>();
 			registerPlayer = GetComponent<RegisterPlayer>();
 			playerScript = GetComponent<PlayerScript>();
-
+			RoundID = GameManager.RoundID;
 			layerMask = LayerMask.GetMask("Objects", "Players", "NPC", "Machines", "Windows", "Door Closed");
+			sporeLayerMask = LayerMask.GetMask("NPC");
 		}
 
 		private void PeriodicUpdate()
@@ -271,7 +287,7 @@ namespace Blob
 			rerollTimer += 1f;
 
 			// Force overmind back to blob if camera moves too far
-			if (!teleportCheck && !victory && !ValidateAction(playerSync.ServerPosition, true) && blobCore != null)
+			if (!teleportCheck && !victory && !ValidateAction(playerSync.registerTile.WorldPosition, true) && blobCore != null)
 			{
 				teleportCheck = true;
 
@@ -366,7 +382,7 @@ namespace Blob
 
 			yield return WaitFor.Seconds(1f);
 
-			if (ValidateAction(playerSync.ServerPosition, true))
+			if (ValidateAction(playerSync.registerTile.WorldPosition, true))
 			{
 				teleportCheck = false;
 				yield break;
@@ -386,7 +402,7 @@ namespace Blob
 		{
 			if(blobCore == null) return;
 
-			playerSync.SetPosition(blobCore.location);
+			playerSync.AppearAtWorldPositionServer(blobCore.location);
 		}
 
 		[Command]
@@ -401,7 +417,7 @@ namespace Blob
 
 			var vector = float.PositiveInfinity;
 
-			var pos = playerSync.ServerPosition;
+			var pos = playerSync.registerTile.WorldPosition;
 
 			//Find closet node
 			foreach (var blobStructure in nodeBlobs)
@@ -420,11 +436,11 @@ namespace Blob
 				//Blob is dead :(
 				if(blobCore == null) return;
 
-				playerSync.SetPosition(blobCore.location);
+				playerSync.AppearAtWorldPositionServer(blobCore.location);
 				return;
 			}
 
-			playerSync.SetPosition(node.WorldPosServer());
+			playerSync.AppearAtWorldPositionServer(node.AssumedWorldPosServer());
 		}
 
 		#endregion
@@ -567,7 +583,7 @@ namespace Blob
 			//standing on (or around since validation checks adjacent)
 			if (!clickCoords)
 			{
-				worldPos = playerSync.ServerPosition;
+				worldPos = playerSync.registerTile.WorldPosition;
 			}
 
 			//Whether player has toggled always remove on in the UI
@@ -639,6 +655,7 @@ namespace Blob
 				{
 					if (currentStrain.strainType == StrainTypes.NetworkedFibers)
 					{
+						resources = resources - 1;
 						//Move core to normal blob when networked fibers strain
 						MoveCoreToNormalBlob(blob);
 						return true;
@@ -697,7 +714,7 @@ namespace Blob
 
 			if (matrix == null)
 			{
-				Logger.LogError("matrix for blob click was null", Category.Blob);
+				Loggy.Error("matrix for blob click was null", Category.Blob);
 				return false;
 			}
 
@@ -927,7 +944,21 @@ namespace Blob
 
 		private void PlayAttackEffect(Vector3 worldPos)
 		{
-			Spawn.ServerPrefab(attackEffect, worldPos, gameObject.transform.parent);
+			RpcPlayEffect(worldPos);
+
+			if (CustomNetworkManager.IsHeadless) return;
+			PlayEffect(worldPos);
+		}
+
+		[ClientRpc]
+		private void RpcPlayEffect(Vector3 worldPos)
+		{
+			PlayEffect(worldPos);
+		}
+
+		private void PlayEffect(Vector3 worldPos)
+		{
+			Spawn.ClientPrefab(attackEffect, worldPos, gameObject.transform.parent);
 		}
 
 		#endregion
@@ -1018,7 +1049,7 @@ namespace Blob
 					cost = resourceBlobCost;
 					break;
 				default:
-					Logger.LogError("Switch has no correct case for blob structure!", Category.Blob);
+					Loggy.Error("Switch has no correct case for blob structure!", Category.Blob);
 					break;
 			}
 
@@ -1066,7 +1097,7 @@ namespace Blob
 							resourceBlobs.Add(structure);
 							break;
 						default:
-							Logger.LogError("Switch has no correct case for blob structure!", Category.Blob);
+							Loggy.Error("Switch has no correct case for blob structure!", Category.Blob);
 							break;
 					}
 
@@ -1151,7 +1182,7 @@ namespace Blob
 						Chat.AddExamineMsgFromServer(gameObject, "This is a blob node. It cannot be removed");
 						return;
 					default:
-						Logger.LogError("Switch has no correct case for blob structure!", Category.Blob);
+						Loggy.Error("Switch has no correct case for blob structure!", Category.Blob);
 						break;
 				}
 
@@ -1216,14 +1247,20 @@ namespace Blob
 			}
 
 			//Make blob into ghost
-			PlayerSpawn.ServerSpawnGhost(playerScript.mind);
+			playerScript.Mind.Ghost();
 
 			if (endRoundWhenKilled)
 			{
-				GameManager.Instance.EndRound();
+				GameManager.Instance.RoundEndTime = 60;
+				GameManager.Instance.EndRound(RoundID);
 			}
 
 			_ = Despawn.ServerSingle(gameObject);
+		}
+
+		public void OnGib(bool ignoreNoGibRule = false)
+		{
+			Death();
 		}
 
 		#endregion
@@ -1247,27 +1284,21 @@ namespace Blob
 
 			rapidExpand = true;
 
-			foreach (var objective in playerScript.mind.GetAntag().Objectives)
+			foreach (var objective in playerScript.Mind.GetAntag().Objectives)
 			{
 				objective.SetAsComplete();
 			}
 
 			if (endRoundWhenBlobVictory)
 			{
-				StartCoroutine(EndRound());
+				Chat.AddGameWideSystemMsgToChat("The blob has consumed the station, we are all but goo now.");
+
+				Chat.AddGameWideSystemMsgToChat($"At its biggest the blob had {maxCount} tiles controlled" +
+				                                $" but only had {maxNonSpaceCount} non-space tiles which counted to victory.");
+
+				GameManager.Instance.RoundEndTime = 60;
+				GameManager.Instance.EndRound(RoundID);
 			}
-		}
-
-		private IEnumerator EndRound()
-		{
-			yield return WaitFor.Seconds(60f);
-
-			Chat.AddGameWideSystemMsgToChat("The blob has consumed the station, we are all but goo now.");
-
-			Chat.AddGameWideSystemMsgToChat($"At its biggest the blob had {maxCount} tiles controlled" +
-			                                $" but only had {maxNonSpaceCount} non-space tiles which counted to victory.");
-
-			GameManager.Instance.EndRound();
 		}
 
 		#endregion
@@ -1302,18 +1333,19 @@ namespace Blob
 				return;
 			}
 
-			var core = blobCore.GetComponent<CustomNetTransform>();
-			var node = oldNode.GetComponent<CustomNetTransform>();
+			var core = blobCore.GetComponent<UniversalObjectPhysics>();
+			var node = oldNode.GetComponent<UniversalObjectPhysics>();
 
-			var coreCache = core.ServerPosition;
+			var coreCache = core.transform.position.RoundToInt();
 
-			core.SetPosition(node.ServerPosition);
-			blobTiles[node.ServerPosition] = blobCore;
-			blobCore.location = node.ServerPosition;
+			var position = node.transform.position;
+			core.AppearAtWorldPositionServer(position);
+			blobTiles[position.RoundToInt()] = blobCore;
+			blobCore.location = node.transform.position.RoundToInt();
 
 			blobTiles[coreCache] = oldNode;
 			oldNode.location = coreCache;
-			node.SetPosition(coreCache);
+			node.AppearAtWorldPositionServer(coreCache);
 
 			ResetArea(blobCore.gameObject);
 			ResetArea(oldNode.gameObject);
@@ -1331,18 +1363,18 @@ namespace Blob
 				return;
 			}
 
-			var core = blobCore.GetComponent<CustomNetTransform>();
-			var normal = oldNormal.GetComponent<CustomNetTransform>();
+			var core = blobCore.GetComponent<UniversalObjectPhysics>();
+			var normal = oldNormal.GetComponent<UniversalObjectPhysics>();
 
-			var coreCache = core.ServerPosition;
+			var coreCache = core.transform.position.RoundToInt();
 
-			core.SetPosition(normal.ServerPosition);
-			blobTiles[normal.ServerPosition] = blobCore;
-			blobCore.location = normal.ServerPosition;
+			core.AppearAtWorldPositionServer(normal.transform.position);
+			blobTiles[normal.transform.position.RoundToInt()] = blobCore;
+			blobCore.location = normal.transform.position.RoundToInt();
 
 			blobTiles[coreCache] = oldNormal;
 			oldNormal.location = coreCache;
-			normal.SetPosition(coreCache);
+			normal.AppearAtWorldPositionServer(coreCache);
 
 			ResetArea(blobCore.gameObject);
 		}
@@ -1388,14 +1420,14 @@ namespace Blob
 
 		private void ResetArea(GameObject node)
 		{
-			var pos = node.GetComponent<CustomNetTransform>().ServerPosition;
+			var pos = node.GetComponent<UniversalObjectPhysics>().transform.position;
 			var structNode = node.GetComponent<BlobStructure>();
 
 			if(structNode.blobType != BlobConstructs.Core && structNode.blobType != BlobConstructs.Node) return;
 
-			structNode.expandCoords = GenerateCoords(pos);
+			structNode.expandCoords = GenerateCoords(pos.RoundToInt());
 			structNode.healthPulseCoords = structNode.expandCoords;
-			structNode.location = pos;
+			structNode.location = pos.RoundToInt();
 			structNode.nodeDepleted = false;
 		}
 
@@ -1434,7 +1466,7 @@ namespace Blob
 				if (factoryBlob.Key == null) continue;
 
 				factoryBlob.Value.Remove(null);
-				factoryBlob.Value.RemoveWhere(spore => spore.GetComponent<LivingHealthBehaviour>().IsDead);
+				factoryBlob.Value.RemoveWhere(spore => spore == null || spore?.GetComponent<LivingHealthBehaviour>()?.IsDead is null or true);
 
 				//Dont produce spores unless connected
 				if(!factoryBlob.Key.connectedToBlobNet) continue;
@@ -1668,7 +1700,7 @@ namespace Blob
 
 			structure.integrity.OnWillDestroyServer.AddListener(BlobTileDeath);
 
-			structure.integrity.OnApplyDamage.AddListener(OnDamageReceived);
+			structure.integrity.OnApplyDamage += OnDamageReceived;
 		}
 
 		private void OnDamageReceived(DamageInfo info)
@@ -1741,7 +1773,7 @@ namespace Blob
 		{
 			if(info.DamageType != DamageType.Burn && info.AttackType != AttackType.Fire) return;
 
-			var pos = info.AttackedIntegrity.gameObject.WorldPosServer().RoundToInt();
+			var pos = info.AttackedIntegrity.gameObject.AssumedWorldPosServer().RoundToInt();
 
 			foreach (var offset in coords)
 			{
@@ -1751,7 +1783,7 @@ namespace Blob
 
 		private void SwapPositionWithBlob(DamageInfo info)
 		{
-			var pos = info.AttackedIntegrity.gameObject.WorldPosServer().RoundToInt();
+			var pos = info.AttackedIntegrity.gameObject.AssumedWorldPosServer().RoundToInt();
 
 			foreach (var offset in coords)
 			{
@@ -1760,15 +1792,15 @@ namespace Blob
 
 				if(blobStructure == null) continue;
 
-				var first = info.AttackedIntegrity.GetComponent<CustomNetTransform>();
-				var second = blobStructure.GetComponent<CustomNetTransform>();
+				var first = info.AttackedIntegrity.GetComponent<UniversalObjectPhysics>();
+				var second = blobStructure.GetComponent<UniversalObjectPhysics>();
 
 				var posCache = pos + offset;
 
-				first.SetPosition(second.ServerPosition);
-				blobTiles[second.ServerPosition] = first.GetComponent<BlobStructure>();
+				first.AppearAtWorldPositionServer(second.transform.position);
+				blobTiles[second.transform.position.RoundToInt()] = first.GetComponent<BlobStructure>();
 				blobTiles[posCache] = blobStructure;
-				second.SetPosition(posCache);
+				second.AppearAtWorldPositionServer(posCache);
 
 				//If moved to node or core refresh areas
 				ResetArea(first.gameObject);
@@ -1782,7 +1814,7 @@ namespace Blob
 
 		private void SpreadDamageOut(DamageInfo info)
 		{
-			var pos = info.AttackedIntegrity.gameObject.WorldPosServer().RoundToInt();
+			var pos = info.AttackedIntegrity.gameObject.AssumedWorldPosServer().RoundToInt();
 
 			List<Integrity> blobIntegrities = new List<Integrity>();
 
@@ -1933,7 +1965,7 @@ namespace Blob
 			}
 			catch (Exception e)
 			{
-				Logger.LogError(e.ToString());
+				Loggy.Error(e.ToString());
 			}
 
 			pathSearch = false;
@@ -2092,6 +2124,34 @@ namespace Blob
 
 		#endregion
 
+		#region Rally
+
+		[Command]
+		public void CmdRally(Vector3Int worldPos)
+		{
+			var count = 0;
+
+			//15 tile radius
+			var amount = Physics2D.OverlapCircleNonAlloc(worldPos.To2(), 15, sporesArray, sporeLayerMask);
+
+			for (int i = 0; i < amount; i++)
+			{
+				var spore = sporesArray[i];
+				if (spore == null) continue;
+				if (spore.TryGetComponent<BlobAI>(out var blobAI) == false) continue;
+
+				//Only command our spores
+				if(blobAI.BlobStructure.overmindName != overmindName) continue;
+
+				blobAI.SetTarget(worldPos);
+				count++;
+			}
+
+			Chat.AddExamineMsgFromServer(gameObject, $"You command {count} of your underlings to move!");
+		}
+
+		#endregion
+
 		public string AdminInfoString()
 		{
 			var adminInfo = new StringBuilder();
@@ -2112,6 +2172,7 @@ namespace Blob
 		Factory,
 		Strong,
 		Reflective,
-		Normal
+		Normal,
+		Rally
 	}
 }

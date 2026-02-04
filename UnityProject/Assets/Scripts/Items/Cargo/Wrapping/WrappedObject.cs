@@ -29,7 +29,7 @@ namespace Items.Cargo.Wrapping
 				return;
 			}
 
-			MakeContentVisible();//Does what it says on the tin
+			MakeContentVisible(unwrapped);//Does what it says on the tin
 
 			//Remove the container which was being wrapped from storage
 			RetrieveObject(unwrapped,gameObject.AssumedWorldPosServer());
@@ -54,16 +54,18 @@ namespace Items.Cargo.Wrapping
 
 		public void SetContainerTypeSprite(ContainerTypeSprite type)
 		{
-			spriteHandler.ChangeSprite((int) type);
+			spriteHandler.SetCatalogueIndexSprite((int) type);
 		}
 
-		public void OnSpawnServer(SpawnInfo info)
+		public override void OnSpawnServer(SpawnInfo info)
 		{
+			base.OnSpawnServer(info);
+
 			if (info.SpawnType != SpawnType.Mapped) return;
 			SetContainerTypeSprite(typeSprite);
 		}
 
-		public void EntityTryEscape(GameObject entity, Action ifCompleted)
+		public void EntityTryEscape(GameObject entity, Action ifCompleted, MoveAction moveAction)
 		{
 			var container = GetOrGenerateContent();
 			container.GetComponent<IEscapable>().EntityTryEscape(entity, () =>
@@ -75,7 +77,7 @@ namespace Items.Cargo.Wrapping
 
 				//A successful escape assumes the container is now open, thus items must be released.
 				container.GetComponent<ObjectContainer>().RetrieveObjects();
-			});
+			}, moveAction);
 		}
 	}
 

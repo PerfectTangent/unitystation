@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Audio;
 using AddressableReferences;
-using Managers;
+using Core.Utils;
+using Logs;
+using Shared.Managers;
 
 namespace Audio.Containers
 {
@@ -20,38 +22,95 @@ namespace Audio.Containers
         [SerializeField] private AudioMixer audioMixer;
         public AudioMixerGroup MasterMixer;
         public AudioMixerGroup MusicMixer;
+        public AudioMixerGroup JukeboxMixer;
         public AudioMixerGroup SFXMixer;
         public AudioMixerGroup SFXMuffledMixer;
         public AudioMixerGroup AmbientMixer;
         public AudioMixerGroup TTSMixer;
+        public AudioMixerGroup TTSMixerRadio;
+        public AudioMixerGroup TTSMixerRobot;
+        public AudioMixerGroup GameplayMixer; //Affected by deafness and air pressure and all that stuff
 
-        private void Start()
+        public event Action<bool> AudioReflectionsToggled;
+        private bool enableAudioReflections = true;
+
+        public bool EnableAudioReflections
         {
-            MasterVolume(
-                PlayerPrefs.HasKey(PlayerPrefKeys.MasterVolumeKey)
-                    ? PlayerPrefs.GetFloat(PlayerPrefKeys.MasterVolumeKey)
-                    : 1f
-                );
-            AmbientVolume(
-                PlayerPrefs.HasKey(PlayerPrefKeys.AmbientVolumeKey)
-                    ? PlayerPrefs.GetFloat(PlayerPrefKeys.AmbientVolumeKey)
-                    : 0.8f
-                );
-            SoundFXVolume(
-                PlayerPrefs.HasKey(PlayerPrefKeys.SoundFXVolumeKey)
-                    ? PlayerPrefs.GetFloat(PlayerPrefKeys.SoundFXVolumeKey)
-                    : 0.8f
-                );
-            MusicVolume(
-                PlayerPrefs.HasKey(PlayerPrefKeys.MusicVolumeKey)
-                    ? PlayerPrefs.GetFloat(PlayerPrefKeys.MusicVolumeKey)
-                    : 0.8f
-                );
-            TtsVolume(
-                PlayerPrefs.HasKey(PlayerPrefKeys.TtsVolumeKey)
-                    ? PlayerPrefs.GetFloat(PlayerPrefKeys.TtsVolumeKey)
-                    : 0.8f
-                );
+	        get => enableAudioReflections;
+	        set => ToggleAudioReflections(value);
+        }
+
+        private void ToggleAudioReflections(bool value)
+        {
+	        AudioReflectionsToggled?.Invoke(value);
+	        enableAudioReflections = value;
+        }
+
+        private float GameplayVolumeLevel = 1;
+
+        public float gameplayVolumeLevel
+        {
+	        set
+	        {
+		        if (value > 1) //No earap please
+		        {
+			        GameplayVolumeLevel = 1;
+		        }
+		        else if ( value == 0)
+		        {
+			        GameplayVolumeLevel = 0.0001f; //Mathf.Log10(0) = Invalid number
+		        }
+
+		        else
+		        {
+			        GameplayVolumeLevel = value;
+		        }
+
+		        GameplayMixer.audioMixer.SetFloat("GameplayAudio_Volume", Mathf.Log10(GameplayVolumeLevel) * 20);
+	        }
+        }
+
+        public MultiInterestFloat MultiInterestFloat = new MultiInterestFloat( 1,MultiInterestFloat.RegisterBehaviour.Register0, MultiInterestFloat.FloatBehaviour.ReturnOn1 );
+
+        private void OnSetGameplayVolume(float vall)
+        {
+	        gameplayVolumeLevel = vall;
+        }
+
+        public override void Start()
+        {
+	        base.Start();
+	        MultiInterestFloat.OnFloatChange.AddListener(OnSetGameplayVolume);
+	        MasterVolume(
+		        PlayerPrefs.HasKey(PlayerPrefKeys.MasterVolumeKey)
+			        ? PlayerPrefs.GetFloat(PlayerPrefKeys.MasterVolumeKey)
+			        : 1f
+	        );
+	        AmbientVolume(
+		        PlayerPrefs.HasKey(PlayerPrefKeys.AmbientVolumeKey)
+			        ? PlayerPrefs.GetFloat(PlayerPrefKeys.AmbientVolumeKey)
+			        : 0.8f
+	        );
+	        SoundFXVolume(
+		        PlayerPrefs.HasKey(PlayerPrefKeys.SoundFXVolumeKey)
+			        ? PlayerPrefs.GetFloat(PlayerPrefKeys.SoundFXVolumeKey)
+			        : 0.8f
+	        );
+	        MusicVolume(
+		        PlayerPrefs.HasKey(PlayerPrefKeys.MusicVolumeKey)
+			        ? PlayerPrefs.GetFloat(PlayerPrefKeys.MusicVolumeKey)
+			        : 0.8f
+	        );
+	        TtsVolume(
+		        PlayerPrefs.HasKey(PlayerPrefKeys.TtsVolumeKey)
+			        ? PlayerPrefs.GetFloat(PlayerPrefKeys.TtsVolumeKey)
+			        : 0.8f
+	        );
+
+	        // ReSharper disable once SimplifyConditionalTernaryExpression
+	        EnableAudioReflections = PlayerPrefs.HasKey(PlayerPrefKeys.AudioReflectionsToggleKey)
+		        ? PlayerPrefs.GetInt(PlayerPrefKeys.AudioReflectionsToggleKey) == 1
+		        : true;
         }
 
         /// <summary>
@@ -163,20 +222,19 @@ namespace Audio.Containers
         //Make sure it is a valid Addressable AudioSource
         if (addressableAudioSource == null || addressableAudioSource == default(AddressableAudioSource))
             {
-                Logger.LogWarning("AudioManager recieved a null Addressable audio source, look at log trace for responsible component", Category.Audio);
+                Loggy.Warning("AudioManager recieved a null Addressable audio source, look at log trace for responsible component", Category.Audio);
                 return null;
             }
             if (string.IsNullOrEmpty(addressableAudioSource.AssetAddress))
             {
-                Logger.LogWarning("AudioManager received a null address for an addressable, look at log trace for responsible component", Category.Audio);
+                Loggy.Warning("AudioManager received a null address for an addressable, look at log trace for responsible component", Category.Audio);
                 return null;
             }
             if (addressableAudioSource.AssetAddress == "null")
             {
-                Logger.LogWarning("AudioManager received an addressable with an address set to the string 'null', look at log trace for responsible component", Category.Audio);
+                Loggy.Warning("AudioManager received an addressable with an address set to the string 'null', look at log trace for responsible component", Category.Audio);
                 return null;
             }
-            if (await addressableAudioSource.HasValidAddress() == false) return null;
 
             //Try to get the Audio Source from cache, if its not there load it into cache
             AddressableAudioSource addressableAudioSourceFromCache = null;
@@ -199,17 +257,17 @@ namespace Audio.Containers
 
             if (gameObject == null)
             {
-                Logger.LogError(
+                Loggy.Error(
                     $"AddressableAudioSource in AudioManager failed to load from address: {addressableAudioSourceFromCache.AssetAddress}",
-                    Category.Audio);
+                    Category.Audio, LogOption.NoStacktrace);
                 return null;
             }
 
             if (gameObject.TryGetComponent(out AudioSource audioSource) == false)
             {
-                Logger.LogError(
+                Loggy.Error(
                     $"AddressableAudioSource in AudioManager doesn't contain an AudioSource: {addressableAudioSourceFromCache.AssetAddress}",
-                    Category.Audio);
+                    Category.Audio, LogOption.NoStacktrace);
                 return null;
             }
 

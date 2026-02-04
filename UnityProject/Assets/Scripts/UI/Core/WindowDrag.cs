@@ -1,4 +1,4 @@
-﻿using System;
+﻿using Logs;
 using UnityEngine;
 
 public class WindowDrag : MonoBehaviour
@@ -7,26 +7,24 @@ public class WindowDrag : MonoBehaviour
 	/// Disable ability to drag the window
 	/// </summary>
 	public bool disableDrag = false;
-	public bool resetPositionOnDisable = false;
+
 	private float offsetX;
 	private float offsetY;
 	private Vector3 startPositon;
 	private RectTransform rectTransform;
 	private bool isReady = false;
 
+	private int UpdatedFrame = 0;
+
 	/// <summary>
 	/// Calculates and sets the initial window start position relative to the screen size.
 	/// Tells the OnRectTransformDimensionsChange() that this window object is set up and "isReady" to be clamped
 	/// within it's bounds.
 	/// </summary>
-	private void Start () {
+	private void Start ()
+	{
 		rectTransform = GetComponent<RectTransform>();
-
-		var cameraHeight = Camera.main.orthographicSize * 2.0f;
-		var cameraWidth = cameraHeight * Camera.main.aspect;
-		var worldPointResolution = new Vector3(cameraWidth, cameraHeight);
-		startPositon = new Vector3(	rectTransform.position.x / worldPointResolution.x,
-									rectTransform.position.y / worldPointResolution.y);;
+		startPositon = transform.localPosition;
 
 		isReady = true;
 	}
@@ -38,28 +36,25 @@ public class WindowDrag : MonoBehaviour
 
 	public void UpdateMe()
 	{
-		if (KeyboardInputManager.Instance.CheckKeyAction(KeyAction.ResetWindowPosition))
+		if (CustomNetworkManager.IsHeadless)
+		{
+			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+			return;
+		}
+
+		if (KeyboardInputManager.Instance.CheckKeyAction(KeyAction.ResetWindowPosition) && UIManager.IsInputFocus == false)
 		{
 			this.transform.localPosition = Vector3.zero;
+			this.transform.localScale = Vector3.one;
+
 		}
 	}
 
 	/// <summary>
 	/// Resets the window to its start position relative to the screen size.
 	/// </summary>
-	private void OnDisable () {
-		if (Camera.main == null || !isReady)
-		{
-			return;
-		}
-		var cameraHeight = Camera.main.orthographicSize * 2.0f;
-		var cameraWidth = cameraHeight * Camera.main.aspect;
-		var worldPointResolution = new Vector3(cameraWidth, cameraHeight);
-		if (resetPositionOnDisable)
-		{
-			rectTransform.position = new Vector3(	startPositon.x * worldPointResolution.x,
-													startPositon.y * worldPointResolution.y);
-		}
+	private void OnDisable ()
+	{
 		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
 	}
 
@@ -88,6 +83,11 @@ public class WindowDrag : MonoBehaviour
 		ClampWindowPosition(offsetX + CommonInput.mousePosition.x, offsetY + CommonInput.mousePosition.y);
 	}
 
+	public virtual void DragEnd()
+	{
+
+	}
+
 	/// <summary>
 	/// Moves and Clamps the window.
 	/// </summary>
@@ -95,6 +95,8 @@ public class WindowDrag : MonoBehaviour
 	/// <param name="y">The window's Y coordinate world position to be clamped.</param>
 	private void ClampWindowPosition(float x, float y)
 	{
+		if (UpdatedFrame == Time.frameCount) return;
+		UpdatedFrame = Time.frameCount;
 		var windowSize = rectTransform.sizeDelta;
 		var windowScale = rectTransform.lossyScale;
 
@@ -106,11 +108,23 @@ public class WindowDrag : MonoBehaviour
 
 		transform.position = new Vector3(
 			Mathf.Clamp(x,
-				windowWidth * widthScale * -0.4f,
-				Screen.width - windowWidth * widthScale * -0.4f),
+				windowWidth * widthScale * -0.1f,
+				Screen.width - windowWidth * widthScale * -0.1f),
 			Mathf.Clamp(y,
-				windowHeight * heightScale * -0.4f,
-				Screen.height - windowHeight * heightScale * -0.4f));
+				windowHeight * heightScale * -0.1f,
+				Screen.height - windowHeight * heightScale * -0.1f));
+
+		// Check if the scroll wheel is being scrolled
+		float scrollInput = Input.GetAxis("Mouse ScrollWheel");
+
+		if (scrollInput > 0f)
+		{
+			transform.localScale += Vector3.one*0.1f;
+		}
+		else if (scrollInput < 0f)
+		{
+			transform.localScale -= Vector3.one*0.1f;
+		}
 	}
 
 	/// <summary>

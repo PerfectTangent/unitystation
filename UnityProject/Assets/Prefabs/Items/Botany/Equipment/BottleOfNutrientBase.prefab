@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2953435279983986442, guid: e29b1fbcef2694d41b261271fecf09dc,
@@ -86,6 +87,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3424172302466455004, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
+      propertyPath: _assetId
+      value: 1735342661
+      objectReference: {fileID: 0}
+    - target: {fileID: 3424172302466455004, guid: e29b1fbcef2694d41b261271fecf09dc,
+        type: 3}
       propertyPath: m_AssetId
       value: 752790e3dadac94449e7417e35974da5
       objectReference: {fileID: 0}
@@ -106,38 +112,48 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[0]
+      propertyPath: 'possibleTransferAmounts.Array.data[0]'
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[1]
+      propertyPath: 'possibleTransferAmounts.Array.data[1]'
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[2]
+      propertyPath: 'possibleTransferAmounts.Array.data[2]'
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[3]
+      propertyPath: 'possibleTransferAmounts.Array.data[3]'
       value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[4]
+      propertyPath: 'possibleTransferAmounts.Array.data[4]'
       value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[5]
+      propertyPath: 'possibleTransferAmounts.Array.data[5]'
       value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 4556275883868545216, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
-      propertyPath: possibleTransferAmounts.Array.data[6]
+      propertyPath: 'possibleTransferAmounts.Array.data[6]'
       value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 5638393689713293525, guid: e29b1fbcef2694d41b261271fecf09dc,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 944097277737508337}
+    - target: {fileID: 8551094262549914629, guid: e29b1fbcef2694d41b261271fecf09dc,
+        type: 3}
+      propertyPath: parentID
+      value: e29b1fbcef2694d41b261271fecf09dc
       objectReference: {fileID: 0}
     - target: {fileID: 8551094262549914629, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
@@ -146,9 +162,29 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8887625435062604783, guid: e29b1fbcef2694d41b261271fecf09dc,
         type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 5619453877162934827}
+    - target: {fileID: 8887625435062604783, guid: e29b1fbcef2694d41b261271fecf09dc,
+        type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: f717a8232afd319489869fc52fa63a4d,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e29b1fbcef2694d41b261271fecf09dc, type: 3}
+--- !u!212 &944097277737508337 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 7784065591889724654, guid: e29b1fbcef2694d41b261271fecf09dc,
+    type: 3}
+  m_PrefabInstance: {fileID: 6997631829194348831}
+  m_PrefabAsset: {fileID: 0}
+--- !u!212 &5619453877162934827 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 3233824869894691636, guid: e29b1fbcef2694d41b261271fecf09dc,
+    type: 3}
+  m_PrefabInstance: {fileID: 6997631829194348831}
+  m_PrefabAsset: {fileID: 0}

@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2961199095919592321, guid: a4d736b34e26278479563c6bf5f121ce,
@@ -13,6 +14,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 31b2e0a93a1095944a97eca03d2d04d9,
         type: 3}
+    - target: {fileID: 3061756049588866409, guid: a4d736b34e26278479563c6bf5f121ce,
+        type: 3}
+      propertyPath: _assetId
+      value: 3504941565
+      objectReference: {fileID: 0}
     - target: {fileID: 3061756049588866409, guid: a4d736b34e26278479563c6bf5f121ce,
         type: 3}
       propertyPath: m_AssetId
@@ -34,6 +40,12 @@ PrefabInstance:
       value: A special beret with the security insignia emblazoned on it. For officers
         with class.
       objectReference: {fileID: 0}
+    - target: {fileID: 3243759188309319615, guid: a4d736b34e26278479563c6bf5f121ce,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 777ca6794cba43f4ba836908a3c1009c,
+        type: 2}
     - target: {fileID: 4760672335869315065, guid: a4d736b34e26278479563c6bf5f121ce,
         type: 3}
       propertyPath: m_Name
@@ -123,6 +135,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8309993002612325552, guid: a4d736b34e26278479563c6bf5f121ce,
         type: 3}
+      propertyPath: parentID
+      value: a4d736b34e26278479563c6bf5f121ce
+      objectReference: {fileID: 0}
+    - target: {fileID: 8309993002612325552, guid: a4d736b34e26278479563c6bf5f121ce,
+        type: 3}
       propertyPath: foreverID
       value: 14669856ddf44564fac40935a5a8e2b4
       objectReference: {fileID: 0}
@@ -138,7 +155,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8328428895886091096, guid: a4d736b34e26278479563c6bf5f121ce,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 011c4106e4c20554cafebb325e68389c,
         type: 2}
@@ -148,5 +165,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 777ca6794cba43f4ba836908a3c1009c,
         type: 2}
+    - target: {fileID: 9128691201056787290, guid: a4d736b34e26278479563c6bf5f121ce,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 777ca6794cba43f4ba836908a3c1009c,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a4d736b34e26278479563c6bf5f121ce, type: 3}

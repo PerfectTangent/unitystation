@@ -1,12 +1,115 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &1540312023783181917
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 8387353560818754502}
+    m_Modifications:
+    - target: {fileID: 1026805179645545838, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_Name
+      value: Light2DSpriteHandler
+      objectReference: {fileID: 0}
+    - target: {fileID: 2350732908105580628, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 7d4ab37af9168d243a3eead2ef5b5758,
+        type: 3}
+    - target: {fileID: 2350732908105580628, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: Color.a
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 008a771b03bf6b144b9afdbb0cc216c6, type: 3}
+--- !u!114 &414104667711623215 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1215826350432345714, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+    type: 3}
+  m_PrefabInstance: {fileID: 1540312023783181917}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6510c9b95b6fa3498b97083dcdd5e89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &3262876942734159776 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4046581938413593085, guid: 008a771b03bf6b144b9afdbb0cc216c6,
+    type: 3}
+  m_PrefabInstance: {fileID: 1540312023783181917}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &5634703418540122965
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 951381747229521920, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      propertyPath: parentID
+      value: ebb08cf966efc084aa918bd8d9429604
+      objectReference: {fileID: 0}
     - target: {fileID: 951381747229521920, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
       propertyPath: foreverID
@@ -66,17 +169,17 @@ PrefabInstance:
     - target: {fileID: 4204006106222477459, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4204006106222477459, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4204006106222477459, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4204006106222477459, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
@@ -102,6 +205,11 @@ PrefabInstance:
         type: 3}
       propertyPath: initialPassable
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5737521361753715499, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      propertyPath: _assetId
+      value: 2376706792
       objectReference: {fileID: 0}
     - target: {fileID: 5737521361753715499, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
@@ -136,7 +244,56 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 2d8ef782faad5e045a885b4ed1697cd1,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 4204006106222477459, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3262876942734159776}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -6392628326379791579}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3033393858997830747}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4059444369323570419}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5255741207357749315}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5478961262237790931}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9056394620644044228}
   m_SourcePrefab: {fileID: 100100000, guid: ebb08cf966efc084aa918bd8d9429604, type: 3}
+--- !u!114 &913600146378425684 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4800765294880679425, guid: ebb08cf966efc084aa918bd8d9429604,
+    type: 3}
+  m_PrefabInstance: {fileID: 5634703418540122965}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8390320911816615196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a459a0316cc4d5b87d046f28dc136c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &8387353560818754502 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4204006106222477459, guid: ebb08cf966efc084aa918bd8d9429604,
+    type: 3}
+  m_PrefabInstance: {fileID: 5634703418540122965}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &8390320911816615196 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
@@ -162,11 +319,14 @@ MonoBehaviour:
   itemStoragePopulator: {fileID: 11400000, guid: 572919feded9e5a4c8717df84f50a1f9,
     type: 2}
   forceSpawnContents: 1
+  ManuallySpawnContent: 0
   dropItemsOnDespawn: 0
   UesAddlistPopulater: 0
   Populater:
     SlotContents: []
     DeprecatedContents: []
+  SetSlotItemNotRemovableOnStartUp: 0
+  ignoreRoundstartGrabObjects: 0
   ashPrefab: {fileID: 0}
 --- !u!114 &3033393858997830747
 MonoBehaviour:
@@ -180,10 +340,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6adedb9416d7b647b6c3811ff2f0824, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxCapacity: 100
+  ReactionSounds: 1
+  maxCapacity: 240
+  DEBUGReagent: {fileID: 0}
+  DEBUGAmount: 0
   reactionSet: {fileID: 11400000, guid: 2d5f766d9268838aa8d819bee2a442a7, type: 2}
   AdditionalReactions: []
-  canPourOut: 1
   initialReagentMix:
     temperature: 293.15
     reagents:
@@ -194,14 +356,18 @@ MonoBehaviour:
     reagentKeys: []
   destroyOnEmpty: 0
   ContentsSet: 0
+  menuOptions: -1
+  spriteHandler: {fileID: 0}
   UseStandardExamine: 1
   ExamineAmount: 0
   ExamineContent: 0
   traitWhitelist: []
   reagentWhitelist: []
   transferMode: 0
+  SyringePulling: 0
   possibleTransferAmounts: []
   transferAmount: 20
+  transferSound: []
 --- !u!114 &4059444369323570419
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -214,11 +380,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff9632be38569c1479a5e962ace88b8c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   OutPuttingRadiation: 0
-  color: {r: 0, g: 0, b: 0, a: 0}
-  DotSprite: {fileID: 21300000, guid: 7d4ab37af9168d243a3eead2ef5b5758, type: 3}
+  color: {r: 0, g: 1, b: 0.24704361, a: 0}
+  lightSprite: {fileID: 414104667711623215}
   SynchroniseStrength: 0
 --- !u!114 &5255741207357749315
 MonoBehaviour:
@@ -238,11 +405,14 @@ MonoBehaviour:
     type: 2}
   itemStoragePopulator: {fileID: 0}
   forceSpawnContents: 0
+  ManuallySpawnContent: 0
   dropItemsOnDespawn: 0
   UesAddlistPopulater: 0
   Populater:
     SlotContents: []
     DeprecatedContents: []
+  SetSlotItemNotRemovableOnStartUp: 0
+  ignoreRoundstartGrabObjects: 0
   ashPrefab: {fileID: 0}
 --- !u!114 &5478961262237790931
 MonoBehaviour:
@@ -256,6 +426,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8e0d5635150f1249ad97e8674c561c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
   spritehandler: {fileID: 0}
   SpawnOnDeconstruct: {fileID: 0}
   registerTile: {fileID: 0}
@@ -264,23 +437,29 @@ MonoBehaviour:
     Connections:
       Directions:
       - Bool: 1
+        MappedNeeded: 0
         pipeType: 1
         PortType: 3
         flagLogic: 0
       - Bool: 1
+        MappedNeeded: 0
         pipeType: 1
         PortType: 3
         flagLogic: 0
       - Bool: 1
+        MappedNeeded: 0
         pipeType: 1
         PortType: 3
         flagLogic: 0
       - Bool: 1
+        MappedNeeded: 0
         pipeType: 1
         PortType: 3
         flagLogic: 0
     CustomLogic: 0
     NetCompatible: 0
+    SelfSufficient: 0
+    MappingNotRequiresLink: 0
     mixAndVolume:
       mix:
         temperature: 273.15
@@ -291,15 +470,14 @@ MonoBehaviour:
       gasMix:
         GasData:
           GasesArray: []
-        Pressure: 0
+        pressure: 0
         Volume: 50
-        Temperature: 0
+        temperature: 0
     MonoPipe: {fileID: 0}
   Colour: {r: 1, g: 1, b: 1, a: 1}
   spawnedFromItem: 1
   directional: {fileID: 0}
-  Water: {fileID: 11400000, guid: 522665e55a63647f6a9959f4b0a52c31, type: 2}
-  ConnectedCores: []
+  reservoirVolume: 240
 --- !u!114 &9056394620644044228
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -324,9 +502,9 @@ MonoBehaviour:
   RodStorage: {fileID: 5255741207357749315}
   PipeStorage: {fileID: -6392628326379791579}
   PipeItemTrait: {fileID: 11400000, guid: 066fee8b180af6c47a2bf6cb99f725a5, type: 2}
-  LikelihoodOfSpontaneousNeutron: 0.1
-  radiationProducer: {fileID: 0}
-  ReactorPipe: {fileID: 0}
+  radiationProducer: {fileID: 4059444369323570419}
+  registerObject: {fileID: 913600146378425684}
+  ReactorPipe: {fileID: 5478961262237790931}
   ReactorRods:
   - {fileID: 0}
   - {fileID: 0}
@@ -346,7 +524,12 @@ MonoBehaviour:
   - {fileID: 0}
   ReactorFuelRods: []
   ReactorEngineStarters: []
+  HasEnrichedRod: 0
   ControlRodDepthPercentage: 1
-  RodMeltingTemperatureK: 1100
+  RodMeltingTemperatureK: 2200
   MeltedDown: 0
   PoppedPipes: 0
+  Corium: {fileID: 2574638943807976213, guid: e641b27549abd354084e3b8403810249, type: 3}
+  <CanRelink>k__BackingField: 1
+  <IgnoreMaxDistanceMapper>k__BackingField: 0
+  ConnectedConsoles: []

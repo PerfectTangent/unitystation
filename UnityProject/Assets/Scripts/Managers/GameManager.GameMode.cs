@@ -2,7 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using GameModes;
+using Logs;
 using UnityEngine;
+using Category = Logs.Category;
+using System;
+using Action = System.Action;
 
 /// <summary>
 /// Represents what state the round is in: PreRound, Started or Ended
@@ -47,48 +51,69 @@ public partial class GameManager
 		set
 		{
 			currentRoundState = value;
-			Logger.LogFormat("CurrentRoundState is now {0}!", Category.Round, value);
+			Loggy.Info().Format("CurrentRoundState is now {0}!", Category.Round, value);
+			OnCurrentRoundStateChange?.Invoke();
 		}
 	}
 
 	private RoundState currentRoundState;
 
+	public event Action OnCurrentRoundStateChange;
+
 	/// <summary>
 	/// The current game mode
 	/// </summary>
-	private GameMode GameMode;
+	public GameMode GameMode { get; set; }
 
 	/// <summary>
 	/// Sets the current gamemode using a string to find the gamemode name
 	/// </summary>
-	public void SetGameMode(string gmName)
+	private void SetGameMode(string gmName)
 	{
-		GameMode selectedGM = GameModeData.GetGameMode(gmName);
-		SetGameMode(selectedGM);
+		if (ForceExtendedGameMode)
+		{
+			SetGameMode(GameModeData.ExtendedReference);
+			return;
+		}
+		GameMode selectedGm = GameModeData.GetGameMode(gmName, AllowExtendedGameMode);
+		SetGameMode(selectedGm);
 	}
 
 	public List<string> GetAvailableGameModeNames()
 	{
-		return GameModeData.GetAvailableGameModeNames();
+		return GameModeData.GetAvailableGameModeNames(AllowExtendedGameMode);
 	}
 
 	/// <summary>
 	/// Sets the current gamemode
 	/// </summary>
-	public void SetGameMode(GameMode gm)
+	public void SetGameMode(GameMode gm, bool copy = false)
 	{
-		Logger.Log($"Set game mode to: {gm.Name}", Category.GameMode);
-		GameMode = gm;
+		var target = gm;
+		if (copy)
+		{
+			target = Instantiate(gm);
+		}
+		Loggy.Info($"Set game mode to: {gm.Name}", Category.GameMode);
+		GameMode = target;
+	}
+
+	/// <summary>
+	/// Shuffles a list of game modes then iterate through by round ( If not possible skips)
+	/// </summary>
+	private void PickFromCarouselGameMode()
+	{
+		GameMode randomGm = GameModeData.PickFromCarouselGameMode(AllowExtendedGameMode);
+		SetGameMode(randomGm);
 	}
 
 	/// <summary>
 	/// Sets a random gamemode which is currently possible
 	/// </summary>
-	public void SetRandomGameMode()
+	private void SetRandomGameMode()
 	{
-		// TODO add precondition checks
-		GameMode randomGM = GameModeData.ChooseGameMode();
-		SetGameMode(randomGM);
+		GameMode randomGm = GameModeData.ChooseGameMode(AllowExtendedGameMode);
+		SetGameMode(randomGm);
 	}
 
 	/// <summary>

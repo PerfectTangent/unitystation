@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 951381747229521920, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      propertyPath: parentID
+      value: ebb08cf966efc084aa918bd8d9429604
+      objectReference: {fileID: 0}
     - target: {fileID: 951381747229521920, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
       propertyPath: foreverID
@@ -95,6 +101,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5737521361753715499, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
+      propertyPath: _assetId
+      value: 525386650
+      objectReference: {fileID: 0}
+    - target: {fileID: 5737521361753715499, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
       propertyPath: m_AssetId
       value: 8c393ccc08d534149b66f4fe18918959
       objectReference: {fileID: 0}
@@ -115,6 +126,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8652228875761003667, guid: ebb08cf966efc084aa918bd8d9429604,
         type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 4304180311779300699}
+    - target: {fileID: 8652228875761003667, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 28fa26e382f576f4aa2b4803a3438d79,
@@ -124,7 +140,32 @@ PrefabInstance:
       propertyPath: pushTextureOnStartUp
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8652228875761003667, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 28fa26e382f576f4aa2b4803a3438d79,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 920750954501265186}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1176621653906038256}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1893479570939797406}
+    - targetCorrespondingSourceObject: {fileID: 4197940402254186057, guid: ebb08cf966efc084aa918bd8d9429604,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3582693408804968190}
   m_SourcePrefab: {fileID: 100100000, guid: ebb08cf966efc084aa918bd8d9429604, type: 3}
 --- !u!1 &4097072626232324428 stripped
 GameObject:
@@ -144,6 +185,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f382852d80b4a434f9d53c414fc2d72b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   Node: {fileID: 0}
@@ -173,6 +215,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8bcb4d76605debd40aa28d5b8fcfc99a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
   registerTile: {fileID: 0}
@@ -190,11 +233,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aedda63e7d1cb2b41b8541c6fd7c0d52, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moduleSupplyingDevice: {fileID: 0}
+  moduleSupplyingDevice: {fileID: 3582693408804968190}
   ConstructMaterial: {fileID: 5331286249588652700, guid: 29ecbf5a1d918574cbcf5853927e0944,
     type: 3}
   droppedMaterialAmount: 25
   Boiler: {fileID: 0}
+  <CanRelink>k__BackingField: 1
+  <IgnoreMaxDistanceMapper>k__BackingField: 0
 --- !u!114 &3582693408804968190
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -215,6 +260,12 @@ MonoBehaviour:
   PreviousSupplyingVoltage: 0
   SupplyingVoltage: 0
   PreviousInternalResistance: 0
-  InternalResistance: 0
+  InternalResistance: 1e+10
   PreviousProducingWatts: 0
   ProducingWatts: 0
+--- !u!212 &4304180311779300699 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 4116897424394887774, guid: ebb08cf966efc084aa918bd8d9429604,
+    type: 3}
+  m_PrefabInstance: {fileID: 187371441322391301}
+  m_PrefabAsset: {fileID: 0}

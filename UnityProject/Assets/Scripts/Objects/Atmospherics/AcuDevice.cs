@@ -1,6 +1,7 @@
+using Logs;
 using UnityEngine;
 using Systems.Atmospherics;
-using Systems.ObjectConnection;
+using Shared.Systems.ObjectConnection;
 
 namespace Objects.Atmospherics
 {
@@ -28,18 +29,25 @@ namespace Objects.Atmospherics
 		public AirController Controller;
 
 		private IAcuControllable device;
-
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
 		private void Awake()
 		{
 			device = GetComponent<IAcuControllable>();
 			if (device == null)
 			{
-				Logger.LogError($"{this} has no component that implements {nameof(IAcuControllable)}!");
+				Loggy.Error($"{this} has no component that implements {nameof(IAcuControllable)}!");
 			}
 		}
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
+			if (Controller == null) return;
+			Controller.AddSlave(device);
+		}
+
+		public void Start()
+		{
+			if (CustomNetworkManager.IsServer == false) return;
 			if (Controller == null) return;
 			Controller.AddSlave(device);
 		}
@@ -56,7 +64,7 @@ namespace Objects.Atmospherics
 		bool IMultitoolSlaveable.RequireLink => true;
 		IMultitoolMasterable IMultitoolSlaveable.Master => Controller;
 
-		bool IMultitoolSlaveable.TrySetMaster(PositionalHandApply interaction, IMultitoolMasterable master)
+		bool IMultitoolSlaveable.TrySetMaster(GameObject performer, IMultitoolMasterable master)
 		{
 			SetMaster(master);
 

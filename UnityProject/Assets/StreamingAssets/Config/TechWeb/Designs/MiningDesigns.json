@@ -1,0 +1,210 @@
+[
+    {
+        "Internal_ID": "drill",
+        "Description": "Yours is the drill that will pierce through the rock walls.",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 6000,
+            "Glass": 1000
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Mining Drill",
+        "Item_ID": "4d508ff5a5539124bb4e3e4c33ff3dda"
+    },
+    {
+        "Internal_ID": "drill_diamond",
+        "Description": "Yours is the drill that will pierce the heavens!",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 6000,
+            "Glass": 1000,
+            "Diamond": 2000
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Diamond-Tipped Mining Drill",
+        "Item_ID": "249e10edcbf912247bd1c3d83556b212"
+    },
+    {
+        "Internal_ID": "plasma_cutter",
+        "Description": "You could use it to cut limbs off of xenos! Or, you know, mine stuff.",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 1500,
+            "Glass": 500,
+            "Plasma": 400
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Plasma Cutter",
+        "Item_ID": "a12add7b219842843b678dec171704cb"
+    },
+    {
+        "Internal_ID": "plasma_cutter_adv",
+        "Description": "It's an advanced plasma cutter, oh my god.",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 3000,
+            "Glass": 1000,
+            "Plasma": 2000,
+            "Gold": 500
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Advanced Plasma Cutter",
+        "Item_ID": "68c7b6dad32feca469be42d0964a1446"
+    },
+    {
+        "Internal_ID": "jackhammer",
+        "Description": "Essentially a handheld planet-cracker. Can drill through walls with ease as well.",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 6000,
+            "Glass": 2000,
+            "Silver": 2000,
+            "Diamond": 6000
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Sonic Jackhammer",
+        "Item_ID": "fa482ab3865ec5d4483cc2d9c5d214fd"
+    },
+    {
+        "Internal_ID": "pkc",
+        "Description": "",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 4000,
+            "Titanium": 1500,
+            "Silver": 1000,
+            "Plasma": 2000,
+            "Diamond": 500
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Protokinetic Crusher",
+        "Item_ID": "3f3c69eb80c13d439a7659f6834b091a"
+    },
+    {
+        "Internal_ID": "pkm",
+        "Description": "",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 4000,
+            "Titanium": 1500,
+            "Silver": 1000,
+            "Plasma": 2000,
+            "Diamond": 500
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Protokinetic Machete",
+        "Item_ID": "666c5c565a732ea67bf4663cc41523a7"
+    },
+    {
+        "Internal_ID": "pks",
+        "Description": "",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 4000,
+            "Titanium": 1500,
+            "Silver": 1000,
+            "Plasma": 2000,
+            "Diamond": 500
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Protokinetic Spear",
+        "Item_ID": "5984b6b1238658f699b76c51128517fd"
+    },
+    {
+        "Internal_ID": "pkclaw",
+        "Description": "",
+        "Category": [
+            "Mining Designs",
+            "Tools"
+        ],
+        "Materials": {
+            "Metal": 4000,
+            "Titanium": 1500,
+            "Silver": 1000,
+            "Plasma": 2000,
+            "Diamond": 500
+        },
+        "Machinery_type": [
+            "ProtoLathe"
+        ],
+        "Compatible_machinery": [
+            "Cargo",
+            "Science"
+        ],
+        "name": "Protokinetic Claw",
+        "Item_ID": "2fc8d8b0b72dd19b5be339b34449cb86"
+    }
+    
+]

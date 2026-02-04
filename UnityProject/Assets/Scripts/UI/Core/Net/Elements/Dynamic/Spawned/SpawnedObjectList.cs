@@ -1,5 +1,6 @@
 
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 
 namespace UI.Core.NetUI
@@ -16,7 +17,7 @@ namespace UI.Core.NetUI
 			//fixme: duplicate of RadarList code:
 			var objectSet = new HashSet<GameObject>(objects);
 			var duplicates = new HashSet<GameObject>();
-			for (var i = 0; i < Entries.Length; i++)
+			for (var i = 0; i < Entries.Count; i++)
 			{
 				var item = Entries[i] as SpawnedObjectEntry;
 				if (!item)
@@ -43,7 +44,7 @@ namespace UI.Core.NetUI
 				SpawnedObjectEntry newEntry = Add() as SpawnedObjectEntry;
 				if (!newEntry)
 				{
-					Logger.LogWarning($"SpawnedObjectList: Added {newEntry} is not an SpawnedObjectEntry!", Category.NetUI);
+					Loggy.Warning($"SpawnedObjectList: Added {newEntry} is not an SpawnedObjectEntry!", Category.NetUI);
 					return false;
 				}
 
@@ -53,7 +54,7 @@ namespace UI.Core.NetUI
 			}
 
 			//rescan elements and notify
-			NetworkTabManager.Instance.Rescan(MasterTab.NetTabDescriptor);
+			NetworkTabManager.Instance.Rescan(containedInTab.NetTabDescriptor);
 			//		RefreshTrackedPos();
 
 			return true;

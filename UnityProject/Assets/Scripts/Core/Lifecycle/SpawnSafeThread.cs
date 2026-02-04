@@ -27,17 +27,20 @@ public static class SpawnSafeThread
 				if (result.Successful && data.AmountIfStackable > 1 &&
 				    result.GameObject.TryGetComponent<Stackable>(out var stackable))
 				{
-					// -1 as we are adding, eg if we want 10 in stack, item already starts at 1 so we add 9
-					stackable.ServerIncrease(data.AmountIfStackable - 1);
+					if (data.AmountIfStackable + stackable.InitialAmount <= stackable.MaxAmount)
+					{
+						// stackable.InitialAmount as we are adding, eg if we want 10 in stack, item already starts at 1 so we add 9
+						stackable.ServerIncrease(data.AmountIfStackable - stackable.InitialAmount);
+					}
 				}
 			}
 		}
 	}
 
-	public static void SpawnPrefab(Vector3 tilePos, GameObject prefabObject, Transform parentTransform = null,
+	public static void SpawnPrefab(Vector3 tileWorldPos, GameObject prefabObject, Transform parentTransform = null,
 		int amount = 1, int amountIfStackable = 0)
 	{
-		prefabsToSpawn.Enqueue(new SpawnSafeThreadData(tilePos, prefabObject, parentTransform, amount,
+		prefabsToSpawn.Enqueue(new SpawnSafeThreadData(tileWorldPos, prefabObject, parentTransform, amount,
 			amountIfStackable));
 	}
 }

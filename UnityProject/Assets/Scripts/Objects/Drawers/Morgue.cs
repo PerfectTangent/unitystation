@@ -18,11 +18,11 @@ namespace Objects.Drawers
 		private enum MorgueState
 		{
 			/// <summary> Yellow morgue lights. </summary>
-			ShutWithItems = 3,
+			ShutWithItems = 2,
 			/// <summary> Green morgue lights. </summary>
-			ShutWithBraindead = 4,
+			ShutWithBraindead = 3,
 			/// <summary> Red morgue lights. </summary>
-			ShutWithPlayer = 2
+			ShutWithPlayer = 4
 		}
 
 		[SerializeField] private AddressableAudioSource emaggedSound;
@@ -40,16 +40,18 @@ namespace Objects.Drawers
 		// Delay between alarm sounds, in seconds.
 		private const int ALARM_PERIOD = 5;
 
-		private bool consciousnessPresent = false;
+		private bool ConsciousnessPresent => players.Any(player => player.Mind != null && player.Mind.IsOnline() && player.Mind.CurrentPlayScript == player );
 		private bool buzzerEnabled = ALARM_SYSTEM_ENABLED;
 		private bool alarmBroken = false;
 		private bool alarmRunning = false;
+
+		private List<PlayerScript> players = new List<PlayerScript>();
 
 		#region Interactions
 
 		public override bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Screwdriver)) return true;
 			if (Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Emag)) return true;
@@ -127,11 +129,11 @@ namespace Objects.Drawers
 
 		private void UpdateCloseState()
 		{
-			var players = container.GetStoredObjects().Select(obj => obj.GetComponent<PlayerScript>()).Where(script => script != null);
+			players = container.GetStoredObjects().Select(obj => obj.GetComponent<PlayerScript>()).Where(script => script != null).ToList();
 			// Player mind can be null if player was respawned as the old body mind is nulled
-			consciousnessPresent = players.Any(player => player.mind != null && player.mind.IsOnline());
 
-			if (consciousnessPresent && !alarmBroken)
+
+			if (ConsciousnessPresent && !alarmBroken)
 			{
 				SetDrawerState((DrawerState)MorgueState.ShutWithPlayer);
 				StartCoroutine(PlayAlarm());
@@ -155,7 +157,7 @@ namespace Objects.Drawers
 			if (!ALARM_SYSTEM_ENABLED || alarmRunning) yield break;
 
 			alarmRunning = true;
-			while (consciousnessPresent && buzzerEnabled && !alarmBroken)
+			while (ConsciousnessPresent && buzzerEnabled && !alarmBroken)
 			{
 				SoundManager.PlayNetworkedAtPos(consciousnessAlarmSound, DrawerWorldPosition, sourceObj: gameObject);
 				yield return WaitFor.Seconds(ALARM_PERIOD);

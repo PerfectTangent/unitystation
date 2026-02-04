@@ -4,6 +4,7 @@ using UnityEngine;
 using Systems.Spells;
 using ScriptableObjects.Systems.Spells;
 using Items.Bureaucracy;
+using Logs;
 
 namespace Items.Magical
 {
@@ -17,11 +18,11 @@ namespace Items.Magical
 		[SerializeField]
 		private SpellData spell = default;
 
-		protected override bool TryReading(ConnectedPlayer player)
+		protected override bool TryReading(PlayerInfo player)
 		{
-			if (player.Script.mind.HasSpell(spell))
+			if (player.Mind.HasSpell(spell))
 			{
-				if (player.Script.mind.IsOfAntag<Antagonists.Wizard>())
+				if (player.Mind.IsOfAntag<Antagonists.Wizard>())
 				{
 					Chat.AddExamineMsgFromServer(player.GameObject,
 							"You're already far more versed in this spell than this flimsy how-to book can provide!");
@@ -44,7 +45,7 @@ namespace Items.Magical
 			return true;
 		}
 
-		protected override void FinishReading(ConnectedPlayer player)
+		protected override void FinishReading(PlayerInfo player)
 		{
 			LearnSpell(player);
 			base.FinishReading(player);
@@ -55,17 +56,17 @@ namespace Items.Magical
 			}
 		}
 
-		private void LearnSpell(ConnectedPlayer player)
+		private void LearnSpell(PlayerInfo player)
 		{
 			// TODO: Play "Blind" SFX once sound freeze is lifted.
-			Chat.AddChatMsgToChat(player, spell.InvocationMessage, ChatChannel.Local, Loudness.SCREAMING);
+			Chat.AddChatMsgToChatServer(player, spell.InvocationMessage, ChatChannel.Local, Loudness.SCREAMING);
 			Chat.AddExamineMsgFromServer(player.GameObject, $"You feel like you've experienced enough to cast <b>{spell.Name}</b>!");
 
-			var learnedSpell = spell.AddToPlayer(player.Script);
-			player.Script.mind.AddSpell(learnedSpell);
+			var learnedSpell = spell.AddToPlayer(player.Mind);
+			player.Mind.AddSpell(learnedSpell);
 		}
 
-		private void Punish(ConnectedPlayer player)
+		private void Punish(PlayerInfo player)
 		{
 			if (gameObject.TryGetComponent<SpellBookPunishment>(out var punishment))
 			{
@@ -73,7 +74,7 @@ namespace Items.Magical
 			}
 			else
 			{
-				Logger.LogWarning($"No punishment found for {this}!", Category.Spells);
+				Loggy.Warning($"No punishment found for {this}!", Category.Spells);
 			}
 		}
 	}

@@ -1,5 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using AddressableReferences;
+using JetBrains.Annotations;
+using Logs;
+using Mirror;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -21,32 +24,44 @@ namespace Chemistry.Components
 		NoTransfer = 4
 	}
 
-	public partial class ReagentContainer : ICheckedInteractable<HandApply>, //Transfer: active hand <-> object in the world
+	public partial class ReagentContainer :
+		ICheckedInteractable<HandApply>, //Transfer: active hand <-> object in the world
 		ICheckedInteractable<HandActivate>, //Activate to change transfer amount
 		ICheckedInteractable<InventoryApply> //Transfer: active hand <-> other hand
 	{
 		[Header("Transfer settings")]
-
 		[Tooltip("If not empty, another container should have one of this traits to interact")]
 		[FormerlySerializedAs("TraitWhitelist")]
 		[FormerlySerializedAs("AcceptedTraits")]
-		[SerializeField] private List<ItemTrait> traitWhitelist = new List<ItemTrait>();
+		[SerializeField]
+		private List<ItemTrait> traitWhitelist = new List<ItemTrait>();
 
 		[Tooltip("If not empty, only listed reagents can be inside container")]
 		[FormerlySerializedAs("ReagentWhitelist")]
 		[FormerlySerializedAs("AcceptedReagents")]
-		[SerializeField] private List<Reagent> reagentWhitelist = new List<Reagent>();
+		[SerializeField]
+		private List<Reagent> reagentWhitelist = new List<Reagent>();
 
-		[FormerlySerializedAs("TransferMode")]
-		[SerializeField] private TransferMode transferMode = TransferMode.Normal;
+		[FormerlySerializedAs("TransferMode")] [SerializeField]
+		private TransferMode transferMode = TransferMode.Normal;
 
-		[FormerlySerializedAs("PossibleTransferAmounts")]
-		[SerializeField] private List<float> possibleTransferAmounts = new List<float>();
+
+		[Tooltip("Can this container only be filled using a syringe/injector?"), SerializeField] private bool onlyAllowSyringeFilling = false;
+		[SerializeField, SyncVar] public bool SyringePulling;
+
+
+		public TransferMode TransferMode => transferMode;
+
+		[FormerlySerializedAs("PossibleTransferAmounts")] [SerializeField]
+		private List<float> possibleTransferAmounts = new List<float>();
 
 		[Range(1, 100)]
 		[FormerlySerializedAs("TransferAmount")]
 		[FormerlySerializedAs("InitialTransferAmount")]
-		[SerializeField] private float transferAmount = 20;
+		[SerializeField]
+		private float transferAmount = 20;
+
+		[SerializeField] private List<AddressableAudioSource> transferSound;
 
 		public bool TraitWhitelistOn => traitWhitelist.Count > 0;
 
@@ -60,30 +75,27 @@ namespace Chemistry.Components
 
 		public bool WillInteract(InventoryApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side))
-			{
-				return false;
-			}
-
-			return WillInteractHelp(interaction.UsedObject, interaction.TargetObject, side);
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			return WillInteractHelp(interaction.UsedObject, interaction.TargetObject, side, null);
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			var playerScript = interaction.Performer.GetComponent<PlayerScript>();
-			if (!playerScript) return false;
+			if (playerScript == false) return false;
 
 			if (interaction.Intent == Intent.Help)
 			{
-				//checks if it's possible to transfer from container to container
-				if (!WillInteractHelp(interaction.HandObject, interaction.TargetObject, side)) return false;
+				if (WillInteractHelp(interaction.UsedObject, interaction.TargetObject, side, interaction) == false) return false;
 			}
 			else
 			{
+				//Only spill if we're holding the alt key.
+				if (interaction.IsAltClick == false) return false;
 				//checks if it's possible to spill contents on player
-				if (!WillInteractHarm(interaction.HandObject, interaction.TargetObject, side)) return false;
+				if (WillInteractHarm(interaction.HandObject, interaction.TargetObject, side) == false) return false;
 			}
 
 			return true;
@@ -104,35 +116,108 @@ namespace Chemistry.Components
 			return true;
 		}
 
-		private bool WillInteractHelp(GameObject srcObject, GameObject dstObject, NetworkSide side)
+		private bool WillInteractHelp(GameObject srcObject, GameObject dstObject, NetworkSide side, [CanBeNull] HandApply HandApply)
 		{
 			if (srcObject == null || dstObject == null) return false;
 
-			var srcContainer = srcObject.GetComponent<ReagentContainer>();
-			var dstContainer = dstObject.GetComponent<ReagentContainer>();
+			var objectInHands = srcObject.GetComponent<ReagentContainer>();
+			var target = dstObject.GetComponent<ReagentContainer>();
 
-			if (srcContainer == null || dstContainer == null) return false;
+			if (target == null || objectInHands == null) return false;
 
-			if (srcContainer.transferMode == TransferMode.NoTransfer
-				|| dstContainer.transferMode == TransferMode.NoTransfer)
+			ReagentContainer transferTo = null;
+			switch (objectInHands.transferMode)
+			{
+				case TransferMode.Normal:
+					switch (target.transferMode)
+					{
+						case TransferMode.Normal:
+							transferTo = target;
+							break;
+						case TransferMode.OutputOnly:
+							transferTo = objectInHands;
+							break;
+						case TransferMode.InputOnly:
+							transferTo = target;
+							break;
+						default:
+							return false;
+					}
+
+					break;
+				case TransferMode.Syringe:
+					switch (target.transferMode)
+					{
+						case TransferMode.Normal:
+							transferTo = objectInHands.SyringePulling == false ? target : objectInHands;
+							break;
+						case TransferMode.OutputOnly:
+							transferTo = objectInHands;
+							break;
+						case TransferMode.InputOnly:
+							transferTo = target;
+							break;
+						default:
+							return false;
+					}
+
+					break;
+				case TransferMode.OutputOnly:
+					switch (target.transferMode)
+					{
+						case TransferMode.Normal:
+							transferTo = target;
+							break;
+						case TransferMode.OutputOnly:
+							return false;
+						case TransferMode.InputOnly:
+							transferTo = target;
+							break;
+						default:
+							return false;
+					}
+
+					break;
+				case TransferMode.InputOnly:
+					switch (target.transferMode)
+					{
+						case TransferMode.Normal:
+							transferTo = objectInHands;
+							break;
+						case TransferMode.OutputOnly:
+							transferTo = objectInHands;
+							break;
+						case TransferMode.InputOnly:
+							return false;
+						default:
+							return false;
+					}
+					break;
+				default:
+					return false;
+			}
+
+			if (transferTo == null)
 			{
 				return false;
 			}
 
 			if (side == NetworkSide.Server)
 			{
-				if (srcContainer.TraitWhitelistOn && !Validations.HasAnyTrait(dstObject, srcContainer.traitWhitelist))
+				if (objectInHands.TraitWhitelistOn && !Validations.HasAnyTrait(dstObject, objectInHands.traitWhitelist))
 				{
 					return false;
 				}
 
-				if (dstContainer.TraitWhitelistOn && !Validations.HasAnyTrait(dstObject, srcContainer.traitWhitelist))
+				if (target.TraitWhitelistOn && !Validations.HasAnyTrait(dstObject, objectInHands.traitWhitelist))
 				{
 					return false;
 				}
 			}
 
-			return dstContainer.transferMode != TransferMode.Syringe;
+			if (target.onlyAllowSyringeFilling && objectInHands.transferMode != TransferMode.Syringe) return false;
+
+			return target.transferMode != TransferMode.Syringe;
 		}
 
 		public void ServerPerformInteraction(InventoryApply interaction)
@@ -152,7 +237,8 @@ namespace Chemistry.Components
 				var one = interaction.HandObject.GetComponent<ReagentContainer>();
 				var two = interaction.TargetObject.GetComponent<ReagentContainer>();
 
-				var reagentContainerObjectInteractionScript = interaction.TargetObject.GetComponent<ReagentContainerObjectInteractionScript>();
+				var reagentContainerObjectInteractionScript =
+					interaction.TargetObject.GetComponent<ReagentContainerObjectInteractionScript>();
 
 				if (reagentContainerObjectInteractionScript != null)
 				{
@@ -182,9 +268,10 @@ namespace Chemistry.Components
 
 		public bool WillInteract(HandActivate interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (transferMode == TransferMode.Syringe) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-			return possibleTransferAmounts.Count != 0;
+			return possibleTransferAmounts.Count != 0 || transferMode == TransferMode.Syringe;
 		}
 
 		public void ServerPerformInteraction(HandActivate interaction)
@@ -207,7 +294,8 @@ namespace Chemistry.Components
 		/// Server side only
 		/// Transfers Reagents between two containers
 		/// </summary>
-		private void ServerTransferInteraction(ReagentContainer objectInHands, ReagentContainer target, GameObject performer)
+		private void ServerTransferInteraction(ReagentContainer objectInHands, ReagentContainer target,
+			GameObject performer)
 		{
 			ReagentContainer transferTo = null;
 			switch (objectInHands.transferMode)
@@ -225,7 +313,7 @@ namespace Chemistry.Components
 							transferTo = target;
 							break;
 						default:
-							Logger.LogErrorFormat("Invalid transfer mode when attempting transfer {0}<->{1}",
+							Loggy.Error().Format("Invalid transfer mode when attempting transfer {0}<->{1}",
 								Category.Chemistry, objectInHands, target);
 							break;
 					}
@@ -235,7 +323,7 @@ namespace Chemistry.Components
 					switch (target.transferMode)
 					{
 						case TransferMode.Normal:
-							transferTo = objectInHands.IsFull ? target : objectInHands;
+							transferTo = objectInHands.SyringePulling == false ? target : objectInHands;
 							break;
 						case TransferMode.OutputOnly:
 							transferTo = objectInHands;
@@ -244,7 +332,7 @@ namespace Chemistry.Components
 							transferTo = target;
 							break;
 						default:
-							Logger.LogErrorFormat("Invalid transfer mode when attempting transfer {0}<->{1}",
+							Loggy.Error().Format("Invalid transfer mode when attempting transfer {0}<->{1}",
 								Category.Chemistry, objectInHands, target);
 							break;
 					}
@@ -263,7 +351,7 @@ namespace Chemistry.Components
 							transferTo = target;
 							break;
 						default:
-							Logger.LogErrorFormat("Invalid transfer mode when attempting transfer {0}<->{1}",
+							Loggy.Error().Format("Invalid transfer mode when attempting transfer {0}<->{1}",
 								Category.Chemistry, objectInHands, target);
 							break;
 					}
@@ -282,14 +370,14 @@ namespace Chemistry.Components
 							Chat.AddExamineMsg(performer, "Both containers are input-only.");
 							break;
 						default:
-							Logger.LogErrorFormat("Invalid transfer mode when attempting transfer {0}<->{1}",
+							Loggy.Error().Format("Invalid transfer mode when attempting transfer {0}<->{1}",
 								Category.Chemistry, objectInHands, target);
 							break;
 					}
 
 					break;
 				default:
-					Logger.LogErrorFormat("Invalid transfer mode when attempting transfer {0}<->{1}", Category.Chemistry,
+					Loggy.Error().Format("Invalid transfer mode when attempting transfer {0}<->{1}", Category.Chemistry,
 						objectInHands,
 						target);
 					break;
@@ -302,14 +390,31 @@ namespace Chemistry.Components
 
 			var transferFrom = target == transferTo ? objectInHands : target;
 
-			Logger.LogTraceFormat("Attempting transfer from {0} into {1}", Category.Chemistry, transferFrom, transferTo);
+			Loggy.Trace().Format("Attempting transfer from {0} into {1}", Category.Chemistry, transferFrom, transferTo);
 
 
 			if (transferFrom.IsEmpty)
 			{
+				if (transferFrom.transferMode == TransferMode.Syringe  && transferFrom.SyringePulling == false)
+				{
+					transferFrom.GetComponent<Syringe>().SetSyringeState(true);
+				}
+
 				//red msg
 				Chat.AddExamineMsg(performer, "The " + transferFrom.gameObject.ExpensiveName() + " is empty!");
 				return;
+			}
+
+			if (transferTo.IsFull)
+			{
+				if (transferTo.transferMode == TransferMode.Syringe && transferTo.SyringePulling)
+				{
+					transferTo.GetComponent<Syringe>().SetSyringeState(false);
+					//red msg
+					Chat.AddExamineMsg(performer, "The " + transferTo.gameObject.ExpensiveName() + " is full!");
+					return;
+				}
+
 			}
 
 			var transferAmount = objectInHands.TransferAmount;
@@ -320,7 +425,7 @@ namespace Chemistry.Components
 			string resultMessage;
 			if (string.IsNullOrEmpty(result.Message))
 				resultMessage = useFillMessage
-					? $"You fill the {transferTo.gameObject.ExpensiveName()} with {result.TransferAmount} units of the contents of the {transferFrom.gameObject.ExpensiveName()}."
+					? $"You fill the {transferTo.gameObject.ExpensiveName()} with {result.TransferAmount} units of contents from the {transferFrom.gameObject.ExpensiveName()}."
 					: $"You transfer {result.TransferAmount} units of the solution to the {transferTo.gameObject.ExpensiveName()}.";
 			else
 				resultMessage = result.Message;
@@ -340,11 +445,19 @@ namespace Chemistry.Components
 		/// <summary>
 		/// Moves reagents to another container
 		/// </summary>
+		/// <param name="updateReactions">If false, reagent updates (primarily reactions) will not occur during the transfer. Only use if you intend to invoke the reactant update manually. </param>
 		public TransferResult TransferTo(
 			float amount,
-			ReagentContainer target
+			ReagentContainer target,
+			bool updateReactions = true
 		)
 		{
+			if (transferSound != null)
+			{
+				_ = SoundManager.PlayNetworkedAtPosAsync(transferSound.PickRandom(),
+					gameObject.AssumedWorldPosServer());
+			}
+
 			TransferResult transferResult;
 
 			// save total ammount before mixing
@@ -362,9 +475,10 @@ namespace Chemistry.Components
 			if (target != null)
 			{
 				var transffered = CurrentReagentMix.Take(amount);
-				OnReagentMixChanged?.Invoke();
 
-				transferResult = target.Add(transffered);
+				if (updateReactions == true) OnReagentMixChanged?.Invoke();
+
+				transferResult = target.Add(transffered, updateReactions);
 				if (!transferResult.Success)
 				{
 					//don't consume contents if transfer failed

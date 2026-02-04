@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using Logs;
+using Messages.Server;
 using Mirror;
 using Tilemaps.Behaviours.Layers;
 using UnityEngine;
@@ -9,14 +12,6 @@ using UnityEngine.SceneManagement;
 //Server
 public partial class SubSceneManager
 {
-	public override void OnStartServer()
-	{
-		NetworkServer.observerSceneList.Clear();
-		// Determine a Main station subscene and away site
-		StartCoroutine(RoundStartServerLoadSequence());
-		base.OnStartServer();
-	}
-
 	/// <summary>
 	/// Starts a collection of scenes that this connection is allowed to see
 	/// </summary>
@@ -50,9 +45,9 @@ public partial class SubSceneManager
 	public IEnumerator SyncPlayerData(NetworkConnectionToClient connToAdd, Scene sceneContext)
 	{
 
-		var client = connToAdd.clientOwnedObjects.Count == 0 ? null : connToAdd.clientOwnedObjects.ElementAt(0).gameObject;
+		var client = connToAdd.owned.Count == 0 ? null : connToAdd.owned.ElementAt(0).gameObject;
 
-		Logger.LogFormat("SyncPlayerData. This server sending a bunch of sync data to new " +
+		Loggy.Info().Format("SyncPlayerData. This server sending a bunch of sync data to new " +
 		                 "client {0} for scene {1}", Category.Connections, client, sceneContext.name);
 
 		//Add connection as observer to the scene objects:
@@ -75,8 +70,11 @@ public partial class SubSceneManager
 
 		yield return WaitFor.EndOfFrame;
 
+		var Stopwatch = new Stopwatch();
+
 		var objCount = 0;
-		var netIds = NetworkIdentity.spawned.Values.ToList();
+		var netIds = NetworkServer.spawned.Values.ToList();
+		Stopwatch.Start();
 		foreach (var n in netIds)
 		{
 			if (n == null) continue;
@@ -88,14 +86,16 @@ public partial class SubSceneManager
 				yield break;
 
 			n.AddPlayerObserver(connToAdd);
-			objCount++;
-			if (objCount >= 20)
+
+			if (Stopwatch.ElapsedMilliseconds >= 10)
 			{
-				objCount = 0;
+				Stopwatch.Reset();
 				yield return WaitFor.EndOfFrame;
+				Stopwatch.Start();
 			}
 		}
 
-		yield return WaitFor.EndOfFrame;
+		yield return null;
+		FinishedAddedObserverMessage.Send(connToAdd , sceneContext.name);
 	}
 }

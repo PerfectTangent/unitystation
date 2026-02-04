@@ -6,11 +6,13 @@ using Mirror;
 using UnityEngine;
 using Systems.Clothing;
 using HealthV2;
+using Systems.Antagonists;
+using Systems.MobAIs;
 
 namespace Clothing
 {
 	[RequireComponent(typeof(ClothingV2))]
-	public class FacehuggerImpregnation : NetworkBehaviour, IServerInventoryMove, IClientInventoryMove
+	public class FacehuggerImpregnation : NetworkBehaviour, IServerInventoryMove, IClientInventoryMove, ICheckedInteractable<PositionalHandApply>
 	{
 		[Tooltip("Is this a toy? Won't impregnate the wearer")][SerializeField]
 		private bool isToy = false;
@@ -18,13 +20,10 @@ namespace Clothing
 		[Tooltip("Time it takes to successfully insert the larvae inside the victim")] [SerializeField]
 		private float coitusTime = 10;
 
-		[Tooltip("Time it takes for the larvae to 'birth'")] [SerializeField]
-		private int pregnancyTime = 300;
-
 		[Tooltip("Reference to facehugger gameObject so we can spawn it")] [SerializeField]
 		private GameObject facehugger = null;
 
-		[Tooltip("Reference to larvae gameObject so we can spawn it")] [SerializeField]
+		[Tooltip("Reference to larvae organ gameObject so we can spawn it")] [SerializeField]
 		private GameObject larvae = null;
 
 		private bool isAlive = true;
@@ -32,11 +31,16 @@ namespace Clothing
 		private ItemAttributesV2 itemAttributesV2;
 		private SpriteHandler spriteHandler;
 
+		private CooldownInstance alienTryHuggerCooldown = new CooldownInstance(2f);
+
+		private Pickupable pickupable;
+
 		private void Awake()
 		{
 			clothingV2 = GetComponent<ClothingV2>();
 			itemAttributesV2 = GetComponent<ItemAttributesV2>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
+			pickupable = GetComponent<Pickupable>();
 		}
 
 		public override void OnStartServer()
@@ -51,7 +55,7 @@ namespace Clothing
 		public void KillHugger()
 		{
 			isAlive = false;
-			spriteHandler.ChangeSprite(1);
+			spriteHandler.SetCatalogueIndexSprite(1);
 			clothingV2.ChangeSprite(1);
 			itemAttributesV2.ServerSetArticleDescription("It is not moving anymore.");
 		}
@@ -98,16 +102,12 @@ namespace Clothing
 		private async Task Pregnancy(PlayerHealthV2 player)
 		{
 			KillHugger();
-			await Task.Delay(TimeSpan.FromSeconds(pregnancyTime));
-			//TODO check if the larvae was removed from stomach
-			player.ApplyDamageToBodyPart(
-				gameObject,
-				200,
-				AttackType.Internal,
-				DamageType.Brute,
-				BodyPartType.Chest);
 
-			Spawn.ServerPrefab(larvae, player.gameObject.RegisterTile().WorldPositionServer);
+			GameObject embryo = Spawn.ServerPrefab(larvae, SpawnDestination.At(gameObject), 1).GameObject;
+
+			if (player.GetStomachs().Count == 0) return;
+
+			player.GetStomachs()[0].RelatedPart.OrganStorage.ServerTryAdd(embryo);
 		}
 
 		private IEnumerator Release()
@@ -121,6 +121,8 @@ namespace Clothing
 
 		public void OnInventoryMoveServer(InventoryMove info)
 		{
+			if (this.gameObject != info.MovedObject.gameObject) return;
+
 			RegisterPlayer registerPlayer;
 
 			if (info.ToSlot != null && info.ToSlot?.NamedSlot != null)
@@ -151,23 +153,80 @@ namespace Clothing
 		public void OnInventoryMoveClient(ClientInventoryMove info)
 		{
 			var playerScript = PlayerManager.LocalPlayerScript;
-			if ((CustomNetworkManager.Instance._isServer && GameData.IsHeadlessServer)
+			if ((CustomNetworkManager.IsServer && GameData.IsHeadlessServer)
 			    || playerScript == null
-			    || playerScript.playerNetworkActions == null
+			    || playerScript.PlayerNetworkActions == null
 			    || playerScript.playerHealth == null)
 			{
 				return;
 			}
 
+			//Aliens don't go into crit
+			if(playerScript.PlayerType == PlayerTypes.Alien) return;
+
 			if (info.ClientInventoryMoveType == ClientInventoryMoveType.Added
 				&& playerScript.DynamicItemStorage.InventoryHasObjectInCategory(gameObject, NamedSlot.mask))
 			{
-				UIManager.PlayerHealthUI.heartMonitor.overlayCrits.SetState(OverlayState.crit);
+				OverlayCrits.Instance.SetState(OverlayState.crit);
 			}
 			else if (info.ClientInventoryMoveType == ClientInventoryMoveType.Removed
 				&& playerScript.DynamicItemStorage.InventoryHasObjectInCategory(gameObject, NamedSlot.mask) == false)
 			{
-				UIManager.PlayerHealthUI.heartMonitor.overlayCrits.SetState(OverlayState.normal);
+				OverlayCrits.Instance.SetState(OverlayState.normal);
+			}
+		}
+
+		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
+		{
+			if (interaction.HandObject != gameObject) return false;
+
+			if (interaction.TargetObject == null) return false;
+
+			if (interaction.TargetObject == interaction.Performer) return false;
+
+			if (interaction.TargetObject.TryGetComponent<PlayerScript>(out var playerScript) == false) return false;
+
+			if (playerScript.PlayerType != PlayerTypes.Normal) return false;
+
+			if (DefaultWillInteract.Default(interaction, side, PlayerTypes.Alien) == false) return false;
+
+			if (side == NetworkSide.Client)
+			{
+				if (Cooldowns.TryStartClient(interaction, alienTryHuggerCooldown) == false)
+				{
+					Chat.AddExamineMsgToClient("The facehugger needs time to recuperate from its failure!");
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		public void ServerPerformInteraction(PositionalHandApply interaction)
+		{
+			if(Cooldowns.TryStartServer(interaction, alienTryHuggerCooldown) == false) return;
+
+			//Alien clicking on layer with face hugger in hand
+			if (interaction.TargetObject.TryGetComponent<PlayerScript>(out var playerScript) == false) return;
+
+			//If not laying down small chance to hug and check for anti hugger items
+			bool success = (playerScript.RegisterPlayer.IsLayingDown == false && DMMath.Prob(80)
+			                || FaceHugAction.HasAntihuggerItem(playerScript.Equipment)) == false;
+
+			interaction.PerformerPlayerScript.WeaponNetworkActions.RpcMeleeAttackLerp(interaction.TargetVector, gameObject);
+
+			Chat.AddActionMsgToChat(interaction.Performer, success == false ?
+					$"You fail to attach the {gameObject.ExpensiveName()} to {playerScript.visibleName}"
+					: $"You attach the {gameObject.ExpensiveName()} to {playerScript.visibleName}",
+				success == false ? $"{interaction.Performer.ExpensiveName()} attempted to attach a {gameObject.ExpensiveName()} to {playerScript.visibleName} but failed!"
+					: $"{interaction.Performer.ExpensiveName()} attaches a {gameObject.ExpensiveName()} to {playerScript.visibleName}!");
+
+			if(success == false) return;
+
+			foreach (var itemSlot in playerScript.Equipment.ItemStorage.GetNamedItemSlots(NamedSlot.mask))
+			{
+				Inventory.ServerTransfer(pickupable.ItemSlot, itemSlot, ReplacementStrategy.DropOther);
+				break;
 			}
 		}
 	}

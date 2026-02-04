@@ -20,7 +20,7 @@ namespace Items.Others
 		private ItemLightControl lightControl;
 		private ItemActionButton actionButton;
 
-		protected bool IsOn => lightControl.IsOn;
+		public bool IsOn => lightControl.IsOn;
 		protected int SpriteIndex => IsOn ? 1 : 0;
 		protected bool HasActionButton => actionButton != null;
 
@@ -74,13 +74,13 @@ namespace Items.Others
 
 		protected virtual void ClientUpdateActionSprite()
 		{
-			spriteHandler.ChangeSprite(IsOn ? 0 : 1);
+			spriteHandler.SetCatalogueIndexSprite(IsOn ? 0 : 1);
 		}
 
 		protected virtual void ToggleLight()
 		{
 			lightControl.Toggle(!lightControl.IsOn);
-			spriteHandler.ChangeSprite(SpriteIndex);
+			spriteHandler.SetCatalogueIndexSprite(SpriteIndex);
 
 			if (TryGetComponent<ClothingV2>(out var clothing))
 			{

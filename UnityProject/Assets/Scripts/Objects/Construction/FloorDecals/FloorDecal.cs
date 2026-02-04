@@ -1,7 +1,10 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using Chemistry.Components;
 using UnityEngine;
 using Mirror;
+using Random = UnityEngine.Random;
 
 namespace Objects.Construction
 {
@@ -10,7 +13,6 @@ namespace Objects.Construction
 	/// janitorial actions. Decal can have random variations in its sprite among other
 	/// capabilities.
 	/// </summary>
-	[RequireComponent(typeof(CustomNetTransform))]
 	public class FloorDecal : NetworkBehaviour
 	{
 		/// <summary>
@@ -23,19 +25,32 @@ namespace Objects.Construction
 
 		public bool isBlood = false;
 
-		[SyncVar(hook = "OnColorChanged")]
-		[HideInInspector]
+		public bool IsFootprint = false;
+
+		public bool IsSlippery = false;
+		public bool IsSuperSlippery = false;
+
+
+		[SyncVar(hook = "OnColorChanged")] [HideInInspector]
 		public Color color;
 
 		[Tooltip("Possible appearances of this decal. One will randomly be chosen when the decal appears." +
-				 " This can be left empty, in which case the prefab's sprite renderer sprite will " +
-				 "be used.")]
+		         " This can be left empty, in which case the prefab's sprite renderer sprite will " +
+		         "be used.")]
 		public Sprite[] PossibleSprites;
+
+		//public SpriteHandler FootPrints;
 
 		[SyncVar(hook = nameof(SyncChosenSprite))]
 		private int chosenSprite;
 
 		private SpriteRenderer spriteRenderer;
+
+		public bool DontTouchSpriteRenderer = false;
+
+		private ReagentContainer reagentContainer;
+		public ReagentContainer ReagentContainer => reagentContainer;
+
 
 		private void Awake()
 		{
@@ -44,6 +59,7 @@ namespace Objects.Construction
 
 		private void EnsureInit()
 		{
+			reagentContainer ??= GetComponent<ReagentContainer>();
 			if (spriteRenderer != null) return;
 			spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 		}
@@ -64,11 +80,39 @@ namespace Objects.Construction
 			SyncChosenSprite(chosenSprite, chosenSprite);
 		}
 
+		public void Start()
+		{
+			if (CustomNetworkManager.IsServer && CanDryUp)
+			{
+				StartCoroutine(DryUp());
+			}
+		}
+
+		private IEnumerator DryUp()
+		{
+			yield return WaitFor.Seconds(Random.Range(10, 21));
+
+			var Matrix = MatrixManager.AtPoint(transform.position, isServer);
+			var Node = Matrix.MetaDataLayer.Get(transform.position.ToLocalInt(Matrix));
+
+			if (IsSuperSlippery)
+			{
+				Node.IsSuperSlippery = false;
+			}
+
+			if (IsSlippery)
+			{
+				Node.IsSlippery = false;
+			}
+
+			_ = Despawn.ServerSingle(this.gameObject);
+		}
+
 		private void SyncChosenSprite(int _oldSprite, int _chosenSprite)
 		{
 			EnsureInit();
 			chosenSprite = _chosenSprite;
-			if (PossibleSprites != null && PossibleSprites.Length > 0)
+			if (PossibleSprites != null && PossibleSprites.Length > 0 && DontTouchSpriteRenderer == false)
 			{
 				spriteRenderer.sprite = PossibleSprites[chosenSprite];
 			}
@@ -76,7 +120,7 @@ namespace Objects.Construction
 
 		public void OnColorChanged(Color oldColor, Color newColor)
 		{
-			if (spriteRenderer)
+			if (spriteRenderer && DontTouchSpriteRenderer == false)
 			{
 				spriteRenderer.color = newColor;
 			}

@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using DatabaseAPI;
-using UnityEngine;
-using UnityEngine.UI;
-using System.Linq;
-using Mirror;
-using Newtonsoft.Json;
 using System.Globalization;
-using Managers;
+using System.Linq;
+using Logs;
 using Messages.Client;
 using Messages.Client.Admin;
 using Messages.Server;
+using Mirror;
+using Newtonsoft.Json;
+using Shared.Managers;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace AdminTools
 {
@@ -54,7 +54,7 @@ namespace AdminTools
 				kickReasonField.text = "";
 				kickReasonField.ActivateInputField();
 			}
-			else if(!isJobBan)
+			else if (!isJobBan)
 			{
 				banPage.SetActive(true);
 				banTitle.text = $"Ban Player: {playerToKick.name}";
@@ -79,8 +79,9 @@ namespace AdminTools
 			gameObject.SetActive(true);
 		}
 
-		private void Start()
+		public override void Start()
 		{
+			base.Start();
 			//generate job list
 
 			var jobs = Enum.GetNames(typeof(JobType)).ToList();
@@ -89,7 +90,7 @@ namespace AdminTools
 			{
 				if (jobType == "NULL") continue;
 
-				GameObject jobEntry = Instantiate(jobBanJobTemplate);//creates new button
+				GameObject jobEntry = Instantiate(jobBanJobTemplate); //creates new button
 				jobEntry.SetActive(true);
 				var c = jobEntry.GetComponent<JobBanListItem>();
 				c.jobName.text = jobType;
@@ -103,11 +104,11 @@ namespace AdminTools
 		{
 			if (string.IsNullOrEmpty(kickReasonField.text))
 			{
-				Logger.LogError("Kick reason field needs to be completed!", Category.Admin);
+				Loggy.Error("Kick reason field needs to be completed!", Category.Admin);
 				return;
 			}
 
-			RequestKickMessage.Send(playerToKickCache.uid, kickReasonField.text, announceBan: kickAnnounceToggle.isOn);
+			RequestKickMessage.Send(playerToKickCache.uid, kickReasonField.text, announce: kickAnnounceToggle.isOn);
 
 			ClosePage();
 		}
@@ -116,19 +117,18 @@ namespace AdminTools
 		{
 			if (string.IsNullOrEmpty(banReasonField.text))
 			{
-				Logger.LogError("Ban reason field needs to be completed!", Category.Admin);
+				Loggy.Error("Ban reason field needs to be completed!", Category.Admin);
 				return;
 			}
 
 			if (string.IsNullOrEmpty(minutesField.text))
 			{
-				Logger.LogError("Duration field needs to be completed!", Category.Admin);
+				Loggy.Error("Duration field needs to be completed!", Category.Admin);
 				return;
 			}
 
-			int minutes;
-			int.TryParse(minutesField.text, out minutes);
-			RequestKickMessage.Send(playerToKickCache.uid, banReasonField.text, true, minutes, announceBan: banAnnounceToggle.isOn);
+			int.TryParse(minutesField.text, out var minutes);
+			RequestBanMessage.Send(playerToKickCache.uid, banReasonField.text, banAnnounceToggle.isOn, minutes);
 			ClosePage();
 		}
 
@@ -136,13 +136,13 @@ namespace AdminTools
 		{
 			if (string.IsNullOrEmpty(jobBanReasonField.text))
 			{
-				Logger.LogError("Job Ban reason field needs to be completed!", Category.Admin);
+				Loggy.Error("Job Ban reason field needs to be completed!", Category.Admin);
 				return;
 			}
 
 			if (string.IsNullOrEmpty(jobBanMinutesField.text) && jobBanPermaBanToggle.isOn == false)
 			{
-				Logger.LogError("Duration field needs to be completed or Perma toggled!", Category.Admin);
+				Loggy.Error("Duration field needs to be completed or Perma toggled!", Category.Admin);
 				return;
 			}
 
@@ -156,7 +156,7 @@ namespace AdminTools
 
 			if (!outSuccess && jobBanPermaBanToggle.isOn == false)
 			{
-				Logger.LogError("Minutes Field incorrectly configured", Category.Admin);
+				Loggy.Error("Minutes Field incorrectly configured", Category.Admin);
 				return;
 			}
 
@@ -167,14 +167,15 @@ namespace AdminTools
 
 			foreach (var jobs in jobBanJobTypeListObjects)
 			{
-				if(jobs.toBeBanned.isOn == false) continue;
+				if (jobs.toBeBanned.isOn == false) continue;
 
 				var jobTypeBool = Enum.TryParse(jobs.jobName.text, out JobType jobType);
 
-				if(!jobTypeBool) continue;
+				if (!jobTypeBool) continue;
 
 				PlayerList.RequestJobBan.Send(
-						playerToKickCache.uid, jobBanReasonField.text, jobBanPermaBanToggle.isOn, minutes, jobType, ghost, kick);
+					playerToKickCache.uid, jobBanReasonField.text, jobBanPermaBanToggle.isOn, minutes, jobType, ghost,
+					kick);
 			}
 
 			ClosePage();
@@ -201,13 +202,13 @@ namespace AdminTools
 
 			public override void Process(NetMessage msg)
 			{
-				//Server Stuff here
-				if (PlayerList.Instance.IsAdmin(SentByPlayer))
-				{
-					var jobBanEntries = PlayerList.Instance.ListOfBanEntries(msg.PlayerID);
+				if (HasPermission(TAG.PLAYER_GET_JOB_BANS) == false) return;
 
-					ServerSendsJobBanDataAdminMessage.Send(SentByPlayer.Connection, jobBanEntries);
-				}
+				//Server Stuff here
+
+				var jobBanEntries = PlayerList.Instance.ListOfBanEntries(msg.PlayerID);
+
+				ServerSendsJobBanDataAdminMessage.Send(SentByPlayer.Connection, jobBanEntries);
 			}
 
 			public static NetMessage Send(string playerID)
@@ -259,10 +260,11 @@ namespace AdminTools
 							}
 							else
 							{
-								var entryTime = DateTime.ParseExact(jobsBanned.dateTimeOfBan,"O",CultureInfo.InvariantCulture);
-								var totalMins = Mathf.Abs((float)(entryTime - DateTime.Now).TotalMinutes);
+								var entryTime = DateTime.ParseExact(jobsBanned.dateTimeOfBan, "O",
+									CultureInfo.InvariantCulture);
+								var totalMins = Mathf.Abs((float) (entryTime - DateTime.Now).TotalMinutes);
 
-								banMsg = $"{Mathf.RoundToInt((float)jobsBanned.minutes - totalMins)} minutes left";
+								banMsg = $"{Mathf.RoundToInt((float) jobsBanned.minutes - totalMins)} minutes left";
 							}
 
 							jobObject.banTime.text = banMsg;

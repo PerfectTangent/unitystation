@@ -3,10 +3,19 @@ using Messages.Server;
 using Mirror;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
+using Core.Admin.Logs;
 using Items;
+using Logs;
+using Managers;
+using Messages.Client;
+using Scripts.Core.Transform;
+using SecureStuff;
 using UI;
 using UnityEngine;
+using UnityEngine.Events;
 using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Main API / component for dealing with inventory. Use this if you want to do something to this object that involves
@@ -19,8 +28,8 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 	[SerializeField, Tooltip("The speed of the pickup animation.")]
 	private float pickupAnimSpeed = 0.2f;
 
-	private CustomNetTransform customNetTransform;
-	public CustomNetTransform CustomNetTransform => customNetTransform;
+	private UniversalObjectPhysics universalObjectPhysics;
+	public UniversalObjectPhysics UniversalObjectPhysics => universalObjectPhysics;
 
 	// controls whether this can currently be picked up.
 	[SyncVar]
@@ -36,6 +45,34 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 	/// </summary>
 	public ItemSlot ItemSlot => itemSlot;
 	private ItemSlot itemSlot;
+
+	[SyncVar] private uint clientSynchronisedStorageIn;
+
+	public GameObject StoredInItemStorageNetworked
+	{
+		get
+		{
+			if (isServer)
+			{
+				return ItemSlot?.ItemStorage.OrNull()?.gameObject;
+			}
+			var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
+			if (clientSynchronisedStorageIn is NetId.Empty or NetId.Invalid)
+			{
+				return null;
+			}
+
+			if (spawned.ContainsKey(clientSynchronisedStorageIn))
+			{
+				return spawned[clientSynchronisedStorageIn].gameObject;
+			}
+			else
+			{
+				return null;
+			}
+		}
+	}
+
 	/// <summary>
 	/// If this item is in a slot linked to a UI slot, returns that UI slot.
 	/// </summary>
@@ -43,15 +80,30 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 
 	public ItemAttributesV2 ItemAttributesV2;
 
-	public event Action OnMoveToPlayerInventory;
+	private ScaleSync ScaleSync;
 
-	
+	/// <summary>
+	/// Client Side Events. Expects an interactor.
+	/// </summary>
+	public UnityEvent<GameObject> OnMoveToPlayerInventory;
+	public UnityEvent<GameObject> OnInventoryMoveServerEvent;
+	public SerializedAction OnItemSlotChanged;
+
+	public UnityEvent<GameObject> OnDrop;
+	public UnityEvent<GameObject> OnThrow;
+
+	[SerializeField] private LastTouch lastTouch;
+
+
+
 	#region Lifecycle
 
 	private void Awake()
 	{
 		ItemAttributesV2 =  GetComponent<ItemAttributesV2>();
-		customNetTransform = GetComponent<CustomNetTransform>();
+		universalObjectPhysics = GetComponent<UniversalObjectPhysics>();
+		ScaleSync = GetComponent<ScaleSync>();
+		if (lastTouch == null) lastTouch = GetComponent<LastTouch>();
 	}
 
 	// make sure to call this in subclasses
@@ -67,9 +119,15 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 		{
 			Inventory.ServerDespawn(itemSlot);
 		}
+		OnMoveToPlayerInventory?.RemoveAllListeners();
+		OnInventoryMoveServerEvent?.RemoveAllListeners();
+		OnDrop?.RemoveAllListeners();
+		OnThrow?.RemoveAllListeners();
 	}
 
 	#endregion
+
+	private ItemSlot RecordedItemSlot;
 
 	public virtual void OnInventoryMoveServer(InventoryMove info)
 	{
@@ -85,25 +143,48 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 
 		//update appearance depending on the slot that was changed
 		if (info.FromPlayer != null &&
-		    HasClothingItem(info.FromPlayer, info.FromSlot))
+		    HasClothingItem(info.FromPlayer,RecordedItemSlot))
 		{
 			//clear previous slot appearance
-			PlayerAppearanceMessage.SendToAll(info.FromPlayer.gameObject,
-				(int)info.FromSlot.NamedSlot.GetValueOrDefault(NamedSlot.none), null);
+			PlayerAppearance.Process(info.FromPlayer.gameObject,
+				(int)RecordedItemSlot.NamedSlot.GetValueOrDefault(NamedSlot.none), null);
 
 			//ask target playerscript to update shown name.
 			info.FromPlayer.GetComponent<PlayerScript>().RefreshVisibleName();
 		}
 
+		//Handle setting slot
+		if (info.MovedObject == this)
+		{
+			RecordedItemSlot = info.ToSlot;
+		}
+
+
 		if (info.ToPlayer != null &&
-		    HasClothingItem(info.ToPlayer, info.ToSlot))
+			HasClothingItem(info.ToPlayer, RecordedItemSlot))
 		{
 			//change appearance based on new item
-			PlayerAppearanceMessage.SendToAll(info.ToPlayer.gameObject,
-				(int)info.ToSlot.NamedSlot.GetValueOrDefault(NamedSlot.none), info.MovedObject.gameObject);
+			PlayerAppearance.Process(info.ToPlayer.gameObject,
+				(int)RecordedItemSlot.NamedSlot.GetValueOrDefault(NamedSlot.none), this.gameObject);
 
 			//ask target playerscript to update shown name.
 			info.ToPlayer.GetComponent<PlayerScript>().RefreshVisibleName();
+		}
+		OnInventoryMoveServerEvent?.Invoke(gameObject);
+
+		if (info.RemoveType is InventoryRemoveType.Drop or InventoryRemoveType.Throw)
+		{
+			AdminLogsManager.AddNewLog(info?.FromPlayer?.gameObject, " Dropped ", this.gameObject, LogCategory.Interaction);
+		}
+
+		switch (info.RemoveType)
+		{
+			case InventoryRemoveType.Drop:
+				OnDrop?.Invoke(gameObject);
+				break;
+			case InventoryRemoveType.Throw:
+				OnThrow?.Invoke(gameObject);
+				break;
 		}
 	}
 
@@ -111,6 +192,8 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 	{
 		var equipment = onPlayer.GetComponent<Equipment>();
 		if (equipment == null) return false;
+		if (infoToSlot == null) return false;
+
 		if (infoToSlot.SlotIdentifier.SlotIdentifierType != SlotIdentifierType.Named) return false;
 
 		return equipment.GetClothingItem(infoToSlot.NamedSlot.GetValueOrDefault(NamedSlot.none)) != null;
@@ -129,13 +212,16 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 
 	public virtual bool WillInteract(HandApply interaction, NetworkSide side)
 	{
-		if (!canPickup) return false;
+		if (UniversalObjectPhysics.IsBuckled) return false;
+
+		if (canPickup == false) return false;
 		//we need to be the target
 		if (interaction.TargetObject != gameObject) return false;
 		//hand needs to be empty for pickup
 		if (interaction.HandObject != null) return false;
 		//instead of the base logic, we need to use extended range check for CanApply
-		if (!Validations.CanApply(interaction.PerformerPlayerScript, interaction.TargetObject, side, true)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
+		if (Validations.CanApply(interaction.PerformerPlayerScript, interaction.TargetObject, side, true) == false) return false;
 
 		return true;
 	}
@@ -145,14 +231,15 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 		if ( interaction.Performer.GetComponent<PlayerScript>().IsGameObjectReachable( this.gameObject, false ))
 		{
 			//Predictive disappear only if item is within normal range
-			gameObject.GetComponent<CustomNetTransform>().DisappearFromWorld();
+			gameObject.GetComponent<UniversalObjectPhysics>().DisappearFromWorld();
 		}
 	}
 
 	public void ServerRollbackClient(HandApply interaction)
 	{
 		//Rollback prediction (inform player about item's true state)
-		GetComponent<CustomNetTransform>().NotifyPlayer(interaction.Performer.GetComponent<NetworkIdentity>().connectionToClient);
+		GetComponent<UniversalObjectPhysics>().ResetEverything();
+		GetComponent<UniversalObjectPhysics>().ResetLocationOnClients();
 	}
 
 	public virtual void ServerPerformInteraction(HandApply interaction)
@@ -163,13 +250,15 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 	private IEnumerator ServerPerformInteractionLogic(HandApply interaction)
 	{
 		//we validated, but object may only be in extended range
-		var cnt = GetComponent<CustomNetTransform>();
+		var uop = GetComponent<UniversalObjectPhysics>();
 		var ps = interaction.Performer.GetComponent<PlayerScript>();
-		var extendedRangeOnly = !ps.IsRegisterTileReachable(cnt.RegisterTile, true);
+		var extendedRangeOnly = !ps.IsRegisterTileReachable(uop.registerTile, true);
 
 		//Start the animation on the server and clients.
 		PickupAnim(interaction.Performer.gameObject);
 		RpcPickupAnimation(interaction.Performer.gameObject);
+		OnMoveToPlayerInventory?.Invoke(interaction.Performer);
+		if (lastTouch != null) lastTouch.LastTouchedBy = interaction.PerformerPlayerScript.PlayerInfo;
 		yield return WaitFor.Seconds(pickupAnimSpeed);
 
 		//Make sure that the object is scaled back to it's original size.
@@ -178,22 +267,17 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 
 		//if it's in extended range only, then we will nudge it if it is stationary
 		//or pick it up if it is floating.
-		if (extendedRangeOnly && !cnt.IsFloatingServer)
+		if (extendedRangeOnly && !uop.IsCurrentlyFloating)
 		{
 			//this item is not floating and it was not within standard range but is within extended range,
 			//so we will nudge it
-			var worldPosition = cnt.RegisterTile.WorldPositionServer;
+			var position = uop.transform.position;
+			var worldPosition = position;
 			var trajectory = ((Vector3)ps.WorldPos - worldPosition) / Random.Range(10, 31);
-			cnt.Nudge(new NudgeInfo
-			{
-				OriginPos = worldPosition - trajectory,
-				Trajectory = trajectory,
-				SpinMode = SpinMode.Clockwise,
-				SpinMultiplier = 15,
-				InitialSpeed = 2
-			} );
-			Logger.LogTraceFormat( "Nudging! server pos:{0} player pos:{1}", Category.Movement,
-				cnt.ServerState.WorldPosition, interaction.Performer.transform.position);
+			uop.NewtonianPush(trajectory ,2 , spinFactor: 15 );
+
+			Loggy.Trace().Format( "Nudging! server pos:{0} player pos:{1}", Category.Movement,
+				position, interaction.Performer.transform.position);
 			//client prediction doesn't handle nudging, so we need to roll them back
 			ServerRollbackClient(interaction);
 		}
@@ -201,10 +285,12 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 		{
 			//pick it up normally - if it was floating, we will grab it while it's floating
 			//set ForceInform to false for simulation
+			AdminLogsManager.AddNewLog(interaction.Performer.gameObject, " Picked up ", this.gameObject, LogCategory.Interaction);
+
 			if (Inventory.ServerAdd(this, interaction.HandSlot))
 			{
-				Logger.LogTraceFormat("Pickup success! server pos:{0} player pos:{1} (floating={2})", Category.Movement,
-					cnt.ServerState.WorldPosition, interaction.Performer.transform.position, cnt.IsFloatingServer);
+				Loggy.Trace().Format("Pickup success! server pos:{0} player pos:{1} (floating={2})", Category.Movement,
+					uop.transform.position, interaction.Performer.transform.position, uop.IsCurrentlyFloating);
 			}
 			else
 			{
@@ -218,7 +304,6 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 
 	private void PickupAnim(GameObject interactor)
 	{
-		OnMoveToPlayerInventory?.Invoke();
 		LeanTween.move(gameObject, interactor.transform, pickupAnimSpeed);
 		LeanTween.scale(gameObject, new Vector3(0, 0), pickupAnimSpeed);
 	}
@@ -230,24 +315,56 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 		if (interactor == null) return;
 
 		PickupAnim(interactor);
+		if(CustomNetworkManager.IsServer == false) OnMoveToPlayerInventory?.Invoke(interactor);
 	}
 
 	[ClientRpc]
 	private void RpcResetPickupAnim()
 	{
-		LeanTween.scale(gameObject, new Vector3(1, 1), 0.1f);
+		if (ScaleSync != null)
+		{
+			LeanTween.scale(gameObject, ScaleSync.ScaleTransform, 0.1f);
+		}
+		else
+		{
+			LeanTween.scale(gameObject, new Vector3(1, 1), 0.1f);
+		}
+
 	}
 
 	public RightClickableResult GenerateRightClickOptions()
 	{
-		if (!canPickup) return null;
-		var interaction = HandApply.ByLocalPlayer(gameObject);
-		if (interaction.TargetObject != gameObject) return null;
-		if (interaction.HandObject != null) return null;
-		if (!Validations.CanApply(interaction.PerformerPlayerScript, interaction.TargetObject, NetworkSide.Client, true, ReachRange.Standard)) return null;
 
-		return RightClickableResult.Create()
+		var Result = RightClickableResult.Create();
+
+		if (PlayerList.HasTAGClient(TAG.ADMIN_GHOST_DROP_ITEM)  &&
+		    KeyboardInputManager.Instance.CheckKeyAction(KeyAction.ShowAdminOptions,
+			    KeyboardInputManager.KeyEventType.Hold) )
+		{
+			Result.AddAdminElement("Admin PickUp", RightClickInteractAdmin);
+		}
+
+
+		if (!canPickup) return Result;
+		var interaction = HandApply.ByLocalPlayer(gameObject);
+		if (interaction.TargetObject != gameObject) return Result;
+		if (interaction.HandObject != null) return Result;
+		if (!Validations.CanApply(interaction.PerformerPlayerScript, interaction.TargetObject, NetworkSide.Client, true, ReachRange.Standard)) return Result;
+
+
+		return Result
 				.AddElement("PickUp", RightClickInteract);
+	}
+
+	private void RightClickInteractAdmin()
+	{
+		var CurrentSlot = PlayerManager.LocalPlayerScript?.DynamicItemStorage?.GetActiveHandSlot();
+		if (PlayerManager.LocalMindScript.isGhosting)
+		{
+			CurrentSlot = AdminManager.Instance.LocalAdminGhostStorage.GetNamedItemSlot(NamedSlot.ghostStorage01);
+		}
+
+		AdminInventoryTransferMessage.Send(this, CurrentSlot);
 	}
 
 	private void RightClickInteract()
@@ -290,6 +407,11 @@ public class Pickupable : NetworkBehaviour, IPredictedCheckedInteractable<HandAp
 	public void _SetItemSlot(ItemSlot toSlot)
 	{
 		this.itemSlot = toSlot;
+		if (isServer)
+		{
+			clientSynchronisedStorageIn = toSlot?.ItemStorage.OrNull()?.gameObject.NetId() ?? NetId.Empty;
+		}
+		OnItemSlotChanged?.Invoke();
 	}
 
 	/// <summary>

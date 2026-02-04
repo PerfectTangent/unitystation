@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Shared.Managers;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class StatsTab : Managers.SingletonManager<StatsTab>
+public class StatsTab : SingletonManager<StatsTab>
 {
 	public GameObject window;
 
@@ -14,13 +14,21 @@ public class StatsTab : Managers.SingletonManager<StatsTab>
 
 	void OnEnable()
 	{
-		Invoke("SetScrollToTop",0.1f);
-
 		EventManager.AddHandler(Event.PreRoundStarted, OnPreRoundStarted);
 		EventManager.AddHandler(Event.MatrixManagerInit, OnMapInit);
 		EventManager.AddHandler(Event.RoundStarted, OnRoundStarted);
 		EventManager.AddHandler(Event.RoundEnded, OnRoundEnded);
 		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
+	}
+
+	public override void OnDestroy()
+	{
+		EventManager.RemoveHandler(Event.PreRoundStarted, OnPreRoundStarted);
+		EventManager.RemoveHandler(Event.MatrixManagerInit, OnMapInit);
+		EventManager.RemoveHandler(Event.RoundStarted, OnRoundStarted);
+		EventManager.RemoveHandler(Event.RoundEnded, OnRoundEnded);
+		UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+		base.OnDestroy();
 	}
 
 	private void OnDisable()
@@ -78,6 +86,6 @@ public class StatsTab : Managers.SingletonManager<StatsTab>
 	public void UpdateRoundTime()
 	{
 		if(roundTimer == null) return;
-		roundTimer.text = GameManager.Instance.stationTime.ToShortTimeString();
+		roundTimer.text = GameManager.Instance.RoundTime.ToShortTimeString();
 	}
 }

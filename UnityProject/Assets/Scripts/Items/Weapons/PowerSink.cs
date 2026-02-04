@@ -5,10 +5,12 @@ using Systems.Explosions;
 using Items.Devices;
 using UnityEngine;
 using Communications;
+using Core;
 using Managers;
 using Mirror;
 using Systems.Electricity;
 using Systems.Electricity.NodeModules;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Items.Weapons
 {
@@ -23,7 +25,7 @@ namespace Items.Weapons
 		[SerializeField] private AddressableAudioSource beepSound;
 
 		private SpriteHandler spriteHandler;
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 		private Pickupable pickupable;
 
 		private ResistanceSourceModule RR;
@@ -34,7 +36,7 @@ namespace Items.Weapons
 
 		private void Awake()
 		{
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
 			pickupable = GetComponentInChildren<Pickupable>();
 			RR = GetComponent<ResistanceSourceModule>();
@@ -99,18 +101,18 @@ namespace Items.Weapons
 		{
 			isAnchored = true;
 			pickupable.ServerSetCanPickup(false);
-			objectBehaviour.ServerSetPushable(false);
+			objectBehaviour.SetIsNotPushable(true);
 			ElectricalManager.Instance.electricalSync.StructureChange = true;
-			Chat.AddLocalMsgToChat($"The {gameObject.ExpensiveName()} makes a clicking sound as it <b>anchors</b> to the ground", gameObject);
+			Chat.AddActionMsgToChat(gameObject, $"The {gameObject.ExpensiveName()} makes a clicking sound as it <b>anchors</b> to the ground.");
 		}
 		private void UnAnchor()
 		{
 			isAnchored = false;
 			pickupable.ServerSetCanPickup(true);
-			objectBehaviour.ServerSetPushable(true);
+			objectBehaviour.SetIsNotPushable(false);
 			ElectricalManager.Instance.electricalSync.StructureChange = true;
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, CheckForVoltage);
-			Chat.AddLocalMsgToChat($"The {gameObject.ExpensiveName()} makes a clicking sound as it <b>unanchors</b> from the ground", gameObject);
+			Chat.AddActionMsgToChat(gameObject, $"The {gameObject.ExpensiveName()} makes a clicking sound as it <b>unanchors</b> from the ground.");
 		}
 
 		private void ToggleActivity()
@@ -139,7 +141,7 @@ namespace Items.Weapons
 			var worldPos = gameObject.AssumedWorldPosServer();
 			// Despawn the explosive
 			_ = Despawn.ServerSingle(gameObject);
-			Explosion.StartExplosion(worldPos.RoundToInt(), currentCharge * explosionAmplifer);
+			Explosion.StartExplosion(worldPos.RoundToInt(), currentCharge * explosionAmplifer, stunNearbyPlayers: true);
 		}
 
 		public void CheckForVoltage()

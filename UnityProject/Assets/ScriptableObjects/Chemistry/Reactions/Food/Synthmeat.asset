@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ingredients:
     m_keys:
-    - {fileID: 11400000, guid: eea05337a284c407e926bf3110b00916, type: 2}
+    - {fileID: 11400000, guid: efcde740e9b85074485bcd68a7a21816, type: 2}
     - {fileID: 11400000, guid: e2f90c460b3c44d23bc300bfebb63e2c, type: 2}
     m_values: 0500000001000000
   useExactAmounts: 0
+  MinimumReactionMultiple: 0
   catalysts:
     m_keys: []
     m_values: 
@@ -31,5 +32,9 @@ MonoBehaviour:
   results:
     m_keys: []
     m_values: 
-  effects:
-  - {fileID: 11400000, guid: 16d3b9d5b08c9cc40b347ba84af546da, type: 2}
+  effectDict:
+    m_keys:
+    - {fileID: 11400000, guid: 16d3b9d5b08c9cc40b347ba84af546da, type: 2}
+    m_values: 01000000
+  overrideDisplayName: 
+  indexInSingleton: 338

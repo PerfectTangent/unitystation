@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 25715693032685112, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
+        type: 3}
+      propertyPath: parentID
+      value: 996d62bfe3bf26c4e95c2a77cadabbd2
+      objectReference: {fileID: 0}
     - target: {fileID: 25715693032685112, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
         type: 3}
       propertyPath: foreverID
@@ -29,13 +35,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 44155453462962640, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 22a27946e22454e428d26a01f49fe126,
         type: 2}
     - target: {fileID: 984030586657343954, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 4097e0b9e7dc38247a6fe6692d0ffe5f,
+        type: 2}
+    - target: {fileID: 984030586657343954, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 4097e0b9e7dc38247a6fe6692d0ffe5f,
         type: 2}
@@ -101,6 +113,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6446287369552793569, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
         type: 3}
+      propertyPath: _assetId
+      value: 847455120
+      objectReference: {fileID: 0}
+    - target: {fileID: 6446287369552793569, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
+        type: 3}
       propertyPath: m_AssetId
       value: 6b1fe6ba2d6dfb44e86f0594af87dd36
       objectReference: {fileID: 0}
@@ -139,7 +156,16 @@ PrefabInstance:
     - target: {fileID: 6776931286767099191, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
         type: 3}
       propertyPath: initialTraits.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 6776931286767099191, guid: 996d62bfe3bf26c4e95c2a77cadabbd2,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 5a088ab3ae96cb145af5f61b61514ac8,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 996d62bfe3bf26c4e95c2a77cadabbd2, type: 3}

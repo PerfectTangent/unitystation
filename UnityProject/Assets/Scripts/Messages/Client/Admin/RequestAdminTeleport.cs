@@ -1,5 +1,8 @@
-﻿using UnityEngine;
+﻿using Core;
+using Core.Admin.Logs;
+using UnityEngine;
 using Mirror;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Messages.Client.Admin
@@ -19,6 +22,7 @@ namespace Messages.Client.Admin
 
 		public override void Process(NetMessage msg)
 		{
+
 			switch (msg.OpperationNumber)
 			{
 				case OpperationList.AdminToPlayer:
@@ -30,18 +34,39 @@ namespace Messages.Client.Admin
 				case OpperationList.AllPlayersToPlayer:
 					DoAllPlayersToPlayerTeleport(msg);
 					return;
+				case OpperationList.TeleportAdmin:
+					AdminTeleport(msg);
+					return;
+
 			}
+		}
+
+		private void AdminTeleport(NetMessage msg)
+		{
+			if (HasPermission(TAG.ADMIN_TP) == false) return;
+
+			var coord = new Vector3 {x = msg.vectorX, y = msg.vectorY, z = msg.vectorZ };
+
+			var Physics = SentByPlayer.GameObject.GetComponent<UniversalObjectPhysics>();
+			if (Physics!= null)
+			{
+				Physics.AppearAtWorldPositionServer(coord, false);
+			}
+			else if(SentByPlayer.GameObject.TryGetComponent<GhostMove>(out var ghostMove))
+			{
+				ghostMove.ForcePositionClient(coord, false, false);
+			}
+
 		}
 
 		private void DoPlayerToAdminTeleport(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
-
+			if (HasPermission(TAG.PLAYER_MOVE) == false) return;
 			PlayerScript userToTeleport = null;
 
 			foreach (var player in PlayerList.Instance.AllPlayers)
 			{
-				if (player.UserId == msg.UserToTeleport)
+				if (player.AccountId == msg.UserToTeleport)
 				{
 					userToTeleport = player.Script;
 
@@ -53,21 +78,26 @@ namespace Messages.Client.Admin
 
 			var coord = new Vector3 {x = msg.vectorX, y = msg.vectorY, z = msg.vectorZ };
 
-			userToTeleport.PlayerSync.SetPosition(coord, true);
-
-			UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(
-					$"{SentByPlayer.Username} teleported {userToTeleport.playerName} to themselves", SentByPlayer.UserId);
+			if (userToTeleport.PlayerSync != null)
+			{
+				userToTeleport.PlayerSync.AppearAtWorldPositionServer(coord, false);
+			}
+			else if(userToTeleport.TryGetComponent<GhostMove>(out var ghostMove))
+			{
+				ghostMove.ForcePositionClient(coord, false, false);
+			}
+			AdminLogsManager.AddNewLog(SentByPlayer.GameObject, $"{SentByPlayer.Username} teleported {userToTeleport.playerName} to themselves", LogCategory.Admin);
 		}
 
 		private void DoAdminToPlayerTeleport(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.ADMIN_TP) == false) return;
 
 			PlayerScript userToTeleportTo = null;
 
 			foreach (var player in PlayerList.Instance.AllPlayers)
 			{
-				if (player.UserId == msg.UserToTeleportTo)
+				if (player.AccountId == msg.UserToTeleportTo)
 				{
 					userToTeleportTo = player.Script;
 
@@ -81,7 +111,14 @@ namespace Messages.Client.Admin
 
 			if (playerScript == null) return;
 
-			playerScript.PlayerSync.SetPosition(userToTeleportTo.gameObject.AssumedWorldPosServer(), true);
+			if (playerScript.PlayerSync != null)
+			{
+				playerScript.PlayerSync.AppearAtWorldPositionServer(userToTeleportTo.gameObject.AssumedWorldPosServer(), false);
+			}
+			else if(playerScript.TryGetComponent<GhostMove>(out var ghostMove))
+			{
+				ghostMove.ForcePositionClient(userToTeleportTo.gameObject.AssumedWorldPosServer(), false, false);
+			}
 
 			string message;
 
@@ -94,18 +131,18 @@ namespace Messages.Client.Admin
 				message = $"{SentByPlayer.Username} teleported to {userToTeleportTo.playerName} as a player";
 			}
 
-			UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(message, SentByPlayer.UserId);
+			AdminLogsManager.AddNewLog(SentByPlayer.GameObject, message, LogCategory.Admin);
 		}
 
 		private void DoAllPlayersToPlayerTeleport(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.PLAYER_MOVE_ALL) == false) return;
 
 			PlayerScript destinationPlayer = null;
 
 			foreach (var player in PlayerList.Instance.AllPlayers)
 			{
-				if (player.UserId == msg.UserToTeleportTo)
+				if (player.AccountId == msg.UserToTeleportTo)
 				{
 					destinationPlayer = player.Script;
 
@@ -125,7 +162,7 @@ namespace Messages.Client.Admin
 				{
 					var coord = new Vector3 { x = msg.vectorX, y = msg.vectorY, z = msg.vectorZ };
 
-					userToTeleport.PlayerSync.SetPosition(coord, true);
+					userToTeleport.OrNull()?.PlayerSync.OrNull()?.AppearAtWorldPositionServer(coord, false);
 				}
 				else if (destinationPlayer.IsGhost)
 				{
@@ -136,13 +173,13 @@ namespace Messages.Client.Admin
 				}
 				else
 				{
-					userToTeleport.PlayerSync.SetPosition(destinationPlayer.gameObject.AssumedWorldPosServer(), true);
+					userToTeleport.OrNull()?.PlayerSync.OrNull()?.AppearAtWorldPositionServer(destinationPlayer.gameObject.AssumedWorldPosServer(), false);
 				}
 			}
 
 			var stringMsg = $"{SentByPlayer.Username} teleported all players to {destinationPlayer.playerName}";
 
-			UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(stringMsg, SentByPlayer.UserId);
+			AdminLogsManager.AddNewLog(SentByPlayer.GameObject, stringMsg, LogCategory.Admin);
 		}
 
 		public static NetMessage Send(string userToTeleport, string userToTelportTo, OpperationList opperation, bool isAghost, Vector3 Coord)
@@ -166,7 +203,8 @@ namespace Messages.Client.Admin
 		{
 			AdminToPlayer = 1,
 			PlayerToAdmin = 2,
-			AllPlayersToPlayer = 3
+			AllPlayersToPlayer = 3,
+			TeleportAdmin  =4,
 		}
 	}
 }

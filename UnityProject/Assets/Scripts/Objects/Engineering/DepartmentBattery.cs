@@ -50,9 +50,27 @@ namespace Objects.Engineering
 		private bool hasInit;
 
 
+		private void Awake()
+		{
+			ElectricalNodeControl = this.GetComponent<ElectricalNodeControl>();
+			BatterySupplyingModule = this.GetComponent<BatterySupplyingModule>();
+		}
+
 		private void Start()
 		{
 			EnsureInit();
+		}
+
+		private void OnValidate()
+		{
+			if (enums.Count > 0)
+			{
+				for (int i = 0; i < enums.Count; i++)
+				{
+					Sprites[enums[i]] = Sprite[i];
+				}
+				Renderer.sprite = Sprites[CurrentSprite];
+			}
 		}
 
 		private void EnsureInit()
@@ -69,7 +87,10 @@ namespace Objects.Engineering
 			}
 
 			hasInit = true;
-			UpdateServerState();
+			if (isServer)
+			{
+				UpdateServerState();
+			}
 		}
 
 		public override void OnStartClient()
@@ -83,11 +104,13 @@ namespace Objects.Engineering
 		{
 			BatteryStateSprite newState;
 
-			if (BatterySupplyingModule.CurrentCapacity <= 0)
+			var Capacity = BatterySupplyingModule.GetSetCurrentCapacity;
+
+			if (Capacity <= 0)
 			{
 				newState = BatteryStateSprite.Empty;
 			}
-			else if (BatterySupplyingModule.CurrentCapacity <= (BatterySupplyingModule.CapacityMax / 2))
+			else if (Capacity <= (BatterySupplyingModule.CapacityMax / 2))
 			{
 				newState = BatteryStateSprite.Half;
 			}
@@ -133,7 +156,7 @@ namespace Objects.Engineering
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (interaction.HandObject != null) return false;
 

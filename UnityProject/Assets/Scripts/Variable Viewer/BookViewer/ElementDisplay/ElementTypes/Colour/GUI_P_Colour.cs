@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Core.RootSillys;
 using UnityEngine;
 using Messages.Client.VariableViewer;
 
@@ -8,13 +9,13 @@ namespace AdminTools.VariableViewer
 {
 	public class GUI_P_Colour : PageElement
 	{
-		public ColorPicker ColorPicker;
-		public GameObject ColourPickerwindow;
 
 		public bool IsSentence;
 		public bool iskey;
 		public override PageElementEnum PageElementType => PageElementEnum.Colour;
 		public Color thisColor = Color.white;
+
+		public bool IgnoreUpdates = false;
 
 		public HashSet<Type> CanDo = new HashSet<Type>()
 		{
@@ -26,6 +27,10 @@ namespace AdminTools.VariableViewer
 			return CanDo;
 		}
 
+
+
+
+
 		public override void SetUpValues(Type ValueType,
 			VariableViewerNetworking.NetFriendlyPage Page = null,
 			VariableViewerNetworking.NetFriendlySentence Sentence = null,
@@ -34,7 +39,7 @@ namespace AdminTools.VariableViewer
 			if (Page != null)
 			{
 				PageID = Page.ID;
-				SentenceID = 0;
+				SentenceID = UInt32.MaxValue;
 				IsSentence = false;
 				iskey = false;
 			}
@@ -47,26 +52,35 @@ namespace AdminTools.VariableViewer
 			}
 
 			var Data = VVUIElementHandler.ReturnCorrectString(Page, Sentence, Iskey);
-			DeSerialise(Data, true);
+			DeSerialise(Data, null, true);
 		}
 
-		public void UpdateColour()
+		public void UpdateColour(Color Color)
 		{
+			if (IgnoreUpdates) return;
 			if (PageID != 0)
 			{
-				thisColor = ColorPicker.CurrentColor;
+				thisColor = UIManager.Instance.GlobalColorPicker.CurrentColor;
 				string Outstring = "" + Convert.ToChar(Mathf.RoundToInt(thisColor.r * 255));
 				Outstring += Convert.ToChar(Mathf.RoundToInt(thisColor.g * 255));
 				Outstring += Convert.ToChar(Mathf.RoundToInt(thisColor.b * 255));
 				Outstring += Convert.ToChar(Mathf.RoundToInt(thisColor.a * 255));
 
-				RequestChangeVariableNetMessage.Send(PageID, Outstring, UISendToClientToggle.toggle);
+				RequestChangeVariableNetMessage.Send(PageID, Outstring, UISendToClientToggle.toggle, SentenceID, iskey);
 			}
 		}
 
 		public void ToggleObject()
 		{
-			ColourPickerwindow.SetActive(!ColourPickerwindow.activeSelf);
+			if (UIManager.Instance.GlobalColorPicker.gameObject.activeInHierarchy)
+			{
+				UIManager.Instance.GlobalColorPicker.OnCancelBtn();
+			}
+			else
+			{
+				UIManager.Instance.GlobalColorPicker.EnablePickerApply(UpdateColour);
+				UIManager.Instance.GlobalColorPicker.CurrentColor = thisColor;
+			}
 		}
 
 		public override void Pool()
@@ -80,30 +94,37 @@ namespace AdminTools.VariableViewer
 			var inType = Data.GetType();
 			if (CanDo.Contains(inType))
 			{
-				string newstring = "" + Convert.ToChar(Mathf.RoundToInt((float)inType.GetField("r").GetValue(Data) * 255));
-				newstring += Convert.ToChar(Mathf.RoundToInt((float)inType.GetField("g").GetValue(Data) * 255));
-				newstring += Convert.ToChar(Mathf.RoundToInt((float)inType.GetField("b").GetValue(Data) * 255));
-				newstring += Convert.ToChar(Mathf.RoundToInt((float)inType.GetField("a").GetValue(Data) * 255));
+				Color Color = (Color) Data;
+				string newstring = "" + Convert.ToChar(Mathf.RoundToInt((float)Color.r.MakeInToReasonableNumber(1) * 255));
+				newstring += Convert.ToChar(Mathf.RoundToInt((float)Color.g.MakeInToReasonableNumber(1)  * 255));
+				newstring += Convert.ToChar(Mathf.RoundToInt((float)Color.b.MakeInToReasonableNumber(1)  * 255));
+				newstring += Convert.ToChar(Mathf.RoundToInt((float)Color.a.MakeInToReasonableNumber(1)  * 255));
 				return newstring;
 			}
 
 			return Data.ToString();
 		}
 
-		public override object DeSerialise(string Data, bool SetUI = false)
+		public override object DeSerialise(string StringVariable, Type InType, bool SetUI = false)
 		{
 			Color TheColour = Color.white;
-			TheColour.r = Data[0] / 255f;
-			TheColour.g = Data[1] / 255f;
-			TheColour.b = Data[2] / 255f;
-			TheColour.a = Data[3] / 255f;
+			TheColour.r = StringVariable[0] / 255f;
+			TheColour.g = StringVariable[1] / 255f;
+			TheColour.b = StringVariable[2] / 255f;
+			TheColour.a = StringVariable[3] / 255f;
 			if (SetUI)
 			{
+				IgnoreUpdates = true;
 				thisColor = TheColour;
-				ColorPicker.CurrentColor = TheColour;
+				IgnoreUpdates = false;
 			}
 
 			return TheColour;
+		}
+
+		public override object GetDefaultValue(Type InType)
+		{
+			return Color.white;
 		}
 	}
 }

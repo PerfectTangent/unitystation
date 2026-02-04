@@ -1,17 +1,26 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
-using System.Threading.Tasks;
-using Systems;
-using Mirror;
+using Core.Admin.Logs;
 using Newtonsoft.Json;
-using UnityEngine;
 using UnityEngine.SceneManagement;
+using Mirror;
+using Core.Networking;
+using Core.Networking.AsyncMessageQueue;
+using Cysharp.Threading.Tasks;
+using Logs;
+using Managers.Supporters;
+using Systems;
+using Systems.Character;
 using Messages.Server;
 using Messages.Client;
 using Messages.Client.NewPlayer;
+using Messages.Client.SpriteMessages;
+using Systems.Permissions;
 using UI;
+using UI.Systems.PreRound;
+using UnityEngine;
+using Util.Independent.FluentRichText;
 
 namespace Player
 {
@@ -22,48 +31,82 @@ namespace Player
 	/// </summary>
 	public class JoinedViewer : NetworkBehaviour
 	{
-		public bool IsValidPlayerAndWaitingOnLoad = false; //Note This class is reused for multiple Connections
+		public static bool ClientValidated = false;
 
-		public string STUnverifiedClientId;
-		public string STVerifiedUserid;
-		public ConnectedPlayer STVerifiedConnPlayer;
+		public static List<Action> DelayTillAuthenticated = new List<Action>();
+
+		private bool IsValidPlayerAndWaitingOnLoad = false; //Note This class is reused for multiple Connections
+
+		private string STUnverifiedClientId;
+		private string STVerifiedUserid;
+		private PlayerInfo STVerifiedConnPlayer;
+
+		[SyncVar] public bool ServerDoneLoading = false;
+
+		public static void AddOnPlayerValidated(Action ToInvoke)
+		{
+			if (ClientValidated)
+			{
+				ToInvoke.Invoke();
+			}
+			else
+			{
+				DelayTillAuthenticated.Add(ToInvoke);
+			}
+		}
+
+		public static void FinishedValidating()
+		{
+			ClientValidated = true;
+			foreach (var Action in DelayTillAuthenticated)
+			{
+				try
+				{
+					Action.Invoke();
+				}
+				catch (Exception e)
+				{
+					Loggy.Error(e.ToString());
+				}
+			}
+		}
+
 
 		public override void OnStartLocalPlayer()
 		{
 			base.OnStartLocalPlayer();
 
 			PlayerManager.SetViewerForControl(this);
+			ServerDoneLoading = false;
 
-			if (isServer)
+			if (isServer && isLocalPlayer)
 			{
 				RequestObserverRefresh.Send(SceneManager.GetActiveScene().name);
-				HandleServerConnection();
+				ServerSetUpPlayer(string.Empty);
+				_ = ClientFinishLoading();
+				FinishedValidating();
 			}
 			else
 			{
-				CmdServerSetupPlayer(GetNetworkInfo(),
-					PlayerManager.CurrentCharacterSettings.Username, DatabaseAPI.ServerData.UserID, GameData.BuildNumber,
-					DatabaseAPI.ServerData.IdToken, SceneManager.GetActiveScene().name);
+				CmdServerSetupPlayer(SceneManager.GetActiveScene().name);
+			}
 
+			try
+			{
+				GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Player Loading", "Prefetching character sheets..", 0.1f);
+				_ = PlayerManager.CharacterManager.LoadCharacters();
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
 			}
 		}
 
-
-
-		private async void HandleServerConnection()
-		{
-			await ServerSetUpPlayer(GetNetworkInfo(),
-				PlayerManager.CurrentCharacterSettings.Username, DatabaseAPI.ServerData.UserID, GameData.BuildNumber,
-				DatabaseAPI.ServerData.IdToken, "");
-			ClientFinishLoading();
-		}
-
 		[Command]
-		private void CmdServerSetupPlayer(string unverifiedClientId, string unverifiedUsername,
-			string unverifiedUserid, int unverifiedClientVersion, string unverifiedToken, string clientCurrentScene)
+		private void CmdServerSetupPlayer(string currentScene)
 		{
-			ClearCache();
-			_ = ServerSetUpPlayer(unverifiedClientId, unverifiedUsername, unverifiedUserid, unverifiedClientVersion, unverifiedToken,clientCurrentScene);
+			ClearCache(true);
+			ServerSetUpPlayer(currentScene);
 		}
 
 		[Server]
@@ -71,122 +114,210 @@ namespace Player
 		{
 			List<SceneInfo> SceneS = new List<SceneInfo>();
 
-			foreach (var Scene in SubSceneManager.Instance.loadedScenesList)
+			foreach (var scene in SubSceneManager.Instance.loadedScenesList)
 			{
-				if (AlreadyLoaded == Scene.SceneName) continue;
-				SceneS.Add(Scene);
+				if (AlreadyLoaded == scene.SceneName) continue;
+				SceneS.Add(scene);
 			}
-
 			RpcLoadScenes(JsonConvert.SerializeObject(SceneS), AlreadyLoaded);
 		}
 
 		[TargetRpc]
-		void RpcLoadScenes(string Data, string OriginalScene)
+		private void RpcLoadScenes(string Data, string OriginalScene)
 		{
-			if (isServer)
-			{
-				return;
-			}
-
-			SubSceneManager.Instance.LoadScenesFromServer(JsonConvert.DeserializeObject<List<SceneInfo>>(Data), OriginalScene, CMDFinishLoading);
+			if (isServer) return;
+			GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Starting game", "Loading Scenes from server.", 0.2f);
+			SubSceneManager.Instance.LoadScenesFromServer(JsonConvert.DeserializeObject<List<SceneInfo>>(Data),
+				OriginalScene, ClientFinishedLoading);
 		}
 
 		[Server]
-		private async Task ServerSetUpPlayer(
-			string unverifiedClientId,
-			string unverifiedUsername,
-			string unverifiedUserid,
-			int unverifiedClientVersion,
-			string unverifiedToken,
-			string clientCurrentScene)
+		private void ServerSetUpPlayer(string currentScene)
 		{
-			Logger.LogFormat("A joinedviewer called CmdServerSetupPlayer on this server, Unverified ClientId: {0} Unverified Username: {1}",
-				Category.Connections,
-				unverifiedClientId, unverifiedUsername);
+			ServerDoneLoading = false;
+			var authData = (AuthData) connectionToClient.authenticationData;
 
-			// Register player to player list (logging code exists in PlayerList so no need for extra logging here)
-			var unverifiedConnPlayer = PlayerList.Instance.AddOrUpdate(new ConnectedPlayer
+			// Sanity check in case Mirror does a surprising thing and allows commands from unauthenticated clients.
+			if (connectionToClient.isAuthenticated == false)
 			{
-				Connection = connectionToClient,
-				GameObject = gameObject,
-				Username = unverifiedUsername,
-				Job = JobType.NULL,
-				ClientId = unverifiedClientId,
-				UserId = unverifiedUserid,
-				ConnectionIP = connectionToClient.address
-			});
-
-			// this validates Userid and Token
-			var isValidPlayer =
-				await PlayerList.Instance.ValidatePlayer(unverifiedClientVersion, unverifiedConnPlayer, unverifiedToken);
-
-			if (isValidPlayer == false)
-			{
+				Loggy.Error(
+					$"A client attempted to set up their server player object but they haven't authenticated yet! Address: {connectionToClient.address}.");
 				ClearCache();
-				PlayerList.Instance.Remove(unverifiedConnPlayer);
-				Logger.LogWarning($"Set up new player: invalid player. For {unverifiedUsername}", Category.Connections);
 				return;
 			}
 
+			Loggy.Trace(
+				$"{authData.Account.Username}'s {nameof(JoinedViewer)} called CmdServerSetupPlayer. ClientId: {authData.ClientId}.",
+				Category.Connections);
+
+
+			bool GennewID = false;
+			var Existingplayer = PlayerList.Instance.GetLoggedOffClient(authData.ClientId, authData.Account.Id);
+			if (Existingplayer == null || Existingplayer == PlayerInfo.Invalid)
+			{
+				if (GameData.Instance.DevBuild == false)
+				{
+					Existingplayer = PlayerList.Instance.GetLoggedOnClient(authData.ClientId, authData.Account.Id);
+
+					if (Existingplayer != null && Existingplayer.Connection != connectionToClient)
+					{
+						Loggy.Error($"Disconnecting player {Existingplayer?.Name} via Disconnect previous Using account/mac Address ");
+						Existingplayer.Connection?.Disconnect();
+					}
+				}
+				else
+				{
+					GennewID = true;
+
+				}
+			}
+
+			if (Existingplayer == null ||  Existingplayer == PlayerInfo.Invalid)
+			{
+				if (GennewID && GameData.Instance.DevBuild)
+				{
+					authData.Account.Id = authData.Account.Id + RNG.GetRandomNumber(0, 10000);
+				}
+
+				Existingplayer = new PlayerInfo
+				{
+					Connection = connectionToClient,
+					ConnectionIP = connectionToClient.address,
+					ClientId = authData.ClientId,
+					Account = authData.Account,
+					GameObject = gameObject,
+				};
+			}
+
+			Existingplayer.Connection = connectionToClient;
+			Existingplayer.ClientId = authData.ClientId;
+			Existingplayer.Account = authData.Account;
+			Existingplayer.ConnectionIP = connectionToClient.address;
+			// Register player to player list (logging code exists in PlayerList so no need for extra logging here)
+			var player = PlayerList.Instance.AddOrUpdate(Existingplayer);
+
+			// Check if they're admin / banned etc
+			var isValidPlayer = PlayerList.Instance.TryLogIn(player);
+			if (isValidPlayer == false)
+			{
+				// Any actions, including logging, done in CanPlayerJoin.
+				PlayerList.Instance.Remove(player);
+				Loggy.Warning($"Set up new player: invalid player. For {authData.Account.Username}", Category.Connections);
+				ClearCache();
+
+				return;
+			}
+
+			if (AdminSetWatchlist.Watchlist.ContainsKey(authData.Account.Id))
+			{
+				if (AdminSetWatchlist.Watchlist[authData.Account.Id])
+				{
+					AdminLogsManager.AddNewLog($"Player has joined who is on watchlist ID {authData.Account.Id}", LogCategory.Connections, BubbleUpToChatAdmin:true);
+				}
+			}
+
 			//Add player to the list of current round players
-			PlayerList.Instance.AddToRoundPlayers(unverifiedConnPlayer);
+			PlayerList.Instance.AddToRoundPlayers(player);
 
 			//Send to client their job ban entries
-			var jobBanEntries = PlayerList.Instance.ClientAskingAboutJobBans(unverifiedConnPlayer);
-			PlayerList.ServerSendsJobBanDataMessage.Send(unverifiedConnPlayer.Connection, jobBanEntries);
+			var jobBanEntries = PlayerList.Instance.ClientAskingAboutJobBans(player);
+			PlayerList.ServerSendsJobBanDataMessage.Send(player.Connection, jobBanEntries);
 
 			//Send to client the current crew job counts
 			if (CrewManifestManager.Instance != null)
 			{
-				SetJobCountsMessage.SendToPlayer(CrewManifestManager.Instance.Jobs, unverifiedConnPlayer);
+				SetJobCountsMessage.SendToPlayer(CrewManifestManager.Instance.Jobs, player);
 			}
 
 			UpdateConnectedPlayersMessage.Send();
-
 			IsValidPlayerAndWaitingOnLoad = true;
-			STUnverifiedClientId = unverifiedClientId;
-			STVerifiedUserid = unverifiedUserid; //Is validated within  PlayerList.Instance.ValidatePlayer(
-			STVerifiedConnPlayer = unverifiedConnPlayer;
-			if (string.IsNullOrEmpty(clientCurrentScene) == false)
+			STUnverifiedClientId = authData.ClientId;
+			STVerifiedUserid = authData.Account.Id;
+			STVerifiedConnPlayer = player;
+			SendDataToClient();
+
+			if (string.IsNullOrEmpty(currentScene) == false)
 			{
-				ServerRequestLoadedScenes(clientCurrentScene );
+				ServerRequestLoadedScenes(currentScene);
+			}
+
+			var supporterCheck = Supporters.IsSupporter(player);
+			if (supporterCheck.Item1)
+			{
+				PermissionsManager.Instance.AddTempRoleTo(player.AccountId, "supporter");
 			}
 		}
 
+		[Server]
+		public void SendDataToClient()
+		{
+			foreach (var MapData in CustomNetworkManager.Instance.LoadedMapDatas)
+			{
+				ServerReturnMapData.Send(this.gameObject, MapData.Item1, ServerReturnMapData.MessageType.MapDataForClient, MapData.Item2);
+			}
+
+			foreach (var Matrix in MatrixManager.Instance.ActiveMatrices)
+			{
+				Matrix.Value.Matrix.MetaDataLayer.UpdateNewPlayer(connectionToClient);
+				Matrix.Value.Matrix.TileChangeManager.UpdateNewPlayer(connectionToClient);
+			}
+		}
+
+		[Client]
+		public void ClientFinishedLoading()
+		{
+			FinishedValidating();
+			CmdFinishLoading();
+			SpriteRequestCurrentStateMessage.Send(SpriteHandlerManager.Instance.GetComponent<NetworkIdentity>().netId);
+		}
+
 		[Command]
-		public void CMDFinishLoading()
+		public void CmdFinishLoading()
 		{
 			if (IsValidPlayerAndWaitingOnLoad == false)
 			{
+				Loggy.Error($"Disconnecting {this.STVerifiedUserid} by Trying to call CMDFinishLoading When server wasn't expecting player to be loading  ", Category.Connections);
+				AdminLogsManager.AddNewLog(null, $"Disconnecting {this.STVerifiedUserid} by Trying to call CMDFinishLoading When server wasn't expecting player to be loading", LogCategory.Connections, Severity.IMMEDIATE_ATTENTION);
 				connectionToClient.Disconnect();
+				ClearCache();
 				return;
 			}
 
 			if (STVerifiedConnPlayer.Connection != connectionToClient)
 			{
+				Loggy.Error($"Disconnecting {this.STVerifiedConnPlayer.Name} by Authenticated user connection matching The game objects connection ", Category.Connections);
+				AdminLogsManager.AddNewLog(null, $"Disconnecting {this.STVerifiedConnPlayer.Name} by Authenticated user connection matching The game objects connection", LogCategory.Connections, Severity.IMMEDIATE_ATTENTION);
 				connectionToClient.Disconnect();
 				ClearCache();
 				return;
 			}
-			ClientFinishLoading();
+
+			_ = ClientFinishLoading();
 		}
 
-		public void ClearCache()
+		public void ClearCache(bool bNew = false)
 		{
 			IsValidPlayerAndWaitingOnLoad = false;
 			STUnverifiedClientId = null;
 			STVerifiedUserid = null;
 			STVerifiedConnPlayer = null;
+			if (bNew == false)
+			{
+				_ = Despawn.ServerSingle(this.gameObject);
+			}
+			GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("", "", 2f);
 		}
 
-		public void ClientFinishLoading()
+		private async UniTask ClientFinishLoading()
 		{
 			// Only sync the pre-round countdown if it's already started.
 			if (GameManager.Instance.CurrentRoundState == RoundState.PreRound)
 			{
 				if (GameManager.Instance.waitForStart)
 				{
-					TargetSyncCountdown(connectionToClient, GameManager.Instance.waitForStart, GameManager.Instance.CountdownEndTime);
+					GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Starting game", "Syncing countdown end time.", 0.7f);
+					TargetSyncCountdown(connectionToClient, GameManager.Instance.waitForStart,
+						GameManager.Instance.CountdownEndTime);
 				}
 				else
 				{
@@ -194,66 +325,103 @@ namespace Player
 				}
 			}
 
-			// Check if they have a player to rejoin before creating a new ConnectedPlayer
-			var loggedOffPlayer = PlayerList.Instance.RemovePlayerbyClientId(STUnverifiedClientId, STVerifiedUserid, STVerifiedConnPlayer);
-			var checkForViewer = loggedOffPlayer?.GameObject.GetComponent<JoinedViewer>();
-			if (checkForViewer)
-			{
-				Destroy(loggedOffPlayer.GameObject);
-				loggedOffPlayer = null;
-			}
-
 			// If there's a logged off player, we will force them to rejoin their body
-			if (loggedOffPlayer == null)
+			if (STVerifiedConnPlayer.Mind == null) //TODO Handle when someone gets kicked out of their mind
 			{
+				GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("", "", 2f);
 				TargetLocalPlayerSetupNewPlayer(connectionToClient, GameManager.Instance.CurrentRoundState);
+				GameManager.Instance.OrNull()?.PlayerLoadedIn(connectionToClient);
+				ClearCache(true);
 			}
 			else
 			{
-				StartCoroutine(WaitForLoggedOffObserver(loggedOffPlayer.GameObject));
+				GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Starting game", "Found previous mind. Rejoining.", 0.9f);
+				await WaitForLoggedOffObserver(STVerifiedConnPlayer.Mind);
 			}
-
-			PlayerList.Instance.CheckAdminState(STVerifiedConnPlayer, STVerifiedUserid);
-			PlayerList.Instance.CheckMentorState(STVerifiedConnPlayer, STVerifiedUserid);
-			ClearCache();
+			IsValidPlayerAndWaitingOnLoad = false;
+			ServerDoneLoading = true;
 		}
 
 		/// <summary>
 		/// Waits for the client to be an observer of the player before continuing
 		/// </summary>
-		private IEnumerator WaitForLoggedOffObserver(GameObject loggedOffPlayer)
+		private async UniTask WaitForLoggedOffObserver(Mind loggedOffPlayer)
 		{
-			TargetLocalPlayerRejoinUI(connectionToClient);
+			TargetLocalPlayerRejoinUI(connectionToClient, 0.1f, "Rejoining", "Waiting for logged off observer..");
+
 			// TODO: When we have scene network culling we will need to allow observers
 			// for the whole specific scene and the body before doing the logic below:
-			var netIdentity = loggedOffPlayer.GetComponent<NetworkIdentity>();
-			if (netIdentity == null)
+			var identity = loggedOffPlayer.GetComponent<NetworkIdentity>();
+			if (identity == null)
 			{
-				Logger.LogError($"No {nameof(NetworkIdentity)} component on {loggedOffPlayer}! " +
-								"Cannot rejoin that player. Was original player object improperly created? " +
-								"Did we get runtime error while creating it?", Category.Connections);
+				GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Encountered an issue while loading", "An error occurred. Press F5 to check for what error had occured.".Color(Color.red), 0f);
+				Loggy.Error($"No {nameof(NetworkIdentity)} component on {loggedOffPlayer}! " +
+				                "Cannot rejoin that player. Was original player object improperly created? " +
+				                "Did we get runtime error while creating it?");
 				// TODO: if this issue persists, should probably send the poor player a message about failing to rejoin.
-				yield break;
+				ClearCache();
+				return;
 			}
 
-			while (!netIdentity.observers.ContainsKey(connectionToClient.connectionId))
+			var antiFreezeCheckCount = 0;
+			while (connectionToClient != null && identity.observers.ContainsKey(connectionToClient.connectionId) == false)
 			{
-				yield return WaitFor.EndOfFrame;
+				antiFreezeCheckCount++;
+				await UniTask.WaitForSeconds(1f);
 				if (connectionToClient == null)
 				{
-					//disconnected while we were waiting
-					yield break;
+					Loggy.Info("A client seemed to have discconected while we're waiting for their observer.");
+					ClearCache();
+					break;
+				}
+				if (antiFreezeCheckCount > 20)
+				{
+					GUI_PreRoundWindow.Instance?.OnClientLoadUpdateStatus?.Invoke("Encountered an issue while loading", "A problem occurred while attempting to check for a valid connection ID." +
+						"No valid connection found after 20 seconds. Press F5 to check for if an error had occured.".Color(Color.red), 0f);
+					Loggy.Error($"ID {connectionToClient.connectionId} not found in observers dictionary!" +
+					            "Cannot rejoin that player. Was original player object improperly created? " +
+					            "Did we get runtime error while creating it?");
+					//FIXME: This is a temporary banadge for a game breaking issue.
+					//(Max): I can't figure out why the observers dictionary isn't getting updated accordingly, or what is responsible for it.
+					//This way of checking possesion IDs directly should at least stop players from getting stuck on round-rejoins,
+					//but it isn't encourged to be the main way of handling this.
+					AttemptFallback(loggedOffPlayer, connectionToClient);
+					ClearCache();
+					return;
 				}
 			}
 
-			TargetLocalPlayerRejoinUI(connectionToClient);
-			PlayerSpawn.ServerRejoinPlayer(this, loggedOffPlayer);
+			SuccesfullyRejoin();
+		}
+
+		private void AttemptFallback(Mind loggedOffPlayer, NetworkConnectionToClient conn = null)
+		{
+			if (conn == null) return; //weaver requirement
+			foreach (var player in PlayerList.Instance.AllPlayers)
+			{
+				if (player.Mind == null || player.Mind.ControlledBy == null) continue;
+				if (player.Mind.ControlledBy.Mind != loggedOffPlayer) continue;
+				if (player.ViewerScript.IsValidPlayerAndWaitingOnLoad == false)
+				{
+					Loggy.Error($"{player.Username} detected while attempting to fallback to mind checks, but IsValidPlayerAndWaitingOnLoad is set to false?!");
+				}
+				SuccesfullyRejoin();
+				break;
+			}
+		}
+
+		private void SuccesfullyRejoin()
+		{
+			TargetLocalPlayerRejoinUI(connectionToClient, 0.9f, "Rejoining", "Successfully rejoined. Alerting Mind..");
+			GameManager.Instance.OrNull()?.PlayerLoadedIn(connectionToClient);
+			STVerifiedConnPlayer.Mind.OrNull()?.ReLog();
+			ClearCache(true);
 		}
 
 		[TargetRpc]
-		private void TargetLocalPlayerRejoinUI(NetworkConnection target)
+		private void TargetLocalPlayerRejoinUI(NetworkConnection target, float amount, string loadingTitle, string loadingSubject)
 		{
-			UIManager.Display.preRoundWindow.ShowRejoiningPanel();
+			UIManager.Display.preRoundWindow.LoadingArea.UpdateLoadingBar(loadingTitle, loadingSubject, amount);
 		}
 
 		/// <summary>
@@ -279,36 +447,41 @@ namespace Player
 					UIManager.Display.SetScreenForJoining();
 					break;
 			}
+
 		}
 
 		public void RequestJob(JobType job)
 		{
-			var jsonCharSettings = JsonConvert.SerializeObject(PlayerManager.CurrentCharacterSettings);
+			CharacterSheet characterSheet = PlayerManager.ActiveCharacter;
+
+			if (characterSheet == null)
+			{
+				characterSheet = new CharacterSheet();
+			}
+
+			var jsonCharSettings = JsonConvert.SerializeObject(characterSheet);
 
 			if (PlayerList.Instance.ClientJobBanCheck(job) == false)
 			{
-				Logger.LogWarning($"Client failed local job-ban check for {job}.", Category.Jobs);
-				UIManager.Display.jobSelectWindow.GetComponent<GUI_PlayerJobs>().ShowFailMessage(JobRequestError.JobBanned);
+				Loggy.Warning($"Client failed local job-ban check for {job}.", Category.Jobs);
+				UIManager.Display.jobSelectWindow.GetComponent<GUI_PlayerJobs>()
+					.ShowFailMessage(JobRequestError.JobBanned);
 				return;
 			}
 
-			ClientRequestJobMessage.Send(job, jsonCharSettings, DatabaseAPI.ServerData.UserID);
+			ClientRequestJobMessage.Send(job, jsonCharSettings);
+		}
+
+		public void RequestJob(int attribute)
+		{
+			var jsonCharSettings = JsonConvert.SerializeObject(PlayerManager.ActiveCharacter);
+			ClientRequestSpawnWithAttribute.Send(attribute, jsonCharSettings, PlayerManager.Account.Id);
 		}
 
 		public void Spectate()
 		{
-			var jsonCharSettings = JsonConvert.SerializeObject(PlayerManager.CurrentCharacterSettings);
-			CmdSpectate(jsonCharSettings);
-		}
-
-		/// <summary>
-		/// Command to spectate a round instead of spawning as a player
-		/// </summary>
-		[Command]
-		public void CmdSpectate(string jsonCharSettings)
-		{
-			var characterSettings = JsonConvert.DeserializeObject<CharacterSettings>(jsonCharSettings);
-			PlayerSpawn.ServerSpawnGhost(this, characterSettings);
+			var jsonCharSettings = JsonConvert.SerializeObject(PlayerManager.ActiveCharacter);
+			ClientRequestJobMessage.Send(JobType.NULL, jsonCharSettings);
 		}
 
 		/// <summary>
@@ -317,22 +490,8 @@ namespace Player
 		[TargetRpc]
 		private void TargetSyncCountdown(NetworkConnection target, bool started, double endTime)
 		{
-			Logger.Log("Syncing countdown!", Category.Round);
-			UIManager.Display.preRoundWindow.GetComponent<GUI_PreRoundWindow>().SyncCountdown(started, endTime);
-		}
-
-		private string GetNetworkInfo()
-		{
-			var nics = NetworkInterface.GetAllNetworkInterfaces();
-			foreach (var n in nics)
-			{
-				if (string.IsNullOrEmpty(n.GetPhysicalAddress().ToString()) == false)
-				{
-					return n.GetPhysicalAddress().ToString();
-				}
-			}
-
-			return "";
+			Loggy.Info("Syncing countdown!", Category.Round);
+			UIManager.Display.preRoundWindow.GetComponent<GUI_PreRoundWindow>().CountdownArea.SyncCountdown(started, endTime);
 		}
 
 		/// <summary>
@@ -343,21 +502,30 @@ namespace Player
 			var jsonCharSettings = "";
 			if (isReady)
 			{
-				jsonCharSettings = JsonConvert.SerializeObject(PlayerManager.CurrentCharacterSettings);
+				CharacterSheet characterSheet = PlayerManager.ActiveCharacter;
+
+				if (characterSheet == null)
+				{
+					characterSheet = new CharacterSheet();
+				}
+
+				jsonCharSettings = JsonConvert.SerializeObject(characterSheet);
 			}
+
 			CmdPlayerReady(isReady, jsonCharSettings);
 		}
 
 		[Command]
 		private void CmdPlayerReady(bool isReady, string jsonCharSettings)
 		{
-			var player = PlayerList.Instance.GetByConnection(connectionToClient);
+			var player = PlayerList.Instance.GetOnline(connectionToClient);
 
-			CharacterSettings charSettings = null;
+			CharacterSheet charSettings = null;
 			if (isReady)
 			{
-				charSettings = JsonConvert.DeserializeObject<CharacterSettings>(jsonCharSettings);
+				charSettings = JsonConvert.DeserializeObject<CharacterSheet>(jsonCharSettings);
 			}
+
 			PlayerList.Instance.SetPlayerReady(player, isReady, charSettings);
 		}
 	}

@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed39dc88e7534c645afa762455e39ec2, type: 3}
   m_Name: Oxygen
   m_EditorClassIdentifier: 
+  foreverID: Oxygen
+  PreviewSprite: {fileID: 11400000, guid: 5ef0657d7830aa84fa605100aca50781, type: 2}
   MolarHeatCapacity: 20
   MolarMass: 31.9988
   Name: Oxygen

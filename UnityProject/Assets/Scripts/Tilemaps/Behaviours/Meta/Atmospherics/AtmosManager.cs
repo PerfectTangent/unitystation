@@ -1,38 +1,57 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using UnityEngine;
-using Systems.Pipes;
 using Objects.Wallmounts;
-using Managers;
+using Shared.Managers;
+using Systems.Pipes;
+using UnityEngine;
 using UnityEngine.Profiling;
 
 namespace Systems.Atmospherics
 {
 	public class AtmosManager : SingletonManager<AtmosManager>
 	{
-		public HashSet<PipeData> inGameNewPipes = new HashSet<PipeData>();
-		public HashSet<FireAlarm> inGameFireAlarms = new HashSet<FireAlarm>();
-		public ThreadSafeList<PipeData> pipeList = new ThreadSafeList<PipeData>();
-		public GenericDelegate<PipeData> processPipeDelegator;
+
+		public List<Action> removeingUpdates = new List<Action>();
+		public List<Action> addingUpdates = new List<Action>();
+
+		public List<Action> atmosphericsUpdates = new List<Action>();
+
+		public List<PipeData> removeingpipeList = new List<PipeData>();
+		public List<PipeData> addingpipeList = new List<PipeData>();
+
+		public List<PipeData> pipeList = new List<PipeData>();
+
 
 		public List<ReactionManager> reactionManagerList = new List<ReactionManager>();
 
 		private AtmosThread atmosThread;
+		public AtmosThread AtmosThread => atmosThread ;
 		public AtmosSimulation simulation;
 		public CustomSampler sampler;
 
 		public bool StopPipes = false;
 
 		//TODO: move these prefabs somewhere else more appropiate
-		public GameObject fireLight = null;
-		public GameObject iceShard = null;
-		public GameObject hotIce = null;
+		[field: SerializeField]
+		public GameObject FireLight { get; private set; }
+
+		[field: SerializeField]
+		public GameObject DarkMatterLight { get; private set; }
+
+		[field: SerializeField]
+		public GameObject IceShard { get; private set; }
+
+		[field: SerializeField]
+		public GameObject HotIce { get; private set; }
+
+		[field: SerializeField]
+		public GameObject MetalHydrogen { get; private set; }
 
 		public override void Awake()
 		{
 			base.Awake();
-			processPipeDelegator = ProcessPipe;
-			atmosThread = gameObject.AddComponent<AtmosThread>();
-			atmosThread.tickDelay = 40;
+			atmosThread = gameObject.GetComponent<AtmosThread>();
 			simulation = new AtmosSimulation();
 			sampler = CustomSampler.Create("AtmosphericsStep");
 		}
@@ -60,25 +79,87 @@ namespace Systems.Atmospherics
 			atmosThread.StopThread();
 			GasReactions.ResetReactionList();
 			simulation.ClearUpdateList();
-			inGameNewPipes.Clear();
-			inGameFireAlarms.Clear();
 			reactionManagerList.Clear();
+			atmosphericsUpdates.Clear();
 		}
 
-		private void ProcessPipe(PipeData pipeData)
+		public void ProcessAction(Action action)
+		{
+			action?.Invoke();
+		}
+
+		public void ProcessPipe(PipeData pipeData)
 		{
 			pipeData.TickUpdate();
 		}
 
 		public void AddPipe(PipeData pipeData)
 		{
-			pipeList.Add(pipeData);
+			lock (addingpipeList)
+			{
+				if (removeingpipeList.Contains(pipeData))
+				{
+					removeingpipeList.Remove(pipeData);
+				}
+
+				if (addingpipeList.Contains(pipeData) == false)
+				{
+					addingpipeList.Add(pipeData);
+				}
+
+			}
 		}
 
 		public void RemovePipe(PipeData pipeData)
 		{
-			pipeList.Remove(pipeData);
+			lock (addingpipeList)
+			{
+				if (addingpipeList.Contains(pipeData))
+				{
+					addingpipeList.Remove(pipeData);
+				}
+
+				if (removeingpipeList.Contains(pipeData) == false)
+				{
+					removeingpipeList.Add(pipeData);
+				}
+			}
 		}
+
+		public void AddUpdate(Action updateAction)
+		{
+			lock (addingUpdates)
+			{
+				if (removeingUpdates.Contains(updateAction))
+				{
+					removeingUpdates.Remove(updateAction);
+				}
+
+				if (addingUpdates.Contains(updateAction) == false)
+				{
+					addingUpdates.Add(updateAction);
+				}
+			}
+
+		}
+
+		public void RemoveUpdate(Action updateAction)
+		{
+			lock (addingUpdates)
+			{
+				if (addingUpdates.Contains(updateAction))
+				{
+					addingUpdates.Remove(updateAction);
+				}
+
+				if (removeingUpdates.Contains(updateAction) == false)
+				{
+					removeingUpdates.Add(updateAction);
+				}
+			}
+
+		}
+
 
 		public void UpdateNode(MetaDataNode node)
 		{

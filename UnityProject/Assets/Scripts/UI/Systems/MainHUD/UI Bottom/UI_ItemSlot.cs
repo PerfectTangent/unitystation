@@ -1,25 +1,25 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Items;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
-using AdminCommands;
-using HealthV2;
+using Items.Implants.Organs;
+using Logs;
 using Managers;
+using Messages.Client;
+using Objects.Atmospherics;
 using UI;
+using UI.Systems.Tooltips.HoverTooltips;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Represents an item slot rendered in the UI.
 /// </summary>
 [Serializable]
-public class UI_ItemSlot : TooltipMonoBehaviour
+public class UI_ItemSlot : TooltipMonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
 	[SerializeField]
 	[FormerlySerializedAs("NamedSlot")]
@@ -54,7 +54,7 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 	/// <summary>
 	/// Item in this slot, null if empty.
 	/// </summary>
-	public Pickupable Item => itemSlot.Item;
+	public Pickupable Item => itemSlot?.Item;
 
 	/// <summary>
 	/// Actual slot this UI slot is linked to
@@ -79,6 +79,9 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 
 	public Material OverlayMaterial;
 
+
+	public bool IsAdmins = false;
+
 	private void Awake()
 	{
 		if (amountText)
@@ -93,22 +96,6 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 
 		image = new UI_ItemImage(gameObject, OverlayMaterial);
 		hidden = initiallyHidden;
-	}
-
-	private void OnEnable()
-	{
-		SceneManager.activeSceneChanged += OnLevelFinishedLoading;
-	}
-
-	private void OnDisable()
-	{
-		SceneManager.activeSceneChanged -= OnLevelFinishedLoading;
-	}
-
-	//Reset Item slot sprite on game restart
-	private void OnLevelFinishedLoading(Scene oldScene, Scene newScene)
-	{
-		image.ClearAll();
 	}
 
 	/// <summary>
@@ -158,11 +145,105 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 		{
 			itemSlot.LinkLocalUISlot(this);
 			itemSlot.OnSlotContentsChangeClient.AddListener(OnClientSlotContentsChange);
+
+			if (itemSlot.NamedSlot != null)
+			{
+				namedSlot = itemSlot.NamedSlot.Value;
+			}
+			else
+			{
+				namedSlot = NamedSlot.none;
+			}
+
+			SetPlaceholder();
 		}
 
 		RefreshImage();
 	}
 
+
+	public void SetPlaceholder()
+	{
+		if (placeholderImage == null) return;
+		switch (namedSlot)
+		{
+			case NamedSlot.outerwear:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.outerwear.GetFirstSprite;
+				break;
+			case NamedSlot.belt:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.belt.GetFirstSprite;
+				break;
+			case NamedSlot.head:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.head.GetFirstSprite;
+				break;
+			case NamedSlot.feet:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.feet.GetFirstSprite;
+				break;
+			case NamedSlot.mask:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.mask.GetFirstSprite;
+				break;
+			case NamedSlot.uniform:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.uniform.GetFirstSprite;
+				break;
+			case NamedSlot.leftHand:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.leftHand.GetFirstSprite;
+				break;
+			case NamedSlot.rightHand:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.rightHand.GetFirstSprite;
+				break;
+			case NamedSlot.eyes:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.eyes.GetFirstSprite;
+				break;
+			case NamedSlot.back:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.back.GetFirstSprite;
+				break;
+			case NamedSlot.hands:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.hands.GetFirstSprite;
+				break;
+			case NamedSlot.ear:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.ear.GetFirstSprite;
+				break;
+			case NamedSlot.neck:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.neck.GetFirstSprite;
+				break;
+			case NamedSlot.handcuffs:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.handcuffs.GetFirstSprite;
+				break;
+			case NamedSlot.id:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.id.GetFirstSprite;
+				break;
+			case NamedSlot.suitStorage:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.suitStorage.GetFirstSprite;
+				break;
+
+			// Storage items remain as before (using InventoryPocket, assumed)
+			case NamedSlot.storage01:
+			case NamedSlot.storage02:
+			case NamedSlot.storage03:
+			case NamedSlot.storage04:
+			case NamedSlot.storage05:
+			case NamedSlot.storage06:
+			case NamedSlot.storage07:
+			case NamedSlot.storage08:
+			case NamedSlot.storage09:
+			case NamedSlot.storage10:
+			case NamedSlot.storage11:
+			case NamedSlot.storage12:
+			case NamedSlot.storage13:
+			case NamedSlot.storage14:
+			case NamedSlot.storage15:
+			case NamedSlot.storage16:
+			case NamedSlot.storage17:
+			case NamedSlot.storage18:
+			case NamedSlot.storage19:
+			case NamedSlot.storage20:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.InventoryPocket.GetFirstSprite;
+				break;
+			default:
+				placeholderImage.sprite = CommonSpriteDataSOs.Instance.bob.GetFirstSprite;
+				break;
+		}
+	}
 
 	/// <summary>
 	///  any relation to any slot on client
@@ -181,7 +262,7 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 
 	public void SetUp(BodyPartUISlots.StorageCharacteristics storageCharacteristics)
 	{
-		if (placeholderImage != null)placeholderImage.sprite = storageCharacteristics.placeholderSprite;
+		if (placeholderImage != null) placeholderImage.sprite = storageCharacteristics.placeholderSprite;
 		namedSlot = storageCharacteristics.namedSlot;
 		hoverName = storageCharacteristics.hoverName;
 	}
@@ -205,8 +286,15 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 	/// </summary>
 	public void RefreshImage()
 	{
-		if (itemSlot != null)
-			UpdateImage(ItemObject);
+		try
+		{
+			if (itemSlot != null)
+				UpdateImage(ItemObject);
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
 	}
 
 	/// <summary>
@@ -237,13 +325,13 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 
 		if (!nullItem)
 		{
-			image?.ShowItem(item,OverlayMaterial,  color);
+			image?.ShowItem(item, OverlayMaterial, color);
 			if (placeholderImage)
 				placeholderImage.color = new Color(1, 1, 1, 0);
 
 			//determine if we should show an amount
 			var stack = item.GetComponent<Stackable>();
-			if (stack != null && stack.Amount > 1 && amountText)
+			if (stack != null && ((stack.Amount > 1 && amountText) || stack.IsRepresentationOfStack))
 			{
 				amountText.enabled = true;
 				amountText.text = stack.Amount.ToString();
@@ -257,9 +345,14 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 			if (MoreInventoryImage != null)
 			{
 				var Storage = item.GetComponent<InteractableStorage>();
-				if (Storage != null)
+				var canister = item.GetComponent<GasContainer>();
+				if (Storage != null && Storage.DoNotShowInventoryOnUI == false)
 				{
 					HasSubInventory.itemStorage = Storage.ItemStorage;
+					MoreInventoryImage.enabled = true;
+				}
+				else if (canister != null && canister.IgnoreInternals == false)
+				{
 					MoreInventoryImage.enabled = true;
 				}
 				else
@@ -341,41 +434,67 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 		if (PlayerManager.LocalPlayerScript == null) return false;
 
 		// TODO tidy up this if statement once it's working correctly
-		if (!PlayerManager.LocalPlayerScript.playerMove.allowInput ||
+		if (!PlayerManager.LocalPlayerScript.playerMove.AllowInput ||
 		    PlayerManager.LocalPlayerScript.IsGhost)
 		{
-			Logger.Log("Invalid player, cannot perform action!", Category.Interaction);
+			Loggy.Info("Invalid player, cannot perform action!", Category.Interaction);
 			return false;
 		}
 
 		return true;
 	}
 
-	public bool SwapItem(UI_ItemSlot itemSlot)
+	public  bool SwapItem(UI_ItemSlot itemSlot)
 	{
-		if (isValidPlayer())
+		if (itemSlot.IsAdmins || isValidPlayer())
 		{
-			var CurrentSlot = PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot();
-			if (CurrentSlot != itemSlot.itemSlot)
+			var CurrentSlot = PlayerManager.LocalPlayerScript?.DynamicItemStorage?.GetActiveHandSlot();
+			if (itemSlot.IsAdmins && PlayerManager.LocalMindScript.isGhosting)
 			{
-				if (CurrentSlot.Item == null)
+				CurrentSlot = AdminManager.Instance.LocalAdminGhostStorage.GetNamedItemSlot(NamedSlot.ghostStorage01);
+			}
+
+			if (CurrentSlot != itemSlot.itemSlot) //Check if we're not interacting with our own hand
+			{
+				if (CurrentSlot.Item == null) //check if hand is empty
 				{
-					if (itemSlot.Item != null)
+					if (itemSlot.Item != null) //check if slot is not empty
 					{
-						Inventory.ClientRequestTransfer(itemSlot.ItemSlot, CurrentSlot);
-						return true;
+						if (itemSlot.IsAdmins)
+						{
+							//if slot is not empty and hand is empty; ask the inventory to give us that item in our hand
+							AdminInventoryTransferMessage.Send(itemSlot.ItemSlot, CurrentSlot);
+							return true;
+						}
+						else
+						{
+							//if slot is not empty and hand is empty; ask the inventory to give us that item in our hand
+							Inventory.ClientRequestTransfer(itemSlot.ItemSlot, CurrentSlot);
+							return true;
+						}
+
 					}
 				}
 				else
 				{
-					if (itemSlot.Item == null)
+					if (itemSlot.Item != null) return false;
+
+					if (itemSlot.IsAdmins)
 					{
+						//if slot is empty, ask the game to put whatever thats in out hand in it.
+						AdminInventoryTransferMessage.Send(CurrentSlot, itemSlot.ItemSlot);
+						return true;
+					}
+					else
+					{
+						//if slot is empty, ask the game to put whatever thats in out hand in it.
 						Inventory.ClientRequestTransfer(CurrentSlot, itemSlot.ItemSlot);
 						return true;
 					}
 				}
 			}
 		}
+
 		return false;
 	}
 
@@ -387,15 +506,10 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 	{
 		// Clicked on another slot other than our own hands
 		bool IsHandSlots = false;
-		foreach (var HadnitemSlot in PlayerManager.LocalPlayerScript.DynamicItemStorage.GetHandSlots())
-		{
-			if (HadnitemSlot == itemSlot)
-			{
-				IsHandSlots = true;
-			}
-		}
+		var HandSlot = PlayerManager.LocalPlayerScript?.DynamicItemStorage?.GetActiveHandSlot();
+		IsHandSlots =  HandSlot == itemSlot;
 
-		if (IsHandSlots == false)
+		if (IsHandSlots == false && HandSlot != null)
 		{
 			// If full, attempt to interact the two, otherwise swap
 			if (Item != null)
@@ -404,20 +518,20 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 				//both are occupied)
 				if (TryIF2InventoryApply()) return;
 
-				if (swapIfEmpty)
+				if (swapIfEmpty && HandSlot.ItemNotRemovable == false)
 					SwapItem(this);
 				return;
 			}
 			else
 			{
-				if (swapIfEmpty)
+				if (swapIfEmpty && HandSlot.ItemNotRemovable == false)
 					SwapItem(this);
 				return;
 			}
 		}
 
 		// If there is an item and the hand is interacting in the same slot
-		if (Item != null && PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot() == itemSlot)
+		if (Item != null && HandSlot == itemSlot)
 		{
 			//check IF2 logic first
 			var interactables = Item.GetComponents<IBaseInteractable<HandActivate>>()
@@ -427,10 +541,14 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 		}
 		else
 		{
-			if (PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot() != itemSlot)
+			if (HandSlot != itemSlot)
 			{
-				if (TryIF2InventoryApply()) return;
-				if (swapIfEmpty)
+				if (HandSlot != null)
+				{
+					if (TryIF2InventoryApply()) return;
+				}
+
+				if (swapIfEmpty && HandSlot?.ItemNotRemovable is not true)
 					SwapItem(this);
 			}
 		}
@@ -443,10 +561,12 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 		//target slot is occupied, but it's okay if active hand slot is not occupied)
 		if (Item != null)
 		{
-			var combine = InventoryApply.ByLocalPlayer(itemSlot, PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot());
+			var combine = InventoryApply.ByLocalPlayer(itemSlot,
+				PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot());
 			//check interactables in the active hand (if active hand occupied)
 			if (PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot().Item != null)
 			{
+				if (combine.IsAltClick && SwapTwoItemsInInventory(combine.FromSlot)) return true;
 				var handInteractables = PlayerManager.LocalPlayerScript.DynamicItemStorage.GetActiveHandSlot().Item
 					.GetComponents<IBaseInteractable<InventoryApply>>()
 					.Where(mb => mb != null && (mb as MonoBehaviour).enabled);
@@ -462,11 +582,19 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 		return false;
 	}
 
+	private bool SwapTwoItemsInInventory(ItemSlot CurrentSlot)
+	{
+		if (PlayerManager.LocalPlayerScript.PlayerNetworkActions == null) return false;
+		PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdServerReplaceItemInInventory(CurrentSlot.ItemObject,
+			itemSlot.ItemStorageNetID, itemSlot.NamedSlot.Value);
+		return true;
+	}
+
 
 	[ContextMenu("Debug Slot")]
 	void DebugItem()
 	{
-		Logger.Log(itemSlot.ToString(), Category.PlayerInventory);
+		Loggy.Info(itemSlot.ToString(), Category.PlayerInventory);
 	}
 
 	/// <summary>
@@ -516,6 +644,24 @@ public class UI_ItemSlot : TooltipMonoBehaviour
 				placeholderImage.color = new Color(1, 1, 1, 0);
 			}
 		}
+	}
+
+	public void OnPointerEnter(PointerEventData eventData)
+	{
+		if (ItemObject == null) return;
+		UIManager.SetHoverToolTip = ItemObject;
+		//thanks stack overflow!
+		Regex r = new Regex(@"
+                (?<=[A-Z])(?=[A-Z][a-z]) |
+                 (?<=[^A-Z])(?=[A-Z]) |
+                 (?<=[A-Za-z])(?=[^A-Za-z])", RegexOptions.IgnorePatternWhitespace);
+		UIManager.SetToolTip = r.Replace(ItemObject.ExpensiveName(), " ");
+	}
+
+	public void OnPointerExit(PointerEventData eventData)
+	{
+		UIManager.SetToolTip = "";
+		UIManager.SetHoverToolTip = null;
 	}
 }
 

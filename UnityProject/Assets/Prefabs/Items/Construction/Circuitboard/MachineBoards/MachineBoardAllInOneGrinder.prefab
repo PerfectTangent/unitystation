@@ -5,14 +5,20 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -9144785475698281503, guid: f8fbe534e67ffd048b68ffb59a80c10f,
         type: 3}
       propertyPath: machineParts
       value: 
-      objectReference: {fileID: 11400000, guid: 95b9900501ff3c84b9397328e61fff41,
+      objectReference: {fileID: 11400000, guid: c4be634dbd5639d48a6a53a6eaddf159,
         type: 2}
+    - target: {fileID: -9144785475698281503, guid: f8fbe534e67ffd048b68ffb59a80c10f,
+        type: 3}
+      propertyPath: <relevantDepartment>k__BackingField
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1777396284562217003, guid: f8fbe534e67ffd048b68ffb59a80c10f,
         type: 3}
       propertyPath: m_RootOrder
@@ -75,6 +81,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1814144952489498859, guid: f8fbe534e67ffd048b68ffb59a80c10f,
         type: 3}
+      propertyPath: _assetId
+      value: 3080454798
+      objectReference: {fileID: 0}
+    - target: {fileID: 1814144952489498859, guid: f8fbe534e67ffd048b68ffb59a80c10f,
+        type: 3}
       propertyPath: m_AssetId
       value: 6e6e8549500ab9c4ea12508027c566e0
       objectReference: {fileID: 0}
@@ -82,7 +93,7 @@ PrefabInstance:
         type: 3}
       propertyPath: customNetTransform
       value: 
-      objectReference: {fileID: 8766427419506537689}
+      objectReference: {fileID: 0}
     - target: {fileID: 2185525740609964605, guid: f8fbe534e67ffd048b68ffb59a80c10f,
         type: 3}
       propertyPath: initialName
@@ -90,20 +101,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4612723153341376818, guid: f8fbe534e67ffd048b68ffb59a80c10f,
         type: 3}
+      propertyPath: parentID
+      value: f8fbe534e67ffd048b68ffb59a80c10f
+      objectReference: {fileID: 0}
+    - target: {fileID: 4612723153341376818, guid: f8fbe534e67ffd048b68ffb59a80c10f,
+        type: 3}
       propertyPath: foreverID
       value: f8fbe534e67ffd048b68ffGRNBRDc10f
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f8fbe534e67ffd048b68ffb59a80c10f, type: 3}
---- !u!114 &8766427419506537689 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1814029123642902671, guid: f8fbe534e67ffd048b68ffb59a80c10f,
-    type: 3}
-  m_PrefabInstance: {fileID: 6954721841698880598}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 

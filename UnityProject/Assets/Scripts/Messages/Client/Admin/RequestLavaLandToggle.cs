@@ -1,4 +1,5 @@
-﻿using Mirror;
+﻿using Core.Admin.Logs;
+using Mirror;
 using DiscordWebhook;
 
 
@@ -13,7 +14,7 @@ namespace Messages.Client.Admin
 
 		public override void Process(NetMessage netMsg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.ROUND_LAVALAND) == false) return;
 
 			if (SubSceneManager.AdminAllowLavaland == netMsg.LavaLandAllowed) return;
 
@@ -21,8 +22,7 @@ namespace Messages.Client.Admin
 
 			var state = netMsg.LavaLandAllowed ? "ON" : "OFF";
 			var msg = $"Admin: {SentByPlayer.Username}, turned Lava Land spawning {state}";
-
-			UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(msg, null);
+			AdminLogsManager.AddNewLog(SentByPlayer.GameObject, msg, LogCategory.Admin);
 			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookAdminLogURL, msg, "");
 		}
 

@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
+using Logs;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -14,9 +16,8 @@ namespace AddressableReferences
 	[Serializable]
 	public class AddressableReference<T> where T : UnityEngine.Object
 	{
-		public UnLoadSetting SetLoadSetting = UnLoadSetting.KeepLoaded;
 		[FormerlySerializedAs("Path")] public string AssetAddress = "";
-		public AssetReference AssetReference = null;
+		[HideInInspector] public AssetReference AssetReference = null;
 
 		public bool IsNotValidKey => NotValidKey();
 		public bool IsReadyLoaded => ReadyLoaded();
@@ -62,7 +63,7 @@ namespace AddressableReferences
 			{
 				if (string.IsNullOrEmpty(AssetAddress))
 				{
-					//Logger.LogError("Address is null for " + AssetReference.SubObjectName);
+					//Loggy.LogError("Address is null for " + AssetReference.SubObjectName);
 					return null;
 				}
 
@@ -80,7 +81,7 @@ namespace AddressableReferences
 					}
 					else
 					{
-						Logger.LogError("Address is invalid for " + AssetReference, Category.Addressables);
+						Loggy.Error("Address is invalid for " + AssetReference, Category.Addressables, LogOption.NoStacktrace);
 					}
 				}
 			}
@@ -113,7 +114,7 @@ namespace AddressableReferences
 			}
 			else
 			{
-				Logger.LogError("Asset is not loaded", Category.Addressables);
+				Loggy.Error($"Asset is not loaded with ID of {AssetAddress}", Category.Addressables);
 				return null;
 			}
 		}
@@ -159,7 +160,7 @@ namespace AddressableReferences
 			if (IsReadyLoaded)
 			{
 				//Check manager To see if it's implemented
-				Logger.Log($"Addressable Manager not implemented yet, can't unload {AssetAddress}", Category.Addressables);
+				Loggy.Info($"Addressable Manager not implemented yet, can't unload {AssetAddress}", Category.Addressables);
 			}
 		}
 
@@ -176,7 +177,7 @@ namespace AddressableReferences
 					   return true;
 				}
 			}
-			Logger.LogWarning($"Addressable Address is invalid: {AssetAddress}", Category.Addressables);
+			Loggy.Warning($"Addressable Address is invalid: {AssetAddress}", Category.Addressables);
 			return false;
         }
 
@@ -204,20 +205,24 @@ namespace AddressableReferences
 	[Serializable]
 	public class AddressableAudioSource : AddressableReference<GameObject>
 	{
-		private AudioSource audioSource = null;
+		private WeakReference<AudioSource> audioSource = null;
 
 		public AudioSource AudioSource
 		{
 			get
 			{
-				if (audioSource == null)
+				AudioSource result = null;
+
+				if (audioSource == null || !audioSource.TryGetTarget(out result))
 				{
 					GameObject gameObject = base.Retrieve();
-					if (gameObject == null || !gameObject.TryGetComponent(out audioSource))
+					if (gameObject == null || !gameObject.TryGetComponent(out result))
 						return null;
+
+					audioSource = new WeakReference<AudioSource>(result);
 				}
 
-				return audioSource;
+				return result;
 			}
 		}
 

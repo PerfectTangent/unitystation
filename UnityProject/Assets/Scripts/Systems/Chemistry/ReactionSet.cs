@@ -14,7 +14,6 @@ namespace Chemistry
 
 		private HashSet<Reaction> containedReactionss;
 
-
 		//Includes everything on parents to, if needs to be dynamic can change
 		public HashSet<Reaction> ContainedReactionss
 		{
@@ -42,7 +41,7 @@ namespace Chemistry
 			}
 		}
 
-		public static bool Apply(MonoBehaviour sender, ReagentMix reagentMix, HashSet<Reaction> possibleReactions)
+		public static bool Apply(MonoBehaviour sender, Vector3 Position, ReagentMix reagentMix, HashSet<Reaction> possibleReactions)
 		{
 			bool changing;
 			var changed = false;
@@ -51,7 +50,7 @@ namespace Chemistry
 				changing = false;
 				foreach (var reaction in possibleReactions)
 				{
-					if (reaction.Apply(sender, reagentMix))
+					if (reaction.Apply(sender, Position , reagentMix))
 					{
 						changing = true;
 						changed = true;
@@ -63,7 +62,7 @@ namespace Chemistry
 			return changed;
 		}
 
-		public virtual bool Apply(MonoBehaviour sender, ReagentMix reagentMix, List<Reaction> AdditionalReactions = null)
+		public virtual bool Apply(MonoBehaviour sender,Vector3 Position, ReagentMix reagentMix ,  List<Reaction> AdditionalReactions = null)
 		{
 			bool changing;
 			var changed = false;
@@ -72,7 +71,7 @@ namespace Chemistry
 				changing = false;
 				foreach (var parent in parents)
 				{
-					if (parent.Apply(sender, reagentMix))
+					if (parent.Apply(sender, Position, reagentMix))
 					{
 						changing = true;
 						changed = true;
@@ -81,7 +80,7 @@ namespace Chemistry
 
 				foreach (var reaction in reactions)
 				{
-					if (reaction.Apply(sender, reagentMix))
+					if (reaction.Apply(sender, Position,  reagentMix))
 					{
 						changing = true;
 						changed = true;
@@ -92,7 +91,7 @@ namespace Chemistry
 				{
 					foreach (var reaction in AdditionalReactions)
 					{
-						if (reaction.Apply(sender, reagentMix))
+						if (reaction.Apply(sender,Position, reagentMix))
 						{
 							changing = true;
 							changed = true;
@@ -102,6 +101,28 @@ namespace Chemistry
 			} while (changing);
 
 			return changed;
+		}
+
+		public static List<CachedEffect> ApplyWithoutEffects(ReagentMix reagentMix, HashSet<Reaction> possibleReactions)
+		{
+			bool changing;
+			List<CachedEffect> cachedEffects = new List<CachedEffect>();
+			do
+			{
+				changing = false;
+				foreach (var reaction in possibleReactions)
+				{
+					List<CachedEffect> newList = reaction.ApplyWithoutEffects(reagentMix);
+					if (newList != null)
+					{
+						changing = true;
+						cachedEffects.AddRange(newList);
+					}
+				}
+
+			} while (changing);
+
+			return cachedEffects;
 		}
 	}
 }

@@ -1,5 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Logs;
+using Objects.Disposals;
+using Objects.Other;
 using TileManagement;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,7 +14,7 @@ namespace UI
 	{
 		private static UITileList uiTileList;
 
-		private List<GameObject> listedObjects;
+		private List<GameObject> listedObjects = new List<GameObject>();
 		private LayerTile listedTile;
 		private Vector3 listedTilePosition;
 		public GameObject tileItemPanel;
@@ -41,8 +44,8 @@ namespace UI
 		/// <param name="position">Position where to look for items</param>
 		public static List<GameObject> GetItemsAtPosition(Vector3 position)
 		{
-			var matrix = MatrixManager.AtPoint(Vector3Int.RoundToInt(position), CustomNetworkManager.Instance._isServer).Matrix;
-			if (!matrix)
+			var matrix = MatrixManager.AtPoint(Vector3Int.RoundToInt(position), CustomNetworkManager.IsServer).Matrix;
+			if (matrix == false)
 			{
 				return new List<GameObject>();
 			}
@@ -52,13 +55,31 @@ namespace UI
 
 			var registerTiles = matrix.Get<RegisterTile>(tilePosition, false);
 
-			var result = registerTiles.Select(x => x.gameObject).ToList();
+			var result = registerTiles.Select(x => x.gameObject).Distinct().ToList();
+			var Count = result.Count;
+
+			for (int i = 0; i < Count; i++)
+			{
+				if (result.Count >= i) continue;
+
+				var possibleGhost = result[i];
+				if (possibleGhost.HasComponent<GhostMove>()
+				    || possibleGhost.HasComponent<DisposalVirtualContainer>()
+				    || possibleGhost.HasComponent<CrawlingVirtualContainer>()) result.Remove(possibleGhost);
+			}
 
 			//include interactable tiles
 			var interactableTiles = matrix.GetComponentInParent<InteractableTiles>();
 			if (interactableTiles != null)
 			{
 				result.Add(interactableTiles.gameObject);
+			}
+
+			if (DevCameraControls.Instance.MappingItemState)
+			{
+				result.AddRange(matrix.MetaDataLayer.EtherealThings
+					.Where( x => x != null && (x.transform.localPosition -  tilePosition).magnitude < 1.5f)
+					.Select(x => x.gameObject));
 			}
 
 			return result;
@@ -70,7 +91,7 @@ namespace UI
 		/// <param name="position">Position where to look for tile</param>
 		public static LayerTile GetTileAtPosition(Vector3 position)
 		{
-			MetaTileMap metaTileMap = PlayerManager.LocalPlayerScript.gameObject.GetComponentInParent<MetaTileMap>();
+			MetaTileMap metaTileMap = MatrixManager.AtPoint(position, CustomNetworkManager.IsServer).MetaTileMap;
 
 			position = metaTileMap.transform.InverseTransformPoint(position);
 			Vector3Int tilePosition = Vector3Int.FloorToInt(position);
@@ -188,6 +209,7 @@ namespace UI
 		/// </summary>
 		public static void ClearItemPanel()
 		{
+
 			foreach (GameObject gameObject in Instance.listedObjects)
 			{
 				Destroy(gameObject);
@@ -211,7 +233,7 @@ namespace UI
 		{
 			if (!Instance.listedObjects.Contains(tileListItemObject))
 			{
-				Logger.LogError("Attempted to remove tileListItem not on list", Category.NetUI);
+				Loggy.Error("Attempted to remove tileListItem not on list", Category.NetUI);
 				return;
 			}
 

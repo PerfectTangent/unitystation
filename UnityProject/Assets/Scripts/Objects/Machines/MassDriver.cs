@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
 using Mirror;
 using Objects.Wallmounts;
 using Random = UnityEngine.Random;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
@@ -61,8 +63,8 @@ namespace Objects
 
 		private void UpdateSpriteOutletState()
 		{
-			if (massDriverOperating) spriteHandler.ChangeSprite(1);
-			else spriteHandler.ChangeSprite(0);
+			if (massDriverOperating) spriteHandler.SetCatalogueIndexSprite(1);
+			else spriteHandler.SetCatalogueIndexSprite(0);
 		}
 
 		private void OnDirectionChanged(OrientationEnum newDir)
@@ -87,16 +89,16 @@ namespace Objects
 			switch (orientation)
 			{
 				case OrientationEnum.Up_By0:
-					spriteHandler.ChangeSpriteVariant(1);
+					spriteHandler.SetSpriteVariant(1);
 					break;
 				case OrientationEnum.Down_By180:
-					spriteHandler.ChangeSpriteVariant(0);
+					spriteHandler.SetSpriteVariant(0);
 					break;
 				case OrientationEnum.Left_By90:
-					spriteHandler.ChangeSpriteVariant(3);
+					spriteHandler.SetSpriteVariant(3);
 					break;
 				case OrientationEnum.Right_By270:
-					spriteHandler.ChangeSpriteVariant(2);
+					spriteHandler.SetSpriteVariant(2);
 					break;
 			}
 		}
@@ -115,23 +117,23 @@ namespace Objects
 			massDriverOperating = true;
 			UpdateSpriteOutletState();
 			//detect players positioned on the mass driver
-			var playersFound = Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer, ObjectType.Player, true);
+			var playersFound = Matrix.Get<UniversalObjectPhysics>(registerTile.LocalPositionServer, ObjectType.Player, true);
 
 			var throwVector = orientation.ToLocalVector3();
 
-			foreach (ObjectBehaviour player in playersFound)
+			foreach (var player in playersFound)
 			{
 				// Players cannot currently be thrown, so just push them in the direction for now.
 				PushPlayer(player, throwVector);
 			}
 
-			foreach (var objects in Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer, ObjectType.Object, true))
+			foreach (var objects in Matrix.Get<UniversalObjectPhysics>(registerTile.LocalPositionServer, ObjectType.Object, true))
 			{
 				// Objects cannot currently be thrown, so just push them in the direction for now.
 				PushObject(objects, throwVector);
 			}
 
-			foreach (var item in Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer, ObjectType.Item, true))
+			foreach (var item in Matrix.Get<UniversalObjectPhysics>(registerTile.LocalPositionServer, ObjectType.Item, true))
 			{
 				ThrowItem(item, throwVector);
 			}
@@ -142,45 +144,33 @@ namespace Objects
 			UpdateSpriteOutletState();
 		}
 
-		private void ThrowItem(ObjectBehaviour item, Vector3 throwVector)
+		private void ThrowItem(UniversalObjectPhysics item, Vector3 throwVector)
 		{
 			Vector3 vector = item.transform.rotation * throwVector;
-			var spin = RandomUtils.RandomSpin();
-			ThrowInfo throwInfo = new ThrowInfo
-			{
-				ThrownBy = gameObject,
-				Aim = BodyPartType.Chest,
-				OriginWorldPos = transform.position,
-				WorldTrajectory = vector,
-				SpinMode = spin
-			};
-
-			CustomNetTransform itemTransform = item.GetComponent<CustomNetTransform>();
+			UniversalObjectPhysics itemTransform = item.GetComponent<UniversalObjectPhysics>();
 			if (itemTransform == null) return;
-			itemTransform.Throw(throwInfo);
+			itemTransform.NewtonianPush(vector, 30, inAim:BodyPartType.Chest ,inThrownBy : gameObject );
 		}
 
-		private void PushObject(ObjectBehaviour entity, Vector3 pushVector)
+		private void PushObject(UniversalObjectPhysics entity, Vector3 pushVector)
 		{
 			//Push Twice
-			entity.QueuePush(pushVector.NormalizeTo2Int());
-			entity.QueuePush(pushVector.NormalizeTo2Int());
+			entity.NewtonianPush(pushVector.NormalizeTo2Int(), 30);
 		}
 
-		private void PushPlayer(ObjectBehaviour player, Vector3 pushVector)
+		private void PushPlayer(UniversalObjectPhysics player, Vector3 pushVector)
 		{
 			player.GetComponent<RegisterPlayer>()?.ServerStun();
 
 			//Push Twice
-			player.QueuePush(pushVector.NormalizeTo2Int());
-			player.QueuePush(pushVector.NormalizeTo2Int());
+			player.NewtonianPush(pushVector.NormalizeTo2Int(), 30);
 		}
 
 		#region WrenchChangeDirection
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (Validations.IsTarget(gameObject, interaction)) return true;
 

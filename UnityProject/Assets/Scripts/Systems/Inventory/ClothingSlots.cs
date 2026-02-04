@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using HealthV2;
+using Items.Implants.Organs;
 using UnityEngine;
 
 namespace Clothing
@@ -31,6 +32,8 @@ namespace Clothing
 		[SerializeField] private List<BodyPartUISlots.StorageCharacteristics> storage;
 
 		private ItemSlot ActiveInSlot;
+
+		public int InterfaceGetInstanceID => GetInstanceID();
 
 		public void OnInventoryMoveServer(InventoryMove info)
 		{

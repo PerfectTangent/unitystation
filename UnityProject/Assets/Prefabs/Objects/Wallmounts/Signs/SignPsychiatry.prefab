@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 124923907494347757, guid: a1b40c924340847478c3f6926388d3e7,
+        type: 3}
+      propertyPath: parentID
+      value: a1b40c924340847478c3f6926388d3e7
+      objectReference: {fileID: 0}
     - target: {fileID: 124923907494347757, guid: a1b40c924340847478c3f6926388d3e7,
         type: 3}
       propertyPath: foreverID
@@ -75,6 +81,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4834588150901491910, guid: a1b40c924340847478c3f6926388d3e7,
         type: 3}
+      propertyPath: _assetId
+      value: 3666506975
+      objectReference: {fileID: 0}
+    - target: {fileID: 4834588150901491910, guid: a1b40c924340847478c3f6926388d3e7,
+        type: 3}
       propertyPath: m_AssetId
       value: 602f83d15e8fec1449f8bb22c8510a74
       objectReference: {fileID: 0}
@@ -89,6 +100,23 @@ PrefabInstance:
       value: A sign labelling where the Psychiatrist works, they can probably help
         you get your head straight.
       objectReference: {fileID: 0}
+    - target: {fileID: 5940182428169200276, guid: a1b40c924340847478c3f6926388d3e7,
+        type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5940182428169200276, guid: a1b40c924340847478c3f6926388d3e7,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: cd98e1bc8bcab7e40a694886dbae5973,
+        type: 2}
+    - target: {fileID: 5940182428169200276, guid: a1b40c924340847478c3f6926388d3e7,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 876aa5faa4e1f394daafac6ec31c20ef,
+        type: 2}
     - target: {fileID: 8402249449444530046, guid: a1b40c924340847478c3f6926388d3e7,
         type: 3}
       propertyPath: PresentSpriteSet
@@ -96,4 +124,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 87f241f3a7379074f8466b5cf73bcac7,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a1b40c924340847478c3f6926388d3e7, type: 3}

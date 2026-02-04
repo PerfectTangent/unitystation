@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Systems.Clearance;
 using UnityEngine;
 using UnityEngine.UI;
 using UI.Core.NetUI;
@@ -18,19 +20,12 @@ namespace UI.Objects.Command
 		[Tooltip("If assignment, occupation this button will grant.")]
 		[SerializeField]
 		private Occupation occupation = null;
-		[Tooltip("If access, access this button will grant")]
-		[SerializeField]
-		private Access access = Access.maint_tunnels;
 
-		[Tooltip("Color settings to apply when it's on")]
-		[SerializeField]
-		[Header("On Colors")]
-		private ColorBlock onColors = ColorBlock.defaultColorBlock;
+		[Tooltip("If clearance, clearance this button will grant")]
+        [SerializeField]
+        private Clearance clearance = Clearance.MaintTunnels;
 
-		[Tooltip("Color settings to use when it's off")]
-		[SerializeField]
-		[Header("Off Colors")]
-		private ColorBlock offColors = ColorBlock.defaultColorBlock;
+        public Color ButtonColour = new Color(0.1981132f, 0.1981132f,0.1981132f, 1 );
 
 		//parent ID console tab this lives in
 		private GUI_IDConsole console;
@@ -47,30 +42,101 @@ namespace UI.Objects.Command
 		/// <summary>
 		/// If IsAccess, access this entry controls
 		/// </summary>
-		public Access Access => access;
+		public Clearance Clearance => clearance;
 		/// <summary>
 		/// If IsOccupation, occupation this entry controls
 		/// </summary>
 		public Occupation Occupation => occupation;
 
 
-		private Toggle toggle;
+		private ColorBlock onColors = ColorBlock.defaultColorBlock;
+		private ColorBlock offColors = ColorBlock.defaultColorBlock;
+
+		public Toggle toggle;
+		public Image backgroundImage;
 		private NetToggle netToggle;
+
+		public bool InvertSelectionColours;
 
 		private void Awake()
 		{
 			console = GetComponentInParent<GUI_IDConsole>();
-			toggle = GetComponentInChildren<Toggle>();
 			netToggle = GetComponentInChildren<NetToggle>();
+			ValidateColours();
+
 			//annoyingly, the built in Toggle has no way to just change color when it is selected, so we have
 			//to add custom logic to do this
 			toggle.onValueChanged.AddListener(OnToggleValueChanged);
 			OnToggleValueChanged(toggle.isOn);
 		}
 
+		public void ValidateColours()
+		{
+			if (backgroundImage == null) return;
+			backgroundImage.color = ButtonColour;
+			var Colours = toggle.colors;
+			Colours.normalColor = ButtonColour;
+			var HC = ButtonColour * 0.9607843f;
+			HC.a = 1;
+			Colours.highlightedColor = HC;
+
+			var PC = ButtonColour * 0.7843137f;;
+			PC.a = 1;
+			Colours.pressedColor = PC;
+
+			Colours.selectedColor = ButtonColour;
+
+			var CopyColour = ButtonColour;
+			CopyColour.a = 0.5019608f;
+			Colours.disabledColor = CopyColour;
+
+			toggle.colors = Colours;
+			if (InvertSelectionColours)
+			{
+				offColors = Colours;
+			}
+			else
+			{
+				onColors = Colours;
+			}
+
+			HC *= 0.5f;
+			HC.a = 1;
+			PC *= 0.5f;
+			PC.a = 1;
+			CopyColour *= 0.5f;
+			CopyColour.a = 0.5019608f;
+
+			Colours.highlightedColor = HC;
+			Colours.pressedColor = PC;
+
+			Colours.disabledColor = CopyColour;
+			CopyColour.a = 1;
+			Colours.normalColor = CopyColour;
+			Colours.selectedColor = CopyColour;
+			if (InvertSelectionColours)
+			{
+				onColors = Colours;
+			}
+			else
+			{
+				offColors = Colours;
+			}
+
+
+		}
+
+
+		public void OnValidate()
+		{
+			ValidateColours();
+		}
+
+
 		private void OnToggleValueChanged(bool isOn)
 		{
 			toggle.colors = isOn ? onColors : offColors;
+			backgroundImage.color = toggle.colors.normalColor;
 			//occupations which are on are not clickable
 			if (IsOccupation)
 			{
@@ -90,7 +156,7 @@ namespace UI.Objects.Command
 			}
 			else if (!isOccupation)
 			{
-				console.ServerModifyAccess(access, isToggled);
+				console.ServerModifyAccess(clearance, isToggled);
 			}
 		}
 
@@ -107,7 +173,7 @@ namespace UI.Objects.Command
 			{
 				if (toggle.isOn)
 				{
-					netToggle.SetValueServer("0");
+					netToggle.MasterSetValue("0");
 				}
 				return;
 			}
@@ -117,23 +183,25 @@ namespace UI.Objects.Command
 				var hasOccupation = TargetCard.Occupation == occupation;
 				if (hasOccupation && !toggle.isOn)
 				{
-					netToggle.SetValueServer("1");
+					netToggle.MasterSetValue("1");
 				}
 				else if (!hasOccupation && toggle.isOn)
 				{
-					netToggle.SetValueServer("0");
+					netToggle.MasterSetValue("0");
 				}
 			}
 			else
 			{
-				var hasAccess = TargetCard.HasAccess(access);
-				if (hasAccess && !toggle.isOn)
+				var source = (IClearanceSource)TargetCard.ClearanceSource;
+				var containsClearance = source.GetCurrentClearance.Contains(clearance);
+
+				if (containsClearance && !toggle.isOn)
 				{
-					netToggle.SetValueServer("1");
+					netToggle.MasterSetValue("1");
 				}
-				else if (!hasAccess && toggle.isOn)
+				else if (containsClearance == false && toggle.isOn)
 				{
-					netToggle.SetValueServer("0");
+					netToggle.MasterSetValue("0");
 				}
 			}
 		}

@@ -34,13 +34,13 @@ namespace UI.Objects.Atmospherics.Acu
 
 		private void UpdateLabels(int mode)
 		{
-			var labels = transform.parent.GetComponentsInChildren<NetLabel>();
+			var labels = transform.parent.GetComponentsInChildren<NetText_label>();
 			var requestedMode = (mode == 0 ? labels.Length : mode) - 1;
 			foreach (var label in labels)
 			{
 				if (label != labels[requestedMode])
 				{
-					label.SetValueServer(label.Value
+					label.MasterSetValue(label.Value
 							.Replace("(*)", "( )")
 							.Replace(m, string.Empty)
 							.Replace(um, string.Empty));
@@ -49,7 +49,7 @@ namespace UI.Objects.Atmospherics.Acu
 
 				if (label.Value.Contains("( )"))
 				{
-					label.SetValueServer($"{m}{label.Value.Replace("( )", "(*)")}{um}");
+					label.MasterSetValue($"{m}{label.Value.Replace("( )", "(*)")}{um}");
 				}
 			}
 		}

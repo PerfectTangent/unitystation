@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Logs;
 using Mirror;
 using Shuttles;
 using UnityEngine;
@@ -36,6 +37,10 @@ namespace Tilemaps.Behaviours.Layers
 
 		public Matrix matrix;
 
+		public bool IsJsonLoaded = false;
+
+		public bool RequestInitialiseMapLoader = false;
+
 		/// <summary>
 		/// Gets a unity event that the caller can subscribe to which will be fired once
 		/// the networking for this matrix is initialized.
@@ -64,7 +69,7 @@ namespace Tilemaps.Behaviours.Layers
 		{
 			if (networkedMatrixNetId == NetId.Empty || networkedMatrixNetId == NetId.Invalid)
 			{
-				Logger.LogWarning("Attempted to wait on invalid / empty networked matrix net ID. This might be a bug.", Category.Matrix);
+				Loggy.Warning("Attempted to wait on invalid / empty networked matrix net ID. This might be a bug.", Category.Matrix);
 				return;
 			}
 
@@ -114,7 +119,7 @@ namespace Tilemaps.Behaviours.Layers
 			//Matrixes cannot be networked as a message to spawn an object beneath it can happen before the matrix has activated
 			if (GetComponent<NetworkIdentity>() != null)
 			{
-				Logger.LogError($"{gameObject.name} has a network identity please remove it, matrixes cannot be networked objects");
+				Loggy.Error($"{gameObject.name} has a network identity please remove it, matrixes cannot be networked objects");
 			}
 		}
 
@@ -126,6 +131,7 @@ namespace Tilemaps.Behaviours.Layers
 			}
 			FireInitEvents();
 			Initialized = true;
+			MatrixManager.Instance.RegisterWhenReady(matrix);
 		}
 
 		public void OnStartClient()
@@ -141,6 +147,10 @@ namespace Tilemaps.Behaviours.Layers
 			}
 			FireInitEvents();
 			Initialized = true;
+			if (CustomNetworkManager.IsServer == false)
+			{
+				MatrixManager.Instance.RegisterWhenReady(matrix);
+			}
 		}
 
 		public void BackUpSetMatrixSync()
@@ -156,7 +166,15 @@ namespace Tilemaps.Behaviours.Layers
 				}
 			}
 
-			Logger.LogError($"Failed to find matrix sync for {gameObject.name}");
+			Loggy.Error($"Failed to find matrix sync for {gameObject.name}");
+		}
+
+		public void OnDestroy()
+		{
+			if (Initialized)
+			{
+				MatrixManager.Instance?.UnRegister(matrix);
+			}
 		}
 	}
 

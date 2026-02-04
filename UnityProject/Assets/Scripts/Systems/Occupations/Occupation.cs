@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using Systems.Clearance;
 using AddressableReferences;
+using Core.Editor.Attributes;
 using NaughtyAttributes;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
 using ScriptableObjects.Systems.Spells;
@@ -21,6 +21,13 @@ public class Occupation : ScriptableObject
 	[Tooltip("Type of occupation.")]
 	private JobType jobType = JobType.NULL;
 	public JobType JobType => jobType;
+
+
+	[SerializeField]
+	[Tooltip("Category of occupation.")]
+	private JobCategory jobCategory = JobCategory.Other;
+	public JobCategory JobCategory => jobCategory;
+
 
 	[Tooltip("Whether this is a crew role (to add to crew manifest, security records etc)")]
 	[SerializeField]
@@ -44,6 +51,14 @@ public class Occupation : ScriptableObject
 	private bool useStandardPopulator = true;
 	public bool UseStandardPopulator => useStandardPopulator;
 
+	[SerializeField]
+	[Tooltip("Whether to use the players character settings during spawn (sets player name and race)")]
+	private bool useCharacterSettings = true;
+	public bool UseCharacterSettings => useCharacterSettings;
+
+	public PlayerHealthData CustomSpeciesOverwrite;
+
+
 	[FormerlySerializedAs("Limit")]
 	[SerializeField]
 	[Tooltip("Maximum simultaneous players with this occupation. Set to -1 for unlimited")]
@@ -55,17 +70,6 @@ public class Occupation : ScriptableObject
 			 " available.")]
 	private int priority = 0;
 	public int Priority => priority;
-
-	[FormerlySerializedAs("AllowedAccess")]
-	[SerializeField]
-	[Tooltip("Default access allowed for this occupation.")]
-	private List<Access> allowedAccess = null;
-	public List<Access> AllowedAccess => allowedAccess;
-
-	[SerializeField]
-	[Tooltip("Default lowpop access allowed for this occupation.")]
-	private List<Access> allowedLowPopAccess = null;
-	public List<Access> AllowedLowPopAccess => allowedLowPopAccess;
 
 	[SerializeField]
 	[Tooltip("Default clearance issued to this occupation.")]
@@ -102,7 +106,7 @@ public class Occupation : ScriptableObject
 	[FormerlySerializedAs("ChoiceColor")]
 	[SerializeField]
 	[Tooltip("Color of this occupation's button in the occupation chooser")]
-	private Color choiceColor = Color.white;
+	public Color choiceColor = Color.white;
 	public Color ChoiceColor => choiceColor;
 
 	[SerializeField]
@@ -113,7 +117,7 @@ public class Occupation : ScriptableObject
 	[SerializeField]
 	[Tooltip("Display name for this occupation.")]
 	private string displayName = null;
-	public string DisplayName => displayName;
+	public string DisplayName => TS.T(displayName);
 
 	[SerializeField]
 	[Tooltip("How difficult is this role to play (especially for a new player)?")]
@@ -140,17 +144,21 @@ public class Occupation : ScriptableObject
 	[Tooltip("A concise description of this job's duties, suitable for being displayed on three lines.")]
 	[TextArea(3, 3)]
 	private string descriptionShort = "";
-	public string DescriptionShort => descriptionShort;
+	public string DescriptionShort => TS.T(descriptionShort);
 
 	[SerializeField]
 	[TextArea(10, 20)]
 	[Tooltip("An elaborate job description for newcomers. Should say what playing this job usually entails, similar to descriptionShort.")]
 	private string descriptionLong = "";
-	public string DescriptionLong => descriptionLong;
+	public string DescriptionLong => TS.T(descriptionLong);
 
-	[Header("Custom properties that will be applied\nto new bodies with this occupation")]
+	[Header("Custom properties that will be applied \n to new bodies with this occupation")]
 	[SerializeField] private SerializableDictionary<string, bool> customProperties = default;
 	public SerializableDictionary<string, bool> CustomProperties => customProperties;
+
+	[Header(" Custom properties that will define how the person with this occupation spawns in ")]
+	[SerializeReference, SelectImplementation(typeof(OccupationCustomEffectBase))] public List<OccupationCustomEffectBase> BetterCustomProperties = new List<OccupationCustomEffectBase>();
+
 
 	[Header("If enabled, players with this job can be targeted by antags")]
 	[SerializeField] private bool isTargeteable=true;
@@ -187,4 +195,8 @@ public class Occupation : ScriptableObject
 	[SerializeField]
 	private GameObject specialPlayerPrefab = null;
 	public GameObject SpecialPlayerPrefab => specialPlayerPrefab;
+
+
+	public List<MutationSO> StartingMutations = new List<MutationSO>();
+
 }

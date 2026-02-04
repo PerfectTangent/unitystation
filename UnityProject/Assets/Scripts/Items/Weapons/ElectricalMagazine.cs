@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Systems.Construction.Parts;
 using UnityEngine;
 using UnityEditor;
 
@@ -38,12 +39,12 @@ namespace Weapons
 
 		public override void ExpendAmmo(int amount = 1)
 		{
-			if (toRemove > battery.Watts) 
+			if (toRemove > battery.Watts)
 			{
 				return;
 			}
 			base.ExpendAmmo(amount);
-			if (CustomNetworkManager.Instance._isServer == false) return;
+			if (CustomNetworkManager.IsServer == false) return;
 			battery.Watts -= toRemove;
 		}
 
@@ -52,12 +53,12 @@ namespace Weapons
 			int Ammo = Mathf.RoundToInt(magazineSize * ((float) battery.Watts / (float) battery.MaxWatts));
 			Ammo = Mathf.Clamp(Ammo, 0, magazineSize);
 			ServerSetAmmoRemains(Ammo);
+
 		}
 
 		public override String Examine(Vector3 pos)
 		{
-			float percent = (battery.Watts * 100 / battery.MaxWatts);
-			return $"It seems to be compatible with energy weapons. The charge indicator displays {Math.Round(percent)} percent.";
+			return $"It seems to be compatible with energy weapons.";
 		}
 	}
 }

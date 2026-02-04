@@ -1,15 +1,15 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using System.Text;
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
-using UI.Core.NetUI;
 using Chemistry;
 using Chemistry.Components;
 using Items;
+using Logs;
+using TMPro;
+using UI.Core.NetUI;
+using UnityEngine;
+using UnityEngine.UI;
 
-namespace UI.Objects.Chemistry
+namespace UI.Objects.Medical
 {
 	public class GUI_ChemMaster : NetTab
 	{
@@ -37,37 +37,40 @@ namespace UI.Objects.Chemistry
 		[SerializeField]
 		private NetPage noCustomPromptPage;
 		[SerializeField]
-		private NetLabel customAmountLabel;
+		private NetText_label customAmountLabel;
 		[SerializeField]
-		private NetLabel customAmountReagentLabel;
+		private NetText_label customAmountReagentLabel;
 		[SerializeField]
-		private NetLabel productReagentList;
+		private NetText_label productReagentList;
 		[SerializeField]
-		private NetLabel productAmountToDispense;
+		private NetText_label productAmountToDispense;
 		[SerializeField]
-		private NetLabel productAmountsList;
+		private NetText_label productAmountsList;
 		[SerializeField]
 		private Scrollbar containerScrollbar;
 		[SerializeField]
 		private Scrollbar bufferScrollbar;
 		[SerializeField]
-		private NetLabel containerNoReagent;
+		private NetText_label containerNoReagent;
 		[SerializeField]
-		private NetLabel bufferNoReagent;
+		private NetText_label bufferNoReagent;
 		[SerializeField]
-		private NetLabel transferModeButtonLabel;
+		private NetText_label transferModeButtonLabel;
 		[SerializeField]
 		private EmptyItemList productList;
 		[SerializeField]
-		private NetLabel productTypeChoice;
+		private NetText_label productTypeChoice;
 		[SerializeField]
-		private NetLabel productMaxAmount;
+		private NetText_label productMaxAmount;
 		[SerializeField]
 		private TMP_InputField productNameInputField;
 		[SerializeField]
 		private GameObject inputFieldBackgroundText;
 		[SerializeField]
 		private int customProductNameCharacterLimit;
+
+		public NetUIChildActive PillSelectionArea;
+
 		#endregion
 
 		#region Initialization
@@ -88,13 +91,14 @@ namespace UI.Objects.Chemistry
 			// Subscribe to change event from ChemMaster.cs
 			ChemMaster.changeEvent += UpdateAll;
 			UpdateAll();
-			containerNoReagent.SetValueServer("No container");
-			bufferNoReagent.SetValueServer("No reagents in buffer");
-			productAmountToDispense.SetValueServer($"{productDispenseAmount}");
-			productTypeChoice.SetValueServer($"Please select product Type");
-			productMaxAmount.SetValueServer("");
+			containerNoReagent.MasterSetValue("No container");
+			bufferNoReagent.MasterSetValue("No reagents in buffer");
+			productAmountToDispense.MasterSetValue($"{productDispenseAmount}");
+			productTypeChoice.MasterSetValue($"Please select product Type");
+			productMaxAmount.MasterSetValue("");
 			productNameInputField.characterLimit = customProductNameCharacterLimit;
 			UpdateProductOptions();
+			PillSelectionArea.MasterNetSetActive(false);
 		}
 		#endregion
 
@@ -107,9 +111,9 @@ namespace UI.Objects.Chemistry
 			sendCustomAmountToBuffer = toBuffer;
 			customAmountInputPromptSwitcher.SetActivePage(customAmountInputPromptPage);
 			customTransferAmount = 0;
-			customAmountLabel.SetValueServer($"---");
+			customAmountLabel.MasterSetValue($"---");
 			customTransferReagentCandidate = newTransferReagentCandidate;
-			customAmountReagentLabel.SetValueServer($"{customTransferReagentCandidate}");
+			customAmountReagentLabel.MasterSetValue($"{customTransferReagentCandidate}");
 		}
 
 		public void CloseCustomPrompt()
@@ -140,13 +144,13 @@ namespace UI.Objects.Chemistry
 				if (customTransferAmount > ChemMaster.GetBufferMix()[customTransferReagentCandidate])
 					customTransferAmount = ChemMaster.GetBufferMix()[customTransferReagentCandidate];
 			}
-			customAmountLabel.SetValueServer($"{customTransferAmount:F2}u");
+			customAmountLabel.MasterSetValue($"{customTransferAmount:F2}u");
 		}
 
 		public void RemoveTransferAmountDigit()
 		{
 			customTransferAmount = (int)(customTransferAmount / 10);
-			customAmountLabel.SetValueServer($"{customTransferAmount:F2}u");
+			customAmountLabel.MasterSetValue($"{customTransferAmount:F2}u");
 		}
 
 		public void TransferCustomAmount()
@@ -162,30 +166,38 @@ namespace UI.Objects.Chemistry
 			CloseCustomPrompt();
 		}
 
-		public void Analyze(Reagent reagent, ConnectedPlayer player)
+		public void Analyze(Reagent reagent, PlayerInfo player)
 		{
 			Chat.AddExamineMsg(player.GameObject, $"This is {reagent.Name}. {reagent.description}");
 		}
 		#endregion
 
 		#region Product Logistics
-		private int productChoice = -1;
+		private GameObject productChoice = null;
+		private int PillproductChoice = 0;
 
-		public void SelectProduct(int choice)
+		public void PillChosen(int PillIndex)
 		{
+			SelectProduct(0, ChemMaster.ChemMasterProducts[0], PillIndex);
+		}
+
+
+		public void SelectProduct(int ChoiceIndex, GameObject choice, int Pillchoice)
+		{
+			PillproductChoice = Pillchoice;
 			productChoice = choice;
-			GameObject product = ChemMaster.ChemMasterProducts[choice];
-			productTypeChoice.SetValueServer($"{product.GetComponent<ItemAttributesV2>().InitialName}s");
-			productMaxAmount.SetValueServer($"Max {product.GetComponent<ReagentContainer>().MaxCapacity}u");
+
+			productTypeChoice.MasterSetValue($"{choice.GetComponent<ItemAttributesV2>().ArticleName}s");
+			productMaxAmount.MasterSetValue($"Max {choice.GetComponent<ReagentContainer>().MaxCapacity}u");
 			foreach(var entry in productList.Entries)
 			{
-				if (entry.transform.GetSiblingIndex() == choice)
+				if (entry.transform.GetSiblingIndex() == ChoiceIndex)
 				{
-					entry.GetComponentInChildren<NetButton>().SetValueServer($"false");
+					entry.GetComponentInChildren<NetButton>().MasterSetValue($"false");
 				}
 				else
 				{
-					entry.GetComponentInChildren<NetButton>().SetValueServer($"true");
+					entry.GetComponentInChildren<NetButton>().MasterSetValue($"true");
 				}
 			}
 		}
@@ -195,13 +207,13 @@ namespace UI.Objects.Chemistry
 		public void IncrementProductAmount()
 		{
 			productDispenseAmount = Mathf.Clamp(productDispenseAmount + 1, 1, 10);
-			productAmountToDispense.SetValueServer($"{productDispenseAmount}");
+			productAmountToDispense.MasterSetValue($"{productDispenseAmount}");
 		}
 
 		public void DecrementProductAmount()
 		{
 			productDispenseAmount = Mathf.Clamp(productDispenseAmount - 1, 1, 10);
-			productAmountToDispense.SetValueServer($"{productDispenseAmount}");
+			productAmountToDispense.MasterSetValue($"{productDispenseAmount}");
 		}
 
 		private string customNameInProgress = "";
@@ -224,18 +236,18 @@ namespace UI.Objects.Chemistry
 
 		public void DispenseProduct(string newName)
 		{
-			if (productChoice > -1)
+			if (productChoice != null)
 			{
-				ChemMaster.DispenseProduct(productChoice, productDispenseAmount,newName);
+				ChemMaster.DispenseProduct(productChoice, productDispenseAmount,newName, PillproductChoice);
 			}
 			productDispenseAmount=1;
-			productAmountToDispense.SetValueServer($"{productDispenseAmount}");
-			productTypeChoice.SetValueServer($"Please select");
-			productMaxAmount.SetValueServer("");
+			productAmountToDispense.MasterSetValue($"{productDispenseAmount}");
+			productTypeChoice.MasterSetValue($"Please select");
+			productMaxAmount.MasterSetValue("");
 			inputFieldBackgroundText.SetActive(true);
 			foreach (var entry in productList.Entries)
 			{
-				entry.GetComponentInChildren<NetButton>().SetValueServer($"true");
+				entry.GetComponentInChildren<NetButton>().MasterSetValue($"true");
 			}
 		}
 		#endregion
@@ -274,7 +286,7 @@ namespace UI.Objects.Chemistry
 		{
 			transferBack = !transferBack;
 			string temp = transferBack ? "Container" : "Disposal";
-			transferModeButtonLabel.SetValueServer($"Transfering to {temp}");
+			transferModeButtonLabel.MasterSetValue($"Transfering to {temp}");
 		}
 		#endregion
 
@@ -300,21 +312,21 @@ namespace UI.Objects.Chemistry
 						thing.ReInit(reagent, tempMix.reagents[reagent], GetComponent<GUI_ChemMaster>());
 						i++;
 					}
-					containerNoReagent.SetValueServer("");
+					containerNoReagent.MasterSetValue("");
 				}
 				else
 				{
 					containerList.Clear();
-					containerNoReagent.SetValueServer("No Reagents in Container");
+					containerNoReagent.MasterSetValue("No Reagents in Container");
 				}
 				//we have a container that is capable of being ejected
-				ejectandClear.SetValueServer("true");
+				ejectandClear.MasterSetValue("true");
 			}
 			else
 			{
 				containerList.Clear();
-				containerNoReagent.SetValueServer("No container");
-				ejectandClear.SetValueServer("false");
+				containerNoReagent.MasterSetValue("No container");
+				ejectandClear.MasterSetValue("false");
 			}
 		}
 
@@ -336,14 +348,14 @@ namespace UI.Objects.Chemistry
 					thing.ReInit(reagent, tempMix.reagents[reagent], GetComponent<GUI_ChemMaster>());
 					i++;
 				}
-				bufferNoReagent.SetValueServer("");
+				bufferNoReagent.MasterSetValue("");
 			}
 			else
 			{
 				bufferList.Clear();
 				if (!ChemMaster.BufferslotOne && !ChemMaster.BufferslotTwo)
-					bufferNoReagent.SetValueServer("No containers in buffer");
-				else bufferNoReagent.SetValueServer("No reagents in buffer");
+					bufferNoReagent.MasterSetValue("No containers in buffer");
+				else bufferNoReagent.MasterSetValue("No reagents in buffer");
 			}
 		}
 
@@ -363,13 +375,13 @@ namespace UI.Objects.Chemistry
 					reagentListStr.Append($"{reagent.Name}\n");
 					amountsListStr.Append($"{tempMix.reagents[reagent]}u\n");
 				}
-				productReagentList.SetValueServer(reagentListStr.ToString());
-				productAmountsList.SetValueServer(amountsListStr.ToString());
+				productReagentList.MasterSetValue(reagentListStr.ToString());
+				productAmountsList.MasterSetValue(amountsListStr.ToString());
 			}
 			else
 			{
-				productReagentList.SetValueServer("No reagents in the buffer");
-				productAmountsList.SetValueServer("");
+				productReagentList.MasterSetValue("No reagents in the buffer");
+				productAmountsList.MasterSetValue("");
 			}
 			productNameInputField.text = customNameInProgress;
 		}
@@ -380,6 +392,7 @@ namespace UI.Objects.Chemistry
 		private void UpdateProductOptions()
 		{
 			productList.Clear();
+
 			foreach (GameObject listItemin in ChemMaster.ChemMasterProducts)
 			{
 				if (listItemin == null)
@@ -387,7 +400,7 @@ namespace UI.Objects.Chemistry
 					continue;
 				}
 				var thing = productList.AddItem().GetComponent<GUI_ChemProductEntry>();
-				thing.ReInit(this);
+				thing.ReInit(this, listItemin);
 			}
 		}
 
@@ -429,7 +442,7 @@ namespace UI.Objects.Chemistry
 		/// Ejects input container from ChemMaster into best slot available
 		/// </summary>
 		/// <param name="player"></param>
-		public void EjectContainer(ConnectedPlayer player)
+		public void EjectContainer(PlayerInfo player)
 		{
 			if (ChemMaster.Container != null)
 			{
@@ -437,7 +450,7 @@ namespace UI.Objects.Chemistry
 			}
 			else
 			{
-				Logger.LogWarning("Attempted to eject from a ChemMaster without container", Category.Interaction);
+				Loggy.Warning("Attempted to eject from a ChemMaster without container", Category.Interaction);
 			}
 		}
 

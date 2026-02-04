@@ -1,4 +1,5 @@
 ﻿using System;
+using Logs;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -20,6 +21,13 @@ public class LightingSystem : MonoBehaviour
 
 	private static Func<Vector3, Vector3, Vector2, Vector2> HandlePPPositionRequest;
 
+
+	public Camera UICamera;
+
+	public bool DoUICamera = true;
+
+	public bool DoOtherBit = true;
+
 	private Camera mMainCamera;
 	private OcclusionMaskRenderer mOcclusionRenderer;
 	private LightMaskRenderer mLightMaskRenderer;
@@ -31,6 +39,8 @@ public class LightingSystem : MonoBehaviour
 	private PixelPerfectRT mObstacleLightMask;
 	private PixelPerfectRT mOcclusionPPRT;
 	private PixelPerfectRT mlightPPRT;
+	private PixelPerfectRT mUILayer;
+
 	private bool mDoubleFrameRendererSwitch;
 	private bool mMatrixRotationMode;
 	private float mMatrixRotationModeBlend;
@@ -85,6 +95,31 @@ public class LightingSystem : MonoBehaviour
 			mGlobalOcclusionMask = value;
 
 			Shader.SetGlobalTexture("_ObjectFovMask", value.renderTexture);
+		}
+	}
+
+
+	/// <summary>
+	/// Used to hold the UI layer
+	/// </summary>
+	private PixelPerfectRT UILayer
+	{
+		get
+		{
+			return mUILayer;
+		}
+
+		set
+		{
+			if (mUILayer == value)
+				return;
+
+			if (mUILayer != null)
+			{
+				mUILayer.Release();
+			}
+
+			mUILayer = value;
 		}
 	}
 
@@ -248,7 +283,7 @@ public class LightingSystem : MonoBehaviour
 	{
 		if (iMainCamera.backgroundColor.a > 0)
 		{
-			Logger.Log("FovSystem Camera Validation: Camera backgroundColor.a must be 0." +
+			Loggy.Info("FovSystem Camera Validation: Camera backgroundColor.a must be 0." +
 				" This is required to create background mask. Adjusted...", Category.Lighting);
 
 			iMainCamera.backgroundColor = new Color(iMainCamera.backgroundColor.r, iMainCamera.backgroundColor.g, iMainCamera.backgroundColor.b, 0);
@@ -256,31 +291,29 @@ public class LightingSystem : MonoBehaviour
 
 		if (((LayerMask)iMainCamera.cullingMask).HasAny(iRenderSettings.lightSourceLayers))
 		{
-			Logger.Log("FovSystem Camera Validation: Camera does not cull one of Light Source Layers!" +
+			Loggy.Info("FovSystem Camera Validation: Camera does not cull one of Light Source Layers!" +
 				" Light System may not work currently.", Category.Lighting);
 		}
 
 		/*if (((LayerMask)iMainCamera.cullingMask).HasAny(iRenderSettings.backgroundLayers))
 		{
-			Logger.Log("FovSystem Camera Validation: Camera does not cull one of Background Layers!" +
+			Loggy.Log("FovSystem Camera Validation: Camera does not cull one of Background Layers!" +
 				"Light System wound be able to mask background and would not work correctly.", Category.Lighting);
 		}*/
 	}
 
 	private void OnEnable()
 	{
-		Logger.Log("Lighting system enabled.", Category.Lighting);
+		Loggy.Info("Lighting system enabled.", Category.Lighting);
 		//don't run lighting system on headless
 		if (GameInfo.IsHeadlessServer)
 		{
 			return;
 		}
 
-		OnLightingSystemEnabled?.Invoke(true);
-
 		if (!SystemInfo.supportsAsyncGPUReadback)
 		{
-			Logger.LogWarning("LightingSystem: Async GPU Readback not supported on this machine, slower synchronous readback will" +
+			Loggy.Warning("LightingSystem: Async GPU Readback not supported on this machine, slower synchronous readback will" +
 				" be used instead.", Category.Lighting);
 		}
 		HandlePPPositionRequest += ProviderPPPosition;
@@ -291,8 +324,6 @@ public class LightingSystem : MonoBehaviour
 		if (mMainCamera == null)
 			throw new Exception("FovSystemManager require Camera component to operate.");
 
-		// Let's force camera to cull background light
-		mMainCamera.cullingMask &= ~renderSettings.backgroundLayers;
 		// Now validate other settings
 		ValidateMainCamera(mMainCamera, renderSettings);
 
@@ -323,6 +354,8 @@ public class LightingSystem : MonoBehaviour
 
 		operationParameters = new OperationParameters(mMainCamera, renderSettings, matrixRotationMode);;
 
+		OnLightingSystemEnabled?.Invoke(true);
+
 		ResolveRenderingTextures(operationParameters);
 	}
 
@@ -333,7 +366,7 @@ public class LightingSystem : MonoBehaviour
 
 	private void OnDisable()
 	{
-		Logger.Log("Lighting system disabled.", Category.Lighting);
+		Loggy.Info("Lighting system disabled.", Category.Lighting);
 		//don't run lighting system on headless
 		if (GameInfo.IsHeadlessServer)
 		{
@@ -350,9 +383,6 @@ public class LightingSystem : MonoBehaviour
 
 		HandlePPPositionRequest -= ProviderPPPosition;
 
-		// We can enable background layers again
-		if (mMainCamera)
-			mMainCamera.cullingMask |= renderSettings.backgroundLayers;
 
 		if (mTextureDataRequest != null)
 		{
@@ -361,7 +391,9 @@ public class LightingSystem : MonoBehaviour
 		}
 	}
 
-	private void Update()
+
+
+	public void Update()
 	{
 		// Don't run lighting system on headless.
 		if (GameInfo.IsHeadlessServer)
@@ -373,7 +405,6 @@ public class LightingSystem : MonoBehaviour
 		var _newParameters = new OperationParameters(mMainCamera, renderSettings, matrixRotationMode);
 
 		bool _shouldReinitializeTextures = _newParameters != operationParameters;
-
 		if (_shouldReinitializeTextures)
 		{
 			operationParameters = _newParameters;
@@ -399,6 +430,8 @@ public class LightingSystem : MonoBehaviour
 		floorOcclusionMask = new PixelPerfectRT(operationParameters.fovPPRTParameter);
 		wallFloorOcclusionMask = new PixelPerfectRT(operationParameters.fovPPRTParameter);
 		mTex2DWallFloorOcclusionMask = new Texture2D(wallFloorOcclusionMask.renderTexture.width, wallFloorOcclusionMask.renderTexture.height, TextureFormat.RGB24, false);
+
+		UILayer = new PixelPerfectRT(operationParameters.UICameraPPRTParameter);
 
 		objectOcclusionMask = new PixelPerfectRT(operationParameters.lightPPRTParameter);
 
@@ -456,7 +489,13 @@ public class LightingSystem : MonoBehaviour
 			Vector3 _fovCenterOffsetInViewSpace = mMainCamera.WorldToViewportPoint(_fovCenterInWorldSpace) - new Vector3(0.5f, 0.5f, 0);
 			Vector3 _fovCenterOffsetInExtendedViewSpace = _fovCenterOffsetInViewSpace * (float)operationParameters.cameraOrthographicSize / mOcclusionPPRT.orthographicSize;
 
-			mPostProcessingStack.GenerateFovMask(mOcclusionPPRT, floorOcclusionMask, wallFloorOcclusionMask, renderSettings, _fovCenterOffsetInExtendedViewSpace, fovDistance, operationParameters);
+			mPostProcessingStack.GenerateFovMask(mOcclusionPPRT,
+				floorOcclusionMask,
+				wallFloorOcclusionMask,
+				renderSettings,
+				_fovCenterOffsetInExtendedViewSpace,
+				fovDistance,
+				operationParameters);
 
 			if (!renderSettings.disableAsyncGPUReadback && SystemInfo.supportsAsyncGPUReadback)
 			{
@@ -537,7 +576,7 @@ public class LightingSystem : MonoBehaviour
 
 		if (materialContainer.blitMaterial == null)
 		{
-			Logger.LogFormat("FovSystemManager: Unable to blit Fov mask. {0} not provided.", Category.Lighting, nameof(materialContainer.blitMaterial));
+			Loggy.Info().Format("FovSystemManager: Unable to blit Fov mask. {0} not provided.", Category.Lighting, nameof(materialContainer.blitMaterial));
 			return;
 		}
 
@@ -649,5 +688,35 @@ public class LightingSystem : MonoBehaviour
 
 			Graphics.Blit(iSource, iDestination, _blitMaterial);
 		}
+
+
+		RenderTexture uiRenderTexture = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
+		using (new DisposableProfiler("10. Render UI Layer"))
+		{
+			if (DoUICamera)
+			{
+				// Perform rendering for objects with the UI layer here.
+				UICamera.targetTexture = uiRenderTexture;
+				UICamera.Render();
+				UICamera.targetTexture = null;
+			}
+		}
+
+		if (DoOtherBit)
+		{
+			using (new DisposableProfiler("11. Blit Scene with UI"))
+			{
+				//TODO optimist
+				// Combine the UI render texture with the existing output.
+				var uiBlitMaterial = materialContainer.uiBlitMaterial;
+				uiBlitMaterial.SetTexture("_UITexture", uiRenderTexture);
+				uiBlitMaterial.SetTexture("_MainTex", iSource);
+
+				// Perform the blending operation.
+				Graphics.Blit(iSource, iDestination, uiBlitMaterial);
+			}
+		}
+
+		RenderTexture.ReleaseTemporary(uiRenderTexture);
 	}
 }

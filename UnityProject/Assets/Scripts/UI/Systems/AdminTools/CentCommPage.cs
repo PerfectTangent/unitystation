@@ -2,6 +2,7 @@
 using UnityEngine;
 using DatabaseAPI;
 using AdminCommands;
+using Logs;
 using UnityEngine.UI;
 
 
@@ -84,7 +85,7 @@ namespace AdminTools
 
 		public void CreateERTBtn()
 		{
-			Logger.LogWarning("Create ERT is not implemented.", Category.Admin);
+			Loggy.Warning("Create ERT is not implemented.", Category.Admin);
 		}
 
 		public void CreateDeathSquadBtn()

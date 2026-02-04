@@ -1,0 +1,121 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &8478311705687862672
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5584845372765293677, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8905571727489261822, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      propertyPath: m_Name
+      value: Light2DSpriteHandler
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8905571727489261822, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1215826350432345714}
+    - targetCorrespondingSourceObject: {fileID: 8905571727489261822, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7205990912157763393}
+  m_SourcePrefab: {fileID: 100100000, guid: 89dee49cba78b134fb3f3dcef2113dcb, type: 3}
+--- !u!1 &1026805179645545838 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8905571727489261822, guid: 89dee49cba78b134fb3f3dcef2113dcb,
+    type: 3}
+  m_PrefabInstance: {fileID: 8478311705687862672}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1215826350432345714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1026805179645545838}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6510c9b95b6fa3498b97083dcdd5e89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NetworkThis: 1
+  SubCatalogue: []
+  InitialPresentSpriteSet: {fileID: 11400000, guid: 4fb9fdcd14ab0c748b969d9023602795,
+    type: 2}
+  randomInitialSprite: 0
+  spriteRenderer: {fileID: 0}
+  doReverseAnimation: 0
+  pushTextureOnStartUp: 1
+  initialVariantIndex: 0
+  InitialColour: {r: 1, g: 1, b: 1, a: 1}
+  palette: []
+  initialSortingOrder: -1
+  initialSortingLayerName: 
+--- !u!114 &7205990912157763393
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1026805179645545838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 181a5b4dde4eb324aa4b7559536ff75d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RootSillys::UI.Core.MapSaverIgnoreObject

@@ -1,9 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Core;
 using UnityEngine;
 using UnityEngine.Serialization;
 using PathFinding;
 using Doors;
+using Logs;
+using SecureStuff;
+using Systems.Clearance;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Systems.MobAIs
@@ -12,14 +18,14 @@ namespace Systems.MobAIs
 	{
 		protected RegisterTile registerTile;
 		protected Matrix matrix => registerTile.Matrix;
-		protected CustomNetTransform cnt;
+		protected UniversalObjectPhysics uop;
 
 		protected Rotatable rotatable;
 		protected LivingHealthBehaviour health;
 
 		protected bool isServer;
 
-		public bool activated;
+		[PlayModeOnly] public bool activated;
 
 		[Range(0.01f, 1), FormerlySerializedAs("tickRate")]
 		[Tooltip("Delay (in seconds) between mob actions/decisions.")]
@@ -51,10 +57,10 @@ namespace Systems.MobAIs
 
 		private bool isComplete = false;
 
-		private void Awake()
+		public virtual void Awake()
 		{
 			registerTile = GetComponent<RegisterTile>();
-			cnt = GetComponent<CustomNetTransform>();
+			uop = GetComponent<UniversalObjectPhysics>();
 			rotatable = GetComponent<Rotatable>();
 			health = GetComponent<LivingHealthBehaviour>();
 		}
@@ -64,9 +70,9 @@ namespace Systems.MobAIs
 			//only needed for starting via a map scene through the editor:
 			if (CustomNetworkManager.Instance == null) return;
 
-			if (CustomNetworkManager.Instance._isServer)
+			if (CustomNetworkManager.IsServer)
 			{
-				cnt.OnTileReached().AddListener(OnTileReached);
+				uop.OnLocalTileReached.AddListener(OnTileReached);
 				isServer = true;
 			}
 		}
@@ -75,7 +81,7 @@ namespace Systems.MobAIs
 		{
 			if (isServer)
 			{
-				cnt.OnTileReached().RemoveListener(OnTileReached);
+				uop.OnLocalTileReached.RemoveListener(OnTileReached);
 			}
 		}
 
@@ -161,7 +167,7 @@ namespace Systems.MobAIs
 				{
 					isComplete = true;
 					//This could be because you are trying to use a goal node that is inside a wall or the path was blocked
-					Logger.Log(
+					Loggy.Info(
 						$"Pathing finding could not find a path where one was expected to be found. StartNode {startNode.position} GoalNode {goalNode.position}",
 						Category.Movement);
 					return null;
@@ -299,7 +305,7 @@ namespace Systems.MobAIs
 		{
 			if (health.IsDead || health.IsCrit)
 			{
-				Logger.Log("You are trying to follow a path when living thing is dead or in crit", Category.Movement);
+				Loggy.Info("You are trying to follow a path when living thing is dead or in crit", Category.Movement);
 				status = Status.idle;
 				return;
 			}
@@ -331,28 +337,28 @@ namespace Systems.MobAIs
 					var dir = path[node].position - Vector2Int.RoundToInt(transform.localPosition);
 					if (!registerTile.Matrix.IsPassableAtOneMatrixOneTile(registerTile.LocalPositionServer + (Vector3Int)dir, true, context: gameObject))
 					{
-						var dC = registerTile.Matrix.GetFirst<DoorController>(
+						var dC = registerTile.Matrix.GetFirst<DoorMasterController>(
 							registerTile.LocalPositionServer + (Vector3Int)dir, true);
 						if (dC != null)
 						{
-							dC.MobTryOpen(gameObject);
+							dC.PulseTryOpen(gameObject);
 							yield return WaitFor.Seconds(1f);
 						}
 						else
 						{
 							ResetMovingValues();
 							FollowCompleted();
-							Logger.Log("Path following timed out. Something must be in the way", Category.Movement);
+							Loggy.Info("Path following timed out. Something must be in the way", Category.Movement);
 							yield break;
 						}
 					}
 
 					if (rotatable != null)
 					{
-						rotatable.SetFaceDirectionLocalVictor(dir);
+						rotatable.SetFaceDirectionLocalVector(dir);
 					}
 
-					cnt.Push(dir, context: gameObject);
+					uop.TryTilePush(dir, null);
 					movingToTile = true;
 				}
 				else
@@ -368,11 +374,11 @@ namespace Systems.MobAIs
 					{
 						//Mob has 5 seconds to get to the next tile
 						//or the AI should do something else
-						timeOut += Time.deltaTime;
+						timeOut += MobController.UpdateTimeInterval;
 						if (timeOut > 5f)
 						{
 							ResetMovingValues();
-							Logger.Log("Path following timed out. Something must be in the way", Category.Movement);
+							Loggy.Info("Path following timed out. Something must be in the way", Category.Movement);
 							FollowCompleted();
 							yield break;
 						}
@@ -415,7 +421,7 @@ namespace Systems.MobAIs
 		{
 		}
 
-		protected virtual void OnTileReached(Vector3Int tilePos)
+		protected virtual void OnTileReached(Vector3Int oldLocalPos, Vector3Int newLocalPos)
 		{
 			if (!activated) return;
 
@@ -443,10 +449,11 @@ namespace Systems.MobAIs
 			}
 			else
 			{
-				var getDoor = matrix.GetFirst<DoorController>(checkPos, true);
+				var getDoor = matrix.GetFirst<DoorMasterController>(checkPos, true);
 				if (getDoor)
 				{
-					if (!getDoor.AccessRestrictions || (int)getDoor.AccessRestrictions.restriction == 0)
+					var restricted = getDoor.ModulesList.Components<ClearanceRestricted>().FirstOrDefault();
+					if (restricted == null || restricted.RequiredClearance.Any() == false)
 					{
 						node.nodeType = PathFinding.NodeType.Open;
 					}

@@ -5,14 +5,20 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1216957477622953521, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 23a462cf13b68af4aaeb2992e263fbfd,
         type: 2}
+    - target: {fileID: 2317960629209797202, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: parentID
+      value: 9ad3756f014fe4f4c9aa35bf9b523a1a
+      objectReference: {fileID: 0}
     - target: {fileID: 2317960629209797202, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
       propertyPath: foreverID
@@ -24,6 +30,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: a7b1c59fdd10fc84482c6d9974ada03e,
         type: 2}
+    - target: {fileID: 3303296021054694840, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: a7b1c59fdd10fc84482c6d9974ada03e,
+        type: 2}
     - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
       propertyPath: Volume
@@ -32,11 +44,11 @@ PrefabInstance:
     - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
       propertyPath: MaximumMoles
-      value: 400
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
-      propertyPath: Gases.Array.data[1]
+      propertyPath: 'Gases.Array.data[1]'
       value: 33.2748
       objectReference: {fileID: 0}
     - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
@@ -51,8 +63,33 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
+      propertyPath: StoredGasMix.pressure
+      value: 1065.7839
+      objectReference: {fileID: 0}
+    - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: StoredInitialGasMix.Volume
+      value: 0.200108
+      objectReference: {fileID: 0}
+    - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: StoredInitialGasMix.pressure
+      value: 1096.236
+      objectReference: {fileID: 0}
+    - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
       propertyPath: StoredGasMix.GasData.GasesArray.Array.data[0].Moles
       value: 350
+      objectReference: {fileID: 0}
+    - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: StoredGasMix.GasData.GasesArray.Array.data[0].moles
+      value: 350
+      objectReference: {fileID: 0}
+    - target: {fileID: 3519444805694504380, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: StoredInitialGasMix.GasData.GasesArray.Array.data[0].moles
+      value: 90.00043
       objectReference: {fileID: 0}
     - target: {fileID: 8683563700070376267, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
@@ -116,6 +153,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8720517632814588811, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
+      propertyPath: _assetId
+      value: 3445069904
+      objectReference: {fileID: 0}
+    - target: {fileID: 8720517632814588811, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
       propertyPath: m_AssetId
       value: 559a6395df37aa249a2e1407680afd35
       objectReference: {fileID: 0}
@@ -125,6 +167,16 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 130c77b872b45294497b28f2a72237ff,
         type: 3}
+    - target: {fileID: 9114212219146629469, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: exportCost
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 9114212219146629469, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: exportName
+      value: double emergency oxygen tank
+      objectReference: {fileID: 0}
     - target: {fileID: 9114212219146629469, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
         type: 3}
       propertyPath: initialName
@@ -142,5 +194,20 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: d36c552d52628744f9329654bbdf563b,
         type: 2}
+    - target: {fileID: 9114212219146629469, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 7335808bfdf794f40a9e4a2b475c9870,
+        type: 2}
+    - target: {fileID: 9114212219146629469, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: d36c552d52628744f9329654bbdf563b,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9ad3756f014fe4f4c9aa35bf9b523a1a, type: 3}

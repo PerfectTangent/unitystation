@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Items.Others;
 using Messages.Server;
 using UnityEngine;
 
@@ -22,7 +21,7 @@ public class InteractablePaper : MonoBehaviour, IInteractable<HandActivate>, ICh
 
 	public bool WillInteract(InventoryApply interaction, NetworkSide side)
 	{
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 		//only pen can be used on this
 		if (!Validations.HasComponent<Pen>(interaction.UsedObject)) return false;
 		//only works if pen is in hand

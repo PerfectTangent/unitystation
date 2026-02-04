@@ -27,6 +27,7 @@ public class DamageOnPickUp : MonoBehaviour, IServerInventoryMove
 
 	public void OnInventoryMoveServer(InventoryMove info)
 	{
+		if (this.gameObject != info.MovedObject.gameObject) return;
 		if (info.InventoryMoveType != InventoryMoveType.Add) return;
 
 		if (info.ToSlot != null && info.ToSlot?.NamedSlot != null)
@@ -46,7 +47,7 @@ public class DamageOnPickUp : MonoBehaviour, IServerInventoryMove
 		{
 			foreach (var trait in protectionItemTraits)
 			{
-				if (trait == null || Validations.HasItemTrait(player.Equipment.GetClothingItem(NamedSlot.hands).GameObjectReference, trait)) return;
+				if (trait == null || Validations.HasItemTrait(player.Equipment.GetClothingItem(NamedSlot.hands).ServerGameObjectReference , trait)) return;
 			}
 
 			if (info.ToSlot.NamedSlot == NamedSlot.leftHand)

@@ -17,6 +17,7 @@ namespace Messages.Client.GhostRoles
 		{
 			foreach (KeyValuePair<uint, GhostRoleServer> kvp in GhostRoleManager.Instance.serverAvailableRoles)
 			{
+				if (kvp.Value.TimeRemaining != -1 && kvp.Value.TimeRemaining <= 0) continue;
 				GhostRoleUpdateMessage.SendTo(SentByPlayer, kvp.Key, kvp.Value);
 			}
 		}
@@ -24,12 +25,13 @@ namespace Messages.Client.GhostRoles
 		/// <summary>
 		/// Sends a message to the server, requesting an update on all available ghost roles on the server.
 		/// </summary>
-		public static NetMessage SendMessage()
+		public static void SendMessage()
 		{
+			if (NetworkClient.active == false) return;
+
 			var msg = new NetMessage();
 
 			Send(msg);
-			return msg;
 		}
 	}
 }

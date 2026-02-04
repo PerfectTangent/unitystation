@@ -1,8 +1,11 @@
-﻿using Managers;
-using NaughtyAttributes;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.Threading;
+using Logs;
+using NaughtyAttributes;
+using Shared.Managers;
 using UnityEngine;
 
 namespace Initialisation
@@ -23,11 +26,19 @@ namespace Initialisation
 
 		public List<DelayedAction> ToClear = new List<DelayedAction>();
 
+		public List<Material> Materials = new List<Material>();
+
+		public bool IsExecuting = false;
+		public bool IsExecutingGeneric = false;
+		public Action LastInvokedAction {get; private set;}
+
 		public class DelayedAction
 		{
 			public float Frames;
 			public Action Action;
 		}
+
+		public bool LoadingInitialSystems => GamesStartInitialiseSystems.Count > 0;
 
 		//ServerData Awake moved to Start
 		//OptionsMenu Awake moved to Start
@@ -44,9 +55,67 @@ namespace Initialisation
 		//Otherwise
 		//call Manager with function and what to Load before
 
+
+		public override void Awake()
+		{
+			Loggy.MainGameThread = Thread.CurrentThread; //Initialises logger
+
+			// Set the global culture to InvariantCulture
+			CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+			CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+
+			SetMaterialStatus(null);
+		}
+
+
+		public void SetMaterialStatus(bool? Shadow)
+		{
+			if (Shadow == null)
+			{
+				if (PlayerPrefs.HasKey(PlayerPrefKeys.ItemDropShadow) == false)
+				{
+					PlayerPrefs.SetString(PlayerPrefKeys.ItemDropShadow, true.ToString());
+				}
+				Shadow = bool.Parse(PlayerPrefs.GetString(PlayerPrefKeys.ItemDropShadow));
+			}
+			else
+			{
+				PlayerPrefs.SetString(PlayerPrefKeys.ItemDropShadow, Shadow.Value.ToString());
+			}
+
+
+			foreach (var Material in Materials)
+			{
+				if (Shadow.Value)
+				{
+					Material.EnableKeyword("USE_SHADOW");
+
+				}
+				else
+				{
+					Material.DisableKeyword("USE_SHADOW");
+				}
+			}
+		}
+
+
+
+		public static void DoInMainThread(Action InAction)
+		{
+			lock (QueueInitialise)
+			{
+				QueueInitialise.Enqueue(InAction);
+			}
+		}
+
+
 		public static void RegisterAction(Action InAction)
 		{
-			QueueInitialise.Enqueue(InAction);
+			lock (QueueInitialise)
+			{
+				QueueInitialise.Enqueue(InAction);
+			}
 		}
 
 		public static void RegisterActionDelayed(Action InAction, int Frames)
@@ -71,24 +140,28 @@ namespace Initialisation
 		{
 			if (GamesStartInitialiseSystems.Count > 0)
 			{
+				IsExecuting = true;
 				var ToProcess = GamesStartInitialiseSystems[0];
 				GamesStartInitialiseSystems.RemoveAt(0);
 				var InInterface = ToProcess as IInitialise;
 				if (InInterface == null) return;
 				try
 				{
+					LastInvokedAction = InInterface.Initialise;
 					InInterface.Initialise();
 				}
 				catch (Exception e)
 				{
-					Logger.LogError(e.ToString());
+					Loggy.Error(e.ToString());
 				}
-
+				IsExecuting = false;
 			}
 
 			if (DelayedActions.Count > 0)
 			{
-				//Logger.Log(QueueInitialise.Count.ToString() + " < in queue ");
+				IsExecuting = true;
+				IsExecutingGeneric = true;
+				//Loggy.Log(QueueInitialise.Count.ToString() + " < in queue ");
 				stopwatch.Start();
 
 				int i = 0;
@@ -103,11 +176,12 @@ namespace Initialisation
 							try
 							{
 								ToClear.Add(delayedAction);
+								LastInvokedAction = delayedAction.Action.Invoke;
 								delayedAction.Action.Invoke();
 							}
 							catch (Exception e)
 							{
-								Logger.LogError(e.ToString());
+								Loggy.Error(e.ToString());
 							}
 						}
 
@@ -121,37 +195,46 @@ namespace Initialisation
 
 				stopwatch.Stop();
 				stopwatch.Reset();
-				//Logger.Log(stopwatch.ElapsedMilliseconds.ToString() + " < ElapsedMilliseconds ");
+				IsExecuting = false;
+				IsExecutingGeneric = false;
+				//Loggy.Log(stopwatch.ElapsedMilliseconds.ToString() + " < ElapsedMilliseconds ");
 			}
 
 			if (QueueInitialise.Count > 0)
 			{
-				//Logger.Log(QueueInitialise.Count.ToString() + " < in queue ");
-				stopwatch.Start();
-				Action QueueAction = null;
-				while (stopwatch.ElapsedMilliseconds < TargetMSprefFramePreStep)
+				lock (QueueInitialise)
 				{
-					if (QueueInitialise.Count > 0)
+					//Loggy.Log(QueueInitialise.Count.ToString() + " < in queue ");
+					stopwatch.Start();
+					IsExecuting = true;
+					Action QueueAction = null;
+					while (stopwatch.ElapsedMilliseconds < TargetMSprefFramePreStep)
 					{
-						QueueAction = QueueInitialise.Dequeue();
-						try
+						if (QueueInitialise.Count > 0)
 						{
-							QueueAction.Invoke();
+							QueueAction = QueueInitialise.Dequeue();
+							try
+							{
+								LastInvokedAction = QueueAction.Invoke;
+								QueueAction.Invoke();
+							}
+							catch (Exception e)
+							{
+								Loggy.Error(e.ToString());
+							}
 						}
-						catch (Exception e)
+						else
 						{
-							Logger.LogError(e.ToString());
+							break;
 						}
 					}
-					else
-					{
-						break;
-					}
-				}
 
-				stopwatch.Stop();
-				stopwatch.Reset();
-				//Logger.Log(stopwatch.ElapsedMilliseconds.ToString() + " < ElapsedMilliseconds ");
+					stopwatch.Stop();
+					stopwatch.Reset();
+					IsExecuting = false;
+					IsExecutingGeneric = false;
+					//Loggy.Log(stopwatch.ElapsedMilliseconds.ToString() + " < ElapsedMilliseconds ");
+				}
 			}
 
 			foreach (var delayedAction in ToClear)
@@ -184,7 +267,10 @@ namespace Initialisation
 		ServerInfoUI,
 		CustomNetworkManager,
 		ServerInfoUILobby,
-		Addressables
+		Addressables,
+		GameData,
+		VoiceChat,
+		TranslationSystem
 	}
 
 	public interface IInitialise

@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using Systems.ObjectConnection;
+using Shared.Systems.ObjectConnection;
 
 namespace CustomInspectors
 {
@@ -71,19 +71,23 @@ namespace CustomInspectors
 
 				var objectsToDirt = controller.SubscribeToController(objectHitRaycast);
 
+				EditorUtility.SetDirty(controller as MonoBehaviour);
+				Undo.RecordObject(controller as MonoBehaviour, "Linking device");
 				EditorUtility.SetDirty(gameObject);
+				Undo.RecordObject(gameObject, "Linking device");
 				foreach (var objectToDirt in objectsToDirt)
 				{
 					//make that shit dirty
 					EditorUtility.SetDirty(objectToDirt);
+					Undo.RecordObject(objectToDirt, "Linking device");
 
 					//make all that shit's shit dirty because fuck you unity
 					foreach (var component in objectToDirt.GetComponents<Component>())
 					{
 						EditorUtility.SetDirty(component);
+						Undo.RecordObject(component, "Linking device");
 					}
 				}
-
 				EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
 			}
 

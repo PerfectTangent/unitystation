@@ -1,4 +1,6 @@
 using System.Collections;
+using Logs;
+using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -7,14 +9,14 @@ namespace GameRunTests
 {
 	public class GameRunTests
 	{
-		[UnityTest]
+		[Test]
 		public IEnumerator NewTestScriptWithEnumeratorPasses()
 		{
 			yield return SceneManager.LoadSceneAsync("OnlineScene");
 
 			if (GameManager.Instance == null)
 			{
-				Logger.LogError("Unable to load OnlineScene Properly returning");
+				Loggy.Error("Unable to load OnlineScene Properly returning");
 				yield break;
 			}
 			GameManager.Instance.QuickLoad = true;
@@ -24,26 +26,23 @@ namespace GameRunTests
 			GameManager.Instance.QuickLoad = false;
 		}
 
-
 		public static void RunRestartRound()
 		{
 			GameManager.Instance.RoundEndTime = 0f;
-			GameManager.Instance.EndRound();
-			PlayerManager.LocalPlayer = null;
+			GameManager.Instance.EndRound(GameManager.RoundID);
 		}
 
 		// public void RunRestartRound()
 		// {
-		// 	if (CustomNetworkManager.Instance._isServer == false)
+		// 	if (CustomNetworkManager.IsServer == false)
 		// 	{
-		// 		Logger.Log("Can only execute command from server.", Category.DebugConsole);
+		// 		Loggy.Log("Can only execute command from server.", Category.DebugConsole);
 		// 		return;
 		// 	}
 		//
-		// 	Logger.Log("Triggered round restart from DebugConsole.", Category.DebugConsole);
+		// 	Loggy.Log("Triggered round restart from DebugConsole.", Category.DebugConsole);
 		// 	GameManager.Instance.RoundEndTime = 1f;
 		// 	GameManager.Instance.EndRound();
 		// }
 	}
-
 }

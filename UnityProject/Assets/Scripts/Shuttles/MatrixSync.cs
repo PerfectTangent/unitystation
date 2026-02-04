@@ -1,4 +1,5 @@
 ﻿using System;
+using Logs;
 using Messages.Client.NewPlayer;
 using Mirror;
 using Tilemaps.Behaviours.Layers;
@@ -16,32 +17,47 @@ namespace Shuttles
 
 		#region MatrixMove SyncVars
 
-			[SyncVar(hook = nameof(SyncInitialPosition))]
-			private Vector3 initialPosition;
-
-			[SyncVar(hook = nameof(SyncPivot))]
-			private Vector3 pivot;
-
 			[SyncVar(hook = nameof(SyncMatrixID))]
 			[HideInInspector]
 			public int matrixID;
 
 		#endregion
 
+		[SyncVar(hook = nameof(SyncIsSpaceMatrix))] public bool IsSpaceMatrix;
+
+		[SyncVar] public bool IsMainStationMatrix;
+
 		public static int matrixIDcounter;
+
+		private void SyncIsSpaceMatrix(bool oldState, bool newState)
+		{
+			IsSpaceMatrix = newState;
+			if (IsSpaceMatrix)
+			{
+				MatrixManager.Instance.spaceMatrix = this.networkedMatrix.matrix;
+			}
+		}
+
+
 
 		private void Awake()
 		{
-			if (transform.parent == null)
+			if (transform.parent != null)
 			{
-				Logger.LogError($"{gameObject.name} had null transform parent", Category.Matrix);
+				networkedMatrix = transform.parent.GetComponent<NetworkedMatrix>();
 			}
 
-			networkedMatrix = transform.parent.GetComponent<NetworkedMatrix>();
 
 			if (networkedMatrix == null)
 			{
-				Logger.LogError($"{gameObject.name} had null networkedMatrix", Category.Matrix);
+				var MatrixFrame = Instantiate(SubSceneManager.Instance.MatrixPrefab, null);
+				this.transform.parent = MatrixFrame.transform;
+				networkedMatrix = transform.parent.GetComponent<NetworkedMatrix>();
+			}
+
+			if (networkedMatrix == null)
+			{
+				Loggy.Error($"{gameObject.name} had null networkedMatrix", Category.Matrix);
 			}
 
 			networkedMatrix.MatrixSync = this;
@@ -54,11 +70,6 @@ namespace Shuttles
 			base.OnStartClient();
 
 			networkedMatrix.OnStartClient();
-
-			if (matrixMove != null)
-			{
-				matrixMove.OnStartClient();
-			}
 		}
 
 		public override void OnStartServer()
@@ -69,26 +80,10 @@ namespace Shuttles
 			matrixIDcounter++;
 
 			networkedMatrix.OnStartServer();
-
-			if (matrixMove != null)
-			{
-				matrixMove.OnStartServer();
-			}
 		}
 
 		#region MatrixMove Hooks
 
-			public void SyncInitialPosition(Vector3 oldPos, Vector3 newPos)
-			{
-				initialPosition = newPos;
-				matrixMove.initialPosition = newPos.RoundToInt();
-			}
-
-			public void SyncPivot(Vector3 oldPivot, Vector3 newPivot)
-			{
-				pivot = newPivot;
-				matrixMove.pivot = pivot.RoundToInt();
-			}
 
 			public void SyncMatrixID(int oldID, int newID)
 			{

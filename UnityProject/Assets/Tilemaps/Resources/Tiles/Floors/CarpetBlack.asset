@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ad263680d73c8c54ba53262044a57d04, type: 3}
   m_Name: CarpetBlack
   m_EditorClassIdentifier: 
+  <ForeverID>k__BackingField: df14efc3f4bd7bf4593246df347a1aed
   displayName: carpet
   description: 
   LayerType: 3
   TileType: 3
   RequiredTiles:
   - {fileID: 11400000, guid: 83855008e43a2674d8d6a006ce94326f, type: 2}
+  Mass: 1
   floorTileSounds: {fileID: 11400000, guid: 0ccefbe25500f8c4b8e8bae7fc1c693f, type: 2}
   CanSoundOverride: 0
   atmosPassable: 1
@@ -26,6 +28,7 @@ MonoBehaviour:
   passable: 1
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -50,9 +53,15 @@ MonoBehaviour:
     Acid: 0
     Magic: 0
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions:
   - {fileID: 11400000, guid: 7b6820d9f95c544a8bf274f9125b4941, type: 2}
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 3061888992995513543, guid: 3b74130becf8e1e42bfcb5768f119546,
     type: 3}

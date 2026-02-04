@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Core.Editor.Attributes;
@@ -40,7 +39,7 @@ namespace Objects.Atmospherics
 			Welded = 9,
 		}
 
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		[Tooltip("Sound to play when the welding task is complete.")]
 		private AddressableReferences.AddressableAudioSource weldFinishSfx = default;
 
@@ -58,20 +57,43 @@ namespace Objects.Atmospherics
 		private MetaDataNode metaNode;
 		private MetaDataLayer metaDataLayer;
 
-		private GasMix pipeMix;
+		private GasMix pipeMix
+		{
+			get
+			{
+				if (selfSufficient)
+				{
+					return InternalpipeMix;
+				}
+				else
+				{
+					return pipeData.GetMixAndVolume.GetGasMix();
+				}
+
+			}
+		}
+
+		private GasMix InternalpipeMix;
 
 		public override void OnSpawnServer(SpawnInfo info)
 		{
 			metaDataLayer = MatrixManager.AtPoint(registerTile.WorldPositionServer, true).MetaDataLayer;
-			metaNode = metaDataLayer.Get(registerTile.LocalPositionServer, false);
-			pipeMix = selfSufficient ? GasMix.NewGasMix(GasMixes.BaseAirMix) : pipeData.GetMixAndVolume.GetGasMix();
-
-			if (TryGetComponent<AcuDevice>(out var device) && device.Controller != null)
-			{
-				SetOperatingMode(device.Controller.DesiredMode);
-			}
+			metaNode = metaDataLayer.Get(registerTile.LocalPositionServer);
+			InternalpipeMix = GasMix.NewGasMix(GasMixes.BaseEmptyMix);
 
 			base.OnSpawnServer(info);
+		}
+
+		public void Start()
+		{
+			if (CustomNetworkManager.IsServer)
+			{
+				if (TryGetComponent<AcuDevice>(out var device) && device.Controller != null)
+				{
+					SetOperatingMode(device.Controller.DesiredMode);
+				}
+
+			}
 		}
 
 		public override void TickUpdate()
@@ -81,10 +103,9 @@ namespace Objects.Atmospherics
 			if (IsOperating == false || isWelded) return;
 
 			Operate();
-
 			if (selfSufficient)
 			{
-				pipeMix.Copy(GasMixes.BaseAirMix);
+				pipeMix.CopyFrom(GasMixes.BaseAirMix);
 			}
 		}
 
@@ -99,15 +120,15 @@ namespace Objects.Atmospherics
 		/// <para>Final transfer rate is still limited by the pressure difference and available moles.</para>
 		/// </summary>
 		private float Effectiveness => voltageMultiplier * (isTransitioning ? 0.2f : 1);
-		private readonly float nominalMolesTransferCap = 10;
+		public float nominalMolesTransferCap = 50;
 
 		private void Operate()
 		{
 			GasMix sourceGasMix = pipeMix;
-			GasMix targetGasMix = metaNode.GasMix;
+			GasMix targetGasMix = metaNode.GasMixLocal;
 			if (OperatingMode == Mode.In)
 			{
-				sourceGasMix = metaNode.GasMix;
+				sourceGasMix = metaNode.GasMixLocal;
 				targetGasMix = pipeMix;
 			}
 
@@ -143,9 +164,9 @@ namespace Objects.Atmospherics
 
 			// Evaluate External pressure regulator - want to match pressure in the tile to the regulator value
 			float externalMolLimit = maxTransfer;
-			if (ExternalEnabled && metaNode.GasMix.Pressure.Approx(0) == false)
+			if (ExternalEnabled && metaNode.GasMixLocal.Pressure.Approx(0) == false)
 			{
-				externalMolLimit = sourceMix.Moles - (sourceMix.Moles * (ExternalTarget / metaNode.GasMix.Pressure));
+				externalMolLimit = sourceMix.Moles - (sourceMix.Moles * (ExternalTarget / metaNode.GasMixLocal.Pressure));
 				externalMolLimit *= -direction;
 			}
 
@@ -155,6 +176,20 @@ namespace Objects.Atmospherics
 		#endregion
 
 		#region Interaction
+
+		public override bool WillInteract(HandApply interaction, NetworkSide side)
+		{
+			if (DefaultWillInteract.Default(interaction, side, PlayerTypes.Normal | PlayerTypes.Alien) == false) return false;
+			if (interaction.TargetObject != gameObject) return false;
+
+			if (Validations.HasUsedActiveWelder(interaction)) return true;
+
+			if (Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Wrench)) return true;
+
+			if (interaction.PerformerPlayerScript.CanVentCrawl && interaction.HandObject == null) return true;
+
+			return false;
+		}
 
 		private bool isWelded = false;
 
@@ -173,6 +208,14 @@ namespace Objects.Atmospherics
 						UpdateSprite();
 						SoundManager.PlayNetworkedAtPos(weldFinishSfx, registerTile.WorldPositionServer, sourceObj: gameObject);
 					});
+
+				return;
+			}
+
+			if (isWelded == false)
+			{
+				//Do vent crawl
+				DoVentCrawl(interaction, pipeMix);
 			}
 		}
 
@@ -223,12 +266,21 @@ namespace Objects.Atmospherics
 				desiredFinalSprite = Sprite.Welded;
 			}
 
+			if (spritehandler.CataloguePage == (int)desiredFinalSprite)
+			{
+				return;
+			}
+
 			this.RestartCoroutine(AnimateSprite(desiredFinalSprite), ref animator);
 
 		}
 
 		private IEnumerator AnimateSprite(Sprite desiredFinalSprite)
 		{
+			if (spritehandler == null)
+			{
+				yield break;
+			}
 			Sprite currentSprite = (Sprite)spritehandler.CataloguePage;
 
 			if (desiredFinalSprite == currentSprite) yield break;
@@ -257,7 +309,7 @@ namespace Objects.Atmospherics
 			else
 			{
 				// No transitions; just set instantly.
-				spritehandler.ChangeSprite((int)desiredFinalSprite);
+				spritehandler.SetCatalogueIndexSprite((int)desiredFinalSprite);
 			}
 		}
 
@@ -312,7 +364,14 @@ namespace Objects.Atmospherics
 		#region IAcuControllable
 
 		private readonly AcuSample atmosphericSample = new AcuSample();
-		AcuSample IAcuControllable.AtmosphericSample => atmosphericSample.FromGasMix(metaNode.GasMix);
+		AcuSample IAcuControllable.AtmosphericSample
+		{
+			get
+			{
+				if (atmosphericSample != null && metaNode != null) return atmosphericSample.FromGasMix(metaNode.GasMixLocal);
+				return null;
+			}
+		}
 
 		public void SetOperatingMode(AcuMode mode)
 		{

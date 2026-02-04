@@ -2,73 +2,105 @@
 using UnityEngine;
 using Mirror;
 using System.Collections;
+using System.Collections.Generic;
 using AddressableReferences;
+using Items.Bureaucracy.Internal;
+using Items.Others;
+using Logs;
 using Messages.Server;
+using UnityEngine.Serialization;
+using static Items.Bureaucracy.Photocopier;
 
 namespace Items.Bureaucracy
 {
-	public class Photocopier : NetworkBehaviour, ICheckedInteractable<HandApply>, IServerSpawn, IRightClickable
+	public class Photocopier : NetworkBehaviour, ICheckedInteractable<HandApply>, IRightClickable
 	{
 		public NetTabType NetTabType;
 		public int trayCapacity;
 
-		private Internal.Printer printer;
-		private Internal.Scanner scanner;
-
-		private PhotocopierState photocopierState;
+		[field: SyncVar(hook = nameof(SyncPhotocopierState))]
+		public PhotocopierState photocopierState { get; private set; } = PhotocopierState.Idle;
 
 		[SerializeField] private GameObject paperPrefab = null;
+		[SerializeField] private GameObject bookPrefab = null;
 
 		[SerializeField] private SpriteHandler spriteHandler = null;
 		private RegisterObject registerObject;
 
+		[SerializeField] private ItemTrait tonerTrait;
+
 		[SerializeField] private AddressableAudioSource Copier = null;
 		[SerializeField] private ItemStorage inkStorage;
-		[SerializeField] private ItemTrait tonerTrait;
-		public Toner InkCartadge => inkStorage.GetTopOccupiedIndexedSlot()?.ItemObject.GetComponent<Toner>();
+		[FormerlySerializedAs("paperStorage")] [SerializeField] private ItemStorage ScannerStorage;
+		[SerializeField] private ItemStorage PaperTrayStorage;
+		public Toner TonerCartadge => inkStorage.GetTopOccupiedIndexedSlot()?.ItemObject.GetComponent<Toner>();
+
+
+		public bool trayOpen = false;
+		public bool scannerOpen = false;
+
+		public bool hasScanned;
+
+		public int TrayCount => PaperTrayStorage.GetOccupiedSlots().Count;
+		public int TrayCapacity => trayCapacity;
+		public bool TrayOpen => trayOpen;
+		public bool ScannerOpen => scannerOpen;
+
+		public bool HasScanned => hasScanned;
+
+		public bool PrintBook = false;
+
+		public bool CanAddPageToTray(GameObject page) =>
+			page != null
+			&& page.GetComponent<Paper>() != null
+			&& TrayOpen
+			&& TrayCount < TrayCapacity;
+
+		public bool CanPlaceDocument(GameObject page)
+		{
+			if (page == null) return false;
+			if (page.TryGetComponent<Paper>(out var _) == false) return false;
+			return ScannerOpen;
+		}
+
+		/// <summary>
+		/// GUI_Photocopier subscribes to this event when it is initialized.
+		/// The event is triggered when Photocopier decides a GUI render is required. (something changed)
+		/// </summary>
+		public event EventHandler GuiRenderRequired;
+
+		public enum PhotocopierState
+		{
+			Idle = 0,
+			TrayOpen = 1,
+			ScannerOpen = 2,
+			Production = 3
+		}
 
 
 		private void Awake()
 		{
 			photocopierState = PhotocopierState.Idle;
 			registerObject = gameObject.GetComponent<RegisterObject>();
-			printer = new Internal.Printer(0, trayCapacity, false);
-			scanner = new Internal.Scanner(false, true, null, null);
-			if (inkStorage == null) inkStorage = GetComponent<ItemStorage>();
-		}
-
-		public enum PhotocopierState
-		{
-			Idle,
-			Production
 		}
 
 		#region Sprite Sync
 
-		private void SyncPhotocopierState(PhotocopierState newState)
+		private void SyncPhotocopierState(PhotocopierState oldState, PhotocopierState newState)
 		{
 			photocopierState = newState;
 			switch (newState)
 			{
+				case PhotocopierState.ScannerOpen:
+				case PhotocopierState.TrayOpen:
 				case PhotocopierState.Idle:
-					spriteHandler.ChangeSprite(0);
+					spriteHandler.SetCatalogueIndexSprite(0);
 					break;
 
 				case PhotocopierState.Production:
-					spriteHandler.ChangeSprite(1);
+					spriteHandler.SetCatalogueIndexSprite(1);
 					break;
 			}
-		}
-
-		public override void OnStartClient()
-		{
-			SyncPhotocopierState( photocopierState);
-			base.OnStartClient();
-		}
-
-		public void OnSpawnServer(SpawnInfo info)
-		{
-			SyncPhotocopierState( photocopierState);
 		}
 
 		#endregion Sprite Sync
@@ -77,18 +109,15 @@ namespace Items.Bureaucracy
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side))
+			if (DefaultWillInteract.Default(interaction, side) == false)
 			{
 				return false;
 			}
-
 			if (interaction.UsedObject != null && interaction.UsedObject.Item().HasTrait(tonerTrait)) return true;
-
-			if (photocopierState == PhotocopierState.Idle)
+			if (photocopierState != PhotocopierState.Production && interaction.HandObject == null) return true;
+			if (photocopierState is PhotocopierState.TrayOpen or PhotocopierState.ScannerOpen && interaction.HandObject != null)
 			{
-				if (interaction.HandObject == null) return true;
-				if (printer.CanAddPageToTray(interaction.HandObject)) return true;
-				if (scanner.CanPlaceDocument(interaction.HandObject)) return true;
+				return interaction.HandObject.TryGetComponent<Paper>(out var paper);
 			}
 
 			return false;
@@ -96,7 +125,7 @@ namespace Items.Bureaucracy
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (InkCartadge == null && interaction.UsedObject != null && interaction.UsedObject.Item().HasTrait(tonerTrait))
+			if (TonerCartadge == null && interaction.UsedObject != null && interaction.UsedObject.Item().HasTrait(tonerTrait))
 			{
 				Inventory.ServerTransfer(interaction.UsedObject.GetComponent<Pickupable>().ItemSlot,
 					inkStorage.GetNextFreeIndexedSlot());
@@ -104,12 +133,12 @@ namespace Items.Bureaucracy
 			}
 			if (interaction.HandObject == null)
 			{
-				if (printer.TrayOpen)
+				if (TrayOpen)
 				{
 					Chat.AddExamineMsgFromServer(interaction.Performer, "You close the tray.");
 					ToggleTray();
 				}
-				else if (scanner.ScannerOpen)
+				else if (ScannerOpen)
 				{
 					Chat.AddExamineMsgFromServer(interaction.Performer, "You close the scanner lid.");
 					ToggleScannerLid();
@@ -120,14 +149,16 @@ namespace Items.Bureaucracy
 					TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType, TabAction.Open);
 				}
 			}
-			else if (printer.CanAddPageToTray(interaction.HandObject))
+			else if (CanAddPageToTray(interaction.HandObject))
 			{
-				printer = printer.AddPageToTray(interaction.HandObject);
+				Inventory.ServerTransfer(interaction.HandSlot, PaperTrayStorage.GetNextFreeIndexedSlot());
 				Chat.AddExamineMsgFromServer(interaction.Performer, "You place the sheet in the tray.");
 			}
-			else if (scanner.CanPlaceDocument(interaction.HandObject))
+			else if (CanPlaceDocument(interaction.HandObject))
 			{
-				scanner = scanner.PlaceDocument(interaction.HandObject);
+				hasScanned = false;
+				var result = ScannerStorage.ServerTryTransferFrom(interaction.HandObject);
+				Chat.AddActionMsgToChat(gameObject, result ? "The Scanner queues a document up for printing.." : "The Scanner refuses accepting the document..");
 				Chat.AddExamineMsgFromServer(interaction.Performer, "You place the document in the scanner.");
 			}
 		}
@@ -141,37 +172,63 @@ namespace Items.Bureaucracy
 
 		#region Component API
 
-		/*
-		 * The following methods and properties are the API for this component.
-		 * Other components (notably the GUI_Photocopier tab) can call these methods.
-		 */
-
-		public int TrayCount => printer.TrayCount;
-		public int TrayCapacity => printer.TrayCapacity;
-		public bool TrayOpen => printer.TrayOpen;
-		public bool ScannerOpen => scanner.ScannerOpen;
-		public bool ScannedTextNull => scanner.ScannedText == null;
-
 		[Server]
 		public void ToggleTray()
 		{
-			printer = printer.ToggleTray();
+			trayOpen = !trayOpen;
+			photocopierState = TrayOpen ? PhotocopierState.TrayOpen : PhotocopierState.Idle;
+
 			OnGuiRenderRequired();
 		}
 
 		[Server]
 		public void ToggleScannerLid()
 		{
-			scanner = scanner.ToggleScannerLid(gameObject, paperPrefab);
+			hasScanned = false;
+			scannerOpen = !scannerOpen;
+			photocopierState = scannerOpen ? PhotocopierState.ScannerOpen : PhotocopierState.Idle;
+
+			if (photocopierState is PhotocopierState.ScannerOpen)
+			{
+				ScannerStorage.ServerDropAll();
+			}
+
 			OnGuiRenderRequired();
 		}
 
-		public bool CanPrint() => printer.CanPrint(scanner.ScannedText, photocopierState == PhotocopierState.Idle) && InkCartadge.CheckInkLevel();
+		public bool CanPrint() => CanPrint(photocopierState == PhotocopierState.Idle) && TonerCartadge.CheckInkLevel();
+
+		public bool CanPrint(bool isAvailableForPrinting)
+		{
+
+			if (HasScanned == false)
+			{
+				Chat.AddActionMsgToChat(gameObject, "The Printer bleeps 'Error! No documents have been scanned yet to print!'");
+				return false;
+			}
+			if (TrayOpen)
+			{
+				Chat.AddActionMsgToChat(gameObject, "The Printer bleeps 'Error! Printer is open!'");
+				return false;
+			}
+			if (TrayCount == 0)
+			{
+				Chat.AddActionMsgToChat(gameObject, "The Printer bleeps 'Error! Tray is empty!'");
+				return false;
+			}
+			if (PrintBook && TrayCount < ScannerStorage.GetOccupiedSlots().Count)
+			{
+				Chat.AddActionMsgToChat(gameObject, "The Printer bleeps 'Error! Not enough pages to print a book!'");
+				return false;
+			}
+			return isAvailableForPrinting;
+		}
+
 
 		[Server]
 		public void Print()
 		{
-			SyncPhotocopierState( PhotocopierState.Production);
+			photocopierState = PhotocopierState.Production;
 			SoundManager.PlayNetworkedAtPos(Copier, registerObject.WorldPosition);
 			StartCoroutine(WaitForPrint());
 		}
@@ -179,50 +236,122 @@ namespace Items.Bureaucracy
 		private IEnumerator WaitForPrint()
 		{
 			yield return WaitFor.Seconds(4f);
-			SyncPhotocopierState( PhotocopierState.Idle);
-			printer = printer.Print(scanner.ScannedText, gameObject, photocopierState == PhotocopierState.Idle, paperPrefab);
+			photocopierState = PhotocopierState.Idle;
+			Print(gameObject, bookPrefab, photocopierState == PhotocopierState.Idle, paperPrefab);
+
 			OnGuiRenderRequired();
 		}
 
-		public bool CanScan() => scanner.CanScan();
+		public void Print(GameObject printerObj, GameObject bookObk, bool isAvailableForPrinting, GameObject paperPrefab)
+		{
+			if (CanPrint(isAvailableForPrinting) == false)
+			{
+				return ;
+			}
+
+			if (PrintBook)
+			{
+				MakeBook(printerObj, bookObk);
+			}
+			else
+			{
+				MakePhotoCopy();
+			}
+			return;
+		}
+
+		private void MakePhotoCopy()
+		{
+			foreach (var copySlot in ScannerStorage.GetOccupiedSlots())
+			{
+				if (copySlot.ItemObject.TryGetComponent<Paper>(out var ogPaper) == false) continue;
+				var paperSlot =  PaperTrayStorage.GetFirstOccupiedSlot();
+				var paperObj = paperSlot.Item.gameObject;
+				var paper = paperObj.GetComponent<Paper>();
+				paper.SetServerString(ogPaper.ServerString); //TODO Funny effect with paper Writing Over Already printed text
+				Inventory.ServerDrop(paperSlot);
+				TonerCartadge.SpendInk();
+			}
+		}
+
+
+		private void MakeBook(GameObject printerObj, GameObject bookPrefab)
+		{
+			var result = Spawn.ServerPrefab(bookPrefab, SpawnDestination.At(printerObj));
+			if (!result.Successful)
+			{
+				throw new InvalidOperationException("Spawn paper failed!");
+			}
+			var paperObj = result.GameObject;
+			var book = paperObj.GetComponent<BookWritable>();
+			var papers = new List<Paper>();
+			foreach (var slot in ScannerStorage.GetOccupiedSlots())
+			{
+				papers.Add(slot.ItemObject.GetComponent<Paper>());
+				TonerCartadge.SpendInk();
+				var paper =  PaperTrayStorage.GetFirstOccupiedSlot();
+				Inventory.ServerDespawn(paper);
+			}
+			book.Setup(papers, "Book", "A freshly printed book.");
+		}
+
+
+
+		public bool CanScan()
+		{
+			if (ScannerOpen)
+			{
+				Chat.AddActionMsgToChat(gameObject, "The scanner blips 'Error: Scanner is open'");
+				return false;
+			}
+			if (ScannerStorage.GetOccupiedSlots().Count == 0)
+			{
+				Chat.AddActionMsgToChat(gameObject, "The scanner blips 'Error: Nothing to scan, scanner empty.'");
+				return false;
+			}
+			return true;
+		}
+
 
 		[Server]
 		public void Scan()
 		{
-			SyncPhotocopierState( PhotocopierState.Production);
-			InkCartadge.SpendInk();
+			photocopierState = PhotocopierState.Production;
 			StartCoroutine(WaitForScan());
 		}
 
 		private IEnumerator WaitForScan()
 		{
 			yield return WaitFor.Seconds(4f);
-			SyncPhotocopierState( PhotocopierState.Idle);
-			scanner = scanner.Scan();
+			photocopierState = PhotocopierState.Idle;
+			hasScanned = true;
 			OnGuiRenderRequired();
 		}
 
 		[Server]
 		public void ClearScannedText()
 		{
-			scanner = scanner.ClearScannedText();
+			hasScanned = false;
 			OnGuiRenderRequired();
 		}
 
-		#endregion Component API
+		[Command(requiresAuthority = false)]
+		public void SwitchPrintingMode() //TODO Client validation!!!!!!!!!!
+		{
+			PrintBook = !PrintBook;
+			var printingMode = PrintBook ? "Books" : "Copies of Paper";
+			Chat.AddLocalMsgToChat($"The printer will now print {printingMode}", gameObject);
+		}
 
-		/// <summary>
-		/// GUI_Photocopier subscribes to this event when it is initialized.
-		/// The event is triggered when Photocopier decides a GUI render is required. (something changed)
-		/// </summary>
-		public event EventHandler GuiRenderRequired;
+		#endregion Component API
 
 		private void OnGuiRenderRequired() => GuiRenderRequired?.Invoke(gameObject, new EventArgs());
 
 		public RightClickableResult GenerateRightClickOptions()
 		{
 			var result = new RightClickableResult();
-			if (InkCartadge == null) return result;
+			result.AddElement("Switch Printing Mode", SwitchPrintingMode);
+			if (TonerCartadge == null) return result;
 			result.AddElement("Remove Ink Cart", RemoveInkCartridge);
 			return result;
 		}

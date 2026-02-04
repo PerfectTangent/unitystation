@@ -1,15 +1,20 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core.Admin.Logs;
 using UnityEngine;
 using Mirror;
+using Systems.Character;
 using Systems.Clothing;
 using Light2D;
 using Effects.Overlays;
 using HealthV2;
+using Logs;
 using Messages.Server;
+using Mobs;
 using Newtonsoft.Json;
 using UI.CharacterCreator;
+using UnityEngine.Serialization;
 
 namespace Player
 {
@@ -20,7 +25,7 @@ namespace Player
 	/// </summary>
 	[RequireComponent(typeof(Rotatable))]
 	[RequireComponent(typeof(PlayerScript))]
-	public class PlayerSprites : MonoBehaviour
+	public class PlayerSprites : NetworkBehaviour
 	{
 		#region Inspector fields
 
@@ -38,9 +43,19 @@ namespace Player
 		[SerializeField]
 		private GameObject electrocutedPrefab = default;
 
+		[Tooltip("Assign the SpriteHandler responsible for the infected overlay.")]
+		[SerializeField]
+		private SpriteHandler infectedSpriteHandler = default;
+		public SpriteHandler InfectedSpriteHandler => infectedSpriteHandler;
+
 		[Tooltip("Muzzle flash, should be on a child of the player gameobject")]
 		[SerializeField]
 		private LightSprite muzzleFlash = default;
+
+		[FormerlySerializedAs("raceOverride")] [Tooltip("Override the race of the character sheet")]
+		public string RaceOverride = "";
+
+		public bool CharacterSheetOverride = false;
 
 		#endregion Inspector fields
 
@@ -54,7 +69,7 @@ namespace Player
 		//For character customization
 		public ClothingItem[] characterSprites;
 
-		public CharacterSettings ThisCharacter;
+		public CharacterSheet ThisCharacter;
 
 		//clothes for each clothing slot
 		public readonly Dictionary<NamedSlot, ClothingItem> clothes = new Dictionary<NamedSlot, ClothingItem>();
@@ -74,7 +89,8 @@ namespace Player
 		/// <summary>
 		/// Define which piece of clothing are hidden (not rendering) right now
 		/// </summary>
-		private ClothingHideFlags hideClothingFlags = ClothingHideFlags.HIDE_NONE;
+		[SyncVar(hook = nameof(SyncValidateHideFlags))]
+		public ClothingHideFlags hideClothingFlags = ClothingHideFlags.HIDE_NONE;
 
 		private ulong overflow = 0;
 
@@ -86,6 +102,8 @@ namespace Player
 		public List<IntName> InternalNetIDs = new List<IntName>();
 
 		public bool RootBodyPartsLoaded;
+
+		public bool IsOldCustomPrefab;
 
 		[SerializeField]
 		private GameObject OverlaySprites;
@@ -126,7 +144,7 @@ namespace Player
 		/// </summary>
 		private void AddOverlayGameObjects()
 		{
-			if (engulfedBurningOverlay == null)
+			if (engulfedBurningOverlay == null && OverlaySprites != null)
 			{
 				engulfedBurningOverlay =
 					Instantiate(engulfedBurningPrefab, OverlaySprites.transform).GetComponent<PlayerDirectionalOverlay>();
@@ -134,7 +152,7 @@ namespace Player
 				engulfedBurningOverlay.StopOverlay();
 			}
 
-			if (partialBurningOverlay == null)
+			if (partialBurningOverlay == null && OverlaySprites != null)
 			{
 				partialBurningOverlay =
 					Instantiate(partialBurningPrefab, OverlaySprites.transform).GetComponent<PlayerDirectionalOverlay>();
@@ -142,7 +160,7 @@ namespace Player
 				partialBurningOverlay.StopOverlay();
 			}
 
-			if (electrocutedOverlay == null)
+			if (electrocutedOverlay == null && OverlaySprites != null)
 			{
 				electrocutedOverlay = Instantiate(electrocutedPrefab, OverlaySprites.transform).GetComponent<PlayerDirectionalOverlay>();
 				electrocutedOverlay.enabled = true;
@@ -150,32 +168,25 @@ namespace Player
 			}
 		}
 
-		public void SetUpCharacter()
-		{
-			if (CustomNetworkManager.Instance._isServer)
-			{
-				InstantiateAndSetUp(RaceBodyparts.Base.Head);
-				InstantiateAndSetUp(RaceBodyparts.Base.Torso);
-				InstantiateAndSetUp(RaceBodyparts.Base.ArmLeft);
-				InstantiateAndSetUp(RaceBodyparts.Base.ArmRight);
-				InstantiateAndSetUp(RaceBodyparts.Base.LegLeft);
-				InstantiateAndSetUp(RaceBodyparts.Base.LegRight);
-			}
-		}
 
-		public void SubSetBodyPart(BodyPart Body_Part, string path)
+		public void SubSetBodyPart(BodyPart Body_Part, string path, bool Randomised = false)
 		{
+			if (Body_Part == null) return;
 			path = path + "/" + Body_Part.name;
 
 			CustomisationStorage customisationStorage = null;
-			foreach (var Custom in ThisCharacter.SerialisedBodyPartCustom)
+			if (ThisCharacter.SerialisedBodyPartCustom != null)
 			{
-				if (path == Custom.path)
+				foreach (var Custom in ThisCharacter.SerialisedBodyPartCustom)
 				{
-					customisationStorage = Custom;
-					break;
+					if (path == Custom.path)
+					{
+						customisationStorage = Custom;
+						break;
+					}
 				}
 			}
+
 
 			if (customisationStorage != null)
 			{
@@ -190,20 +201,40 @@ namespace Player
 				}
 				else
 				{
-					if (Body_Part.LobbyCustomisation == null)
+					if (Body_Part.LobbyCustomisation != null)
 					{
-						Logger.Log($"[PlayerSprites] - Could not find {Body_Part.name}'s characterCustomization script. Returns -> {Body_Part.LobbyCustomisation.characterCustomization}", Category.Character);
-						return;
+						Body_Part.LobbyCustomisation.OnPlayerBodyDeserialise(Body_Part, data, livingHealthMasterBase);
 					}
-					Body_Part.LobbyCustomisation.OnPlayerBodyDeserialise(Body_Part, data, livingHealthMasterBase);
+					else
+					{
+						Loggy.Info($"[PlayerSprites] - Could not find {Body_Part.name}'s characterCustomization script. Returns -> {Body_Part.OrNull()?.LobbyCustomisation.OrNull()?.characterCustomization}", Category.Character);
+					}
+				}
+			}
+			else if (Randomised)
+			{
+				if (Body_Part.LobbyCustomisation != null)
+				{
+					Body_Part.LobbyCustomisation.RandomizeInBody(Body_Part, livingHealthMasterBase);
 				}
 			}
 
 
-			foreach (var bodyPartOrgan in Body_Part.ContainBodyParts)
+			for (int i = 0; i < Body_Part.ContainBodyParts.Count; i++)
 			{
-				SubSetBodyPart(bodyPartOrgan, path);
+				SubSetBodyPart(Body_Part.ContainBodyParts[i], path, Randomised);
 			}
+
+		}
+
+		public void SetAllBodyType( BodyType bodyType)
+		{
+			ThisCharacter.BodyType = bodyType;
+			foreach (var Bp in livingHealthMasterBase.BodyPartList)
+			{
+				Bp.ServerCreateSprite(bodyType, true);
+			}
+
 		}
 
 		public void SetupSprites()
@@ -211,19 +242,15 @@ namespace Player
 
 			CustomisationStorage customisationStorage = null;
 
-			if (ThisCharacter.SerialisedBodyPartCustom == null)
+			if (ThisCharacter.SerialisedBodyPartCustom != null)
 			{
-				//TODO : (Max) - Fix SerialisedBodyPartCustom being null on Dummy players
-				Logger.LogWarning($"{gameObject} has spawned with null bodyPart customizations. This error should only appear for Dummy players only.");
-				return;
-			}
-
-			foreach (var Custom in ThisCharacter.SerialisedBodyPartCustom)
-			{
-				if (livingHealthMasterBase.name == Custom.path)
+				foreach (var Custom in ThisCharacter.SerialisedBodyPartCustom)
 				{
-					customisationStorage = Custom;
-					break;
+					if (livingHealthMasterBase.name == Custom.path)
+					{
+						customisationStorage = Custom;
+						break;
+					}
 				}
 			}
 
@@ -232,19 +259,15 @@ namespace Player
 				BodyPartDropDownOrgans.PlayerBodyDeserialise(null, customisationStorage.Data, livingHealthMasterBase);
 			}
 
-			foreach (var bodyPart in livingHealthMasterBase.BodyPartList)
+			var Randomised = ThisCharacter.SerialisedBodyPartCustom == null || ThisCharacter.SerialisedBodyPartCustom.Count == 0;
+
+			foreach (var bodyPart in livingHealthMasterBase.BodyPartStorage.GetIndexedSlots())
 			{
-				SubSetBodyPart(bodyPart, "");
+				if (bodyPart.Item == null) continue;
+				SubSetBodyPart(bodyPart.Item.GetComponent<BodyPart>(), "", Randomised);
 			}
 
-			PlayerHealthData SetRace = null;
-			foreach (var Race in RaceSOSingleton.Instance.Races)
-			{
-				if (Race.name == ThisCharacter.Species)
-				{
-					SetRace = Race;
-				}
-			}
+			PlayerHealthData SetRace = RaceBodyparts;
 
 			List<IntName> ToClient = new List<IntName>();
 			foreach (var Customisation in SetRace.Base.CustomisationSettings)
@@ -293,36 +316,28 @@ namespace Player
 					}
 				}
 			}
+
+			infectedSpriteHandler.OrNull()?.PushTexture(); //This is needed because  RegisterHandler in ServerCreateSprite Is busted and doesn't make sprites
+			infectedSpriteHandler.OrNull()?.PushClear();
+
 			GetComponent<RootBodyPartController>().PlayerSpritesData = JsonConvert.SerializeObject(ToClient);
 
 			SetSurfaceColour();
 			OnDirectionChange(directional.CurrentDirection);
 		}
 
-		public void InstantiateAndSetUp(ObjectList ListToSpawn)
-		{
-			if (ListToSpawn != null && ListToSpawn.Elements.Count > 0)
-			{
-				foreach (var ToSpawn in ListToSpawn.Elements)
-				{
-					var bodyPartObject = Spawn.ServerPrefab(ToSpawn).GameObject;
-					livingHealthMasterBase.BodyPartStorage.ServerTryAdd(bodyPartObject);
-				}
-			}
-		}
-
 		public void SetSurfaceColour()
 		{
-			Color CurrentSurfaceColour = Color.white;
+			Color currentSurfaceColour = Color.white;
 			if (RaceBodyparts.Base.SkinColours.Count > 0)
 			{
-				ColorUtility.TryParseHtmlString(ThisCharacter.SkinTone, out CurrentSurfaceColour);
+				ColorUtility.TryParseHtmlString(ThisCharacter.SkinTone, out currentSurfaceColour);
 
 				var hasColour = false;
 
-				foreach (var color in RaceBodyparts.Base.SkinColours)
+				foreach (Color color in RaceBodyparts.Base.SkinColours)
 				{
-					if (color.ColorApprox(CurrentSurfaceColour))
+					if (color.ColorApprox(currentSurfaceColour))
 					{
 						hasColour = true;
 						break;
@@ -331,14 +346,26 @@ namespace Player
 
 				if (hasColour == false)
 				{
-					CurrentSurfaceColour = RaceBodyparts.Base.SkinColours[0];
+					Loggy.Error($"None-matching skin tone colors found on {gameObject.name}. Using closest skin tone.\n " +
+					            $"parsed SurfaceColor: {currentSurfaceColour}\n ThisCharacter skintone: {ThisCharacter.SkinTone}]");
+					currentSurfaceColour = currentSurfaceColour.ClosestColor(RaceBodyparts.Base.SkinColours.ToArray());
 				}
 			}
 			else
 			{
-				ColorUtility.TryParseHtmlString(ThisCharacter.SkinTone, out CurrentSurfaceColour);
+				ColorUtility.TryParseHtmlString(ThisCharacter.SkinTone, out currentSurfaceColour);
 			}
 
+			currentSurfaceColour.a = 1;
+
+			foreach (var sp in SurfaceSprite)
+			{
+				sp.baseSpriteHandler.SetColor(currentSurfaceColour);
+			}
+		}
+
+		public void SetSurfaceColour(Color CurrentSurfaceColour)
+		{
 			CurrentSurfaceColour.a = 1;
 
 			foreach (var sp in SurfaceSprite)
@@ -352,6 +379,28 @@ namespace Player
 			UpdateBurningOverlays(newStacks, directional.CurrentDirection);
 		}
 
+		public void OnDirectionChangeHead(OrientationEnum direction)
+		{
+			//update the clothing sprites
+			foreach (var clothingItem in clothes.Values)
+			{
+				if (clothingItem.Slot is NamedSlot.ear or NamedSlot.eyes or NamedSlot.head or NamedSlot.mask
+				    or NamedSlot.neck)
+				{
+					clothingItem.Direction = direction;
+				}
+			}
+
+			foreach (var bodypart in Addedbodypart)
+			{
+				if (bodypart.BodyPartType is BodyPartType.Eyes or BodyPartType.Ears or BodyPartType.Head
+				    or BodyPartType.Mouth)
+				{
+					bodypart.OnDirectionChange(direction);
+				}
+			}
+		}
+
 		private void OnDirectionChange(OrientationEnum direction)
 		{
 			//update the clothing sprites
@@ -360,9 +409,20 @@ namespace Player
 				clothingItem.Direction = direction;
 			}
 
+			var toRemove = new List<SpriteHandlerNorder>();
 			foreach (var sprite in OpenSprites)
 			{
+				if (sprite == null)
+				{
+					toRemove.Add(sprite);
+					continue;
+				}
 				sprite.OnDirectionChange(direction);
+			}
+
+			foreach (var toRem in toRemove)
+			{
+				OpenSprites.Remove(toRem);
 			}
 
 			foreach (var bodypart in Addedbodypart)
@@ -432,44 +492,54 @@ namespace Player
 			}
 		}
 
-		public void OnCharacterSettingsChange(CharacterSettings characterSettings)
+
+
+		public void OnCharacterSettingsChange(CharacterSheet characterSettings)
 		{
-			if (RootBodyPartsLoaded == false)
+			if (IsOldCustomPrefab) return;
+			if (RootBodyPartsLoaded) return;
+			RootBodyPartsLoaded = true;
+
+			if (characterSettings == null || CharacterSheetOverride)
 			{
-				RootBodyPartsLoaded = true;
-				if (characterSettings == null)
-				{
-					characterSettings = new CharacterSettings();
-				}
+				characterSettings = new CharacterSheet();
+			}
 
-				ThisCharacter = characterSettings;
+			if (string.IsNullOrEmpty(RaceOverride) == false)
+			{
+				characterSettings.Species = RaceOverride;
+			}
 
-				foreach (var Race in RaceSOSingleton.Instance.Races)
+			ThisCharacter = characterSettings;
+			RaceBodyparts = characterSettings.GetRaceSoNoValidation();
+
+			if (RaceBodyparts == null)
+			{
+				Loggy.Error($"Failed to find race for {gameObject.ExpensiveName()} with race: {characterSettings.Species}");
+			}
+
+			livingHealthMasterBase.InitialiseFromRaceData(RaceBodyparts);
+			livingHealthMasterBase.SetUpCharacter(RaceBodyparts);
+			SetupSprites();
+			livingHealthMasterBase.StartFresh();
+
+			foreach (var Mutation in RaceBodyparts.Base.StartingMutations)
+			{
+				foreach (var Bodypart in livingHealthMasterBase.BodyPartList)
 				{
-					if (Race.name == ThisCharacter.Species)
+					var BodyPartMutations = Bodypart.GetComponentCustom<BodyPartMutations>();
+					if (BodyPartMutations.CapableMutations.Contains(Mutation))
 					{
-						RaceBodyparts = Race;
-						break;
+						BodyPartMutations.AddMutation(Mutation);
 					}
 				}
-				SetUpCharacter();
-				SetupSprites();
-				livingHealthMasterBase.CirculatorySystem.SetBloodType(RaceBodyparts.Base.BloodType);
-				livingHealthMasterBase.InitialiseHunger(RaceBodyparts.Base.NumberOfMinutesBeforeStarving);
-
 			}
-		}
 
-		public void NotifyPlayer(NetworkConnection recipient, bool clothItems = false)
-		{
-			if (clothItems)
+			if (livingHealthMasterBase.EmaggableMob == false)
 			{
-				for (int i = 0; i < characterSprites.Length; i++)
-				{
-					var clothItem = characterSprites[i];
-					PlayerAppearanceMessage.SendTo(gameObject, i, recipient, clothItem.GameObjectReference, true, true);
-				}
+				Loggy.Error("PlayerSprites/OnCharacterSettingsChange(): Attempted to set EMAG state for creature but no EmaggableMob component was attached");
 			}
+			else livingHealthMasterBase.EmaggableMob.SetEmaggableState(ThisCharacter.GetRaceSo().Base.CanBeEmagged, livingHealthMasterBase.brain);
 		}
 
 		/// <summary>
@@ -489,7 +559,9 @@ namespace Player
 
 		public void OnClothingEquipped(ClothingV2 clothing, bool isEquipped)
 		{
-			//Logger.Log($"Clothing {clothing} was equipped {isEquiped}!", Category.Inventory);
+			//Loggy.Log($"Clothing {clothing} was equipped {isEquiped}!", Category.Inventory);
+
+			ClothingHideFlags ClothingHideFlags = hideClothingFlags;
 
 			// if new clothes equiped, add new hide flags
 			if (isEquipped)
@@ -503,9 +575,9 @@ namespace Player
 					}
 					else if (IsBitSet((ulong)clothing.HideClothingFlags, n)) //check if n'th bit is set to 1
 					{
-						ulong bytechange = (ulong)hideClothingFlags;
+						ulong bytechange = (ulong)ClothingHideFlags;
 						bytechange |= 1UL << n; //set n'th bit to 1
-						hideClothingFlags = (ClothingHideFlags)bytechange;
+						ClothingHideFlags = (ClothingHideFlags)bytechange;
 					}
 				}
 			}
@@ -520,20 +592,26 @@ namespace Player
 					}
 					else if (IsBitSet((ulong)clothing.HideClothingFlags, n)) //check if n'th bit is set to 1
 					{
-						ulong bytechange = (ulong)hideClothingFlags;
+						ulong bytechange = (ulong)ClothingHideFlags;
 						bytechange &= ~(1UL << n); //set n'th bit to 0
-						hideClothingFlags = (ClothingHideFlags)bytechange;
+						ClothingHideFlags = (ClothingHideFlags)bytechange;
 					}
 				}
 			}
 
 			// Update hide flags
-			ValidateHideFlags();
+			SyncValidateHideFlags(hideClothingFlags, ClothingHideFlags);
 		}
 
 		private bool IsBitSet(ulong b, int pos)
 		{
 			return ((b >> pos) & 1) != 0;
+		}
+
+		private void SyncValidateHideFlags(ClothingHideFlags oldv, ClothingHideFlags New)
+		{
+			hideClothingFlags = New;
+			ValidateHideFlags();
 		}
 
 		private void ValidateHideFlags()
@@ -546,36 +624,7 @@ namespace Player
 					Norder.gameObject.SetActive(isVisible);
 				}
 			}
-
-			// Need to check all flags with their gameobject names...
-			// TODO: it should be done much easier
-			// ValidateHideFlag(ClothingHideFlags.HIDE_GLOVES, "hands");
-			// ValidateHideFlag(ClothingHideFlags.HIDE_JUMPSUIT, "uniform");
-			// ValidateHideFlag(ClothingHideFlags.HIDE_SHOES, "feet");
-			// ValidateHideFlag(ClothingHideFlags.HIDE_MASK, "mask");
-			// ValidateHideFlag(ClothingHideFlags.HIDE_EARS, "ear");
-			// ValidateHideFlag(ClothingHideFlags.HIDE_EYES, "eyes");
-			// ValidateHideFlag(ClothingHideFlags.HIDE_NECK, "neck");
-
-			// TODO: Not implemented yet?
-			//ValidateHideFlag(ClothingHideFlags.HIDE_SUITSTORAGE, "suit_storage");
 		}
-
-		/*
-			private void ValidateHideFlag(ClothingHideFlags hideFlag, string name)
-			{
-				// Check if dictionary has entry about such clothing item name
-				if (!clothes.ContainsKey(name))
-				{
-					Logger.LogError($"Can't find {name} clothingItem linked to {hideFlag}", Category.PlayerInventory);
-					return;
-				}
-
-				// Enable or disable based on hide flag
-				var isVisible = !hideClothingFlags.HasFlag(hideFlag);
-				clothes[name].gameObject.SetActive(isVisible);
-			}
-		*/
 
 		public void UpdateChildren(List<IntName> NewInternalNetIDs)
 		{

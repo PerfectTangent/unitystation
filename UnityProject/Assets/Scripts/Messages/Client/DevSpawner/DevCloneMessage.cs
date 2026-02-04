@@ -1,4 +1,6 @@
-﻿using Mirror;
+﻿using Core.Admin.Logs;
+using Logs;
+using Mirror;
 using UnityEngine;
 
 namespace Messages.Client.DevSpawner
@@ -28,11 +30,11 @@ namespace Messages.Client.DevSpawner
 
 		private void ValidateAdmin(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.MAP_CLONE) == false) return;
 
 			if (msg.ToClone.Equals(NetId.Invalid))
 			{
-				Logger.LogWarning("Attempted to clone an object with invalid netID, clone will not occur.", Category.Admin);
+				Loggy.Warning("Attempted to clone an object with invalid netID, clone will not occur.", Category.Admin);
 			}
 			else
 			{
@@ -40,8 +42,7 @@ namespace Messages.Client.DevSpawner
 				if (MatrixManager.IsPassableAtAllMatricesOneTile(msg.WorldPosition.RoundToInt(), true))
 				{
 					Spawn.ServerClone(NetworkObject, msg.WorldPosition);
-					UIManager.Instance.adminChatWindows.adminLogWindow.ServerAddChatRecord(
-						$"{SentByPlayer.Username} spawned a clone of {NetworkObject} at {msg.WorldPosition}", SentByPlayer.UserId);
+					AdminLogsManager.AddNewLog(SentByPlayer.GameObject, $"{SentByPlayer.Username} spawned a clone of {NetworkObject} at {msg.WorldPosition}", LogCategory.Admin);
 				}
 			}
 		}

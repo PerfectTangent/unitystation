@@ -1,14 +1,16 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using Audio.Managers;
 using Audio.Containers;
 using Blob;
-using DatabaseAPI;
 using JetBrains.Annotations;
-using ServerInfo;
+using Messages.Client.Lobby;
 using UI.Systems.Ghost;
 using UI.Action;
+using UI.Core.Action;
+using Changeling;
+using Logs;
+using UI.Systems.PreRound;
 
 namespace UI
 {
@@ -32,6 +34,8 @@ namespace UI
 		public UI_GhostOptions hudBottomGhost;
 		public GameObject hudBottomBlob;
 		public GameObject hudBottomAi;
+		public GameObject hudAlien;
+		public UiChangeling hudChangeling;
 		public GameObject currentHud;
 
 		public GameObject jobSelectWindow;
@@ -80,25 +84,30 @@ namespace UI
 			DetermineUI();
 		}
 
-		private void DetermineUI()
+		public void DetermineUI()
 		{
 			// TODO: make better system for handling lots of different UIs
-			if (PlayerManager.LocalPlayerScript.PlayerState == PlayerScript.PlayerStates.Blob)
+			if (PlayerManager.LocalPlayerObject == null) return;
+			if (PlayerManager.LocalPlayerObject?.GetComponent<PlayerScript>()?.PlayerType == PlayerTypes.Blob)
 			{
 				SetUi(hudBottomBlob);
-				PlayerManager.LocalPlayerScript.GetComponent<BlobPlayer>()?.TurnOnClientLight();
+				PlayerManager.LocalPlayerObject?.GetComponent<BlobPlayer>()?.TurnOnClientLight();
 			}
-			else if (PlayerManager.LocalPlayerScript.PlayerState == PlayerScript.PlayerStates.Ai)
+			else if (PlayerManager.LocalPlayerScript?.PlayerType == PlayerTypes.Ai)
 			{
 				SetUi(hudBottomAi);
 			}
-			else if (PlayerManager.LocalPlayerScript.playerHealth == null)
+			else if (PlayerManager.LocalPlayerObject?.GetComponent<PlayerScript>()?.IsGhost == true)
 			{
 				SetUi(hudBottomGhost.gameObject);
 			}
 			else
 			{
 				SetUi(hudBottomHuman);
+				UIManager.Instance.UI_SlotManager.SetActive(true);
+				UIManager.Instance.UI_SlotManager.UpdateUI();
+				UIManager.Internals.SetupListeners();
+				UIManager.Instance.panelHudBottomController.SetupListeners();
 			}
 		}
 
@@ -135,7 +144,7 @@ namespace UI
 		/// <param name="screen">The UI action to perform</param>
 		public void SetScreenFor(Screens screen)
 		{
-			Logger.Log($"Setting screen for {screen}", Category.UI);
+			Loggy.Info($"Setting screen for {screen}", Category.UI);
 			switch (screen)
 			{
 				case Screens.SlotReset:
@@ -200,35 +209,37 @@ namespace UI
 			uiAnimator.Play("idle");
 			if (disclaimer != null) disclaimer.SetActive(false);
 			preRoundWindow.gameObject.SetActive(true);
-			preRoundWindow.SetUIForMapLoading();
 		}
 
 		public void SetScreenForPreRound()
 		{
 			ResetUI(); // Make sure UI is back to default for next play
 			UIManager.PlayerHealthUI.gameObject.SetActive(false);
+			SoundAmbientManager.StopAllAudio();
+			MusicManager.SongTracker.StartPlayingRandomPlaylist();
 			ToggleCurrentHud(false);
 			panelRight.gameObject.SetActive(false);
 			rightClickManager.SetActive(false);
 			jobSelectWindow.SetActive(false);
 			teamSelectionWindow.SetActive(false);
 			preRoundWindow.gameObject.SetActive(true);
-			preRoundWindow.SetUIForCountdown();
 
-			ServerInfoMessageClient.Send();
+			InfoPanelMessageClient.Send();
 		}
 
 		public void SetScreenForJoining()
 		{
 			ResetUI(); // Make sure UI is back to default for next play
 			UIManager.PlayerHealthUI.gameObject.SetActive(false);
+			SoundAmbientManager.StopAllAudio();
+			MusicManager.SongTracker.StartPlayingRandomPlaylist();
 			ToggleCurrentHud(false);
 			panelRight.gameObject.SetActive(false);
 			rightClickManager.SetActive(false);
 			jobSelectWindow.SetActive(false);
 			teamSelectionWindow.SetActive(false);
 			preRoundWindow.gameObject.SetActive(true);
-			preRoundWindow.SetUIForJoining();
+			InfoPanelMessageClient.Send();
 		}
 
 		private void ToggleCurrentHud(bool toggle)
@@ -237,6 +248,7 @@ namespace UI
 			hudBottomGhost.SetActive(false);
 			hudBottomBlob.SetActive(false);
 			hudBottomAi.SetActive(false);
+
 
 			if (currentHud == null) return;
 

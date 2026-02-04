@@ -39,6 +39,9 @@ namespace Systems.Electricity
 
 		public bool DestroyQueueing = false;
 		public bool DestroyAuthorised = false;
+		public bool TileRemoved = false;
+
+		public bool DropIngredients = true;
 
 		public void SetDeadEnd()
 		{
@@ -272,21 +275,31 @@ namespace Systems.Electricity
 			return SB.ToString();
 		}
 
-		public void DestroyThisPlease()
+		public void DestroyThisPlease(bool TileRemovedAlready = false, bool dropIngredients = true)
 		{
+			if (dropIngredients == false)
+			{
+				DropIngredients = dropIngredients;
+			}
+
 			if (Present != null)
 			{
 				Present.DestroyThisPlease();
 			}
 			else
 			{
-				InternalDestroyThisPlease();
+				InternalDestroyThisPlease(TileRemovedAlready);
 			}
 		}
 
-		private void InternalDestroyThisPlease()
+		private void InternalDestroyThisPlease(bool TileRemovedAlready = false)
 		{
+			if (TileRemoved == false)
+			{
+				TileRemoved = TileRemovedAlready;
+			}
 			DestroyQueueing = true;
+
 			ElectricalManager.Instance.electricalSync.NUElectricalObjectsToDestroy.Add(this);
 		}
 
@@ -310,10 +323,26 @@ namespace Systems.Electricity
 				FlushConnectionAndUp();
 				FindPossibleConnections();
 				FlushConnectionAndUp();
-				MetaDataPresent.IsOn.ElectricalData.Remove(MetaDataPresent);
+				MetaDataPresent?.IsOn?.ElectricalData.Remove(MetaDataPresent);
 				ElectricalManager.Instance.electricalSync.StructureChange = true;
-				MetaDataPresent.Locatedon.TileChangeManager.MetaTileMap.RemoveTileWithlayer(MetaDataPresent.NodeLocation, LayerType.Underfloor);
 
+				if (MetaDataPresent?.RelatedTile != null)
+				{
+					if (DropIngredients)
+					{
+						Spawn.ServerPrefab(MetaDataPresent.RelatedTile.SpawnOnDeconstruct, MetaDataPresent.NodeLocation.ToWorld(MetaDataPresent.Locatedon),
+							count: MetaDataPresent.RelatedTile.SpawnAmountOnDeconstruct);
+					}
+				}
+
+
+				if (TileRemoved == false)
+				{
+					if (MetaDataPresent?.Locatedon?.TileChangeManager?.MetaTileMap != null)
+					{
+						MetaDataPresent.Locatedon.TileChangeManager.MetaTileMap.RemoveTileWithlayer(MetaDataPresent.NodeLocation, LayerType.Electrical);
+					}
+				}
 			}
 		}
 	}

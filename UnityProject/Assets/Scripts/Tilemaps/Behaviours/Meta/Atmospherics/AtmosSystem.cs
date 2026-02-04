@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using Logs;
 using ScriptableObjects.Atmospherics;
 using UnityEngine;
 using Mirror;
@@ -6,19 +8,35 @@ using Tiles;
 
 namespace Systems.Atmospherics
 {
-	public class AtmosSystem : SubsystemBehaviour
+	public class AtmosSystem : MatrixSystemBehaviour
 	{
 		public override SystemType SubsystemType => SystemType.AtmosSystem;
 
 		[SerializeField]
-		private GasMixesSO defaultRoomGasMixOverride = null;
+		public GasMixesSO defaultRoomGasMixOverride = null;
+
+		[SerializeField]
+		public bool overriderTileSpawnWithNoAir;
 
 		private Dictionary<int, RoomGasSetter> toSetRoom = new Dictionary<int, RoomGasSetter>();
 
 		private Dictionary<Vector3Int, RoomGasSetter> toSetOccupied = new Dictionary<Vector3Int, RoomGasSetter>();
 
-		[Server]
+		[SerializeField] private bool autoInitialisePolicy = false;
+		[SerializeField] private bool autoInitialisePolicyInEditorOnly = true;
+
 		public override void Initialize()
+		{
+			//FillRoomGas not called from here as the room setting up is now a coroutine
+			if (autoInitialisePolicyInEditorOnly && Application.isEditor == false) return;
+			if (autoInitialisePolicy)
+			{
+				FillRoomGas();
+			}
+		}
+
+		[Server, NaughtyAttributes.Button]
+		public void FillRoomGas()
 		{
 			//We have bool to stop null checks on every pos
 			var hasCustomMix = defaultRoomGasMixOverride != null;
@@ -32,71 +50,77 @@ namespace Systems.Atmospherics
 
 			foreach (Vector3Int position in bounds.allPositionsWithin())
 			{
-				//Get top tile at pos to check if it should spawn with no air
-				bool spawnWithNoAir = false;
-
-				var topTile = metaTileMap.GetTile(position, LayerTypeSelection.Effects | LayerTypeSelection.Underfloor);
-				if (topTile is BasicTile tile)
+				try
 				{
-					spawnWithNoAir = tile.SpawnWithNoAir;
+					SetPositionGas(position, hasCustomMix);
 				}
-
-				MetaDataNode node = metaDataLayer.Get(position, false);
-				if ((node.IsRoom || node.IsOccupied) && !spawnWithNoAir)
+				catch (Exception e)
 				{
-					//Check to see if theres a special room mix
-					if (node.IsRoom && toSetRoom.Count > 0 && toSetRoom.TryGetValue(node.RoomNumber, out var roomGasSetter))
-					{
-						//We use ChangeGasMix here incase we need to add overlays, while the BaseAirMix and BaseSpaceMix can set directly since none of the gases in them do
-						//Does come with a performance penalty
-						//node.ChangeGasMix(GasMix.NewGasMix(gasSetter.GasMixToSpawn));
-
-						//TODO: above commented out due to performance on load for lavaland, remove line below if solution is found
-						node.GasMix = GasMix.NewGasMix(roomGasSetter.GasMixToSpawn);
-					}
-					//Check to see if theres a special occupied mix
-					else if (node.IsOccupied && toSetOccupied.Count > 0 && toSetOccupied.TryGetValue(position, out var occupiedGasSetter))
-					{
-						//We use ChangeGasMix here incase we need to add overlays, while the BaseAirMix and BaseSpaceMix can set directly since none of the gases in them do
-						//Does come with a performance penalty
-						//node.ChangeGasMix(GasMix.NewGasMix(gasSetter.GasMixToSpawn));
-
-						//TODO: above commented out due to performance on load for lavaland, remove line below if solution is found
-						node.GasMix = GasMix.NewGasMix(occupiedGasSetter.GasMixToSpawn);
-					}
-					//See if the whole matrix has a custom mix
-					else if (hasCustomMix)
-					{
-						//ChangeGasMix here too for the same reason as above
-						//node.ChangeGasMix(GasMix.NewGasMix(defaultRoomGasMixOverride.BaseGasMix));
-
-						//TODO: above commented out due to performance on load for lavaland, remove line below if solution is found
-						node.GasMix = GasMix.NewGasMix(defaultRoomGasMixOverride.BaseGasMix);
-					}
-					//Default to air mix otherwise
-					else
-					{
-						node.GasMix = GasMix.NewGasMix(GasMixes.BaseAirMix);
-					}
+					Loggy.Error(e.ToString());
 				}
-				else
-				{
-					node.GasMix = GasMix.NewGasMix(GasMixes.BaseSpaceMix);
-				}
-			}
-
-			foreach (var gasSetter in toSetRoom)
-			{
-				_ = Despawn.ServerSingle(gasSetter.Value.gameObject);
-			}
-
-			foreach (var gasSetter in toSetOccupied)
-			{
-				_ = Despawn.ServerSingle(gasSetter.Value.gameObject);
 			}
 
 			toSetRoom.Clear();
 			toSetOccupied.Clear();
+		}
+
+		private void SetPositionGas(Vector3Int position, bool hasCustomMix)
+		{
+			//Get top tile at pos to check if it should spawn with no air
+			bool spawnWithNoAir = false;
+
+			var topTile = metaTileMap.GetTile(position, LayerTypeSelection.Effects | LayerTypeSelection.AllUnderFloor);
+			if (overriderTileSpawnWithNoAir == false && topTile is BasicTile tile)
+			{
+				spawnWithNoAir = tile.SpawnWithNoAir;
+			}
+
+			MetaDataNode node = metaDataLayer.Get(position, false);
+
+			var hasPathTooSpace = node.InItHadPathToSpace;
+
+			if ((node.IsRoom || node.IsOccupied) && spawnWithNoAir == false && hasPathTooSpace == false)
+			{
+				//Check to see if theres a special room mix
+				if (node.IsRoom && toSetRoom.Count > 0 && toSetRoom.TryGetValue(node.RoomNumber, out var roomGasSetter))
+				{
+					//We use ChangeGasMix here incase we need to add overlays, while the BaseAirMix and BaseSpaceMix can set directly since none of the gases in them do
+					//Does come with a performance penalty
+					//node.ChangeGasMix(GasMix.NewGasMix(gasSetter.GasMixToSpawn));
+
+					//TODO: above commented out due to performance on load for lavaland, remove line below if solution is found
+					node.GasMixLocal = GasMix.NewGasMix(roomGasSetter.GasMixToSpawn);
+				}
+				//Check to see if theres a special occupied mix
+				else if (node.IsOccupied && toSetOccupied.Count > 0 &&
+				         toSetOccupied.TryGetValue(position, out var occupiedGasSetter))
+				{
+					//We use ChangeGasMix here incase we need to add overlays, while the BaseAirMix and BaseSpaceMix can set directly since none of the gases in them do
+					//Does come with a performance penalty
+					//node.ChangeGasMix(GasMix.NewGasMix(gasSetter.GasMixToSpawn));
+
+					//TODO: above commented out due to performance on load for lavaland, remove line below if solution is found
+					node.GasMixLocal = GasMix.NewGasMix(occupiedGasSetter.GasMixToSpawn);
+				}
+				//See if the whole matrix has a custom mix
+				else if (hasCustomMix)
+				{
+					//ChangeGasMix here too for the same reason as above
+					//node.ChangeGasMix(GasMix.NewGasMix(defaultRoomGasMixOverride.BaseGasMix));
+
+					//TODO: above commented out due to performance on load for lavaland, remove line below if solution is found
+					node.GasMixLocal = GasMix.NewGasMix(defaultRoomGasMixOverride.BaseGasMix);
+				}
+				//Default to air mix otherwise
+				else
+				{
+					node.GasMixLocal = GasMix.NewGasMix(GasMixes.BaseAirMix);
+				}
+			}
+			else
+			{
+				node.GasMixLocal = GasMix.NewGasMix(GasMixes.BaseSpaceMix);
+			}
 		}
 
 		public override void UpdateAt(Vector3Int localPosition)
@@ -110,7 +134,7 @@ namespace Systems.Atmospherics
 		{
 			if (toSetRoom.ContainsKey(room))
 			{
-				Logger.LogError($"Room number: {room} was already added, cant add {toAdd.gameObject.ExpensiveName()}");
+				Loggy.Error($"Room number: {room} was already added, cant add {toAdd.gameObject.ExpensiveName()}, localPos: {toAdd.RegisterTile.LocalPosition}, matrix: {toAdd.RegisterTile.Matrix}");
 				return;
 			}
 
@@ -121,7 +145,7 @@ namespace Systems.Atmospherics
 		{
 			if (toSetOccupied.ContainsKey(localPos))
 			{
-				Logger.LogError($"Local pos: {localPos} was already added, cant add {toAdd.gameObject.ExpensiveName()}");
+				Loggy.Error($"Local pos: {localPos} was already added, cant add {toAdd.gameObject.ExpensiveName()}");
 				return;
 			}
 

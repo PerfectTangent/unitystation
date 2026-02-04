@@ -14,10 +14,18 @@ using UnityEngine;
 /// </summary>
 public class AmbientSoundArea : MonoBehaviour
 {
+
+	public static event Action RefreshAmbientSoundAreas;
+
 	[SerializeField] private AudioClipsArray enteringSoundTrack = null;
 	[SerializeField] private AudioClipsArray leavingSoundTrack = null;
 
 	private AddressableAudioSource playing;
+
+	public static void TriggerRefresh()
+	{
+		RefreshAmbientSoundAreas?.Invoke();
+	}
 
 	public void OnTriggerEnter2D(Collider2D coll)
 	{
@@ -29,16 +37,42 @@ public class AmbientSoundArea : MonoBehaviour
 		ValidatePlayer(coll.gameObject, false);
 	}
 
+
+	public void OnEnable()
+	{
+		RefreshAmbientSoundAreas += Refresh;
+	}
+	public void OnDisable()
+	{
+		RefreshAmbientSoundAreas -= Refresh;
+	}
+
+
+	public void Refresh()
+	{
+		var Colliders = this.GetComponents<Collider2D>();
+		foreach (var Collider in Colliders)
+		{
+			Collider.enabled = false;
+		}
+
+		foreach (var Collider in Colliders)
+		{
+			Collider.enabled = true;
+		}
+	}
+
+
 	private void ValidatePlayer(GameObject player, bool isEntering)
 	{
 		if (player == null) return;
-		if (player != PlayerManager.LocalPlayer) return;
+		if (player != PlayerManager.LocalPlayerObject) return;
 
 		// Dont change sound when sent to hidden pos, e.g in locker
 		// TODO entering sound still plays when exiting locker, but this at least stops space sound
-		if (player.TryGetComponent<PlayerSync>(out var playerSync))
+		if (player.TryGetComponent<MovementSynchronisation>(out var playerSync))
 		{
-			if (playerSync.TrustedPosition == TransformState.HiddenPos)
+			if (playerSync.registerTile.LocalPosition == TransformState.HiddenPos)
 			{
 				return;
 			}

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Blob;
+using Logs;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -17,9 +18,8 @@ public class BlobMouseInputController : MouseInputController
 
 	public BlobConstructs blobConstructs;
 
-	public override void Start()
+	private void Awake()
 	{
-		base.Start();
 		blobPlayer = GetComponent<BlobPlayer>();
 	}
 
@@ -35,6 +35,13 @@ public class BlobMouseInputController : MouseInputController
 		{
 			//still allow tooltips
 			CheckHover();
+			return;
+		}
+
+		if (KeyboardInputManager.IsMiddleMouseButtonPressed())
+		{
+			//Rally blobs
+			blobPlayer.CmdRally(MouseUtils.MouseToWorldPos().RoundToInt());
 			return;
 		}
 
@@ -58,7 +65,7 @@ public class BlobMouseInputController : MouseInputController
 				return;
 			}
 
-			if (KeyboardInputManager.IsAltPressed())
+			if (KeyboardInputManager.IsAltActionKeyPressed())
 			{
 				//Remove blob
 				blobPlayer.CmdRemoveBlob(MouseUtils.MouseToWorldPos().RoundToInt());
@@ -99,8 +106,11 @@ public class BlobMouseInputController : MouseInputController
 				case BlobConstructs.Reflective:
 					blobPlayer.CmdTryPlaceStrongReflective(MouseUtils.MouseToWorldPos().RoundToInt());
 					break;
+				case BlobConstructs.Rally:
+					blobPlayer.CmdRally(MouseUtils.MouseToWorldPos().RoundToInt());
+					break;
 				default:
-					Logger.LogError("Switch has no correct case for blob click!", Category.Blob);
+					Loggy.Error("Switch has no correct case for blob click!", Category.Blob);
 					break;
 			}
 

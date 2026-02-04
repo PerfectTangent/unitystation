@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3465284675447965665, guid: 423cab216aa4e354f8159742cc80d10a,
@@ -18,6 +19,12 @@ PrefabInstance:
       value: It is decorated with a crate emblem in silver lining.  It's rather tough,
         and just the thing to lie on after a hard day of pushing paper.
       objectReference: {fileID: 0}
+    - target: {fileID: 3465284675447965665, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: ab27c079a98be7342ba8f0d5486cfa46,
+        type: 2}
     - target: {fileID: 3750167143099309023, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
       propertyPath: m_Sprite
@@ -86,6 +93,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3994276298403714359, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
+      propertyPath: _assetId
+      value: 2693140425
+      objectReference: {fileID: 0}
+    - target: {fileID: 3994276298403714359, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
       propertyPath: m_AssetId
       value: 5dd835d4be3abc344b717f8b6cf515ca
       objectReference: {fileID: 0}
@@ -95,6 +107,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: ab27c079a98be7342ba8f0d5486cfa46,
         type: 2}
+    - target: {fileID: 7186812133261251332, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: ab27c079a98be7342ba8f0d5486cfa46,
+        type: 2}
+    - target: {fileID: 7944360039044097262, guid: 423cab216aa4e354f8159742cc80d10a,
+        type: 3}
+      propertyPath: parentID
+      value: 423cab216aa4e354f8159742cc80d10a
+      objectReference: {fileID: 0}
     - target: {fileID: 7944360039044097262, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
       propertyPath: foreverID
@@ -112,9 +135,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7964486416432102150, guid: 423cab216aa4e354f8159742cc80d10a,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 857dc4634bb898b4a840f14649d1d42d,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 423cab216aa4e354f8159742cc80d10a, type: 3}

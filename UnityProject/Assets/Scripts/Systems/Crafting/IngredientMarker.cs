@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using Items;
+using Systems.Score;
 using UnityEngine;
 
 /// <summary>
@@ -16,11 +17,11 @@ public class IngredientMarker : MonoBehaviour, ICheckedInteractable<InventoryApp
 	{
 
 		//can the player act at all?
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 		//make sure both items are ingredients!
-		if (!Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Ingredient)) return false;
 		if (!Validations.HasItemTrait(interaction.UsedObject, CommonTraits.Instance.Ingredient)) return false;
+		if (!Validations.HasItemTrait(interaction.TargetObject, CommonTraits.Instance.Ingredient)) return false;
 
 		//make sure at least the target is in a hand slot
 		if (!interaction.IsToHandSlot) return false;
@@ -41,8 +42,8 @@ public class IngredientMarker : MonoBehaviour, ICheckedInteractable<InventoryApp
 		GameObject cut2 = CraftingManager.SimpleMeal.FindRecipe(new List<Ingredient> { self, ingredient });
 		if (cut)
 		{
-			Inventory.ServerDespawn(interaction.TargetObject);
-			Inventory.ServerDespawn(interaction.UsedObject);
+			_ = Inventory.ServerDespawn(interaction.TargetObject);
+			_ = Inventory.ServerDespawn(interaction.UsedObject);
 
 			SpawnResult spwn = Spawn.ServerPrefab(CraftingManager.SimpleMeal.FindOutputMeal(cut.name),
 			SpawnDestination.At(), 1);
@@ -54,16 +55,15 @@ public class IngredientMarker : MonoBehaviour, ICheckedInteractable<InventoryApp
 		}
 		else if (cut2)
 		{
-			Inventory.ServerDespawn(interaction.TargetObject);
-			Inventory.ServerDespawn(interaction.UsedObject);
+			_ = Inventory.ServerDespawn(interaction.TargetObject);
+			_ = Inventory.ServerDespawn(interaction.UsedObject);
 
 			SpawnResult spwn = Spawn.ServerPrefab(CraftingManager.SimpleMeal.FindOutputMeal(cut2.name),
 			SpawnDestination.At(), 1);
 
-			if (spwn.Successful)
-			{
-				Inventory.ServerAdd(spwn.GameObject, interaction.TargetSlot);
-			}
+			if (spwn.Successful == false) return;
+			Inventory.ServerAdd(spwn.GameObject, interaction.TargetSlot);
+			ScoreMachine.AddToScoreInt(1, RoundEndScoreBuilder.COMMON_SCORE_FOODMADE);
 
 		}
 	}

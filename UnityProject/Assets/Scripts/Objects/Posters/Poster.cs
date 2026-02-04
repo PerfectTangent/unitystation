@@ -10,6 +10,7 @@ namespace Objects
 		public string Description;
 		public string Icon;
 		public Sprite sprite;
+		public SpriteDataSO spriteSo;
 		public Posters PosterName;
 		public PosterType Type = PosterType.None;
 	}
@@ -109,6 +110,42 @@ namespace Objects
 		FreeKey,
 		BountyHunters,
 		UnityUniteToday,
-		UnityPlanet
+		UnityPlanet,
+        Diplomacy,
+        NTVacation,
+        UFO1,
+        PieHard,
+        StrikeTheEarth,
+        Clown2,
+        GrowFoodNotWeed,
+        RiseGreytide,
+        BeachBabe,
+        DonutandCoffee,
+        Bitters,
+        Pizza,
+        NukeOpsEnlist,
+        NoTouching,
+        Terra,
+        Mars,
+        ScienceBabe,
+        Space,
+        Fire,
+        StopDropRoll,
+        VoteCaptain,
+        VisitE14B,
+        TranquilScene,
+        PizzaFor,
+        SpaceBear,
+        Real,
+        False,
+        GotWood,
+        SpaceDog,
+        NeonMoth,
+        TwentyFourSeven,
+        VaporwaveSkyline,
+        Tapestry,
+        PlasmaIsMoney,
+        Resort,
+        LiveLaughLove
 	}
 }

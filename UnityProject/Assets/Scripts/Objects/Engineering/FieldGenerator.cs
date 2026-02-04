@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Core;
+using Logs;
 using Systems.ElectricalArcs;
 using ScriptableObjects.Gun;
 using UnityEngine;
 using Weapons.Projectiles.Behaviours;
 using Tiles;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Engineering
 {
-	public class FieldGenerator : MonoBehaviour, ICheckedInteractable<HandApply>, IOnHitDetect, IExaminable
+	public class FieldGenerator : MonoBehaviour, ICheckedInteractable<HandApply>, IOnHitDetect, IExaminable, IServerSpawn
 	{
 		[SerializeField]
 		private SpriteHandler topSpriteHandler = null;
@@ -67,7 +70,7 @@ namespace Objects.Engineering
 
 		private Integrity integrity;
 		private RegisterTile registerTile;
-		private PushPull pushPull;
+		private UniversalObjectPhysics objectPhysics;
 
 		[SerializeField]
 		private Vector3 arcOffSet = new Vector3(0 ,0.5f, 0);
@@ -78,7 +81,7 @@ namespace Objects.Engineering
 		{
 			integrity = GetComponent<Integrity>();
 			registerTile = GetComponent<RegisterTile>();
-			pushPull = GetComponent<PushPull>();
+			objectPhysics = GetComponent<UniversalObjectPhysics>();
 		}
 
 		private void OnEnable()
@@ -97,16 +100,13 @@ namespace Objects.Engineering
 			integrity.OnWillDestroyServer.RemoveListener(OnDestroySelf);
 		}
 
-		private void Start()
+		public void OnSpawnServer(SpawnInfo info)
 		{
-			if(CustomNetworkManager.IsServer == false) return;
+			if (startSetUp == false) return;
 
-			if (startSetUp)
-			{
-				isWelded = true;
-				isWrenched = true;
-				pushPull.ServerSetPushable(false);
-			}
+			isWelded = true;
+			isWrenched = true;
+			objectPhysics.SetIsNotPushable(true);
 		}
 
 		#endregion
@@ -233,15 +233,15 @@ namespace Objects.Engineering
 
 			if (energy <= maxEnergy / 3)
 			{
-				powerSpriteHandler.ChangeSprite(0);
+				powerSpriteHandler.SetCatalogueIndexSprite(0);
 			}
 			else if (energy <= maxEnergy / 1.5)
 			{
-				powerSpriteHandler.ChangeSprite(1);
+				powerSpriteHandler.SetCatalogueIndexSprite(1);
 			}
 			else
 			{
-				powerSpriteHandler.ChangeSprite(2);
+				powerSpriteHandler.SetCatalogueIndexSprite(2);
 			}
 		}
 
@@ -304,7 +304,7 @@ namespace Objects.Engineering
 					{
 						var pos = registerTile.WorldPositionServer + GetCoordFromDirection(generator.Key) * i;
 
-						if (pos == generator.Value.Item1.WorldPosServer())
+						if (pos == generator.Value.Item1.AssumedWorldPosServer())
 						{
 							passCheck = true;
 							break;
@@ -332,8 +332,8 @@ namespace Objects.Engineering
 
 					var field = generator.Value.Item1.GetComponent<FieldGenerator>();
 
-					topSpriteHandler.ChangeSprite(0);
-					field.topSpriteHandler.ChangeSprite(0);
+					topSpriteHandler.SetCatalogueIndexSprite(0);
+					field.topSpriteHandler.SetCatalogueIndexSprite(0);
 					field.TogglePower(true);
 					field.SetEnergy(10);
 					SetEnergy(-10);
@@ -401,7 +401,7 @@ namespace Objects.Engineering
 			{
 				var pos = registerTile.WorldPositionServer + GetCoordFromDirection(direction) * i;
 
-				if (pos == generatorToRemove.WorldPosServer())
+				if (pos == generatorToRemove.AssumedWorldPosServer())
 				{
 					break;
 				}
@@ -437,7 +437,7 @@ namespace Objects.Engineering
 				case Direction.Right:
 					return horizontal;
 				default:
-					Logger.LogError($"Somehow got a wrong direction for {gameObject.ExpensiveName()} tile setting", Category.Machines);
+					Loggy.Error($"Somehow got a wrong direction for {gameObject.ExpensiveName()} tile setting", Category.Machines);
 					return vertical;
 			}
 		}
@@ -455,7 +455,7 @@ namespace Objects.Engineering
 				case Direction.Right:
 					return Vector3Int.right;
 				default:
-					Logger.LogError($"Somehow got a wrong direction for {gameObject.ExpensiveName()}", Category.Machines);
+					Loggy.Error($"Somehow got a wrong direction for {gameObject.ExpensiveName()}", Category.Machines);
 					return Vector3Int.zero;
 			}
 		}
@@ -473,7 +473,7 @@ namespace Objects.Engineering
 				case Direction.Right:
 					return Direction.Left;
 				default:
-					Logger.LogError($"Somehow got wrong opposite direction for {gameObject.ExpensiveName()}", Category.Machines);
+					Loggy.Error($"Somehow got wrong opposite direction for {gameObject.ExpensiveName()}", Category.Machines);
 					return Direction.Up;
 			}
 		}
@@ -634,7 +634,7 @@ namespace Objects.Engineering
 					() =>
 					{
 						isWrenched = false;
-						pushPull.ServerSetPushable(true);
+						objectPhysics.SetIsNotPushable(false);
 						TogglePower(false);
 					});
 			}
@@ -655,7 +655,7 @@ namespace Objects.Engineering
 					() =>
 					{
 						isWrenched = true;
-						pushPull.ServerSetPushable(false);
+						objectPhysics.SetIsNotPushable(true);
 					});
 			}
 		}

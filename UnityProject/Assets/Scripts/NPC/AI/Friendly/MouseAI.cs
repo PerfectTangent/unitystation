@@ -66,7 +66,7 @@ namespace Systems.MobAIs
 		private void DoRandomWireChew()
 		{
 			var metaTileMap = registerObject.TileChangeManager.MetaTileMap;
-			var matrix = metaTileMap.Layers[LayerType.Underfloor].matrix;
+			var matrix = metaTileMap.Layers[LayerType.Electrical].Matrix;
 
 			// Check if the floor plating is exposed.
 			if (metaTileMap.HasTile(registerObject.LocalPosition, LayerType.Floors)) return;
@@ -86,14 +86,15 @@ namespace Systems.MobAIs
 			float voltage = cable.Data.ActualVoltage;
 
 			// Remove the cable and spawn the item.
-			cable.DestroyThisPlease();
-			var electricalTile = registerObject.TileChangeManager.MetaTileMap.GetTile(registerObject.WorldPosition, LayerType.Underfloor) as ElectricalCableTile;
+			var electricalTile = registerObject.TileChangeManager.MetaTileMap.GetTile(registerObject.WorldPosition, LayerType.Electrical) as ElectricalCableTile;
 			// Electrical tile is not null iff this is the first mousechew. Why?
 			if (electricalTile != null)
 			{
 				Spawn.ServerPrefab(electricalTile.SpawnOnDeconstruct, registerObject.WorldPosition,
 					count: electricalTile.SpawnAmountOnDeconstruct);
 			}
+
+			cable.DestroyThisPlease();
 
 			Electrocute(voltage);
 		}
@@ -105,7 +106,7 @@ namespace Systems.MobAIs
 			//TODO get rid of this part once health rework is done!
 			//var electrocution = new Electrocution(voltage, registerObject.WorldPosition);
 			//performerLHB.Electrocute(electrocution);
-			performerLHB.ApplyDamage(gameObject, 200, AttackType.Internal, DamageType.Tox);
+			performerLHB.ApplyDamage(gameObject, 200, AttackType.Energy, DamageType.Burn);
 		}
 
 		protected override void DoRandomAction()

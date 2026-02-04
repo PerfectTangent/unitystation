@@ -1,3 +1,4 @@
+using Logs;
 using UnityEngine.UI;
 using UnityEngine;
 using TMPro;
@@ -15,7 +16,7 @@ public class ChatPlayerNameTooltip : TooltipMonoBehaviour
 		{
 			if (playeNameText == null)
 			{
-				Logger.LogWarning("playeNameText is null", Category.Chat);
+				Loggy.Warning("playeNameText is null", Category.Chat);
 				return string.Empty;
 			}
 
@@ -57,6 +58,10 @@ public class ChatPlayerNameTooltip : TooltipMonoBehaviour
 				return ChatChannel.Combat.ToString();
 			if (colorString == ColorUtility.ToHtmlStringRGBA(chatInstance.warningColor))
 				return ChatChannel.Warning.ToString();
+			if (colorString == ColorUtility.ToHtmlStringRGBA(chatInstance.alienColor))
+				return ChatChannel.Alien.ToString();
+			if (colorString == ColorUtility.ToHtmlStringRGBA(chatInstance.blobColor))
+				return ChatChannel.Blob.ToString();
 
 			return string.Empty;
 		}

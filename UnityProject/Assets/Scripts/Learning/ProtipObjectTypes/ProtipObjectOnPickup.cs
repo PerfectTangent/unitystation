@@ -8,12 +8,17 @@ namespace Learning.ProtipObjectTypes
 	{
 		public void OnEnable()
 		{
-			gameObject.PickupableOrNull().OnMoveToPlayerInventory += TriggerTip;
+			gameObject.PickupableOrNull().OnMoveToPlayerInventory.AddListener(Trigger);
 		}
 
 		private void OnDisable()
 		{
-			gameObject.PickupableOrNull().OnMoveToPlayerInventory -= TriggerTip;
+			gameObject.PickupableOrNull().OnMoveToPlayerInventory.RemoveListener(Trigger);
+		}
+
+		private void Trigger(GameObject picker)
+		{
+			TriggerTip(picker);
 		}
 	}
 }

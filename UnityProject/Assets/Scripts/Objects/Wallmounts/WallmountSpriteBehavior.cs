@@ -44,7 +44,7 @@ namespace Objects.Wallmounts
 		public void OnWillRenderObject()
 		{
 			// don't run check until player is created
-			if (PlayerManager.LocalPlayer == null || wallmountBehavior == null)
+			if (PlayerManager.LocalPlayerObject == null || wallmountBehavior == null)
 			{
 				return;
 			}
@@ -61,10 +61,10 @@ namespace Objects.Wallmounts
 				if (Camera2DFollow.followControl.target == null) return;
 				visible = wallmountBehavior.IsFacingPosition(Camera2DFollow.followControl.target.position);
 			}
-			SetAlpha(visible ? 1 : 0);
+			SetAlpha(visible ?1 : 0f);
 		}
 
-		protected virtual void SetAlpha(int alpha)
+		protected virtual void SetAlpha(float alpha)
 		{
 			spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, alpha);
 		}

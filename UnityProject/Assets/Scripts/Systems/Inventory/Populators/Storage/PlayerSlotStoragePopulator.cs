@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
+using NaughtyAttributes;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Systems.Storage
 {
@@ -20,9 +23,9 @@ namespace Systems.Storage
 		public GameObject duffelVariant;
 		public GameObject satchelVariant;
 
-		public override void PopulateItemStorage(ItemStorage toPopulate, PopulationContext context)
+		public override void PopulateItemStorage(ItemStorage toPopulate, PopulationContext context, SpawnInfo info)
 		{
-			Logger.LogError("This shouldn't be used but  is required for inheritance", Category.EntitySpawn);
+			Loggy.Error("This shouldn't be used but  is required for inheritance", Category.EntitySpawn);
 		}
 
 		public virtual void PopulateDynamicItemStorage(DynamicItemStorage toPopulate, PlayerScript PlayerScript, bool useStandardPopulator = true)
@@ -34,20 +37,32 @@ namespace Systems.Storage
 
 			Entries = Entries.OrderBy(entry => entry.NamedSlot).ToList();
 
-			Logger.LogTraceFormat("Populating item storage {0}", Category.EntitySpawn, toPopulate.name);
+			Loggy.Trace().Format("Populating item storage {0}", Category.EntitySpawn, toPopulate.name);
 			foreach (var entry in Entries)
 			{
 				var slots = toPopulate.GetNamedItemSlots(entry.NamedSlot);
 				if (slots.Count == 0)
 				{
-					Logger.LogTraceFormat("Skipping populating slot {0} because it doesn't exist in this itemstorage {1}.",
-						Category.EntitySpawn, entry.NamedSlot, toPopulate.name);
-					continue;
+					for (int i = 0; i < entry.AlternativeNamedSlots.Count; i++)
+					{
+						slots = toPopulate.GetNamedItemSlots(entry.AlternativeNamedSlots[i]);
+						if (slots.Count > 0)
+						{
+							break;
+						}
+					}
+
+					if (slots.Count == 0)
+					{
+						Loggy.Trace().Format("Skipping populating slot {0} because it doesn't exist in this itemstorage {1}.",
+							Category.EntitySpawn, entry.NamedSlot, toPopulate.name);
+						continue;
+					}
 				}
 
 				if (entry.Prefab == null)
 				{
-					Logger.LogTraceFormat("Skipping populating slot {0} because Prefab  Populator was empty for this entry.",
+					Loggy.Trace().Format("Skipping populating slot {0} because Prefab  Populator was empty for this entry.",
 						Category.EntitySpawn, entry.NamedSlot);
 					continue;
 				}
@@ -63,7 +78,7 @@ namespace Systems.Storage
 							&& skirtVariant != null)
 						{
 							var spawnskirt = Spawn.ServerPrefab(skirtVariant, PrePickRandom: true);
-							spawnskirt.GameObject.GetComponent<ItemStorage>()?.SetRegisterPlayer(PlayerScript.registerTile);
+							spawnskirt.GameObject.GetComponent<ItemStorage>()?.SetRegisterPlayer(PlayerScript.RegisterPlayer);
 							Inventory.ServerAdd(spawnskirt.GameObject, slot, entry.ReplacementStrategy, true);
 							PopulateSubInventory(spawnskirt.GameObject, entry.namedSlotPopulatorEntrys);
 							break;
@@ -91,13 +106,13 @@ namespace Systems.Storage
 							}
 
 							var spawnbackpack = Spawn.ServerPrefab(spawnThing, PrePickRandom: true);
-							spawnbackpack.GameObject.GetComponent<ItemStorage>()?.SetRegisterPlayer(PlayerScript.registerTile);
+							spawnbackpack.GameObject.GetComponent<ItemStorage>()?.SetRegisterPlayer(PlayerScript.RegisterPlayer);
 							Inventory.ServerAdd(spawnbackpack.GameObject, slot, entry.ReplacementStrategy, true);
 							PopulateSubInventory(spawnbackpack.GameObject, entry.namedSlotPopulatorEntrys);
 							break;
 						}
 						var spawn = Spawn.ServerPrefab(entry.Prefab, PrePickRandom: true);
-						spawn.GameObject.GetComponent<ItemStorage>()?.SetRegisterPlayer(PlayerScript.registerTile);
+						spawn.GameObject.GetComponent<ItemStorage>()?.SetRegisterPlayer(PlayerScript.RegisterPlayer);
 						Inventory.ServerAdd(spawn.GameObject, slot, entry.ReplacementStrategy, true);
 						PopulateSubInventory(spawn.GameObject, entry.namedSlotPopulatorEntrys);
 						break;
@@ -106,34 +121,64 @@ namespace Systems.Storage
 			}
 		}
 
-		public void PopulateSubInventory(GameObject gameObject, List<SlotPopulatorEntry> namedSlotPopulatorEntrys)
+		public void PopulateSubInventory(GameObject gameObject, List<SlotPopulatorEntryRecursive> namedSlotPopulatorEntrys)
 		{
 			if (namedSlotPopulatorEntrys.Count == 0) return;
 
 			var ItemStorage = gameObject.GetComponent<ItemStorage>();
 			if (ItemStorage == null) return;
 
-
 			foreach (var namedSlotPopulatorEntry in namedSlotPopulatorEntrys)
 			{
+				if (namedSlotPopulatorEntry == null || namedSlotPopulatorEntry.Prefab == null) continue;
 				ItemSlot ItemSlot;
-				if (namedSlotPopulatorEntry.UesIndex)
+
+				if (namedSlotPopulatorEntry.DoNotGetFirstEmptySlot == false)
 				{
-					ItemSlot = ItemStorage.GetIndexedItemSlot(namedSlotPopulatorEntry.IndexSlot);
-					if (ItemSlot.Item != null && namedSlotPopulatorEntry.IfOccupiedFindEmptyIndexSlot)
+					ItemSlot =  ItemStorage.GetNextEmptySlot();
+				}
+				else
+				{
+					if (namedSlotPopulatorEntry.UseIndex)
+					{
+						ItemSlot = ItemStorage.GetIndexedItemSlot(namedSlotPopulatorEntry.IndexSlot);
+					}
+					else
+					{
+						ItemSlot = ItemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.NamedSlot);
+						if (ItemSlot == null)
+						{
+							for (int i = 0; i < namedSlotPopulatorEntry.AlternativeNamedSlots.Count; i++)
+							{
+								ItemSlot = ItemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.AlternativeNamedSlots[i]);
+								if (ItemSlot != null)
+								{
+									break;
+								}
+							}
+						}
+					}
+
+					if (ItemSlot.Item != null && namedSlotPopulatorEntry.IfOccupiedFindEmptySlot)
 					{
 						ItemSlot = ItemStorage.GetNextFreeIndexedSlot();
 					}
 				}
-				else
-				{
-					ItemSlot = ItemStorage.GetNamedItemSlot(namedSlotPopulatorEntry.NamedSlot);
-				}
-				if (ItemSlot == null) continue;
 
+				if (ItemSlot == null) continue;
 				var spawn = Spawn.ServerPrefab(namedSlotPopulatorEntry.Prefab, PrePickRandom: true);
+
+				if (namedSlotPopulatorEntry.StackableAmount != 1)
+				{
+					spawn.GameObject.GetComponent<Stackable>()?.ServerSetAmount(namedSlotPopulatorEntry.StackableAmount);
+				}
+
+				if (Validations.CanFit(ItemSlot, spawn.GameObject, NetworkSide.Server) == false)
+				{
+					Loggy.Error($"Your initial contents spawn for Storage {gameObject.name} for {spawn.GameObject} Is bypassing the Can fit requirements");
+				}
+
 				Inventory.ServerAdd(spawn.GameObject, ItemSlot, namedSlotPopulatorEntry.ReplacementStrategy, true);
-				Inventory.PopulateSubInventory(spawn.GameObject, namedSlotPopulatorEntry.namedSlotPopulatorEntrys);
 			}
 		}
 	}
@@ -142,24 +187,43 @@ namespace Systems.Storage
 	/// Used for populating a specified index lot or inventory slot, then can specify what should be populated in the inventory of what was populated in the inventory Slot that was specified
 	/// </summary>
 	[Serializable]
-	public class SlotPopulatorEntry
+	public class SlotPopulatorEntry : SlotPopulatorEntryRecursive
 	{
-		[Tooltip("Indexed only works for sub Inventory")]
-		public int IndexSlot = 0;
+		public List<SlotPopulatorEntryRecursive> namedSlotPopulatorEntrys = new List<SlotPopulatorEntryRecursive>();
+	}
 
-		public bool IfOccupiedFindEmptyIndexSlot = true;
-
-		public bool UesIndex = false;
-
-		[Tooltip("Named slot being populated. A NamedSlot should not appear" +
-				 " more than once in these entries.")]
-		public NamedSlot NamedSlot = NamedSlot.none;
+	/// <summary>
+	/// Used for populating a specified index lot or inventory slot, then can specify what should be populated in the inventory of what was populated in the inventory Slot that was specified
+	/// </summary>
+	[System.Serializable]
+	public class SlotPopulatorEntryRecursive
+	{
+		public bool DoNotGetFirstEmptySlot = false;
 
 		[Tooltip("Prefab to spawn in this slot. Takes precedence over slot populator.")]
 		public GameObject Prefab;
 
-		public ReplacementStrategy ReplacementStrategy = ReplacementStrategy.DropOther;
+		public int StackableAmount = 0;
 
-		public List<SlotPopulatorEntry> namedSlotPopulatorEntrys = new List<SlotPopulatorEntry>();
+		[HorizontalLine]
+
+		[FormerlySerializedAs("UesIndex")] [Tooltip(" Place object in Specified indexed slot or Use named slot Identifer ")]
+		public bool UseIndex = false;
+
+		[Tooltip("  The Index lot that the prefab will be spawned into " )]
+		public int IndexSlot = 0;
+
+		[Tooltip("Named slot being populated. A NamedSlot should not appear" +
+		                                         " more than once in these entries.")]
+		public NamedSlot NamedSlot = NamedSlot.none;
+
+		public List<NamedSlot> AlternativeNamedSlots = new List<NamedSlot>();
+
+		[HorizontalLine]
+
+		public bool IfOccupiedFindEmptySlot = true;
+
+
+		public ReplacementStrategy ReplacementStrategy = ReplacementStrategy.DropOther;
 	}
 }

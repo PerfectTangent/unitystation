@@ -12,19 +12,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1796e5cfb0bb4f9b81661d07e7794f1d, type: 3}
   m_Name: Lava1
   m_EditorClassIdentifier: 
+  Sprites:
+  - {fileID: 21300000, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
+  - {fileID: 21300002, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
+  - {fileID: 21300004, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
+  - {fileID: 21300006, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
+  spriteSheet:
+    Texture: {fileID: 0}
+    Sprites: []
+    EquippedData: {fileID: 0}
+  spriteSheets: []
+  connectCategory: 4
+  connectType: 0
+  texturePath: 
+  Blacklist: []
+  WhiteList: []
+  AnimationSpeed: 1
+  AnimationStartTime: 0
+  randomizeStartTime: 1
+  TileAnimationFlags: 0
+  <ForeverID>k__BackingField: 80986a662b899ef4199140d318511f08
   displayName: Lava
   description: 
   LayerType: 4
   TileType: 7
   RequiredTiles: []
-  floorTileSounds: {fileID: 0}
+  Mass: 1
+  floorTileSounds: {fileID: 11400000, guid: 484d1dd11cee5c244b6a30daa86b2921, type: 2}
   CanSoundOverride: 0
   atmosPassable: 1
   isSealed: 1
   SpawnWithNoAir: 0
-  passable: 0
+  passable: 1
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -49,8 +71,14 @@ MonoBehaviour:
     Acid: 100
     Magic: 100
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions: []
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions:
   - {fileID: 11400000, guid: d6e823d468fafa349a68094e225caa83, type: 2}
   spawnOnDeconstruct: {fileID: 0}
@@ -60,19 +88,11 @@ MonoBehaviour:
   spawnOnDestroy: {fileID: 0}
   damageOverlayList: {fileID: 0}
   soundOnHit:
-    SetLoadSetting: 0
     AssetAddress: null
     AssetReference:
       m_AssetGUID: 
       m_SubObjectName: 
+      m_SubObjectGUID: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
   SoundOnDestroy: []
-  Sprites:
-  - {fileID: 21300000, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
-  - {fileID: 21300002, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
-  - {fileID: 21300004, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
-  - {fileID: 21300006, guid: 54da34d787400e541a5283f09927d1e1, type: 3}
-  AnimationSpeed: 1
-  AnimationStartTime: 0
-  randomizeStartTime: 0

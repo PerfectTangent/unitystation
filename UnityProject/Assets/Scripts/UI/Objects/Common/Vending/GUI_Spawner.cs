@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
 using UI.Core.NetUI;
 using UI.Objects.Shuttles;
 using HealthV2;
+using Logs;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace UI
 {
@@ -38,10 +41,10 @@ namespace UI
 			   switch (elementName)
 			   {
 				   case "MobName":
-					   netElement.Value = newObject.ExpensiveName();
+					   netElement.MasterSetValue(newObject.ExpensiveName());
 					   break;
 				   case "MobIcon":
-					   netElement.Value = newObject.NetId().ToString();
+					   netElement.MasterSetValue(newObject.NetId().ToString());
 					   break;
 				   default:
 					//Don't need to change netElement.Value for other elements
@@ -55,7 +58,7 @@ namespace UI
 		{
 			yield return WaitFor.EndOfFrame;
 
-			if (IsServer)
+			if (IsMasterTab)
 			{
 				//Storytelling
 				tgtMode = true;
@@ -77,7 +80,7 @@ namespace UI
 
 		public void RefreshSubpageLabel(NetPage oldPage, NetPage newPage)
 		{
-			NestedPageName.SetValueServer(newPage.name);
+			NestedPageName.MasterSetValue(newPage.name);
 		}
 
 		private static string[] tgt = ("One day while Andy was toggling, " +
@@ -87,7 +90,7 @@ namespace UI
 		private bool tgtMode;
 		private IEnumerator ToggleStory(int word)
 		{
-			InfoDisplay.SetValueServer(tgt.Wrap(word));
+			InfoDisplay.MasterSetValue(tgt.Wrap(word));
 			yield return WaitFor.Seconds(2);
 			if (tgtMode)
 			{
@@ -100,9 +103,9 @@ namespace UI
 			PrefabEntryList.AddItem(prefabName);
 		}
 
-		public void RemoveItem(string prefabName)
+		public void MasterRemoveItem(string prefabName)
 		{
-			PrefabEntryList.RemoveItem(prefabName);
+			PrefabEntryList.MasterRemoveItem(prefabName);
 		}
 
 		public void SpawnItemByIndex(string index)
@@ -114,7 +117,7 @@ namespace UI
 				return;
 			}
 
-			Vector3 originPos = Provider.WorldPosServer();
+			Vector3 originPos = Provider.AssumedWorldPosServer();
 			Vector3 nearestPlayerPos = GetNearestPlayerPos(originPos);
 
 			if (nearestPlayerPos == TransformState.HiddenPos)
@@ -123,14 +126,8 @@ namespace UI
 			}
 
 			var spawnedItem = Spawn.ServerPrefab(item.Prefab, originPos, Provider.transform.parent).GameObject;
-			spawnedItem.GetComponent<CustomNetTransform>()?.Throw(new ThrowInfo
-			{
-				ThrownBy = Provider,
-				Aim = BodyPartType.Chest,
-				OriginWorldPos = originPos,
-				WorldTrajectory = nearestPlayerPos - originPos, //haha
-				SpinMode = SpinMode.CounterClockwise
-			});
+			spawnedItem.GetComponent<UniversalObjectPhysics>()?.NewtonianPush(nearestPlayerPos - originPos, 1,
+				inThrownBy: Provider, inAim: BodyPartType.Chest);
 		}
 
 		///Tries to get nearest player's position within range, and returns HiddenPos if it fails
@@ -142,7 +139,7 @@ namespace UI
 
 			for (var i = 0; i < PlayerList.Instance.InGamePlayers.Count; i++)
 			{
-				ConnectedPlayer player = PlayerList.Instance.InGamePlayers[i];
+				PlayerInfo player = PlayerList.Instance.InGamePlayers[i];
 				float curDistance = Vector3.Distance(originPos, player.Script.WorldPos);
 
 				if (curDistance < smallestDistance)
@@ -187,9 +184,9 @@ namespace UI
 			}
 		}
 
-		public void RemoveItemByIndex(string index)
+		public void MasterRemoveItemByIndex(string index)
 		{
-			RemoveItem(GetItemFromIndex(index)?.Prefab.name);
+			MasterRemoveItem(GetItemFromIndex(index)?.Prefab.name);
 		}
 
 		private ItemEntry GetItemFromIndex(string index)
@@ -199,7 +196,7 @@ namespace UI
 			{
 				return entryCatalog[index] as ItemEntry;
 			}
-			Logger.LogErrorFormat("'{0}' spawner tab: item with index {1} not found in the list, might be hidden/destroyed", Category.NetUI, gameObject.name, index);
+			Loggy.Error().Format("'{0}' spawner tab: item with index {1} not found in the list, might be hidden/destroyed", Category.NetUI, gameObject.name, index);
 			return null;
 		}
 

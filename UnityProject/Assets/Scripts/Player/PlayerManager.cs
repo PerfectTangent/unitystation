@@ -4,60 +4,71 @@ using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Core.Accounts;
+using Objects.Shuttles;
 using Player;
+using Shared.Util;
+using Systems.Character;
+using Shared.Managers;
 
-public class PlayerManager : MonoBehaviour
+public class PlayerManager : SingletonManager<PlayerManager>
 {
+	private Account account;
+	/// <summary>The Unitystation account associated with the currently logged-in entity on this client or server.</summary>
+	public static Account Account => Instance.OrNull()?.account;
+
 	private static PlayerManager playerManager;
 
 	public static IPlayerControllable MovementControllable { get; private set; }
-	public static GameObject LocalPlayer { get; set; }
+
+	public static ShuttleConsole ShuttleConsole { get;  set; } //So Hardcoded for RCS but I don't want to mess around with messages and Make a mess of new movement
 
 	public static Equipment Equipment { get; private set; }
 
-	public static PlayerScript LocalPlayerScript { get; private set; }
+	/// <summary>The player GameObject. Null if not in game.</summary>
+	public static GameObject  LocalPlayerObject {
+		get
+		{
+			if (LocalMindScript != null)
+			{
+				return LocalMindScript.CurrentlyControllingObject.gameObject;
+			}
+			else if (LocalViewerScript != null)
+			{
+				return LocalViewerScript.gameObject;
+			}
+
+			return null;
+		}
+	}
+
+	/// <summary>The player script for the player while in the game.</summary>
+	public static PlayerScript LocalPlayerScript => LocalPlayerObject?.OrNull()?.GetComponent<PlayerScript>(); //TODO Maybe a bit lagg
+
+	public static Mind LocalMindScript { get; private set; }
+
+	/// <summary>The player script for the player while in the lobby.</summary>
 	public static JoinedViewer LocalViewerScript { get; private set; }
 
-	//For access via other parts of the game
-	//TODO why do we have PlayerScript & LocalPlayerScript when they are the same thing????
-	public static PlayerScript PlayerScript { get; private set; }
+	public static CharacterManager CharacterManager { get; } = new CharacterManager();
 
 	public static bool HasSpawned { get; private set; }
 
-	public static CharacterSettings CurrentCharacterSettings { get; set; }
+	public static CharacterSheet ActiveCharacter => CharacterManager.ActiveCharacter;
 
 	private int mobIDcount;
 
-	public static PlayerManager Instance
-	{
-		get
-		{
-			if (!playerManager)
-			{
-				playerManager = FindObjectOfType<PlayerManager>();
-			}
+	public static PlayerManager Instance => FindUtils.LazyFindObject(ref playerManager);
 
-			return playerManager;
-		}
-	}
-
-#if UNITY_EDITOR	//Opening the station scene instead of going through the lobby
-	private void Awake()
+	public override void Awake()
 	{
-		if (CurrentCharacterSettings != null)
-		{
-			return;
-		}
-		// Load CharacterSettings from PlayerPrefs or create a new one
-		string unescapedJson = Regex.Unescape(PlayerPrefs.GetString("currentcharacter"));
-		var deserialized = JsonConvert.DeserializeObject<CharacterSettings>(unescapedJson);
-		CurrentCharacterSettings = deserialized ?? new CharacterSettings();
+		base.Awake();
+
+		account = new Account();
 	}
-#endif
 
 	private void OnEnable()
 	{
-		SceneManager.activeSceneChanged += OnLevelFinishedLoading;
 		EventManager.AddHandler(Event.PlayerDied, OnPlayerDeath);
 		EventManager.AddHandler(Event.PlayerRejoined, OnRejoinPlayer);
 		UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
@@ -65,7 +76,6 @@ public class PlayerManager : MonoBehaviour
 
 	private void OnDisable()
 	{
-		SceneManager.activeSceneChanged -= OnLevelFinishedLoading;
 		EventManager.RemoveHandler(Event.PlayerDied, OnPlayerDeath);
 		EventManager.RemoveHandler(Event.PlayerRejoined, OnRejoinPlayer);
 		PlayerPrefs.Save();
@@ -79,7 +89,7 @@ public class PlayerManager : MonoBehaviour
 
 	IEnumerator WaitForCamera()
 	{
-		while (LocalPlayer == null
+		while (LocalPlayerObject == null
 		       || Vector2.Distance(Camera2DFollow.followControl.transform.position,
 			       Camera2DFollow.followControl.target.position) > 5f)
 		{
@@ -91,10 +101,33 @@ public class PlayerManager : MonoBehaviour
 
 	private void UpdateMe()
 	{
+
+		var move = GetMovementAction();
+		if (ShuttleConsole != null)
+		{
+			if (UIManager.IsInputFocus) return;
+			if (move.moveActions.Length > 0)
+			{
+				ShuttleConsole.CmdMove(Orientation.From(GetMovementAction().ToPlayerMoveDirection().ToVector()));
+				return;
+			}
+		}
+
+
 		if (MovementControllable != null)
 		{
-			MovementControllable.ReceivePlayerMoveAction(GetMovementActions());
+			MovementControllable.ReceivePlayerMoveAction(move);
 		}
+		else
+		{
+			if (move.Direction().magnitude > 0 && LocalMindScript != null)
+			{
+				LocalMindScript.CmdSpawnPlayerGhost();
+			}
+		}
+
+
+
 	}
 
 	private void OnLevelFinishedLoading(Scene oldScene, Scene newScene)
@@ -108,6 +141,13 @@ public class PlayerManager : MonoBehaviour
 		EventManager.Broadcast(Event.DisableInternals);
 	}
 
+	public void OnDestroy()
+	{
+		HasSpawned = false;
+	}
+
+	public void SetAccount(Account newAccount) => account = newAccount;
+
 	public static void SetViewerForControl(JoinedViewer viewer)
 	{
 		LocalViewerScript = viewer;
@@ -115,16 +155,17 @@ public class PlayerManager : MonoBehaviour
 
 	public static void SetPlayerForControl(GameObject playerObjToControl, IPlayerControllable movementControllable)
 	{
-		LocalPlayer = playerObjToControl;
-		LocalPlayerScript = playerObjToControl.GetComponent<PlayerScript>();
 		Equipment = playerObjToControl.GetComponent<Equipment>();
 
-		PlayerScript = LocalPlayerScript; // Set this on the manager so it can be accessed by other components/managers
-		Camera2DFollow.followControl.target = LocalPlayer.transform;
-
+		Camera2DFollow.followControl.target = playerObjToControl.transform;
 		HasSpawned = true;
 
 		SetMovementControllable(movementControllable);
+	}
+
+	public static void SetMind(Mind inMind)
+	{
+		LocalMindScript = inMind;
 	}
 
 	/// <summary>
@@ -142,13 +183,13 @@ public class PlayerManager : MonoBehaviour
 	/// Moving while dead spawns the player's ghost.
 	/// </summary>
 	/// <returns> A PlayerAction containing up to two (non-opposite) movement directions.</returns>
-	public PlayerAction GetMovementActions()
+	public PlayerAction GetMovementAction()
 	{
 		// Stores the directions the player will move in.
 		List<int> actionKeys = new List<int>();
 
 		// Only move if player is out of UI
-		if (!(LocalPlayer == gameObject && UIManager.IsInputFocus))
+		if (!(LocalPlayerObject == gameObject && UIManager.IsInputFocus))
 		{
 			bool moveL = KeyboardInputManager.CheckMoveAction(MoveAction.MoveLeft);
 			bool moveR = KeyboardInputManager.CheckMoveAction(MoveAction.MoveRight);

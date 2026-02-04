@@ -14,18 +14,19 @@ namespace UI.Core.NetUI
 
 		public override string Value {
 			get => State.ToString();
-			set {
-				if (State != bool.Parse(value))
-				{
-					State = bool.Parse(value);
-					CheckState();
-				}
+			protected set {
+
+				State = bool.Parse(value);
+				CheckState();
+
 			}
 		}
 
 		public bool State = false;
 
 		public bool LightState = false;
+
+		public bool UpdateAdded = false;
 
 		/*
 		private void OnDisable()
@@ -38,18 +39,21 @@ namespace UI.Core.NetUI
 
 		public void SetState(bool State)
 		{
-			Value = State.ToString();
+			MasterSetValue(State.ToString());
 		}
-
 		public void CheckState()
 		{
-			if (State)
+			if (State && UpdateAdded == false )
 			{
-				UpdateManager.Add(ToggleBlink, FlashSpeed);
+				LightState = false;
+				UpdateAdded = true;
+				ToggleBlink();
+				UpdateManager.Add(ToggleBlink, FlashSpeed, false);
 			}
-			else
+			else  if (UpdateAdded)
 			{
 				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, ToggleBlink);
+				UpdateAdded = false;
 				LightState = true;
 				ToggleBlink();
 			}
@@ -57,7 +61,7 @@ namespace UI.Core.NetUI
 
 		public void ToggleBlink()
 		{
-			if (this == null)
+			if (this == null && UpdateAdded)
 			{
 				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, ToggleBlink);
 				return;
@@ -72,12 +76,12 @@ namespace UI.Core.NetUI
 		private Graphic element;
 		public Graphic Element => element ??= GetComponent<Graphic>();
 
-		public override void ExecuteServer(ConnectedPlayer subject) { }
+		public override void ExecuteServer(PlayerInfo subject) { }
 
 		/// <summary>
 		/// Server-only method for updating element (i.e. changing label text) from server GUI code
 		/// </summary>
-		public override void SetValueServer(string value)
+		public override void MasterSetValue(string value)
 		{
 			if (Value != value)
 			{

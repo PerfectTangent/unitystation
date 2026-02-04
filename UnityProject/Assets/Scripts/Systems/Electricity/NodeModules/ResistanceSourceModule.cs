@@ -75,6 +75,7 @@ namespace Systems.Electricity.NodeModules
 
 		public void OnDestroy()
 		{
+			if (ElectricalManager.Instance.OrNull()?.electricalSync.OrNull()?.PoweredDevices == null) return;
 			if (ElectricalManager.Instance.electricalSync.PoweredDevices.Contains(ControllingNode))
 			{
 				ElectricalManager.Instance.electricalSync.PoweredDevices.Remove(ControllingNode);
@@ -115,7 +116,7 @@ namespace Systems.Electricity.NodeModules
 				//foreach (var Connections in Supplie.Value)
 				//{
 
-				//	Logger.LogError(Connections.Key.name + "F2222222FFFFFFF", Category.Electrical);
+				//	Loggy.LogError(Connections.Key.name + "F2222222FFFFFFF", Category.Electrical);
 				//	ComingFromDevice.SetDeadEnd();
 				//	ControllingNode.Node.ResistanceInput(
 				//		//ControllingNode.Node.InData.ConnectionReaction[Connections.Key.InData.Categorytype].ResistanceReactionA.Resistance.Ohms,

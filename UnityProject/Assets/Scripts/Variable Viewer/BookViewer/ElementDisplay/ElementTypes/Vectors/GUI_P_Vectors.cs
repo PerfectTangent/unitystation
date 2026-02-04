@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
 using TMPro;
 using Messages.Client.VariableViewer;
@@ -51,7 +52,7 @@ namespace AdminTools.VariableViewer
 			if (Page != null)
 			{
 				PageID = Page.ID;
-				SentenceID = 0;
+				SentenceID = uint.MaxValue;
 				IsSentence = false;
 				iskey = false;
 			}
@@ -86,7 +87,7 @@ namespace AdminTools.VariableViewer
 					IsThisVector = Vector.Vector2;
 				}
 			}
-			DeSerialise(Data, true);
+			DeSerialise(Data, null,true);
 		}
 
 		public void UpdateVector()
@@ -112,7 +113,7 @@ namespace AdminTools.VariableViewer
 						break;
 				}
 
-				RequestChangeVariableNetMessage.Send(PageID, Outstring, UISendToClientToggle.toggle);
+				RequestChangeVariableNetMessage.Send(PageID, Outstring, UISendToClientToggle.toggle, SentenceID, iskey);
 			}
 		}
 
@@ -137,28 +138,32 @@ namespace AdminTools.VariableViewer
 			{
 				if (inType == typeof(Vector3))
 				{
-					var X = (float)inType.GetField("x").GetValue(Data);
-					var Y = (float)inType.GetField("y").GetValue(Data);
-					var Z = (float)inType.GetField("z").GetValue(Data);
+					Vector3 Vector3 = (Vector3) Data ;
+					var X = (float)Vector3.x;
+					var Y = (float)Vector3.y;
+					var Z = (float)Vector3.z;
 					return (X + "," + Y + "," + Z);
 				}
 				else if (inType == typeof(Vector3Int))
 				{
-					var X = (int)inType.GetProperty("x").GetValue(Data);
-					var Y = (int)inType.GetProperty("y").GetValue(Data);
-					var Z = (int)inType.GetProperty("z").GetValue(Data);
+					Vector3Int Vector3Int = (Vector3Int) Data;
+					var X = (int) Vector3Int.x;
+					var Y = (int) Vector3Int.y;
+					var Z = (int) Vector3Int.z;
 					return (X + "," + Y + "," + Z + "#");
 				}
 				else if (inType == typeof(Vector2))
 				{
-					var X = (float)inType.GetField("x").GetValue(Data);
-					var Y = (float)inType.GetField("y").GetValue(Data);
+					Vector2 Vector2 = (Vector2) Data;
+					var X = (float)Vector2.x;
+					var Y = (float) Vector2.y;
 					return (X + "," + Y);
 				}
 				else if (inType == typeof(Vector2Int))
 				{
-					var X = (int)inType.GetProperty("x").GetValue(Data);
-					var Y = (int)inType.GetProperty("y").GetValue(Data);
+					Vector2Int Vector2Int = (Vector2Int) Data;
+					var X = (int) Vector2Int.x;
+					var Y = (int) Vector2Int.y;
 					return (X + "," + Y + "#");
 				}
 			}
@@ -166,13 +171,18 @@ namespace AdminTools.VariableViewer
 			return (Data.ToString());
 		}
 
-		public override object DeSerialise(string Data, bool SetUI = false)
+		public override object DeSerialise(string StringVariable, Type InType, bool SetUI = false)
 		{
-			if (CountStringOccurrences(Data, ",") > 1)
+			if (StringVariable == "null")
 			{
-				if (!Data.Contains("#"))
+				return new Vector3(0, 0, 0);
+			}
+
+			if (CountStringOccurrences(StringVariable, ",") > 1)
+			{
+				if (StringVariable.Contains("#") == false)
 				{
-					var SplitData = Data.Split(',');
+					var SplitData = StringVariable.Split(',');
 
 					if (SetUI)
 					{
@@ -189,7 +199,7 @@ namespace AdminTools.VariableViewer
 				}
 				else
 				{
-					var SplitData = Data.Split(',');
+					var SplitData = StringVariable.Split(',');
 					if (SetUI)
 					{
 						INX.text = SplitData[0];
@@ -206,9 +216,9 @@ namespace AdminTools.VariableViewer
 			}
 			else
 			{
-				if (!Data.Contains("#"))
+				if (!StringVariable.Contains("#"))
 				{
-					var SplitData = Data.Split(',');
+					var SplitData = StringVariable.Split(',');
 					if (SetUI)
 					{
 						INX.text = SplitData[0];
@@ -222,7 +232,7 @@ namespace AdminTools.VariableViewer
 				}
 				else
 				{
-					var SplitData = Data.Split(',');
+					var SplitData = StringVariable.Split(',');
 					if (SetUI)
 					{
 						INX.text = SplitData[0];
@@ -235,6 +245,29 @@ namespace AdminTools.VariableViewer
 					);
 				}
 			}
+		}
+
+
+		public override object GetDefaultValue(Type InType)
+		{
+			if (InType == typeof(Vector2))
+			{
+				return new Vector2(0, 0);
+			}
+			else if (InType == typeof(Vector2Int))
+			{
+				return new Vector2Int(0, 0);
+			}
+			else if (InType == typeof(Vector3))
+			{
+				return new Vector3(0, 0,0);
+			}
+			else if (InType == typeof(Vector3Int))
+			{
+				return new Vector3Int(0, 0,0);
+			}
+
+			return null;
 		}
 
 		// TODO: could be extension method / moved to generic class

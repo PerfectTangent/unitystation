@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Core.Highlight;
 using Items;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +11,9 @@ using UnityEngine.UI;
 /// </summary>
 public class UI_ItemImage
 {
+	private static readonly int IsPaletted = Shader.PropertyToID("_IsPaletted");
+	private static readonly int PaletteSize = Shader.PropertyToID("_PaletteSize");
+	private static readonly int ColorPalette = Shader.PropertyToID("_ColorPalette");
 	private readonly GameObject root;
 	private bool hidden;
 
@@ -102,13 +106,13 @@ public class UI_ItemImage
 			var itemAttrs = item.GetComponent<ItemAttributesV2>();
 			if (itemAttrs.ItemSprites.IsPaletted)
 			{
-				image.material.SetInt("_IsPaletted", 1);
-				image.material.SetInt("_PaletteSize", itemAttrs.ItemSprites.Palette.Count);
-				image.material.SetColorArray("_ColorPalette", itemAttrs.ItemSprites.Palette.ToArray());
+				image.material.SetInt(IsPaletted, 1);
+				image.material.SetInt(PaletteSize, itemAttrs.ItemSprites.Palette.Count);
+				image.material.SetColorArray(ColorPalette, itemAttrs.ItemSprites.Palette.ToArray());
 			}
 			else
 			{
-				image.material.SetInt("_IsPaletted", 0);
+				image.material.SetInt(IsPaletted, 0);
 			}
 
 			var colorSync = item.GetComponent<SpriteColorSync>();
@@ -159,11 +163,20 @@ public class UI_ItemImage
 		while (usedImages.Count != 0)
 		{
 			var usedImage = usedImages.Pop();
-			freeImages.Push(usedImage);
+			usedImage.Clear();
+
+			if (usedImage.UIImage != null)
+			{
+				freeImages.Push(usedImage);
+			}
+			else
+			{
+				usedImage.Clear();
+			}
 
 			// reset and hide used image
-			usedImage.Handler = null;
-			usedImage.UIImage.enabled = false;
+			//usedImage.Handler = null;
+			//usedImage.UIImage.enabled = false;
 		}
 
 		SetOverlay(null);
@@ -211,13 +224,58 @@ public class UI_ItemImage
 	/// This class subscribe UIImage to SpriteHandler updates
 	/// If SpriteHandler updates sprite this will also update it for UIImage
 	/// </summary>
-	private class ImageAndHandler
+	public class ImageAndHandler
 	{
-		public Image UIImage { get; private set; }
+		public static readonly List<System.WeakReference<ImageAndHandler>> ItemList = new();
+
+		System.WeakReference<Image> _img;
+
+		public Image UIImage
+		{
+			get
+			{
+				Image trg;
+				if (!_img.TryGetTarget(out trg))
+				{
+					return null;
+				}
+				else
+				{
+					return trg;
+				}
+			}
+			private set
+			{
+				_img = new System.WeakReference<Image>(value);
+			}
+		}
 		private SpriteHandler handler;
+
+		public static void ClearAll()
+		{
+			foreach (var a in ItemList)
+			{
+				ImageAndHandler iah;
+
+				if (a.TryGetTarget(out iah))
+				{
+					try
+					{
+						iah.Clear();
+					}
+					catch(System.Exception ee)
+					{
+						Debug.LogException(ee);
+					}
+				}
+			}
+
+			ItemList.Clear();
+		}
 
 		public ImageAndHandler(Image image)
 		{
+			ItemList.Add(new System.WeakReference<ImageAndHandler>(this));
 			UIImage = image;
 		}
 
@@ -232,8 +290,8 @@ public class UI_ItemImage
 				// unsubscribe from old handler changes
 				if (handler != null)
 				{
-					handler.OnSpriteChanged -= OnHandlerSpriteChanged;
-					handler.OnColorChanged -= OnHandlerColorChanged;
+					handler.OnSpriteChanged.Remove(OnHandlerSpriteChanged);
+					handler.OnColorChanged.Remove(OnHandlerColorChanged);
 				}
 
 				handler = value;
@@ -241,8 +299,10 @@ public class UI_ItemImage
 				// subscribe to new handler changes
 				if (handler)
 				{
-					handler.OnSpriteChanged += OnHandlerSpriteChanged;
-					handler.OnColorChanged += OnHandlerColorChanged;
+					OnHandlerSpriteChanged(handler.CurrentSprite);
+					OnHandlerColorChanged(handler.CurrentColor);
+					handler.OnSpriteChanged.Add(OnHandlerSpriteChanged);
+					handler.OnColorChanged.Add(OnHandlerColorChanged);
 				}
 			}
 		}
@@ -254,8 +314,8 @@ public class UI_ItemImage
 				// looks like image was deleted from scene
 				// this happens when item is moved in container
 				// and player close this container
-				handler.OnSpriteChanged -= OnHandlerSpriteChanged;
-				handler.OnColorChanged -= OnHandlerColorChanged;
+				handler.OnSpriteChanged.Remove(OnHandlerSpriteChanged);
+				handler.OnColorChanged.Remove(OnHandlerColorChanged);
 				return;
 			}
 
@@ -269,8 +329,8 @@ public class UI_ItemImage
 				// looks like image was deleted from scene
 				// this happens when item is moved in container
 				// and player close this container
-				handler.OnSpriteChanged -= OnHandlerSpriteChanged;
-				handler.OnColorChanged -= OnHandlerColorChanged;
+				handler.OnSpriteChanged.Remove(OnHandlerSpriteChanged);
+				handler.OnColorChanged.Remove(OnHandlerColorChanged);
 				return;
 			}
 
@@ -284,6 +344,14 @@ public class UI_ItemImage
 				UIImage.gameObject.SetActive(false);
 			}
 
+		}
+
+		internal void Clear()
+		{
+			OnHandlerSpriteChanged(null);
+			OnHandlerColorChanged(Color.white);
+			handler.OnSpriteChanged.Remove(OnHandlerSpriteChanged);
+			handler.OnColorChanged.Remove(OnHandlerColorChanged);
 		}
 	}
 }

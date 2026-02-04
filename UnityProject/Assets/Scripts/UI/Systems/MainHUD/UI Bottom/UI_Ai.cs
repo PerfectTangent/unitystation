@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using Systems.Ai;
 using Systems.MobAIs;
 using Systems.Teleport;
@@ -25,6 +26,9 @@ namespace UI.Systems.MainHUD.UI_Bottom
 		//Laws Tab Stuff
 		[SerializeField]
 		private GameObject aiLawsTab = null;
+
+		[SerializeField]
+		private GameObject aiVOXTab = null;
 
 		[SerializeField]
 		private Transform aiLawsTabContents = null;
@@ -68,6 +72,8 @@ namespace UI.Systems.MainHUD.UI_Bottom
 		private TMP_Text numberOfCameras = null;
 
 		private bool focusCheck;
+
+		private CooldownInstance stateCooldown = new CooldownInstance (5f);
 
 		private void OnEnable()
 		{
@@ -124,6 +130,17 @@ namespace UI.Systems.MainHUD.UI_Bottom
 			aiPlayer.StartCoolDown(NetworkSide.Client);
 
 			aiPlayer.CmdTeleportToCore();
+		}
+
+
+		public void ChangesCoreSprite()
+		{
+			if (aiPlayer == null) return;
+
+			if(aiPlayer.OnCoolDown(NetworkSide.Client)) return;
+			aiPlayer.StartCoolDown(NetworkSide.Client);
+
+			aiPlayer.CmdChangesSprite();
 		}
 
 		public void ToggleLights()
@@ -187,12 +204,12 @@ namespace UI.Systems.MainHUD.UI_Bottom
 		{
 			if (aiPlayer == null)
 			{
-				aiPlayer = PlayerManager.LocalPlayer.OrNull()?.GetComponent<AiPlayer>();
+				aiPlayer = PlayerManager.LocalPlayerObject.OrNull()?.GetComponent<AiPlayer>();
 			}
 
 			if (aiPlayer == null)
 			{
-				Logger.LogError("Failed to find AiPlayer for player");
+				Loggy.Error("Failed to find AiPlayer for player");
 				return;
 			}
 
@@ -209,7 +226,16 @@ namespace UI.Systems.MainHUD.UI_Bottom
 			}
 
 			// 0 laws first, freeform last
-			var laws = aiPlayer.GetLaws();
+			var laws = aiPlayer?.GetLaws();
+
+
+			if (laws == null)
+			{
+				laws = PlayerManager.LocalMindScript.PossessingObject.GetComponent<BrainLaws>().GetLaws();
+			}
+
+
+
 
 			amountOfLawsText.text = $"You have <color=orange>{laws.Count}</color> law{(laws.Count == 1 ? "" : "s")}\nYou Must Follow Them";
 
@@ -223,15 +249,15 @@ namespace UI.Systems.MainHUD.UI_Bottom
 
 		public void StateLaws()
 		{
-			if(aiPlayer.OnCoolDown(NetworkSide.Client)) return;
-			aiPlayer.StartCoolDown(NetworkSide.Client);
+			if(Cooldowns.TryStartClient(aiPlayer.PlayerScript, stateCooldown) == false) return;
 
 			StartCoroutine(StateLawsRoutine());
 		}
 
+
 		private IEnumerator StateLawsRoutine()
 		{
-			PostToChatMessage.Send("Current active laws: ", ChatChannel.Local | ChatChannel.Common, Loudness.NORMAL);
+			PostToChatMessage.Send("Current active laws: ", ChatChannel.Local | ChatChannel.Common, Voice: "",  Loudness.NORMAL);
 
 			yield return WaitFor.Seconds(1.5f);
 
@@ -244,7 +270,7 @@ namespace UI.Systems.MainHUD.UI_Bottom
 				var toggle = child.GetComponentInChildren<Toggle>();
 				if(toggle == null || toggle.isOn == false) continue;
 
-				PostToChatMessage.Send(text.text, ChatChannel.Local | ChatChannel.Common, Loudness.NORMAL);
+				PostToChatMessage.Send(text.text, ChatChannel.Local | ChatChannel.Common,  Voice: "",  Loudness.NORMAL);
 
 				yield return WaitFor.Seconds(1.5f);
 			}
@@ -355,5 +381,11 @@ namespace UI.Systems.MainHUD.UI_Bottom
 		}
 
 		#endregion
+
+
+		public void OpenVOX()
+		{
+			aiVOXTab.gameObject.SetActive(true);
+		}
 	}
 }

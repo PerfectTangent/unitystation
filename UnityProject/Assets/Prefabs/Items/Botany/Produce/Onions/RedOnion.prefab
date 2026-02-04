@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1058065935658821453, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
+      propertyPath: BasePurity
+      value: 23
+      objectReference: {fileID: 0}
     - target: {fileID: 2609503423518111894, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
       propertyPath: seedPacket
@@ -31,19 +37,31 @@ PrefabInstance:
     - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
       propertyPath: relatedRecipes.Array.size
-      value: 6
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
-      propertyPath: relatedRecipes.Array.data[2].recipe
+      propertyPath: relatedRecipes.Array.data[0].recipe
       value: 
       objectReference: {fileID: 11400000, guid: f3a80fcb48a153546a2267bd9cec3ef4,
         type: 2}
     - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
-      propertyPath: relatedRecipes.Array.data[3].recipe
+      propertyPath: relatedRecipes.Array.data[1].recipe
       value: 
       objectReference: {fileID: 11400000, guid: 5b8f6e318587893489fca79214639d2b,
+        type: 2}
+    - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: b271eba268c04bf45b9dcec4ad611cac,
+        type: 2}
+    - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[3].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 0432d5ff74cbd9943b120e091cedbd44,
         type: 2}
     - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
@@ -59,8 +77,18 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
-      propertyPath: relatedRecipes.Array.data[3].ingredientIndex
+      propertyPath: relatedRecipes.Array.data[1].ingredientIndex
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].ingredientIndex
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[3].ingredientIndex
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4293480710622182711, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
@@ -134,6 +162,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4434540600313973077, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
+      propertyPath: _assetId
+      value: 262199796
+      objectReference: {fileID: 0}
+    - target: {fileID: 4434540600313973077, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
       propertyPath: m_AssetId
       value: 101f7aeb13e450746a2931079199fa48
       objectReference: {fileID: 0}
@@ -143,6 +176,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: fc0d4547da1d99e4bbd7feb5e229afe0,
         type: 3}
+    - target: {fileID: 7251968933137660044, guid: f4bf59ff5b5123643b0531697d41819f,
+        type: 3}
+      propertyPath: parentID
+      value: f4bf59ff5b5123643b0531697d41819f
+      objectReference: {fileID: 0}
     - target: {fileID: 7251968933137660044, guid: f4bf59ff5b5123643b0531697d41819f,
         type: 3}
       propertyPath: foreverID
@@ -155,4 +193,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 2a7193d6e31fff946be29f80ec0727b2,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f4bf59ff5b5123643b0531697d41819f, type: 3}

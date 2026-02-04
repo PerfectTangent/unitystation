@@ -45,7 +45,7 @@ namespace Objects.Atmospherics
 		private FilterValues initalFilterValue = default;
 
 		public int MaxPressure = 9999;
-		private float TransferMoles = 500f;
+		public float TransferMoles = 10000f;
 
 		public bool IsOn = false;
 
@@ -136,7 +136,7 @@ namespace Objects.Atmospherics
 				return;
 			}
 
-			foreach (var UnfilteredConnection in pipeData.Connections.Directions)
+			foreach (var UnfilteredConnection in pipeData.RotatedConnections.Directions)
 			{
 				if (UnfilteredConnection.flagLogic == FlagLogic.UnfilteredOutput)
 				{
@@ -162,7 +162,7 @@ namespace Objects.Atmospherics
 					TotalRemove.x = tomove.x > 1 ? 0 : TotalRemove.x;
 					TotalRemove.y = tomove.y > 1 ? 0 : TotalRemove.y;
 					pipeData.mixAndVolume.TransferTo(IntermediateMixAndVolume, TotalRemove);
-					foreach (var FilteredConnection in pipeData.Connections.Directions)
+					foreach (var FilteredConnection in pipeData.RotatedConnections.Directions)
 					{
 						if (FilteredConnection.flagLogic == FlagLogic.FilteredOutput)
 						{
@@ -176,30 +176,33 @@ namespace Objects.Atmospherics
 							if (FilteredPressureDensity.x > MaxPressure ||  FilteredPressureDensity.y > MaxPressure)
 							{
 								IntermediateMixAndVolume.TransferSpecifiedTo(pipeData.mixAndVolume,
-									GasIndex, FilterReagent);
+									GasIndex, FilterReagent); //Return FilterReagent Back to the internal pipe from intermediate mix
+
 								if (PressureDensity.x > MaxPressure && PressureDensity.y > MaxPressure)
 								{
-									IntermediateMixAndVolume.TransferTo(pipeData.mixAndVolume, IntermediateMixAndVolume.Total);
+									IntermediateMixAndVolume.TransferTo(pipeData.mixAndVolume, IntermediateMixAndVolume.Total); //Transfer all Intermediate back into internal pipe
 								}
 								else
 								{
-									IntermediateMixAndVolume.TransferTo(UnfilteredConnection.Connected.GetMixAndVolume, IntermediateMixAndVolume.Total);
+									IntermediateMixAndVolume.TransferTo(UnfilteredConnection.Connected.GetMixAndVolume, IntermediateMixAndVolume.Total); //Output to the unfiltered area ( Everything except the filtered reagent )
 								}
 
 								return;
 							}
 
+
+							IntermediateMixAndVolume.TransferSpecifiedTo(FilteredConnection.Connected.GetMixAndVolume,
+								GasIndex, FilterReagent);  //Transfer filtered gas into filtered output
+
 							if (PressureDensity.x > MaxPressure && PressureDensity.y > MaxPressure)
 							{
-								IntermediateMixAndVolume.TransferSpecifiedTo(FilteredConnection.Connected.GetMixAndVolume,
-									GasIndex, FilterReagent);
-								IntermediateMixAndVolume.TransferTo(pipeData.mixAndVolume, IntermediateMixAndVolume.Total);
+								IntermediateMixAndVolume.TransferTo(pipeData.mixAndVolume, IntermediateMixAndVolume.Total);  //Transfer gas into pipe itself Returning it into the pipe it came from
 								return;
 							}
-							IntermediateMixAndVolume.TransferSpecifiedTo(FilteredConnection.Connected.GetMixAndVolume,
-								GasIndex, FilterReagent);
-
-							IntermediateMixAndVolume.TransferTo(UnfilteredConnection.Connected.GetMixAndVolume, IntermediateMixAndVolume.Total);
+							else
+							{
+								IntermediateMixAndVolume.TransferTo(UnfilteredConnection.Connected.GetMixAndVolume, IntermediateMixAndVolume.Total); //Output to the unfiltered area ( Everything except the filtered reagent )
+							}
 						}
 					}
 				}

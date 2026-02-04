@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
 using UnityEngine.Profiling;
 using Mirror;
@@ -8,12 +9,16 @@ using Messages.Server.HealthMessages;
 using Systems.Atmospherics;
 using Light2D;
 using HealthV2;
+using Logs;
+using Newtonsoft.Json;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 /// <summary>
 /// The Required component for all living creatures
 /// Monitors and calculates health
 /// </summary>
+[Obsolete("LivingHealthBehaviour is deprecated, please use LivingHealthMasterBase instead unless you are working on V1 Mobs.")]
 public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireExposable, IExaminable, IServerSpawn
 {
 	private static readonly float GIB_THRESHOLD = 200f;
@@ -118,7 +123,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	private DNAandBloodType DNABloodType;
 	private float tickRate = 1f;
 	private RegisterTile registerTile;
-	private ObjectBehaviour objectBehaviour;
+	private UniversalObjectPhysics objectBehaviour;
 	private ConsciousState consciousState;
 
 	public bool IsCrit => consciousState == ConsciousState.UNCONSCIOUS;
@@ -157,7 +162,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	{
 		if (registerTile != null) return;
 		registerTile = GetComponent<RegisterTile>();
-		objectBehaviour = GetComponent<ObjectBehaviour>();
+		objectBehaviour = GetComponent<UniversalObjectPhysics>();
 		//Always include blood for living entities:
 	}
 
@@ -168,14 +173,14 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 		ResetBodyParts();
 		if (maxHealth <= 0)
 		{
-			Logger.LogWarning($"Max health ({maxHealth}) set to zero/below zero!", Category.Health);
+			Loggy.Warning($"Max health ({maxHealth}) set to zero/below zero!", Category.Health);
 			maxHealth = 1;
 		}
 
 		//Generate BloodType and DNA
 		DNABloodType = new DNAandBloodType();
 		DNABloodType.BloodColor = bloodColor;
-		DNABloodTypeJSON = JsonUtility.ToJson(DNABloodType);
+		DNABloodTypeJSON = JsonConvert.SerializeObject(DNABloodType);
 	}
 
 	public override void OnStartClient()
@@ -203,7 +208,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	{
 		EnsureInit();
 		DNABloodTypeJSON = updatedDNA;
-		DNABloodType = JsonUtility.FromJson<DNAandBloodType>(updatedDNA);
+		DNABloodType = JsonConvert.DeserializeObject<DNAandBloodType>(updatedDNA);
 	}
 
 	/// <summary>
@@ -228,7 +233,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	/// </summary>
 	private BodyPartType GetDamageableBodyPart(BodyPartType bodyPartType)
 	{
-		if (bodyPartType == BodyPartType.Eyes || bodyPartType == BodyPartType.Mouth)
+		if (bodyPartType == BodyPartType.Eyes || bodyPartType == BodyPartType.Mouth || bodyPartType == BodyPartType.Ears)
 			bodyPartType = BodyPartType.Head;
 		else if(bodyPartType == BodyPartType.LeftHand)
 			bodyPartType = BodyPartType.LeftArm;
@@ -241,6 +246,8 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 
 		return bodyPartType;
 	}
+
+
 
 	/// ---------------------------
 	/// PUBLIC FUNCTIONS: HEAL AND DAMAGE:
@@ -258,7 +265,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 
 		if (BodyParts.Count == 0)
 		{
-			Logger.LogError($"There are no body parts to apply a health change to for {gameObject.name}",
+			Loggy.Error($"There are no body parts to apply a health change to for {gameObject.name}",
 				Category.Health);
 			return null;
 		}
@@ -287,7 +294,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 				else
 				{
 					//If there is no default chest body part then do nothing
-					Logger.LogError($"No chest body part found for {gameObject.name}", Category.Health);
+					Loggy.Error($"No chest body part found for {gameObject.name}", Category.Health);
 					return null;
 				}
 			}
@@ -382,7 +389,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 		//For special effects spawning like blood:
 		DetermineDamageEffects(damageType);
 
-		Logger.LogTraceFormat("{3} received {0} {4} damage from {6} aimed for {5}. Health: {1}->{2}", Category.Health,
+		Loggy.Trace().Format("{3} received {0} {4} damage from {6} aimed for {5}. Health: {1}->{2}", Category.Health,
 			damage, prevHealth, OverallHealth, gameObject.name, damageType, bodyPartAim, damagedBy);
 	}
 
@@ -430,7 +437,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 			bodyPartBehaviour.BurnDamage);
 
 		var prevHealth = OverallHealth;
-		Logger.LogTraceFormat("{3} received {0} {4} healing from {6} aimed for {5}. Health: {1}->{2}", Category.Health,
+		Loggy.Trace().Format("{3} received {0} {4} healing from {6} aimed for {5}. Health: {1}->{2}", Category.Health,
 			healAmt, prevHealth, OverallHealth, gameObject.name, damageTypeToHeal, bodyPartAim, healingItem);
 	}
 
@@ -462,7 +469,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 			SyncFireStacks(fireStacks, fireStacks - 0.1f);
 			//instantly stop burning if there's no oxygen at this location
 			MetaDataNode node = registerTile.Matrix.MetaDataLayer.Get(registerTile.LocalPositionClient);
-			if (node.GasMix.GetMoles(Gas.Oxygen) < 1)
+			if (node.GasMixLocal.GetMoles(Gas.Oxygen) < 1)
 			{
 				SyncFireStacks(fireStacks, 0);
 			}
@@ -539,6 +546,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	/// CRIT + DEATH METHODS
 	/// ---------------------------
 	///Death from other causes
+	[Obsolete("LivingHealthBehaviour is deprecated, please use LivingHealthMasterBase instead unless you are working on V1 Mobs.")]
 	public void Death()
 	{
 		if (IsDead)
@@ -546,7 +554,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 			return;
 		}
 
-		timeOfDeath = GameManager.Instance.stationTime;
+		timeOfDeath = GameManager.Instance.RoundTime;
 
 		OnDeathNotifyEvent?.Invoke();
 		afterDeathDamage = 0;
@@ -585,7 +593,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	{
 		if (ConsciousState != ConsciousState.CONSCIOUS && OverallHealth > SOFTCRIT_THRESHOLD)
 		{
-			Logger.LogFormat("{0}, back on your feet!", Category.Health, gameObject.name);
+			Loggy.Info().Format("{0}, back on your feet!", Category.Health, gameObject.name);
 			Uncrit();
 			return;
 		}
@@ -615,21 +623,21 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 		MiasmaCreation();
 	}
 
-	//Old health, dont need the TODO's
+	[Obsolete("LivingHealthBehaviour is deprecated, please use LivingHealthMasterBase instead unless you are working on V1 Mobs.")]
 	private void MiasmaCreation()
 	{
 		//Don't produce miasma until 2 minutes after death
-		if (GameManager.Instance.stationTime.Subtract(timeOfDeath).TotalMinutes < 2) return;
+		if (GameManager.Instance.RoundTime.Subtract(timeOfDeath).TotalMinutes < 2) return;
 
 		MetaDataNode node = registerTile.Matrix.MetaDataLayer.Get(registerTile.LocalPositionClient);
 
 		//Space or below -10 degrees celsius is safe from miasma creation
-		if (node.IsSpace || node.GasMix.Temperature <= Reactions.KOffsetC - 10) return;
+		if (node.IsSpace || node.GasMixLocal.Temperature <= Reactions.KOffsetC - 10) return;
 
 		//If we are in a container then don't produce miasma
-		if (objectBehaviour.parentContainer != null) return;
+		if (objectBehaviour.ContainedInObjectContainer != null) return;
 
-		node.GasMix.AddGas(Gas.Miasma, AtmosDefines.MIASMA_CORPSE_MOLES);
+		node.GasMixLocal.AddGasWithTemperature(Gas.Miasma, AtmosDefines.MIASMA_CORPSE_MOLES, node.GasMixLocal.Temperature);
 	}
 
 	private bool NotSuitableForDeath()
@@ -647,7 +655,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 		var bodyPart = FindBodyPart(bodyPartType);
 		if (bodyPart != null)
 		{
-			//	Logger.Log($"Update stats for {gameObject.name} body part {bodyPartType.ToString()} BruteDmg: {bruteDamage} BurnDamage: {burnDamage}", Category.Health);
+			//	Loggy.Log($"Update stats for {gameObject.name} body part {bodyPartType.ToString()} BruteDmg: {bruteDamage} BurnDamage: {burnDamage}", Category.Health);
 
 			bodyPart.UpdateClientBodyPartStat(bruteDamage, burnDamage);
 		}
@@ -671,6 +679,7 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 		Gib();
 	}
 
+	[Obsolete("LivingHealthBehaviour is deprecated, please use LivingHealthMasterBase.OnGib() instead unless you are working on V1 Mobs.")]
 	[Server]
 	protected virtual void Gib()
 	{
@@ -744,16 +753,8 @@ public abstract class LivingHealthBehaviour : NetworkBehaviour, IHealth, IFireEx
 	public string GetExamineText()
 	{
 		// Assume animal
-		string theyPronoun = "It";
-		string theirPronoun = "its";
-
-		var ps = GetComponentInParent<PlayerScript>();
-		var cs = ps?.characterSettings;
-		if (cs != null)
-		{
-			theyPronoun = cs.TheyPronoun(ps).Capitalize();
-			theirPronoun = cs.TheirPronoun(ps);
-		}
+		string theyPronoun = gameObject.GetTheyPronoun();
+		//string theirPronoun = gameObject.GetTheirPronoun()
 
 		var healthString = $"{theyPronoun} is ";
 		if (IsDead)

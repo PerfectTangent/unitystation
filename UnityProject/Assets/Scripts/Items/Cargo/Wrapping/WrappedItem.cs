@@ -13,6 +13,8 @@ namespace Items.Cargo.Wrapping
 		private Pickupable pickupable;
 		private ItemAttributesV2 itemAttributesV2;
 
+
+
 		protected override void OnEnable()
 		{
 			base.OnEnable();
@@ -25,7 +27,7 @@ namespace Items.Cargo.Wrapping
 			PlayUnwrappingSound();
 			var unwrapped = GetOrGenerateContent();
 			if (unwrapped == null) return;
-			MakeContentVisible();
+			MakeContentVisible(unwrapped);
 			RetrieveObject(unwrapped,gameObject.AssumedWorldPosServer());
 
 			if (pickupable.ItemSlot == null)
@@ -43,10 +45,10 @@ namespace Items.Cargo.Wrapping
 
 		public void SetSprite(PackageType type)
 		{
-			spriteHandler.ChangeSprite((int) type);
+			spriteHandler.SetCatalogueIndexSprite((int) type);
 		}
 
-		public void SetSize(ItemSize size)
+		public void SetSize(Size size)
 		{
 			itemAttributesV2.ServerSetSize(size);
 		}
@@ -79,8 +81,10 @@ namespace Items.Cargo.Wrapping
 		}
 		#endregion
 
-		public void OnSpawnServer(SpawnInfo info)
+		public override void OnSpawnServer(SpawnInfo info)
 		{
+			base.OnSpawnServer(info);
+
 			if (info.SpawnType != SpawnType.Mapped) return;
 
 			SetSprite(packageType);

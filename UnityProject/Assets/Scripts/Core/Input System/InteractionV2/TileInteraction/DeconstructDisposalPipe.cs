@@ -1,3 +1,4 @@
+using Logs;
 using UnityEngine;
 using Systems.DisposalPipes;
 
@@ -36,7 +37,7 @@ namespace Objects.Disposals
 
 		private bool VerboseDisposalMachineExists(TileApply interaction)
 		{
-			Matrix matrix = interaction.TileChangeManager.MetaTileMap.Layers[LayerType.Underfloor].matrix;
+			Matrix matrix = interaction.TileChangeManager.MetaTileMap.Layers[LayerType.Disposals].Matrix;
 
 			if ((interaction.BasicTile as DisposalPipe).PipeType == DisposalPipeType.Terminal)
 			{
@@ -45,9 +46,9 @@ namespace Objects.Disposals
 				{
 					string machineName = disposalMachine.name;
 					if (disposalMachine.TryGetComponent<ObjectAttributes>(out var attributes) &&
-						string.IsNullOrWhiteSpace(attributes.InitialName) == false)
+						string.IsNullOrWhiteSpace(attributes.ArticleName) == false)
 					{
-						machineName = attributes.InitialName;
+						machineName = attributes.ArticleName;
 					}
 
 					Chat.AddExamineMsgFromServer(
@@ -89,27 +90,16 @@ namespace Objects.Disposals
 			}
 			if(disPipeNode == null)
 			{
-				Logger.LogError($"Impossible to deconstruct the disposal pipe at {interaction.TargetCellPos} in {matrix.gameObject.scene.name} - {matrix.name}. Disposal pipe node wasn't found",
+				Loggy.Error($"Impossible to deconstruct the disposal pipe at {interaction.TargetCellPos} in {matrix.gameObject.scene.name} - {matrix.name}. Disposal pipe node wasn't found",
 					Category.Pipes);
 				return;
 			}
-			matrix.TileChangeManager.MetaTileMap.RemoveTileWithlayer(disPipeNode.NodeLocation, LayerType.Underfloor);
+
+			matrix.TileChangeManager.MetaTileMap.RemoveTileWithlayer(disPipeNode.NodeLocation, LayerType.Disposals);
 
 			// Spawn pipe GameObject
 			if (interaction.BasicTile.SpawnOnDeconstruct == null) return;
 
-			var spawn = Spawn.ServerPrefab(interaction.BasicTile.SpawnOnDeconstruct, interaction.WorldPositionTarget);
-			if (spawn.Successful == false) return;
-
-			if (spawn.GameObject.TryGetComponent<Rotatable>(out var Rotatable))
-			{
-				Rotatable.FaceDirection(pipeTile.DisposalPipeObjectOrientation);
-			}
-
-			if (spawn.GameObject.TryGetComponent<ObjectBehaviour>(out var behaviour))
-			{
-				behaviour.ServerSetPushable(false);
-			}
 		}
 
 		#endregion Deconstruction

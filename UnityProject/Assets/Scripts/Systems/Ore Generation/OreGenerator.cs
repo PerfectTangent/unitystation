@@ -7,6 +7,7 @@ using Initialisation;
 using Mirror;
 using Shuttles;
 using TileManagement;
+using TileMap.Behaviours;
 using Tilemaps.Behaviours.Layers;
 using UnityEngine.Serialization;
 using Tiles;
@@ -14,9 +15,10 @@ using Tiles;
 /// <summary>
 /// Component which should go on a Matrix and which generates ore tiles in any mineable tiles of that matrix.
 /// </summary>
-public class OreGenerator : MonoBehaviour
+public class OreGenerator : ItemMatrixSystemInit
 {
-	private static readonly List<Vector3Int> DIRECTIONS = new List<Vector3Int>() {
+	private static readonly List<Vector3Int> DIRECTIONS = new List<Vector3Int>()
+	{
 		Vector3Int.up,
 		Vector3Int.down,
 		Vector3Int.right,
@@ -30,46 +32,44 @@ public class OreGenerator : MonoBehaviour
 	[FormerlySerializedAs("Data")] [SerializeField]
 	private OreGeneratorConfig config = null;
 
+	public override int Priority => priority;
 
+	public int priority = 98;
 	private static readonly System.Random RANDOM = new System.Random();
 
 	private Tilemap wallTilemap;
-	private MetaTileMap metaTileMap;
-	private TileChangeManager tileChangeManager;
+	private HashSet<Vector3> GeneratedLocations = new HashSet<Vector3>();
 
-	public bool runOnStart = true;
+	public bool RunAutomatic = true;
 
-	// Start is called before the first frame update
-	void Start()
+	public override void Initialize()
 	{
-		if (CustomNetworkManager.IsServer == false) return;
-		if(!runOnStart) return;
-		LoadManager.RegisterActionDelayed(RunOreGenerator, 2);
+		if (RunAutomatic)
+		{
+			RunOreGenerator();
+		}
 	}
-
-
 
 	public void RunOreGenerator()
 	{
-		metaTileMap = GetComponentInChildren<MetaTileMap>();
+		if (isServer == false) return;
+		GeneratedLocations.Clear();
 		wallTilemap = metaTileMap.Layers[LayerType.Walls].GetComponent<Tilemap>();
-		tileChangeManager = GetComponent<TileChangeManager>();
 
-		if (CustomNetworkManager.IsServer == false) return;
-
-		if (TryGetComponent<NetworkedMatrix>(out var net) && net.MatrixSync == null)
+		if (networkedMatrix.MatrixSync == null)
 		{
-			net.BackUpSetMatrixSync();
+			networkedMatrix.BackUpSetMatrixSync();
 
-			if (net.MatrixSync.netId == 0)
+			if (networkedMatrix.MatrixSync.netId == 0)
 			{
-				StartCoroutine(WaitForNetId(net.MatrixSync));
+				StartCoroutine(WaitForNetId(networkedMatrix.MatrixSync));
 				return;
 			}
 		}
 
 		List<OreProbability> weightedList = new List<OreProbability>();
-		foreach (var ores in config.OreProbabilities) {
+		foreach (var ores in config.OreProbabilities)
+		{
 			for (int i = 0; i < ores.SpawnChance; i++)
 			{
 				weightedList.Add(ores);
@@ -77,7 +77,7 @@ public class OreGenerator : MonoBehaviour
 		}
 
 		//TODO move BoundsInt bounds = wallTilemap.cellBounds to metaTileMap
-		BoundsInt bounds = wallTilemap.cellBounds;
+		BetterBoundsInt bounds = metaTileMap.GetLocalBounds();
 		List<Vector3Int> miningTiles = new List<Vector3Int>();
 
 		for (int n = bounds.xMin; n < bounds.xMax; n++)
@@ -88,47 +88,54 @@ public class OreGenerator : MonoBehaviour
 
 				if (metaTileMap.HasTile(localPlace))
 				{
-					var tile = metaTileMap.GetTile(localPlace);
-					if (tile.name.Contains("rock_wall"))
-					{
-						miningTiles.Add(localPlace);
-					}
+					BasicTile tile = metaTileMap.GetTile(localPlace, LayerType.Walls) as BasicTile;
+					if (tile != null && tile.Mineable) miningTiles.Add(localPlace);
 				}
 			}
 		}
 
-		int numberOfTiles = (int)((miningTiles.Count / 100f) * config.Density);
+		int numberOfTiles = (int) ((miningTiles.Count / 100f) * config.Density);
+
 		for (int i = 0; i < numberOfTiles; i++)
 		{
 			var oreTile = miningTiles[RANDOM.Next(miningTiles.Count)];
-			var oreCategory = weightedList[RANDOM.Next(weightedList.Count)];
-			tileChangeManager.MetaTileMap.SetTile(oreTile, oreCategory.WallTile);
-			var intLocation = oreTile + Vector3Int.zero;
-			intLocation.z = -1;
-			tileChangeManager.MetaTileMap.AddOverlay(intLocation, oreCategory.OverlayTile as OverlayTile);
-
-			NodeScatter(oreTile, oreCategory);
+			if (GeneratedLocations.Contains(oreTile) == false)
+			{
+				GeneratedLocations.Add(oreTile);
+				var oreCategory = weightedList[RANDOM.Next(weightedList.Count)];
+				tileChangeManager.MetaTileMap.SetTile(oreTile, oreCategory.WallTile, MapSaveRecord: true);
+				var intLocation = oreTile + Vector3Int.zero;
+				intLocation.z = -1;
+				tileChangeManager.MetaTileMap.AddOverlay(intLocation, oreCategory.OverlayTile as OverlayTile);
+				NodeScatter(oreTile, oreCategory);
+			}
 		}
 	}
 
 	private void NodeScatter(Vector3Int location, OreProbability materialSpecified)
 	{
-		var locations = new List<Vector3Int>() {
+		var locations = new List<Vector3Int>()
+		{
 			location,
 		};
-		var strength = materialSpecified.PossibleClusterSizes[RANDOM.Next(materialSpecified.PossibleClusterSizes.Count)];
+		var strength =
+			materialSpecified.PossibleClusterSizes[RANDOM.Next(materialSpecified.PossibleClusterSizes.Count)];
 		while (strength > 0)
 		{
 			var chosenLocation = locations[RANDOM.Next(locations.Count)];
 			var ranLocation = chosenLocation + DIRECTIONS[RANDOM.Next(DIRECTIONS.Count)];
-			var tile = metaTileMap.GetTile(ranLocation);
-			if (tile != null && tile.name.Contains("rock_wall"))
+			var tile = metaTileMap.GetTile(ranLocation, ignoreEffectsLayer: true);
+
+			if (tile != null && ((BasicTile) tile).Mineable && GeneratedLocations.Contains(ranLocation) == false)
 			{
-				tileChangeManager.MetaTileMap.SetTile(ranLocation, materialSpecified.WallTile);
+				GeneratedLocations.Add(ranLocation);
+				tileChangeManager.MetaTileMap.SetTile(ranLocation, materialSpecified.WallTile, MapSaveRecord : true);
 				locations.Add(ranLocation);
 				ranLocation.z = -1;
 				tileChangeManager.MetaTileMap.AddOverlay(ranLocation, materialSpecified.OverlayTile as OverlayTile);
 			}
+
+
 			strength--;
 		}
 	}
@@ -150,8 +157,7 @@ public class OreGenerator : MonoBehaviour
 [Serializable]
 public class OreProbability
 {
-	[Tooltip("Wall tile to use for this ore tile")]
-	[FormerlySerializedAs("Tile")]
+	[Tooltip("Wall tile to use for this ore tile")] [FormerlySerializedAs("Tile")]
 	public LayerTile WallTile;
 
 	[Tooltip("Overlay (Effects layer) tile to use for this ore tile")]
@@ -166,6 +172,6 @@ public class OreProbability
 	[Tooltip("Possible sizes of clusters this ore can spawn. An entry is randomly chosen from this list when" +
 	         " an ore cluster of this type is spawned, and the value determines roughly the number of ore tiles that will" +
 	         " spawn in this cluster.")]
-	[FormerlySerializedAs("NumberBlocks")] public List<int> PossibleClusterSizes = new List<int>();
-
+	[FormerlySerializedAs("NumberBlocks")]
+	public List<int> PossibleClusterSizes = new List<int>();
 }

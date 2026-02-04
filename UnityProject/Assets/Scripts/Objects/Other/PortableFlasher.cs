@@ -1,7 +1,9 @@
 ﻿using System;
 using AddressableReferences;
+using Core;
 using Mirror;
 using UnityEngine;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Other
 {
@@ -12,11 +14,11 @@ namespace Objects.Other
 		[SerializeField] private float progressBarTime = 4f;
 		[SerializeField] private float timeInBetweenFlashes = 12f;
 
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 
 		private void Awake()
 		{
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 			if(CustomNetworkManager.IsServer == false) return;
 			//Incase mappers want the portable flashers to be active on the map without someone setting it up
 			if(isOn) UpdateManager.Add(FlashInRadius, timeInBetweenFlashes);
@@ -49,7 +51,7 @@ namespace Objects.Other
 		{
 			isWrenched = !isWrenched;
 			//We inverse this to get the opposite of the wrench, so if its not wrenched; isPushable is true and vice versa
-			objectBehaviour.ServerSetPushable(!isWrenched);
+			objectBehaviour.SetIsNotPushable(isWrenched);
 			SoundManager.PlayNetworkedAtPos(CommonSounds.Instance.Wrench, gameObject.AssumedWorldPosServer());
 			var status = !isWrenched ? "movable" : "immovable";
 			Chat.AddActionMsgToChat(wrenchHolder.gameObject, $"The {gameObject.ExpensiveName()} is now {status}",
@@ -74,7 +76,7 @@ namespace Objects.Other
 				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE ,FlashInRadius);
 			}
 			var status = isOn ? "on" : "off";
-			Chat.AddLocalMsgToChat($"{switcher.visibleName} switches {status} the {gameObject.ExpensiveName()}", gameObject);
+			Chat.AddActionMsgToChat(gameObject, $"{switcher.visibleName} switches {status} the {gameObject.ExpensiveName()}.");
 		}
 	}
 }

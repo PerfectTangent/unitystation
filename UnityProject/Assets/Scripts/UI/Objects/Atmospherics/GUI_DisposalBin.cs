@@ -1,15 +1,13 @@
 ﻿using System.Collections;
 using UnityEngine;
 using Objects.Disposals;
-using UI.Core;
 using UI.Core.NetUI;
-using UI.Objects.Robotics;
 
 namespace UI.Objects.Disposals
 {
 	public class GUI_DisposalBin : NetTab
 	{
-		[SerializeField] private NetLabel LabelBinStatus = default;
+		[SerializeField] private NetText_label LabelBinStatus = default;
 		[SerializeField] private NetInteractiveButton ButtonBinPower = default;
 		[SerializeField] private NetInteractiveButton ButtonFlushContents = default;
 		[SerializeField] private NetInteractiveButton ButtonEjectContents = default;
@@ -46,7 +44,7 @@ namespace UI.Objects.Disposals
 
 			bin = Provider.GetComponent<DisposalBin>();
 
-			if (IsServer)
+			if (IsMasterTab)
 			{
 				bin.BinStateUpdated += ServerOnBinStateUpdated;
 				ServerOnBinStateUpdated();
@@ -57,7 +55,7 @@ namespace UI.Objects.Disposals
 
 		private void ServerOnBinStateUpdated()
 		{
-			LabelBinStatus.SetValueServer(bin.BinState.ToString());
+			LabelBinStatus.MasterSetValue(bin.BinState.ToString());
 			ServerUpdatePressureSpinner();
 			ServerSetButtonsAndLEDsByState();
 		}
@@ -94,21 +92,21 @@ namespace UI.Objects.Disposals
 			while (bin.BinCharging)
 			{
 				ServerUpdatePressureSpinner();
-				LEDYellow.SetValueServer(YELLOW_ACTIVE);
+				LEDYellow.MasterSetValue(YELLOW_ACTIVE);
 				yield return WaitFor.Seconds(UPDATE_RATE / 2);
-				LEDYellow.SetValueServer(YELLOW_INACTIVE);
+				LEDYellow.MasterSetValue(YELLOW_INACTIVE);
 				yield return WaitFor.Seconds(UPDATE_RATE / 2);
 			}
 		}
 
 		private void ServerEnableButtonInteraction(NetInteractiveButton button)
 		{
-			button.SetValueServer("true");
+			button.MasterSetValue("true");
 		}
 
 		private void ServerDisableButtonInteraction(NetInteractiveButton button)
 		{
-			button.SetValueServer("false");
+			button.MasterSetValue("false");
 		}
 
 		#region State Updates
@@ -122,9 +120,9 @@ namespace UI.Objects.Disposals
 			ServerDisableButtonInteraction(ButtonBinPower);
 			ServerDisableButtonInteraction(ButtonFlushContents);
 			ServerEnableButtonInteraction(ButtonEjectContents);
-			LEDRed.SetValueServer(RED_INACTIVE);
-			LEDYellow.SetValueServer(YELLOW_INACTIVE);
-			LEDGreen.SetValueServer(GREEN_INACTIVE);
+			LEDRed.MasterSetValue(RED_INACTIVE);
+			LEDYellow.MasterSetValue(YELLOW_INACTIVE);
+			LEDGreen.MasterSetValue(GREEN_INACTIVE);
 		}
 
 		private void ServerSetStateOff()
@@ -136,9 +134,9 @@ namespace UI.Objects.Disposals
 			ServerEnableButtonInteraction(ButtonBinPower);
 			ServerDisableButtonInteraction(ButtonFlushContents);
 			ServerEnableButtonInteraction(ButtonEjectContents);
-			LEDRed.SetValueServer(RED_INACTIVE);
-			LEDYellow.SetValueServer(YELLOW_INACTIVE);
-			LEDGreen.SetValueServer(GREEN_INACTIVE);
+			LEDRed.MasterSetValue(RED_INACTIVE);
+			LEDYellow.MasterSetValue(YELLOW_INACTIVE);
+			LEDGreen.MasterSetValue(GREEN_INACTIVE);
 		}
 
 		private void ServerSetStateReady()
@@ -150,9 +148,9 @@ namespace UI.Objects.Disposals
 			ServerEnableButtonInteraction(ButtonBinPower);
 			ServerEnableButtonInteraction(ButtonFlushContents);
 			ServerEnableButtonInteraction(ButtonEjectContents);
-			LEDRed.SetValueServer(RED_INACTIVE);
-			LEDYellow.SetValueServer(YELLOW_INACTIVE);
-			LEDGreen.SetValueServer(GREEN_ACTIVE);
+			LEDRed.MasterSetValue(RED_INACTIVE);
+			LEDYellow.MasterSetValue(YELLOW_INACTIVE);
+			LEDGreen.MasterSetValue(GREEN_ACTIVE);
 		}
 
 		private void ServerSetStateFlushing()
@@ -164,9 +162,9 @@ namespace UI.Objects.Disposals
 			ServerDisableButtonInteraction(ButtonBinPower);
 			ServerDisableButtonInteraction(ButtonFlushContents);
 			ServerDisableButtonInteraction(ButtonEjectContents);
-			LEDRed.SetValueServer(RED_ACTIVE);
-			LEDYellow.SetValueServer(YELLOW_INACTIVE);
-			LEDGreen.SetValueServer(GREEN_INACTIVE);
+			LEDRed.MasterSetValue(RED_ACTIVE);
+			LEDYellow.MasterSetValue(YELLOW_INACTIVE);
+			LEDGreen.MasterSetValue(GREEN_INACTIVE);
 		}
 
 		private void ServerSetStateRecharging()
@@ -175,9 +173,9 @@ namespace UI.Objects.Disposals
 			ServerEnableButtonInteraction(ButtonBinPower);
 			ServerDisableButtonInteraction(ButtonFlushContents);
 			ServerEnableButtonInteraction(ButtonEjectContents);
-			LEDRed.SetValueServer(RED_INACTIVE);
-			LEDYellow.SetValueServer(YELLOW_ACTIVE);
-			LEDGreen.SetValueServer(GREEN_INACTIVE);
+			LEDRed.MasterSetValue(RED_INACTIVE);
+			LEDYellow.MasterSetValue(YELLOW_ACTIVE);
+			LEDGreen.MasterSetValue(GREEN_INACTIVE);
 		}
 
 		#endregion State Updates
@@ -186,11 +184,27 @@ namespace UI.Objects.Disposals
 
 		public void ServerTogglePower()
 		{
+			if (bin.PowerDisconnected)
+			{
+				foreach (var player in Peepers)
+				{
+					Chat.AddExamineMsg(player.Mind.Body.gameObject, "This bin is not connected to any power source!");
+				}
+				return;
+			}
 			bin.TogglePower();
 		}
 
 		public void ServerFlush()
 		{
+			if (bin.PowerDisconnected || bin.BinState == BinState.Off)
+			{
+				foreach (var player in Peepers)
+				{
+					Chat.AddExamineMsg(player.Mind.Body.gameObject, "This bin is not powered!");
+				}
+				return;
+			}
 			bin.FlushContents();
 		}
 

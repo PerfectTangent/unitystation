@@ -12,5 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08ae3584bbd91b2408ad028d9fabc61c, type: 3}
   m_Name: ExplosionUraniumIron
   m_EditorClassIdentifier: 
-  potency: 1.125
-  isEMP: 1
+  overrideDisplayName: EMP
+  potency: 2
+  <explosionType>k__BackingField: 1
+  Delay: 0

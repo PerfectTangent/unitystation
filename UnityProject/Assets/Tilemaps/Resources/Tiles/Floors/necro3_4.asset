@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c576ac449c2d45d99890dcfa21598645, type: 3}
   m_Name: necro3_4
   m_EditorClassIdentifier: 
+  <ForeverID>k__BackingField: 0abd3011a9085d94aa42c5c7ce8ffb7f
   displayName: 
   description: 
   LayerType: 3
   TileType: 3
   RequiredTiles:
   - {fileID: 11400000, guid: 83855008e43a2674d8d6a006ce94326f, type: 2}
+  Mass: 1
   floorTileSounds: {fileID: 0}
   CanSoundOverride: 0
   atmosPassable: 1
@@ -26,6 +28,7 @@ MonoBehaviour:
   passable: 1
   mineable: 0
   miningTime: 5
+  miningHardness: 1
   constructable: 1
   RadiationPassability: 1
   ThermalConductivity: 0.05
@@ -50,8 +53,14 @@ MonoBehaviour:
     Acid: 0
     Magic: 0
     Bio: 100
+    Anomaly: 0
     DismembermentProtectionChance: 0
+    StunImmunity: 0
+    TemperatureProtectionInK: {x: 268.15, y: 313.15}
+    PressureProtectionInKpa: {x: 30, y: 300}
   tileInteractions: []
+  <OnTileStartMining>k__BackingField: []
+  <OnTileFinishMining>k__BackingField: []
   tileStepInteractions: []
   spawnOnDeconstruct: {fileID: 0}
   spawnAmountOnDeconstruct: 1
@@ -69,3 +78,5 @@ MonoBehaviour:
       m_EditorAssetChanged: 0
   SoundOnDestroy: []
   sprite: {fileID: 21300008, guid: 6eb6e2a31db0e2a40b063c1bcbc8d32a, type: 3}
+  CanBeHighlightedThroughScanners: 0
+  HighlightObject: {fileID: 0}

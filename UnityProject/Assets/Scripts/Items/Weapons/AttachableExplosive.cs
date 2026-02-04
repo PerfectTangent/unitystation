@@ -5,6 +5,9 @@ using System.Linq;
 using UnityEngine;
 using Mirror;
 using Communications;
+using Core;
+using UI.Systems.Tooltips.HoverTooltips;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Items.Weapons
 {
@@ -13,10 +16,11 @@ namespace Items.Weapons
 	/// </summary>
 	public class AttachableExplosive : ExplosiveBase,
 		ICheckedInteractable<PositionalHandApply>, IRightClickable, ICheckedInteractable<HandApply>,
-		 IInteractable<HandActivate>
+		 IInteractable<HandActivate>, IHoverTooltip
 	{
 		[SyncVar] private bool isOnObject = false;
 		private GameObject attachedToObject;
+		private IHoverTooltip hoverTooltipImplementation;
 
 		private void OnDisable()
 		{
@@ -27,7 +31,7 @@ namespace Items.Weapons
 		[Server]
 		private void AttachExplosive(GameObject target, Vector2 targetPostion)
 		{
-			if (target.TryGetComponent<PushPull>(out var handler))
+			if (target.TryGetComponent<UniversalObjectPhysics>(out var handler))
 			{
 				Inventory.ServerDrop(pickupable.ItemSlot, targetPostion);
 				attachedToObject = target;
@@ -44,8 +48,8 @@ namespace Items.Weapons
 		private void UpdateBombPosition()
 		{
 			if(attachedToObject == null) return;
-			if(attachedToObject.WorldPosServer() == gameObject.WorldPosServer()) return;
-			registerItem.customNetTransform.SetPosition(attachedToObject.WorldPosServer());
+			if(attachedToObject.AssumedWorldPosServer() == gameObject.AssumedWorldPosServer()) return;
+			registerItem.ObjectPhysics.Component.AppearAtWorldPositionServer(attachedToObject.AssumedWorldPosServer());
 		}
 
 		[Command(requiresAuthority = false)]
@@ -59,7 +63,7 @@ namespace Items.Weapons
 		{
 			isOnObject = false;
 			pickupable.ServerSetCanPickup(true);
-			objectBehaviour.ServerSetPushable(true);
+			objectBehaviour.SetIsNotPushable(false);
 			scaleSync.SetScale(new Vector3(1f, 1f, 1f));
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateBombPosition);
 			attachedToObject = null;
@@ -78,17 +82,20 @@ namespace Items.Weapons
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false || pickupable.ItemSlot == null) return false;
 
-			// Why do we prevent mounting if it is armed?
+			// (???): Why do we prevent mounting if it is armed?
+			// (Max): Because accessing the UI and other elements of this explosive gets disabled when an explosive is armed.
+			// If players try to do anything after it's armed they're going to break something because that's not intended behavior.
 			if (isArmed)
 			{
 				Chat.AddExamineMsg(interaction.Performer, $"The {gameObject.ExpensiveName()} is already armed!", side);
 				return false;
 			}
 
-			// Why?
+			// (???): Why?
+			// (Max): Have you tried looking at the video I posted below in the comments?
+			// These conditions are there to avoid players shooting themselves in the foot.
 			if (interaction.Intent != Intent.Harm)
 			{
-				
 				Chat.AddExamineMsg(interaction.Performer, $"You must be on harm intent to attach the {gameObject.ExpensiveName()}.", side);
 				return false;
 			}
@@ -119,7 +126,7 @@ namespace Items.Weapons
 				AttachExplosive(interaction.TargetObject, interaction.TargetVector);
 				isOnObject = true;
 				pickupable.ServerSetCanPickup(false);
-				objectBehaviour.ServerSetPushable(false);
+				objectBehaviour.SetIsNotPushable(true);
 				SoundManager.PlayNetworkedAtPos(beepSound, gameObject.AssumedWorldPosServer());
 				Chat.AddActionMsgToChat(interaction.Performer,
 					$"You attach the {gameObject.ExpensiveName()} to {interaction.TargetObject.ExpensiveName()}",
@@ -171,6 +178,40 @@ namespace Items.Weapons
 		public void ServerPerformInteraction(HandActivate interaction)
 		{
 			explosiveGUI.ServerPerformInteraction(interaction);
+		}
+
+		public string HoverTip()
+		{
+			return isArmed == false ? null : "It appears to be armed!";
+		}
+
+		public string CustomTitle()
+		{
+			return null;
+		}
+
+		public Sprite CustomIcon()
+		{
+			return null;
+		}
+
+		public List<Sprite> IconIndicators()
+		{
+			return null;
+		}
+
+		public List<TextColor> InteractionsStrings()
+		{
+			if (isArmed) return null;
+			TextColor armText = new TextColor
+			{
+				Text = "Place the bomb on an object to arm it while in harm intent.",
+				Color = Color.red
+			};
+
+			List<TextColor> interactions = new List<TextColor>();
+			interactions.Add(armText);
+			return interactions;
 		}
 	}
 }

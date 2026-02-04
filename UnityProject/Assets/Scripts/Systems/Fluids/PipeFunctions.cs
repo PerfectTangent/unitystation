@@ -32,48 +32,63 @@ namespace Systems.Pipes
 			return (0);
 		}
 
-		public static List<PipeData> GetConnectedPipes(List<PipeData> ToPutInto, PipeData pipeData, Vector3Int Location,
-			Matrix LocatedOn)
+		public static List<PipeData> GetConnectedPipes(List<PipeData> toPutInto, PipeData pipeData, Vector3Int location,
+			Matrix locatedOn)
 		{
-			for (var i = 0; i < pipeData.Connections.Directions.Length; i++)
+			for (var i = 0; i < pipeData.RotatedConnections.Directions.Length; i++)
 			{
-				if (pipeData.Connections.Directions[i].Bool)
+				if (pipeData.RotatedConnections.Directions[i].Bool)
 				{
-					Vector3Int SearchVector = Vector3Int.zero;
+					Vector3Int searchVector = Vector3Int.zero;
 					switch (i)
 					{
 						case (int) PipeDirection.North:
-							SearchVector = Vector3Int.up;
+							searchVector = Vector3Int.up;
 							break;
 
 						case (int) PipeDirection.East:
-							SearchVector = Vector3Int.right;
+							searchVector = Vector3Int.right;
 							break;
 
 						case (int) PipeDirection.South:
-							SearchVector = Vector3Int.down;
+							searchVector = Vector3Int.down;
 							break;
 
 						case (int) PipeDirection.West:
-							SearchVector = Vector3Int.left;
+							searchVector = Vector3Int.left;
 							break;
 					}
 
-					SearchVector = Location + SearchVector;
-					SearchVector.z = 0;
-					var PipesOnTile = LocatedOn.GetPipeConnections(SearchVector);
-					foreach (var pipe in PipesOnTile)
+					searchVector = location + searchVector;
+					searchVector.z = 0;
+					var pipesOnTile = locatedOn.GetPipeConnections(searchVector);
+					foreach (var pipe in pipesOnTile)
 					{
 						if (ArePipeCompatible(pipeData, i, pipe, out var pipe1ConnectAndType))
 						{
 							pipe1ConnectAndType.Connected = pipe;
-							ToPutInto.Add(pipe);
+							toPutInto.Add(pipe);
 						}
 					}
 				}
 			}
 
-			return (ToPutInto);
+			return (toPutInto);
+		}
+
+		public static PipeData GetPipeFromDirection(PipeData pipeData, Vector3Int location, PipeDirection direction, Matrix locatedOn)
+		{
+			location.z = 0;
+			var pipesOnTile = locatedOn.GetPipeConnections(location);
+			foreach (var pipe in pipesOnTile)
+			{
+				if (ArePipeCompatible(pipeData, (int)direction, pipe, out var _))
+				{
+					return pipe;
+				}
+			}
+
+			return null;
 		}
 
 		public static bool ArePipeCompatible(PipeData pipe1, int Direction, PipeData pipe2,
@@ -87,12 +102,12 @@ namespace Systems.Pipes
 					pipe2Direction -= 4;
 				}
 
-				if (pipe2.Connections.Directions[pipe2Direction].Bool)
+				if (pipe2.RotatedConnections.Directions[pipe2Direction].Bool)
 				{
-					if (pipe2.Connections.Directions[pipe2Direction].pipeType
-						.HasFlag(pipe1.Connections.Directions[Direction].pipeType))
+					if (pipe2.RotatedConnections.Directions[pipe2Direction].pipeType
+						.HasFlag(pipe1.RotatedConnections.Directions[Direction].pipeType))
 					{
-						ConnectAndType = pipe1.Connections.Directions[Direction];
+						ConnectAndType = pipe1.RotatedConnections.Directions[Direction];
 						return true;
 					}
 				}
@@ -102,41 +117,66 @@ namespace Systems.Pipes
 			return false;
 		}
 
-		public static bool IsPipeOutputTo(PipeData pipe1, PipeData pipe2)
+		public static bool IsPipePortFlagTo(PipeData pipe1, PipeData pipe2, OutputType typeToCheckFor)
 		{
-			var Data = pipe1.Connections.Directions[(int) PipesToDirections(pipe1, pipe2)];
-			return Data.Bool && Data.PortType.HasFlag(OutputType.Output_Allowed);
+			var data = pipe1.RotatedConnections.Directions[(int) PipesToDirections(pipe1, pipe2)];
+			return data.Bool && data.PortType.HasFlag(typeToCheckFor);
+		}
+
+		public static bool IsPipeTypeFlagTo(PipeData pipe1, PipeData pipe2, PipeType typeToCheckFor)
+		{
+			var data = pipe1.RotatedConnections.Directions[(int) PipesToDirections(pipe1, pipe2)];
+			return data.Bool && data.pipeType.HasFlag(typeToCheckFor);
+		}
+
+		public static bool CanEqualiseWithThis(PipeData pipe1, PipeData pipe2)
+		{
+			if (pipe2.NetCompatible == false)
+			{
+				return CanEqualiseWith(pipe1, pipe2);
+			}
+
+			return true;
 		}
 
 		public static bool CanEqualiseWith(PipeData pipe1, PipeData pipe2)
 		{
-			var PipeDirectio = PipesToDirections(pipe1, pipe2);
-			int pipe2Direction = (int) PipeDirectio + 2;
+			var pipeDirection = PipesToDirections(pipe1, pipe2);
+			int pipe2Direction = (int) pipeDirection + 2;
 			if (pipe2Direction > 3)
 			{
 				pipe2Direction -= 4;
 			}
 
-			return pipe2.Connections.Directions[pipe2Direction].PortType.HasFlag(OutputType.Can_Equalise_With);
+			return pipe2.RotatedConnections.Directions[pipe2Direction].PortType.HasFlag(OutputType.Can_Equalise_With);
 		}
 
 		public static PipeDirection PipesToDirections(PipeData pipe1, PipeData pipe2)
 		{
-			var VectorDifference = pipe2.MatrixPos - pipe1.MatrixPos;
-			VectorDifference.z = 0; //TODO Tile map upgrade
-			if (VectorDifference == Vector3Int.up)
+			var vectorDifference = pipe2.MatrixPos - pipe1.MatrixPos;
+			vectorDifference.z = 0; //TODO Tile map upgrade
+
+			return VectorIntToPipeDirection(vectorDifference);
+		}
+
+		public static PipeDirection VectorIntToPipeDirection(Vector3Int vector3Int)
+		{
+			if (vector3Int == Vector3Int.up)
 			{
 				return PipeDirection.North;
 			}
-			else if (VectorDifference == Vector3Int.right)
+
+			if (vector3Int == Vector3Int.right)
 			{
 				return PipeDirection.East;
 			}
-			else if (VectorDifference == Vector3Int.down)
+
+			if (vector3Int == Vector3Int.down)
 			{
 				return PipeDirection.South;
 			}
-			else if (VectorDifference == Vector3Int.left)
+
+			if (vector3Int == Vector3Int.left)
 			{
 				return PipeDirection.West;
 			}
@@ -249,6 +289,9 @@ namespace Systems.Pipes
 	{
 		public bool Bool;
 
+		[Tooltip("Whether this connection is needed if mapped (used to detected unconnected monopipes in Tests)")]
+		public bool MappedNeeded;
+
 		[EnumFlags] public PipeType pipeType = PipeType.PipeRun;
 
 		//This is ignored if its net compatible, Probably Should but I dont got time
@@ -264,11 +307,13 @@ namespace Systems.Pipes
 
 		public ConnectAndType Copy()
 		{
-			var Newone = new ConnectAndType();
-			Newone.Bool = Bool;
-			Newone.pipeType = pipeType;
-			Newone.PortType = PortType;
-			return (Newone);
+			var newOne = new ConnectAndType();
+			newOne.Bool = Bool;
+			newOne.pipeType = pipeType;
+			newOne.PortType = PortType;
+			newOne.MappedNeeded = MappedNeeded;
+			newOne.flagLogic = flagLogic;
+			return newOne;
 		}
 	}
 
@@ -285,8 +330,8 @@ namespace Systems.Pipes
 	{
 		None = 0,
 		PipeRun = 1 << 0,
-		CoolingPipe = 1 << 1,
 		//Used for stopping cooling pipes to connect to usual pipes
+		HeatExchange = 1 << 1
 	}
 
 

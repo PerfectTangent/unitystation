@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2152878144056234163, guid: 703ee43e84da301438311278f13a496f,
+        type: 3}
+      propertyPath: parentID
+      value: 703ee43e84da301438311278f13a496f
+      objectReference: {fileID: 0}
     - target: {fileID: 2152878144056234163, guid: 703ee43e84da301438311278f13a496f,
         type: 3}
       propertyPath: foreverID
@@ -81,7 +87,12 @@ PrefabInstance:
     - target: {fileID: 5635298977466413514, guid: 703ee43e84da301438311278f13a496f,
         type: 3}
       propertyPath: initialName
-      value: small light fixture frame
+      value: light bulb fixture frame
+      objectReference: {fileID: 0}
+    - target: {fileID: 6867064385152539544, guid: 703ee43e84da301438311278f13a496f,
+        type: 3}
+      propertyPath: _assetId
+      value: 2238771614
       objectReference: {fileID: 0}
     - target: {fileID: 6867064385152539544, guid: 703ee43e84da301438311278f13a496f,
         type: 3}
@@ -94,5 +105,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 91fa363b9c6d18b4eae2a4db9bd1991a,
         type: 2}
+    - target: {fileID: 7548481272404231200, guid: 703ee43e84da301438311278f13a496f,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 91fa363b9c6d18b4eae2a4db9bd1991a,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 703ee43e84da301438311278f13a496f, type: 3}

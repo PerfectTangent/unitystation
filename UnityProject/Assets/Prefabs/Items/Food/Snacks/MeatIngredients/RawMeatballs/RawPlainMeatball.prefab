@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3803078382356530339, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
+      propertyPath: parentID
+      value: 36006112e2a486147a7d18112e1cacd0
+      objectReference: {fileID: 0}
     - target: {fileID: 3803078382356530339, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
       propertyPath: foreverID
@@ -15,8 +21,14 @@ PrefabInstance:
     - target: {fileID: 7779569253059051800, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
       propertyPath: relatedRecipes.Array.size
-      value: 12
+      value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 7779569253059051800, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
+      propertyPath: relatedRecipes.Array.data[2].recipe
+      value: 
+      objectReference: {fileID: 11400000, guid: 29bb9ddcc3cbcba4b8cdfb055e1a9cbb,
+        type: 2}
     - target: {fileID: 7779569253059051800, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
       propertyPath: relatedRecipes.Array.data[11].recipe
@@ -85,8 +97,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7920059192537363834, guid: 36006112e2a486147a7d18112e1cacd0,
         type: 3}
+      propertyPath: _assetId
+      value: 4285097029
+      objectReference: {fileID: 0}
+    - target: {fileID: 7920059192537363834, guid: 36006112e2a486147a7d18112e1cacd0,
+        type: 3}
       propertyPath: m_AssetId
       value: 788fabe5f18608340ba2f1902d9c231f
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 36006112e2a486147a7d18112e1cacd0, type: 3}

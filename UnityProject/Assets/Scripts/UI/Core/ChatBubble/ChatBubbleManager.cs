@@ -1,29 +1,21 @@
-﻿using System.Collections;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using Initialisation;
 using Managers.SettingsManager;
+using Shared.Util;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Util;
 
 /// <summary>
 /// Handles ChatBubbles and displays them in ScreenSpace
 /// </summary>
-public class ChatBubbleManager : MonoBehaviour, IInitialise
+public class ChatBubbleManager : MonoBehaviour, IInitialise, IDisposable
 {
 	private static ChatBubbleManager chatBubbleManager;
 
-	public static ChatBubbleManager Instance
-	{
-		get
-		{
-			if (chatBubbleManager == null)
-			{
-				chatBubbleManager = FindObjectOfType<ChatBubbleManager>();
-			}
-
-			return chatBubbleManager;
-		}
-	}
+	public static ChatBubbleManager Instance => FindUtils.LazyFindObject(ref chatBubbleManager);
 
 	private List<ChatBubble> chatBubblePool = new List<ChatBubble>();
 	private List<ActionText> actionPool = new List<ActionText>();
@@ -33,6 +25,12 @@ public class ChatBubbleManager : MonoBehaviour, IInitialise
 
 
 	public InitialisationSystems Subsystem => InitialisationSystems.ChatBubbleManager;
+
+	public void Clear()
+	{
+		chatBubblePool.Clear();
+		actionPool.Clear();
+	}
 
 	void IInitialise.Initialise()
 	{
@@ -90,6 +88,7 @@ public class ChatBubbleManager : MonoBehaviour, IInitialise
 	{
 		//TODO this will prevent emotes from appearing as speech. We should streamline it and simply don't use
 		// the chat api when the message is an emote, instead generate an action message.
+
 		if ((chatModifier & ChatModifier.Emote) == ChatModifier.Emote)
 		{
 			return;
@@ -177,9 +176,20 @@ public class ChatBubbleManager : MonoBehaviour, IInitialise
 		return obj.GetComponent<ChatBubble>();
 	}
 
-	void OnDisable()
+	private void OnEnable()
 	{
+		EventManager.AddHandler(Event.SceneUnloading, ChatBubbleManager.Instance.Clear);
+	}
+
+	private void OnDisable()
+	{
+		EventManager.RemoveHandler(Event.SceneUnloading, ChatBubbleManager.Instance.Clear);
 		SceneManager.activeSceneChanged -= OnSceneChange;
+	}
+
+	void OnDestroy()
+	{
+		this.Dispose();
 	}
 
 	void OnSceneChange(Scene oldScene, Scene newScene)
@@ -195,6 +205,14 @@ public class ChatBubbleManager : MonoBehaviour, IInitialise
 			{
 				cb.ReturnToPool();
 			}
+		}
+	}
+
+	public void Dispose()
+	{
+		foreach (ChatBubble chatBubble in chatBubblePool)
+		{
+			chatBubble.OrNull()?.Dispose();
 		}
 	}
 }

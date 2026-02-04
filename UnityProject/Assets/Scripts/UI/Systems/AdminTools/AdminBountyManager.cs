@@ -19,6 +19,7 @@ namespace UI.Systems.AdminTools
 		[SerializeField] private TMP_InputField bountyAmount;
 		[SerializeField] private TMP_InputField bountyReward;
 		[SerializeField] private TMP_InputField bountyDesc;
+		[SerializeField] private TMP_InputField bountyTitle;
 		public TMP_InputField budgetInput;
 		[SerializeField] private Toggle bountyAnnoucementToggle;
 		[SerializeField] private TMP_Dropdown itemTraitsForBounties;
@@ -86,16 +87,21 @@ namespace UI.Systems.AdminTools
 
 		public void RefreshBountiesList(List<CargoManager.BountySyncData> data)
 		{
-			foreach (Transform child in bountiesList.transform)
-			{
-				Destroy(child.gameObject);
-			}
+			ClearBountiesList();
 
 			foreach (var activeBounty in data)
 			{
 				var newEntry = Instantiate(bountyEntryTemplate, bountiesList.transform);
-				newEntry.GetComponent<AdminBountyManagerListEntry>().Setup(activeBounty.Index, activeBounty.Desc, activeBounty.Reward);
+				newEntry.GetComponent<AdminBountyManagerListEntry>().Setup(activeBounty.Index, activeBounty.Title, activeBounty.Reward, this);
 				newEntry.SetActive(true);
+			}
+		}
+
+		public void ClearBountiesList()
+		{
+			foreach (Transform child in bountiesList.transform)
+			{
+				Destroy(child.gameObject);
 			}
 		}
 
@@ -104,7 +110,7 @@ namespace UI.Systems.AdminTools
 			foreach (var possibleTrait in CommonTraits.Instance.everyTraitOutThere)
 			{
 				if(possibleTrait.name != itemTraitsForBounties.options[itemTraitsForBounties.value].text) continue;
-				AdminCommandsManager.Instance.CmdAddBounty(possibleTrait, int.Parse(bountyAmount.text),
+				AdminCommandsManager.Instance.CmdAddBounty(possibleTrait, int.Parse(bountyAmount.text), bountyTitle.text,
 					bountyDesc.text, int.Parse(bountyReward.text) , bountyAnnoucementToggle.isOn);
 				bountyAnnoucementToggle.isOn = false;
 				break;

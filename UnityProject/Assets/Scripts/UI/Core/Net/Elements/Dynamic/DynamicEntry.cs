@@ -14,7 +14,7 @@ namespace UI.Core.NetUI
 
 		public override Vector2 Value {
 			get => transform.localPosition;
-			set {
+			protected set {
 				externalChange = true;
 				transform.localPosition = value;
 				externalChange = false;
@@ -35,5 +35,8 @@ namespace UI.Core.NetUI
 			get => transform.localPosition;
 			set => transform.localPosition = value;
 		}
+
+		public bool Poolble = true;
+
 	}
 }

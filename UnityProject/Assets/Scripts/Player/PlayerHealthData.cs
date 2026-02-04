@@ -1,13 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
-using UnityEngine.SceneManagement;
-using System.IO;
-using System;
+using Core.Editor.Attributes;
 using HealthV2;
+using HealthV2.Living.PolymorphicSystems;
+using UnityEngine.Serialization;
 
-[CreateAssetMenu(fileName = "PlayerHealthData", menuName = "ScriptableObjects/PlayerHealthData", order = 1)]
+[CreateAssetMenu(fileName = "PlayerHealthData", menuName = "ScriptableObjects/Health/PlayerHealthData", order = 1)]
 public class PlayerHealthData : ScriptableObject
 {
 	public RaceHealthData Base;
@@ -22,12 +20,14 @@ public class ObjectList
 [System.Serializable]
 public class RaceHealthData
 {
+
 	public ObjectList Head;
 	public ObjectList Torso;
 	public ObjectList ArmRight;
 	public ObjectList ArmLeft;
 	public ObjectList LegRight;
 	public ObjectList LegLeft;
+	public bool allowedToChangeling = false;
 
 	public List<CustomisationAllowedSetting> CustomisationSettings = new List<CustomisationAllowedSetting>();
 
@@ -35,14 +35,26 @@ public class RaceHealthData
 
 	public List<Color> SkinColours = new List<Color>();
 
-
-	public BloodType BloodType;
-
 	public ImplantProcedure RootImplantProcedure;
 
 	public List<HealthV2.BodyPart> BodyPartsThatShareTheSkinTone = new List<HealthV2.BodyPart>();
 
-	public float NumberOfMinutesBeforeStarving = 30f;
+	[Tooltip("The text that indicates that it's a clue of what species did an interaction for the detectives scanner")]
+	public string ClueString;
+
+	public GameObject MeatProduce;
+	public GameObject SkinProduce;
+	public ItemTrait SkinningItemTrait;
+
+	public bool CanBeEmagged = false;
+
+	[FormerlySerializedAs("CanShowUpInTheCharacterCreatorScreen")] public bool CanBePlayerChosen = true;
+
+	public SpriteDataSO PreviewSprite;
+
+	[SerializeReference, SelectImplementation(typeof(HealthSystemBase))] public List<HealthSystemBase> SystemSettings = new List<HealthSystemBase>();
+
+	public List<MutationSO> StartingMutations = new List<MutationSO>();
 }
 
 

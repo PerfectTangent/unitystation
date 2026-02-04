@@ -5,14 +5,31 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 514345970168333904, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 4940072494694981831}
     - target: {fileID: 514345970168333904, guid: 8a023982b9ee4fd40b87f69c23492dd6,
         type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 049b1548a73e2ab4f974250e1d11861b,
         type: 2}
+    - target: {fileID: 514345970168333904, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 049b1548a73e2ab4f974250e1d11861b,
+        type: 2}
+    - target: {fileID: 783613402110013882, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
+      propertyPath: parentID
+      value: 8a023982b9ee4fd40b87f69c23492dd6
+      objectReference: {fileID: 0}
     - target: {fileID: 783613402110013882, guid: 8a023982b9ee4fd40b87f69c23492dd6,
         type: 3}
       propertyPath: foreverID
@@ -97,6 +114,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6048747994970652771, guid: 8a023982b9ee4fd40b87f69c23492dd6,
         type: 3}
+      propertyPath: _assetId
+      value: 472048860
+      objectReference: {fileID: 0}
+    - target: {fileID: 6048747994970652771, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
       propertyPath: m_AssetId
       value: e85621ccf37627c47bb04b501d86fb83
       objectReference: {fileID: 0}
@@ -133,7 +155,7 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 6091355358778282677, guid: 8a023982b9ee4fd40b87f69c23492dd6,
         type: 3}
-      propertyPath: initialTraits.Array.data[2]
+      propertyPath: 'initialTraits.Array.data[2]'
       value: 
       objectReference: {fileID: 11400000, guid: 66d1cd8016198e74c92a755f9b2bdeb0,
         type: 2}
@@ -143,8 +165,33 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: dd2f2f8f4c787804cabf4e8f53892ff8,
         type: 2}
+    - target: {fileID: 6091355358778282677, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 11400000, guid: 9b08b360a01ce8b4c83532960f58d9d7,
+        type: 2}
+    - target: {fileID: 6091355358778282677, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 11400000, guid: dd2f2f8f4c787804cabf4e8f53892ff8,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5937237277765483991, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2746538778551199848}
   m_SourcePrefab: {fileID: 100100000, guid: 8a023982b9ee4fd40b87f69c23492dd6, type: 3}
+--- !u!212 &4940072494694981831 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 5806468422754504331, guid: 8a023982b9ee4fd40b87f69c23492dd6,
+    type: 3}
+  m_PrefabInstance: {fileID: 1448489499980394060}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &5079880465429418907 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5937237277765483991, guid: 8a023982b9ee4fd40b87f69c23492dd6,
@@ -166,4 +213,6 @@ MonoBehaviour:
   groundReagents:
     m_keys:
     - {fileID: 11400000, guid: 192a0b1ed0074f2b4b4b673c8a47bee5, type: 2}
-    m_values: 14000000
+    m_values:
+    - 1000
+  UseReagentContainer: 0

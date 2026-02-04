@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
+using Newtonsoft.Json;
 
 namespace Systems.Research.Data
 {
@@ -52,15 +54,25 @@ namespace Systems.Research.Data
 		public TechType techType;
 
 		public Techweb Techweb;
+
+		public System.Drawing.Color Colour
+		{
+			get
+			{
+				return System.Drawing.Color.FromArgb((int)(ColourPublic.a * 255), (int)(ColourPublic.r * 255), (int)(ColourPublic.g * 255), (int)(ColourPublic.b * 255));
+			}
+		}
+
+		[JsonIgnore] public Color ColourPublic; //Unity Colours do not work with our Json Serialisation, but System.Drawing Colours dont work with the inspector. So we use the system.color struct to serialise and then convert back and forth between the two.
 	}
 
 	public enum TechType
 	{
-		Research = 0,
-		Circuit = 1,
-		Material = 2,
-		Hardware = 3,
-		Bio = 4,
+		None = 0,
+		Robotics = 1,
+		Machinery = 2,
+		Equipment = 3,
+		Chemistry = 4,
 	}
 
 	public class TechWebNode

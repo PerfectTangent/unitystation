@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using Managers;
 using ScriptableObjects.Communications;
 using UnityEngine;
@@ -9,13 +10,13 @@ using UnityEngine.Serialization;
 
 namespace Communications
 {
-	public abstract class SignalEmitter : NetworkBehaviour
+	public abstract class SignalEmitter : NetworkBehaviour, IExaminable
 	{
 		[SerializeField]
 		[Required("A signalSO is required for this to work.")]
-		protected SignalDataSO signalData;
-		[FormerlySerializedAs("EncryptionData"), SerializeField]
-		private EncryptionDataSO encryptionData;
+		protected List<SignalDataSO> emmitableSignalData;
+		[SerializeField]
+		protected int passCode;
 		[SerializeField]
 		protected float frequency = 122f;
 		[SerializeField]
@@ -24,6 +25,10 @@ namespace Communications
 		[SerializeField]
 		[ShowIf(nameof(requiresPower))]
 		protected bool isPowered = true;
+
+		[SerializeField] protected bool canExamineFrequency = false;
+
+		[SerializeField] protected float minimumDamageBeforeObfuscation = 12f;
 
 		public float Frequency
 		{
@@ -37,20 +42,30 @@ namespace Communications
 			set => isPowered = value;
 		}
 
-		public EncryptionDataSO EncryptionData
+		public int Passcode
 		{
-			get => encryptionData;
-			set => encryptionData = value;
+			get => passCode;
+			set => passCode = value;
 		}
 
-		public SignalDataSO SignalData => signalData;
+		public List<SignalDataSO> EmmitableSignalData => emmitableSignalData;
 		public bool RequiresPower => requiresPower;
 
 		/// <summary>
 		/// Tells the SignalManager to send a signal to a receiver
 		/// </summary>
-		public void TrySendSignal(ISignalMessage message = null)
+		public void TrySendSignal(SignalDataSO signalData = null, ISignalMessage message = null)
 		{
+			if (emmitableSignalData == null || emmitableSignalData.Count == 0)
+			{
+				Loggy.Error("[Singals] - No emmitable signal data detected!");
+				return;
+			}
+			//if no signalData is given, always use the first signal SO in the list as it's considered the main signal.
+			if (signalData == null)
+			{
+				signalData = emmitableSignalData[0];
+			}
 			if (requiresPower == true && isPowered == false)
 			{
 				SignalFailed();
@@ -75,6 +90,14 @@ namespace Communications
 		/// </summary>
 		public abstract void SignalFailed();
 
+		public string Examine(Vector3 worldPos = default(Vector3))
+		{
+			if (canExamineFrequency == false)
+			{
+				return "There is a signal emitter on this device. Though its unclear what frequency it is transmitting to.";
+			}
+			return $"The emitter on this device is sending a frequency of {frequency}Khz.";
+		}
 	}
 }
 

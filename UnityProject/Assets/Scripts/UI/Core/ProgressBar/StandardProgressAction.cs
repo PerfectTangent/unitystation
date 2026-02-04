@@ -1,6 +1,6 @@
-
 using System;
 using System.Linq;
+using Logs;
 using UnityEngine;
 
 public enum ActionInterruptionType
@@ -26,8 +26,6 @@ public class StandardProgressAction : IProgressAction
 {
 
 	private readonly StandardProgressActionConfig progressActionConfig;
-
-
 
 	//invoked on successful completion
 	private readonly Action onCompletion;
@@ -116,7 +114,7 @@ public class StandardProgressAction : IProgressAction
 	{
 		if (used)
 		{
-			Logger.LogError("Attempted to reuse a StandardProgressAction that has already been used." +
+			Loggy.Error("Attempted to reuse a StandardProgressAction that has already been used." +
 			                      " Please create a new StandardProgressAction each time you start a new action.",
 				Category.ProgressAction);
 			return false;
@@ -146,7 +144,7 @@ public class StandardProgressAction : IProgressAction
 
 				if (existingAction != null)
 				{
-					Logger.LogTraceFormat(
+					Loggy.Trace().Format(
 						"Server cancelling progress bar {0} start because AllowMultiple=true and progress bar {1} " +
 						" has same progress type and is already in progress.", Category.ProgressAction,
 						info.ProgressBar.ID, existingAction.ID);
@@ -155,7 +153,7 @@ public class StandardProgressAction : IProgressAction
 			}
 			catch
 			{
-				Logger.LogError(
+				Loggy.Error(
 					"Something terrible happened to ProgressBars but we have recovered.", Category.ProgressAction);
 				return false;
 			}
@@ -170,7 +168,7 @@ public class StandardProgressAction : IProgressAction
 		if (existingBar != null)
 		{
 			//progress already started by this player at this position
-			Logger.LogTraceFormat("Server cancelling progress bar {0} start because progress bar {1} " +
+			Loggy.Trace().Format("Server cancelling progress bar {0} start because progress bar {1} " +
 			                      " has same progress type and is already in progress at the target location by this player.",
 				Category.ProgressAction, info.ProgressBar.ID, existingBar.ID);
 			return false;
@@ -180,12 +178,12 @@ public class StandardProgressAction : IProgressAction
 		if (progressActionConfig.AllowMovement == false)
 		{
 			//is this cross matrix? if so, don't start progress if either matrix is moving
-			var performerMatrix = playerScript.registerTile.Matrix;
+			var performerMatrix = playerScript.RegisterPlayer.Matrix;
 			crossMatrix = performerMatrix != info.Target.TargetMatrixInfo.Matrix;
 			if (crossMatrix && (performerMatrix.IsMovingServer || info.Target.TargetMatrixInfo.Matrix.IsMovingServer))
 			{
 				//progress already started by this player at this position
-				Logger.LogTraceFormat("Server cancelling progress bar {0} start because it is cross matrix and one of" +
+				Loggy.Trace().Format("Server cancelling progress bar {0} start because it is cross matrix and one of" +
 				                      " the matrices is moving.",
 					Category.ProgressAction, info.ProgressBar.ID);
 				return false;
@@ -224,34 +222,18 @@ public class StandardProgressAction : IProgressAction
 		//interrupt if cuffed
 		eventRegistry.Register(playerScript.playerMove.OnCuffChangeServer, OnCuffChange);
 		//interrupt if slipped
-		eventRegistry.Register(playerScript.registerTile.OnSlipChangeServer, OnSlipChange);
+		eventRegistry.Register(playerScript.RegisterPlayer.OnSlipChangeServer, OnSlipChange);
 		//interrupt if conscious state changes
 		eventRegistry.Register(playerScript.playerHealth.OnConsciousStateChangeServer, OnConsciousStateChange);
 		initialConsciousState = playerScript.playerHealth.ConsciousState;
 		//interrupt if player moves at all
 		if (progressActionConfig.AllowMovement == false)
 		{
-			eventRegistry.Register(playerScript.registerTile.OnLocalPositionChangedServer, OnLocalPositionChanged);
+			eventRegistry.Register(playerScript.RegisterPlayer.OnLocalPositionChangedServer, OnLocalPositionChanged);
 		}
 		//interrupt if player turns away and turning is not allowed
-		eventRegistry.Register(playerScript.playerDirectional.OnRotationChange, OnDirectionChanged);
-		initialDirection = playerScript.playerDirectional.CurrentDirection;
-		//interrupt if tile is on different matrix and either matrix moves / rotates
-		if (crossMatrix)
-		{
-			if (startProgressInfo.Target.TargetMatrixInfo.IsMovable)
-			{
-				eventRegistry.Register(startProgressInfo.Target.TargetMatrixInfo.MatrixMove.MatrixMoveEvents.OnStartMovementServer, OnMatrixStartMove);
-				eventRegistry.Register(startProgressInfo.Target.TargetMatrixInfo.MatrixMove.MatrixMoveEvents.OnRotate, OnMatrixRotate);
-			}
-
-			var performerMatrix = playerScript.registerTile.Matrix;
-			if (performerMatrix.IsMovable)
-			{
-				eventRegistry.Register(performerMatrix.MatrixMove.MatrixMoveEvents.OnStartMovementServer, OnMatrixStartMove);
-				eventRegistry.Register(performerMatrix.MatrixMove.MatrixMoveEvents.OnRotate, OnMatrixRotate);
-			}
-		}
+		eventRegistry.Register(playerScript.PlayerDirectional.OnRotationChange, OnDirectionChanged);
+		initialDirection = playerScript.PlayerDirectional.CurrentDirection;
 	}
 
 	public bool OnServerContinueProgress(InProgressInfo info)
@@ -279,7 +261,7 @@ public class StandardProgressAction : IProgressAction
 
 			foreach (var existingBar in existingBars)
 			{
-				Logger.LogTraceFormat("Server interrupting progress bar {0} because progress bar {1} finished " +
+				Loggy.Trace().Format("Server interrupting progress bar {0} because progress bar {1} finished " +
 				                      "on same tile", Category.ProgressAction, existingBar.ID, ProgressBar.ID);
 				existingBar.ServerInterruptProgress();
 			}
@@ -297,13 +279,13 @@ public class StandardProgressAction : IProgressAction
 	private void InterruptProgress(string reason, ActionInterruptionType interruptionType)
 	{
 		if(progressActionConfig.AllowMovement == true) return;
-		Logger.LogTraceFormat("Server progress bar {0} interrupted: {1}.", Category.ProgressAction,
+		Loggy.Trace().Format("Server progress bar {0} interrupted: {1}.", Category.ProgressAction,
 			ProgressBar.ID, reason);
 		ProgressBar.ServerInterruptProgress();
 		onInterruption?.Invoke(interruptionType);
 	}
 
-	private void OnMatrixRotate(MatrixRotationInfo arg0)
+	private void OnMatrixRotate()
 	{
 		if(progressActionConfig.AllowMovement == true) return;
 		InterruptProgress("cross-matrix and target or performer matrix rotated", ActionInterruptionType.MatrixRotation);
@@ -313,14 +295,13 @@ public class StandardProgressAction : IProgressAction
 	{
 		//note: doesn't check cross matrix situations.
 		return playerScript.playerHealth.ConsciousState == initialConsciousState &&
-		       playerScript.playerMove.IsCuffed == false &&
-		       playerScript.registerTile.IsSlippingServer == false &&
-			   playerScript.playerNetworkActions.IsRolling == false &&
-		       (progressActionConfig.AllowTurning ||
-		        playerScript.playerDirectional.CurrentDirection != initialDirection) &&
+		       (progressActionConfig.AllowDuringCuff || playerScript.playerMove.IsCuffed == false) &&
+		       playerScript.RegisterPlayer.IsSlippingServer == false &&
+			   playerScript.PlayerNetworkActions.IsRolling == false &&
+		       (progressActionConfig.AllowTurning || playerScript.PlayerDirectional.CurrentDirection != initialDirection) &&
 		       playerScript.PlayerSync.IsMoving == false &&
 		       //make sure we're still in range
-		       Validations.IsInReachDistanceByPositions(playerScript.registerTile.WorldPositionServer,
+		       Validations.IsInReachDistanceByPositions(playerScript.RegisterPlayer.WorldPositionServer,
 			       startProgressInfo.Target.TargetWorldPosition);
 	}
 

@@ -1,4 +1,5 @@
 ﻿using TMPro;
+using UI.Systems.AdminTools.DevTools.Search;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,7 +17,7 @@ namespace UI.Systems.AdminTools
 		{
 			itemWindow = window;
 			doc = document;
-			itemName.text = document.SearchableName.Capitalize();
+			itemName.text = document.Name.Capitalize();
 			Sprite toUse = doc.Prefab.GetComponentInChildren<SpriteRenderer>()?.sprite;
 			if (toUse != null) itemIcon.sprite = toUse;
 		}

@@ -2,103 +2,64 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using Logs;
+using Mirror;
+using SecureStuff;
+using Systems.Scenes;
+using Tiles;
+using Random = UnityEngine.Random;
 
-public class TestVariableViewerScript : MonoBehaviour
+public class TestVariableViewerScript : NetworkBehaviour
 {
-	[VVNote(VVHighlight.SafeToModify)] public bool Pbool = true;
 
-	[VVNote(VVHighlight.UnsafeToModify)] public int Pint = 55;
+	public int BasicINT = 99;
 
-	[VVNote(VVHighlight.SafeToModify100)]
-	public string pstring = "yoyyyoy";
-
-	[VVNote(VVHighlight.VariableChangeUpdate)]
-	public Teststruct pTeststruct;
-
-	[VVNote(VVHighlight.DEBUG)] public Connection pConnection = Connection.Overlap;
+	public List<TestClass> TestClasss = new List<TestClass>();
 
 
-	public Tuple<int, string> Trees;
+	public List<int> BasicListUntouched = new List<int>();
+	public List<int> BasicListRemoved = new List<int>();
+	public List<int> BasicListAdded = new List<int>();
 
-	private Connection _state;
+	public List<GameObject> PrefabGameObjectListAdded = new List<GameObject>();
 
-	public Connection State
-	{
-		get { return _state; }
-		set
-		{
-			if (_state != value)
-			{
-				_state = value;
-			}
-		}
-	}
+	public List<Component> PrefabComponentListAdded = new List<Component>();
 
-	public List<int> PListInt = new List<int>();
-	public List<bool> PListbool = new List<bool>();
-	public List<string> PListstring = new List<string>();
-	public List<Teststruct> PListTeststruct = new List<Teststruct>();
-	public List<Connection> PListConnection = new List<Connection>();
+	public List<Component> GameComponentListAdded = new List<Component>();
 
-	public HashSet<int> PHashSetInt = new HashSet<int>();
-	public HashSet<bool> PHashSetbool = new HashSet<bool>();
-	public HashSet<string> PHashSetstring = new HashSet<string>();
-	public HashSet<Connection> PHashSetConnection = new HashSet<Connection>();
-	public HashSet<object> PHashSetobject = new HashSet<object>();
+	public List<LayerTile> SoListAdded = new List<LayerTile>();
 
-	public Dictionary<int, int> PDictionaryIntInt = new Dictionary<int, int>();
-	public Dictionary<bool, bool> PDictionaryboolbool = new Dictionary<bool, bool>();
-	public Dictionary<string, string> PDictionarystringstring = new Dictionary<string, string>();
+	public SerializableDictionary<int, int> BasicDictionary = new SerializableDictionary<int, int>();
 
-	public Dictionary<Connection, Connection>
-		PDictionaryConnectionConnection = new Dictionary<Connection, Connection>();
+	public SerializableDictionary<LayerTile, int> KeySOBasicDictionary = new SerializableDictionary<LayerTile, int>();
 
-	public Dictionary<string, HashSet<int>> DictionaryHashSet = new Dictionary<string, HashSet<int>>();
-	public Dictionary<string, List<int>> DictionaryList = new Dictionary<string, List<int>>();
+	public SerializableDictionary<int, LayerTile> ValSOBasicDictionary = new SerializableDictionary<int, LayerTile>();
 
-	public int length = 10;
-
-	private void DOThingPrivate()
-	{
-		Logger.Log("DOThingPrivate");
-	}
-
-
-	public void DOThingPublic()
-	{
-		Logger.Log("DOThingPublic");
-	}
-
+	public List<List<int>> BasicListWithinList = new List<List<int>>();
 
 	void Start()
 	{
-		Trees = new Tuple<int, string>(2, "ggggggg");
-		for (int i = 0; i < length; i++)
+		if (BasicListRemoved.Count > 0)
 		{
-			PListInt.Add(i);
-			PListbool.Add(true);
-			PListstring.Add(i.ToString() + "< t");
-			PListConnection.Add(Connection.East);
-			var GG = new Teststruct
+			BasicListRemoved.RemoveAt(0);
+		}
+
+
+		for (int i = 0; i < 2; i++)
+		{
+			BasicListAdded.Add(i);
+			BasicDictionary[i+3] = i;
+			TestClasss.Add(new TestClass()
 			{
-				author = ("BOB" + i),
-				price = i,
-				title = i + "COOL?"
-			};
-			pTeststruct = GG;
-			PListTeststruct.Add(GG);
-			PHashSetInt.Add(i);
-			PHashSetbool.Add(true);
-			PHashSetstring.Add(i.ToString() + "< t");
-			PHashSetConnection.Add(Connection.East);
+				price = 324342 + i,
+				title = "bob" + i,
+				author = "bool le cool"
+			});
+		}
 
-			PDictionaryIntInt[i] = i;
-			PDictionaryboolbool[true] = true;
-			PDictionarystringstring[i.ToString()] = "titymm";
-			PDictionaryConnectionConnection[Connection.MachineConnect] = Connection.East;
-
-			DictionaryHashSet[i.ToString()] = PHashSetInt;
-			DictionaryList[i.ToString()] = PListInt;
+		if (netIdentity != null)
+		{
+			netIdentity.isDirty = true;
 		}
 	}
 }
@@ -107,6 +68,14 @@ public class TestVariableViewerScript : MonoBehaviour
 public struct Teststruct
 {
 	public decimal price;
+	public string title;
+	public string author;
+}
+
+[System.Serializable]
+public class TestClass
+{
+	public float price;
 	public string title;
 	public string author;
 }

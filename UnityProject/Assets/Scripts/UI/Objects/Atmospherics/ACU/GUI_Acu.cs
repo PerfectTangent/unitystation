@@ -22,7 +22,7 @@ namespace UI.Objects.Atmospherics.Acu
 		[SerializeField, BoxGroup("Status")]
 		private NetColorChanger statusIndicator = default;
 		[SerializeField, BoxGroup("Status")]
-		private NetLabel statusLabel = default;
+		private NetText_label statusLabel = default;
 
 		[SerializeField, BoxGroup("Element References")]
 		private GameObject lockIcon = default;
@@ -32,7 +32,7 @@ namespace UI.Objects.Atmospherics.Acu
 		private GameObject connectionIcon = default;
 
 		[SerializeField]
-		private NetLabel acuLabel = default;
+		private NetText_label acuLabel = default;
 
 		[SerializeField]
 		private GUI_AcuValueModal editValueModal = default;
@@ -98,7 +98,7 @@ namespace UI.Objects.Atmospherics.Acu
 
 			var acuName = Acu.name.StartsWith("ACU - ") ? Acu.name.Substring("ACU - ".Length) : Acu.name;
 			// "ACU - " as per NameValidator tool.
-			acuLabel.SetValueServer(acuName);
+			acuLabel.MasterSetValue(acuName);
 
 			foreach (var netPage in pageSwitcher.Pages)
 			{
@@ -120,7 +120,7 @@ namespace UI.Objects.Atmospherics.Acu
 			}
 		}
 
-		private void TabOpened(ConnectedPlayer newPeeper = default)
+		private void TabOpened(PlayerInfo newPeeper = default)
 		{
 			SetPage(ValidatePage(requestedPage));
 
@@ -128,10 +128,10 @@ namespace UI.Objects.Atmospherics.Acu
 			UpdateManager.Add(PeriodicUpdate, 0.5f);
 			Acu.OnStateChanged += OnAcuStateChanged;
 			PeriodicUpdate();
-			if (IsAIInteracting()) Acu.IsLocked = false;
+			if (IsAIInteracting(newPeeper)) Acu.IsLocked = false;
 		}
 
-		private void TabClosed(ConnectedPlayer oldPeeper = default)
+		private void TabClosed(PlayerInfo oldPeeper = default)
 		{
 			// Remove listeners when unobserved (old peeper has not yet been removed).
 			if (Peepers.Count <= 1)
@@ -159,18 +159,18 @@ namespace UI.Objects.Atmospherics.Acu
 
 		private void UpdateElements()
 		{
-			statusIndicator.SetValueServer(statusColors[Acu.OverallStatus]);
+			statusIndicator.MasterSetValue(statusColors[Acu.OverallStatus]);
 
 			// Update display's system tray elements
-			statusLabel.SetValueServer(Acu.IsPowered
+			statusLabel.MasterSetValue(Acu.IsPowered
 					? ColorStringByStatus(Acu.OverallStatus.ToString(), Acu.OverallStatus)
 					: string.Empty);
 			lockIconSprite.SetSprite(Acu.IsLocked ? 0 : 1);
-			lockIconColor.SetValueServer(Acu.IsLocked ? colorNominal : colorCaution);
-			powerIconColor.SetValueServer(Acu.IsPowered ? colorNominal : colorAlert);
+			lockIconColor.MasterSetValue(Acu.IsLocked ? colorNominal : colorCaution);
+			powerIconColor.MasterSetValue(Acu.IsPowered ? colorNominal : colorAlert);
 			Color sampleQualityColor = Acu.ConnectedDevices.Count > 0 ? colorCaution : colorAlert;
 			sampleQualityColor = Acu.ConnectedDevices.Count > 2 ? colorNominal : sampleQualityColor;
-			connectionIconColor.SetValueServer(sampleQualityColor);
+			connectionIconColor.MasterSetValue(sampleQualityColor);
 		}
 
 		private GUI_AcuPage ValidatePage(GUI_AcuPage requestedPage)
@@ -225,16 +225,6 @@ namespace UI.Objects.Atmospherics.Acu
 		public static string ColorStringByStatus(string text, AcuStatus status)
 		{
 			return $"<color=#{GetHtmlColorByStatus(status)}>{text}</color>";
-		}
-
-		public void PlayClick()
-		{
-			PlaySound(CommonSounds.Instance.Click01);
-		}
-
-		public void PlayTap()
-		{
-			PlaySound(CommonSounds.Instance.Tap);
 		}
 
 		#endregion

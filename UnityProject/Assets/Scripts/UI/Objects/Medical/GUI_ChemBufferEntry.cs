@@ -1,9 +1,8 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using Chemistry;
 using UI.Core.NetUI;
-using Chemistry;
+using UnityEngine;
 
-namespace UI.Objects.Chemistry
+namespace UI.Objects.Medical
 {
 	/// <summary>
 	/// DynamicEntry for ChemMaster NetTab buffer page.
@@ -21,17 +20,17 @@ namespace UI.Objects.Chemistry
 		}
 
 		[SerializeField]
-		private NetLabel reagentName = default;
+		private NetText_label reagentName = default;
 		[SerializeField]
-		private NetLabel reagentAmountDisplay = default;
+		private NetText_label reagentAmountDisplay = default;
 
 		public void ReInit(Reagent newReagent, float amount, GUI_ChemMaster tab)
 		{
 			reagent = newReagent;
 			reagentAmount = amount;
 			chemMasterTab = tab;
-			reagentName.SetValueServer(reagent.Name);
-			reagentAmountDisplay.SetValueServer($"{reagentAmount:F2}u");
+			reagentName.MasterSetValue(reagent.Name);
+			reagentAmountDisplay.MasterSetValue($"{reagentAmount:F2}u");
 		}
 		public void OpenCustomPrompt()
 		{
@@ -46,7 +45,7 @@ namespace UI.Objects.Chemistry
 		{
 			Transfer(reagentAmount);
 		}
-		public void Analyze(ConnectedPlayer player)
+		public void Analyze(PlayerInfo player)
 		{
 			chemMasterTab.Analyze(reagent, player);
 		}

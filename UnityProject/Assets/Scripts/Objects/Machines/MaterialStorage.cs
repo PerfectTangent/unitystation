@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -32,10 +29,34 @@ namespace Objects.Machines
 			}
 		}
 
-		private void AddMaterial(ItemTrait material, int quantity)
+		public bool CanFit(MaterialMakeUp MaterialMakeUp, int Stackquantity)
 		{
-			MaterialList[material] += quantity;
-			currentResources += quantity;
+
+			var total = currentResources;
+
+			foreach (var Material in MaterialMakeUp.MakeUp)
+			{
+				total += Material.Value * Stackquantity;
+			}
+			if (infiniteStorage || total <= maximumResources)
+			{
+				return true;
+			}
+			return false;
+
+		}
+
+		public bool AddMaterial(ItemTrait material, int quantity)
+		{
+			var totalSum = currentResources + quantity;
+			if (infiniteStorage || totalSum <= maximumResources)
+			{
+				MaterialList[material] += quantity;
+				currentResources += quantity;
+				UpdateGUIs?.Invoke();
+				return true;
+			}
+			return false;
 		}
 
 		private void ConsumeMaterial(ItemTrait material, int quantity)
@@ -52,7 +73,7 @@ namespace Objects.Machines
 			if (infiniteStorage || totalSum <= maximumResources)
 			{
 				AddMaterial(material, quantity);
-				UpdateGUIs.Invoke();
+				UpdateGUIs?.Invoke();
 				return true;
 			}
 			return false;
@@ -63,18 +84,18 @@ namespace Objects.Machines
 			quantity = Mathf.Min(quantity, MaterialList[material] / Cm3PerSheet);
 			var Cm3Used = Cm3PerSheet * quantity;
 			ConsumeMaterial(material, Cm3Used);
-			UpdateGUIs.Invoke();
+			UpdateGUIs?.Invoke();
 			return quantity;
 		}
 
 		/// <summary>
 		/// Attempt to remove an amount of materials from a Dictionary of materials
 		/// </summary>
-		public bool TryConsumeList(SerializableDictionary<MaterialSheet, int> consume)
+		public bool TryConsumeList(SerializableDictionary<MaterialSheet, int> consume, float ConsumptionMultiplier)
 		{
 			foreach (var materialSheet in consume.Keys)
 			{
-				if (MaterialList[materialSheet.materialTrait] < consume[materialSheet])
+				if (MaterialList[materialSheet.materialTrait] < (consume[materialSheet] * ConsumptionMultiplier))
 				{
 					return false;
 				}
@@ -83,10 +104,10 @@ namespace Objects.Machines
 			//Removes all the materials and their amount from the storage.
 			foreach (var materialSheet in consume.Keys)
 			{
-				ConsumeMaterial(materialSheet.materialTrait, consume[materialSheet]);
+				ConsumeMaterial(materialSheet.materialTrait, Mathf.RoundToInt(consume[materialSheet] * ConsumptionMultiplier));
 			}
 
-			UpdateGUIs.Invoke();
+			UpdateGUIs?.Invoke();
 			return true;
 		}
 
@@ -108,7 +129,7 @@ namespace Objects.Machines
 				var amountToSpawn = MaterialList[material] / Cm3PerSheet;
 				if (amountToSpawn > 0)
 				{
-					Spawn.ServerPrefab(materialToSpawn, gameObject.WorldPosServer(), transform.parent, count: amountToSpawn);
+					Spawn.ServerPrefab(materialToSpawn, gameObject.AssumedWorldPosServer(), transform.parent, count: amountToSpawn);
 				}
 			}
 		}

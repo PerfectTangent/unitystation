@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using HealthV2;
 using Messages.Server.SoundMessages;
+using Systems.Score;
+using UI.Systems.Tooltips.HoverTooltips;
 using UnityEngine;
 
 
@@ -8,7 +11,7 @@ namespace Player
 	/// <summary>
     /// Allows an object to be hugged by a player.
     /// </summary>
-    public class Huggable : MonoBehaviour, ICheckedInteractable<HandApply>, ICooldown
+    public class Huggable : MonoBehaviour, ICheckedInteractable<HandApply>, ICooldown, IHoverTooltip
     {
     	private HandApply interaction;
     	private string performerName;
@@ -27,7 +30,7 @@ namespace Player
 
     	[SerializeField] private ItemTrait tailTrait;
 
-    	public bool WillInteract(HandApply interaction, NetworkSide side)
+        public bool WillInteract(HandApply interaction, NetworkSide side)
     	{
     		if (!DefaultWillInteract.Default(interaction, side)) return false;
     		if (interaction.Intent != Intent.Help) return false;
@@ -62,7 +65,7 @@ namespace Player
 
     		AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: Random.Range(0.8f, 1.2f));
     		SoundManager.PlayNetworkedAtPos(
-    				CommonSounds.Instance.ThudSwoosh, interaction.TargetObject.WorldPosServer(), audioSourceParameters, sourceObj: interaction.TargetObject);
+    				CommonSounds.Instance.ThudSwoosh, interaction.TargetObject.AssumedWorldPosServer(), audioSourceParameters, sourceObj: interaction.TargetObject);
     	}
 
     	// TODO Consider moving this into its own component, or merging Huggable, this and CPRable into
@@ -86,6 +89,9 @@ namespace Player
     		{
     			performerLHB.ApplyDamageAll(interaction.TargetObject, 1, AttackType.Fire, DamageType.Burn);
     			targetLHB.ApplyDamageAll(interaction.Performer, 1, AttackType.Fire, DamageType.Burn);
+
+                performerLHB.ChangeFireStacks(1);
+                targetLHB.ChangeFireStacks(1);
 
     			Chat.AddCombatMsgToChat(
     					interaction.Performer, $"You hug {targetName} with fire!", $"{performerName} hugs {targetName} with fire!");
@@ -112,7 +118,7 @@ namespace Player
     		if (DMMath.Prob(tailPullJudgementChance))
     		{
     			Chat.AddExamineMsg(puller.gameObject, $"<color=red><size=+24>You have been judged for your lust..</size></color>");
-    			puller.Gib();
+    			puller.OnGib();
     		}
     	}
 
@@ -128,6 +134,7 @@ namespace Player
     				$"<color=#be2596>{performerName} pulls on {targetName}'s tail!</color>");
     			Chat.AddExamineMsgFromServer(interaction.TargetObject, $"<color=#be2596>{performerName} hugs you.</color>");
     			Judgement(performerLHB);
+                ScoreMachine.AddToScoreInt(RoundEndScoreBuilder.TAIL_SCORE_VALUE, RoundEndScoreBuilder.COMMON_TAIL_SCORE_ENTRY);
     			return true;
     		}
     		return false;
@@ -138,6 +145,39 @@ namespace Player
     		if(interaction.TargetBodyPart == BodyPartType.Groin && PullTail()) return;
     		Chat.AddActionMsgToChat(interaction.Performer, $"You hug {targetName}.", $"{performerName} hugs {targetName}.");
     		Chat.AddExamineMsgFromServer(interaction.TargetObject, $"{performerName} hugs you.");
+            ScoreMachine.AddToScoreInt(RoundEndScoreBuilder.HUG_SCORE_VALUE, RoundEndScoreBuilder.COMMON_HUG_SCORE_ENTRY);
     	}
+
+        public string HoverTip()
+        {
+	        return null;
+        }
+
+        public string CustomTitle()
+        {
+	        return null;
+        }
+
+        public Sprite CustomIcon()
+        {
+	        return null;
+        }
+
+        public List<Sprite> IconIndicators()
+        {
+	        return null;
+        }
+
+        public List<TextColor> InteractionsStrings()
+        {
+	        TextColor HugText = new TextColor
+	        {
+		        Text = "Left-Click (Help Intent): Hug!",
+		        Color = IntentColors.Help
+	        };
+	        List<TextColor> interactions = new List<TextColor>();
+	        interactions.Add(HugText);
+	        return interactions;
+        }
     }
 }

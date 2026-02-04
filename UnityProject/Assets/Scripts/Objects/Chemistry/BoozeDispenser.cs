@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Chemistry.Components;
 using Mirror;
+using SecureStuff;
 using UnityEngine;
 using Systems.Electricity;
 
@@ -23,9 +24,10 @@ namespace Chemistry
 
 		private ItemSlot itemSlot;
 
+		public ItemStorage itemStorage;
+
 		private void Awake()
 		{
-			ItemStorage itemStorage = GetComponent<ItemStorage>();
 			itemSlot = itemStorage.GetIndexedItemSlot(0);
 		}
 
@@ -38,7 +40,7 @@ namespace Chemistry
 			}
 		}
 
-		private ItemSlot GetBestSlot(GameObject item, ConnectedPlayer subject)
+		private ItemSlot GetBestSlot(GameObject item, PlayerInfo subject)
 		{
 			if (subject == null)
 			{
@@ -60,7 +62,7 @@ namespace Chemistry
 		/// Ejects input container from ChemMaster into best slot available and clears the buffer
 		/// </summary>
 		/// <param name="subject"></param>
-		public void EjectContainer(ConnectedPlayer subject)
+		public void EjectContainer(PlayerInfo subject)
 		{
 			var bestSlot = GetBestSlot(itemSlot.ItemObject, subject);
 
@@ -78,7 +80,7 @@ namespace Chemistry
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			//only interaction that works is using a reagent container on this
 			if (!Validations.HasComponent<ReagentContainer>(interaction.HandObject)) return false;
@@ -95,7 +97,7 @@ namespace Chemistry
 
 		#region IAPCPowerable
 
-		public PowerState ThisState;
+		[PlayModeOnly] public PowerState ThisState;
 
 		public void PowerNetworkUpdate(float voltage) { }
 

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Shared.Managers;
 using UnityEngine;
 
 namespace Managers
@@ -9,19 +10,19 @@ namespace Managers
 		public GameObject ItemStorageHolderPrefab;
 		private Dictionary<string, ItemStorage> ghostStorageList = new Dictionary<string, ItemStorage>();
 
-		private ItemStorage CreateItemSlotStorage(ConnectedPlayer player)
+		private ItemStorage CreateItemSlotStorage(PlayerInfo player)
 		{
 			var holder = Spawn.ServerPrefab(ItemStorageHolderPrefab, null, gameObject.transform);
 			var itemStorage = holder.GameObject.GetComponent<ItemStorage>();
-			ghostStorageList.Add(player.UserId, itemStorage);
+			ghostStorageList.Add(player.AccountId, itemStorage);
 			return itemStorage;
 		}
 
-		public ItemStorage GetItemSlotStorage(ConnectedPlayer player)
+		public ItemStorage GetItemSlotStorage(PlayerInfo player)
 		{
-			if (ghostStorageList.ContainsKey(player.UserId))
+			if (ghostStorageList.ContainsKey(player.AccountId))
 			{
-				return ghostStorageList[player.UserId];
+				return ghostStorageList[player.AccountId];
 			}
 			return CreateItemSlotStorage(player);
 		}

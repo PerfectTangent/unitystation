@@ -2,6 +2,7 @@
 using UnityEngine;
 using System.Threading.Tasks;
 using HealthV2;
+using HealthV2.Living.PolymorphicSystems;
 using Items;
 
 namespace Items.Food
@@ -12,15 +13,13 @@ namespace Items.Food
 	public class XenomorphFood : Edible
 	{
 		[SerializeField]
-		private int killTime = 400;
-		[SerializeField]
 		private GameObject larvae = null;
 
 		private string Name => itemAttributes.ArticleName;
 		private static readonly StandardProgressActionConfig ProgressConfig
 			= new StandardProgressActionConfig(StandardProgressActionType.Restrain);
 
-		public override void TryConsume(GameObject feederGO, GameObject eaterGO)
+		public override void TryConsume(GameObject feederGO, GameObject eaterGO, bool projectileFed = false)
 		{
 			var eater = eaterGO.GetComponent<PlayerScript>();
 			if (eater == null)
@@ -34,7 +33,13 @@ namespace Items.Food
 			var feeder = feederGO.GetComponent<PlayerScript>();
 
 			// Show eater message
-			var eaterHungerState = eater.playerHealth.HungerState;
+			var sys = eater.playerHealth.GetSystem<HungerSystem>();
+			HungerState eaterHungerState = HungerState.Normal;
+
+			if (sys != null)
+			{
+				eaterHungerState = sys.CashedHungerState;
+			}
 			ConsumableTextUtils.SendGenericConsumeMessage(feeder, eater, eaterHungerState, Name, "eat");
 
 			// Check if eater can eat anything
@@ -45,7 +50,7 @@ namespace Items.Food
 				{
 					ConsumableTextUtils.SendGenericForceFeedMessage(feeder, eater, eaterHungerState, Name, "eat");
 					Eat(eater, feeder);
-				}).ServerStartProgress(eater.registerTile, 3f, feeder.gameObject);
+				}).ServerStartProgress(eater.RegisterPlayer, 3f, feeder.gameObject);
 				return;
 			}
 			else
@@ -54,7 +59,7 @@ namespace Items.Food
 			}
 		}
 
-		public override void Eat(PlayerScript eater, PlayerScript feeder)
+		protected override void Eat(PlayerScript eater, PlayerScript feeder, bool projectileFed = false)
 		{
 			// TODO: missing sound?
 			//SoundManager.PlayNetworkedAtPos(sound, eater.WorldPos, sourceObj: eater.gameObject);
@@ -71,24 +76,21 @@ namespace Items.Food
 				stomach.StomachContents.Add(FoodContents.CurrentReagentMix.Clone());
 			}
 
-			_ = Pregnancy(eater.playerHealth);
+			Pregnancy(eater.playerHealth);
 			var feederSlot = feeder.DynamicItemStorage.GetActiveHandSlot();
 			Inventory.ServerDespawn(feederSlot);
 		}
 
-		private async Task Pregnancy(PlayerHealthV2 player)
+		private void Pregnancy(PlayerHealthV2 player)
 		{
-			await Task.Delay(TimeSpan.FromSeconds(killTime - (killTime / 8)));
 			Chat.AddActionMsgToChat(player.gameObject, "Your stomach gurgles uncomfortably...",
-				$"A dangerous sounding gurgle emanates from " + player.name + "!");
-			await Task.Delay(TimeSpan.FromSeconds(killTime / 8));
-			player.ApplyDamageToBodyPart(
-				gameObject,
-				200,
-				AttackType.Internal,
-				DamageType.Brute,
-				BodyPartType.Chest);
-			Spawn.ServerPrefab(larvae, player.gameObject.RegisterTile().WorldPositionServer);
+			$"A dangerous sounding gurgle emanates from " + player.name + "!");
+
+			GameObject embryo = Spawn.ServerPrefab(larvae, SpawnDestination.At(gameObject), 1).GameObject;
+
+			if (player.GetStomachs().Count == 0) return;
+
+			player.GetStomachs()[0].RelatedPart.OrganStorage.ServerTryAdd(embryo);
 		}
 	}
 }

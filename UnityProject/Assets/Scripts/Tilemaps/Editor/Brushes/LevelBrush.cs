@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using TileManagement;
 using UnityEditor;
 using UnityEngine;
@@ -24,10 +25,10 @@ public class LevelBrush : GridBrush
 		{
 			recordedChimpEvent.time = DateTime.Now;
 			recordedChimpEvent.loc = position;
-			//Logger.Log("successful chimp event");
+			//Loggy.Log("successful chimp event");
 			return false;
 		}
-		//Logger.Log("no chimp event");
+		//Loggy.Log("no chimp event");
 		return true;
 	}
 
@@ -83,13 +84,70 @@ public class LevelBrush : GridBrush
 		{
 			if (metaTileMap)
 			{
-				metaTileMap.RemoveTile(position);
+				metaTileMap.RemoveTile(position,  isPlaying: false);
 			}
 			else
 			{
 				layer.GetComponent<Layer>().SetTile(position, null, Matrix4x4.identity, Color.white);
 			}
 		}
+	}
+
+	private readonly List<(Vector3Int, BrushCell)> storedCells = new List<(Vector3Int, BrushCell)>();
+
+	private Vector3Int minValue;
+
+	public override void MoveStart(GridLayout gridLayout, GameObject brushTarget, BoundsInt position)
+	{
+		MetaTileMap metaTileMap = gridLayout.GetComponent<MetaTileMap>();
+		if (metaTileMap == null) return;
+
+		storedCells.Clear();
+
+		minValue = position.min;
+
+		foreach (Vector3Int pos in position.allPositionsWithin)
+		{
+			Vector3Int brushPosition = new Vector3Int(pos.x, pos.y, 0);
+
+			var tileLocations = metaTileMap.GetTileLocations(brushPosition);
+			if(tileLocations.Count == 0) continue;
+
+			foreach (var tileLocation in tileLocations)
+			{
+				var cell = new BrushCell();
+				cell.tile = tileLocation.layerTile;
+				cell.matrix = tileLocation.transformMatrix;
+				cell.color = tileLocation.Colour;
+
+				storedCells.Add((brushPosition, cell));
+
+				metaTileMap.ClearAtPos(pos);
+			}
+		}
+	}
+
+	public override void MoveEnd(GridLayout gridLayout, GameObject brushTarget, BoundsInt position)
+	{
+		MetaTileMap metaTileMap = gridLayout.GetComponent<MetaTileMap>();
+		if (metaTileMap == null) return;
+
+		foreach (var cell in storedCells)
+		{
+			var cellPosition = cell.Item1 + (position.min - minValue);
+			var tile = cell.Item2.tile;
+
+			if (tile is LayerTile)
+			{
+				PlaceLayerTile(metaTileMap, cellPosition, (LayerTile) tile);
+			}
+			else if (tile is MetaTile)
+			{
+				PlaceMetaTile(metaTileMap, cellPosition, (MetaTile) tile);
+			}
+		}
+
+		storedCells.Clear();
 	}
 
 	public override void Flip(FlipAxis flip, GridLayout.CellLayout layout)
@@ -129,7 +187,10 @@ public class LevelBrush : GridBrush
 	{
 		foreach (LayerTile requiredTile in tile.RequiredTiles)
 		{
-			SetTile(metaTileMap, position, requiredTile);
+			if (metaTileMap.HasTile(position, requiredTile.LayerType) == false)
+			{
+				SetTile(metaTileMap, position, requiredTile);
+			}
 		}
 
 		metaTileMap.SetTile(position, tile, cells[0].matrix, cells[0].color, isPlaying: false);

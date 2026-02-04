@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a539206ec3a49f4faebb3e8d6ef3c68, type: 3}
+  m_Name: CyborgOpenProcedure
+  m_EditorClassIdentifier: 
+  ProcedureName: Open part
+  ProcedureSprite: {fileID: 11400000, guid: 6743251a77569454a975e1578412f807, type: 2}
+  SurgerySteps:
+  - RequiredTrait: {fileID: 11400000, guid: 98ad76bb152404a11aed28bf6fa703d6, type: 2}
+    Time: 1
+    FailChance: 1
+    StartSelf: you begin to unscrew the cover on {WhoOn}'s {OnPart}
+    StartOther: '{performer} begins to unscrew the cover on {WhoOn}''s {OnPart}'
+    SuccessSelf: you unscrew the cover on {WhoOn}'s {OnPart}
+    SuccessOther: '{performer} unscrews the cover on {WhoOn}''s {OnPart}'
+    FailSelf: you fail to unscrew the cover on {WhoOn}'s {OnPart}
+    FailOther: '{performer} fails to unscrew the cover on {WhoOn}''s {OnPart}'
+    BleedStacksToAdd: 0
+  - RequiredTrait: {fileID: 11400000, guid: 5524008e9372c468aacfb95c83179a91, type: 2}
+    Time: 3
+    FailChance: 1
+    StartSelf: you begin to pry open the cover on {WhoOn}'s {OnPart}
+    StartOther: '{performer} begins to pry open the cover on {WhoOn}''s {OnPart}'
+    SuccessSelf: you successfully pry open the cover on {WhoOn}'s {OnPart}
+    SuccessOther: '{performer} successfully prys open the cover on {WhoOn}''s {OnPart}'
+    FailSelf: you fail to pry open the cover on {WhoOn}'s {OnPart}
+    FailOther: '{performer} fails to pry open the cover on {WhoOn}''s {OnPart}'
+    BleedStacksToAdd: 0
+  - RequiredTrait: {fileID: 11400000, guid: 024541a41c4ab42a499f8e49374496d4, type: 2}
+    Time: 1
+    FailChance: 1
+    StartSelf: you begin to unfasten the bolts on {WhoOn}'s {OnPart}
+    StartOther: '{performer} begins to unfasten the bolts on {WhoOn}''s {OnPart}'
+    SuccessSelf: you unfasten the bolts on {WhoOn}'s {OnPart}
+    SuccessOther: '{performer} unfastens the bolts on {WhoOn}''s {OnPart}'
+    FailSelf: you fail to unfasten the bolts on {WhoOn}'s {OnPart}
+    FailOther: '{performer} fails to unfasten the bolts on {WhoOn}''s {OnPart}'
+    BleedStacksToAdd: 0

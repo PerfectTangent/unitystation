@@ -9,6 +9,7 @@ namespace Messages.Client.VariableViewer
 		public struct NetMessage : NetworkMessage
 		{
 			public ulong PageID;
+			public bool SendToClient;
 		}
 
 		public override void Process(NetMessage msg)
@@ -18,16 +19,17 @@ namespace Messages.Client.VariableViewer
 
 		private void ValidateAdmin(NetMessage msg)
 		{
-			if (IsFromAdmin() == false) return;
+			if (HasPermission(TAG.VV_CALL) == false) return;
 
-			global::VariableViewer.RequestInvokeFunction(msg.PageID, SentByPlayer.GameObject, SentByPlayer.UserId);
+			global::VariableViewer.RequestInvokeFunction(msg.PageID,msg.SendToClient ,  SentByPlayer.GameObject, SentByPlayer.AccountId);
 		}
 
-		public static NetMessage Send(ulong _PageID)
+		public static NetMessage Send(ulong _PageID, bool InSendToClient)
 		{
 			NetMessage msg = new NetMessage
 			{
-				PageID = _PageID
+				PageID = _PageID,
+				SendToClient =  InSendToClient,
 			};
 
 			Send(msg);

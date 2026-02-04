@@ -26,7 +26,7 @@ namespace Objects.Atmospherics
 			Injecting = 2,
 		}
 
-		private readonly float molesRate = 100;
+		public float molesRate = 600;
 
 		[SerializeField]
 		[Tooltip("Set the injector's on/off switch (also requires power for operation)")]
@@ -41,16 +41,16 @@ namespace Objects.Atmospherics
 
 		private MetaDataNode metaNode;
 		private MetaDataLayer metaDataLayer;
+		private GasMix pipeMix => pipeData.GetMixAndVolume.GetGasMix();
 
-		private GasMix pipeMix;
+
 		private GasMix sourceMix;
 		private GasMix targetMix;
 
 		public override void OnSpawnServer(SpawnInfo info)
 		{
 			metaDataLayer = MatrixManager.AtPoint(registerTile.WorldPositionServer, true).MetaDataLayer;
-			metaNode = metaDataLayer.Get(registerTile.LocalPositionServer, false);
-			pipeMix = pipeData.GetMixAndVolume.GetGasMix();
+			metaNode = metaDataLayer.Get(registerTile.LocalPositionServer);
 
 			UpdateState();
 			base.OnSpawnServer(info);
@@ -58,6 +58,8 @@ namespace Objects.Atmospherics
 
 		public override void TickUpdate()
 		{
+			CheckGasAndNode();
+
 			pipeData.mixAndVolume.EqualiseWithOutputs(pipeData.Outputs);
 
 			if (isOperating)
@@ -107,26 +109,35 @@ namespace Objects.Atmospherics
 		{
 			isOperating = powerState != PowerState.Off && isTurnedOn;
 
-			if (CustomNetworkManager.IsServer)
-			{
-				switch (operatingMode)
-				{
-					default:
-					case Mode.Injecting:
-						sourceMix = pipeMix;
-						targetMix = metaNode.GasMix;
-						break;
-					case Mode.Extracting:
-						sourceMix = metaNode.GasMix;
-						targetMix = pipeMix;
-						break;
-				}
-			}
-
+			CheckGasAndNode();
 
 			Sprite sprite = operatingMode == Mode.Injecting ? Sprite.Injecting : Sprite.On;
 			sprite = isOperating ? sprite : Sprite.Off;
-			spritehandler.ChangeSprite((int)sprite);
+			spritehandler.SetCatalogueIndexSprite((int)sprite);
+		}
+
+		private void CheckGasAndNode()
+		{
+			if (CustomNetworkManager.IsServer == false) return;
+
+			if (metaNode == null || metaNode.Exists == false)
+			{
+				if (metaDataLayer == null || registerTile == null) return;
+				metaNode = metaDataLayer.Get(registerTile.LocalPositionServer);
+			}
+
+			switch (operatingMode)
+			{
+				default:
+				case Mode.Injecting:
+					sourceMix = pipeMix;
+					targetMix = metaNode.GasMixLocal;
+					break;
+				case Mode.Extracting:
+					sourceMix = metaNode.GasMixLocal;
+					targetMix = pipeMix;
+					break;
+			}
 		}
 
 		#region IAPCPowerable

@@ -13,7 +13,6 @@
         "Utils",
         "Unity.2D.PixelPerfect",
         "Unity.EditorCoroutines.Editor",
-        "MLAgent",
         "Logger",
         "GameInfo",
         "Lighting",
@@ -24,7 +23,24 @@
         "SpriteProcessing",
         "Unity.MemoryProfiler",
         "NewAssembly",
-        "EditorAndAssetsSharedScripts"
+        "Shared",
+        "Mirror.Ignorance",
+        "Mirror.Transports",
+        "SecureStuff",
+        "SunVoxplugin",
+        "Siccity.SerializableCallback",
+        "Siccity.SerializableCallback.Editor",
+        "Adrenak.UniMic.Runtime",
+        "RootSillys",
+        "UImGui",
+        "UImGui.Editor",
+        "com.whisper.unity",
+        "Permissions",
+        "UniTask",
+        "UniTask.Linq",
+        "UniTask.TextMeshPro",
+        "UniTask.Addressables",
+        "UniTask.DOTween"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -33,6 +49,22 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.psydack.uimgui",
+            "expression": "5",
+            "define": "UIMGUI_REMOVE_IMPLOT"
+        },
+        {
+            "name": "com.psydack.uimgui",
+            "expression": "5",
+            "define": "UIMGUI_REMOVE_IMGUIZMO"
+        },
+        {
+            "name": "com.psydack.uimgui",
+            "expression": "5",
+            "define": "UIMGUI_REMOVE_IMNODES"
+        }
+    ],
     "noEngineReferences": false
 }

@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1382959582050582858, guid: 05f59888eb108484aabd67b53074c7a6,
+        type: 3}
+      propertyPath: armoredBodyParts.Array.data[0].armor.StunImmunity
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2905032154871127383, guid: 05f59888eb108484aabd67b53074c7a6,
         type: 3}
       propertyPath: initialName
@@ -18,6 +24,12 @@ PrefabInstance:
       value: The standard issue hardsuit of the ERT, this one has red highlights.
         Offers superb protection against environmental hazards.
       objectReference: {fileID: 0}
+    - target: {fileID: 2905032154871127383, guid: 05f59888eb108484aabd67b53074c7a6,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: eea5f2a5cd53fc54993d681279d1b3c9,
+        type: 2}
     - target: {fileID: 3192155426716549481, guid: 05f59888eb108484aabd67b53074c7a6,
         type: 3}
       propertyPath: m_Sprite
@@ -86,8 +98,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3398265494507982721, guid: 05f59888eb108484aabd67b53074c7a6,
         type: 3}
+      propertyPath: _assetId
+      value: 1650627083
+      objectReference: {fileID: 0}
+    - target: {fileID: 3398265494507982721, guid: 05f59888eb108484aabd67b53074c7a6,
+        type: 3}
       propertyPath: m_AssetId
       value: 7c5a066aa69ef344c932a07f3600dc92
+      objectReference: {fileID: 0}
+    - target: {fileID: 8504937989527846488, guid: 05f59888eb108484aabd67b53074c7a6,
+        type: 3}
+      propertyPath: parentID
+      value: 05f59888eb108484aabd67b53074c7a6
       objectReference: {fileID: 0}
     - target: {fileID: 8504937989527846488, guid: 05f59888eb108484aabd67b53074c7a6,
         type: 3}
@@ -106,7 +128,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8556873813547803056, guid: 05f59888eb108484aabd67b53074c7a6,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: a3aad717b5722fc41897ec42a8c8ef69,
         type: 2}
@@ -116,5 +138,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: eea5f2a5cd53fc54993d681279d1b3c9,
         type: 2}
+    - target: {fileID: 8933798993108994482, guid: 05f59888eb108484aabd67b53074c7a6,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: eea5f2a5cd53fc54993d681279d1b3c9,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 05f59888eb108484aabd67b53074c7a6, type: 3}

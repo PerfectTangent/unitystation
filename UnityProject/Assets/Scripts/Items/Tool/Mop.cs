@@ -18,13 +18,9 @@ public class Mop : MonoBehaviour, ICheckedInteractable<PositionalHandApply>, IEx
 
 	private ReagentContainer reagentContainer;
 
-	[SerializeField]
-	[Range(1,50)]
-	private int reagentsPerUse = 5;
+	[SerializeField] [Range(1, 50)] private int reagentsPerUse = 5;
 
-	[SerializeField]
-	[Range(0.1f,20f)]
-	private float useTime = 5f;
+	[SerializeField] [Range(0.1f, 20f)] private float useTime = 5f;
 
 	private void Awake()
 	{
@@ -37,26 +33,47 @@ public class Mop : MonoBehaviour, ICheckedInteractable<PositionalHandApply>, IEx
 
 	public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 	{
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 		//can only mop tiles
 		if (!Validations.HasComponent<InteractableTiles>(interaction.TargetObject)) return false;
-
-		//don't attempt to mop walls
-		if (MatrixManager.IsWallAt(interaction.WorldPositionTarget.RoundToInt(), isServer: side == NetworkSide.Server))
-		{
-			return false;
-		}
 
 		return true;
 	}
 
 	public void ServerPerformInteraction(PositionalHandApply interaction)
 	{
-		if (reagentContainer.ReagentMixTotal < 1)
-		{	//warning
-			Chat.AddExamineMsg(interaction.Performer, "Your mop is dry!");
-			return;
+		Vector3Int worldPos = interaction.WorldPositionTarget.RoundToInt();
+		MatrixInfo matrixInfo = MatrixManager.AtPoint(worldPos, true);
+		Vector3Int localPos = MatrixManager.WorldToLocalInt(worldPos, matrixInfo);
+
+		if (matrixInfo.MetaDataLayer.Get(localPos).ReagentsOnTile.Total > 0)
+		{
+			// if (reagentContainer.IsFull)
+			// {
+			// 	Chat.AddExamineMsg(interaction.Performer,
+			// 		"your mop is too wet to soak up any of the liquid on the floor");
+			// 	return;
+			// }
 		}
+		else
+		{
+			if (reagentContainer.ReagentMixTotal < 1)
+			{
+				if (matrixInfo.MetaDataLayer.Get(localPos).ReagentsOnTile.Total == 0)
+				{
+					Chat.AddExamineMsg(interaction.Performer, "Your mop is dry, and so is the floor!");
+					return;
+				}
+			}
+		}
+
+		void CleanUpMess(bool slippery, MatrixInfo matrixInfo, Vector3Int localPos, Vector3Int worldPos)
+		{
+
+			matrixInfo.MetaDataLayer.Clean(worldPos, localPos, slippery);
+			reagentContainer.TakeReagents(reagentsPerUse);
+		}
+
 		//server is performing server-side logic for the interaction
 		//do the mopping
 		void CompleteProgress()
@@ -64,17 +81,41 @@ public class Mop : MonoBehaviour, ICheckedInteractable<PositionalHandApply>, IEx
 			Vector3Int worldPos = interaction.WorldPositionTarget.RoundToInt();
 			MatrixInfo matrixInfo = MatrixManager.AtPoint(worldPos, true);
 			Vector3Int localPos = MatrixManager.WorldToLocalInt(worldPos, matrixInfo);
+
+
+			if (matrixInfo.MetaDataLayer.Get(localPos).ReagentsOnTile.Total > 0) //you need to check state could have changed while you are working
+			{
+				// if (reagentContainer.IsFull)
+				// {
+				// 	Chat.AddExamineMsg(interaction.Performer,
+				// 		"your mob is too wet to soak up any of the liquid on the floor");
+				// 	return;
+				// }
+			}
+			else
+			{
+				if (reagentContainer.ReagentMixTotal < 1)
+				{
+					if (matrixInfo.MetaDataLayer.Get(localPos).ReagentsOnTile.Total == 0)
+					{
+						Chat.AddExamineMsg(interaction.Performer, "Your mop is dry, and so is the floor!");
+						return;
+					}
+				}
+			}
+
+
+
 			if (reagentContainer)
 			{
 				if (reagentContainer.MajorMixReagent == Water)
 				{
-					matrixInfo.MetaDataLayer.Clean(worldPos, localPos, true);
-					reagentContainer.TakeReagents(reagentsPerUse);
+					MatrixManager.ReagentReact(reagentContainer.TakeReagents(reagentsPerUse), worldPos);
+					CleanUpMess(true, matrixInfo, localPos, worldPos); //We can't spill the reagents because It has different behaviour than if you just Spilled directly
 				}
-				else if (reagentContainer.MajorMixReagent ==  SpaceCleaner)
+				else if (reagentContainer.MajorMixReagent == SpaceCleaner)
 				{
-					matrixInfo.MetaDataLayer.Clean(worldPos, localPos, false);
-					reagentContainer.TakeReagents(reagentsPerUse);
+					CleanUpMess(false, matrixInfo, localPos, worldPos); //We can't spill the reagents because It has different behaviour than if you just Spilled directly
 				}
 				else
 				{

@@ -79,6 +79,7 @@ namespace Objects.Kitchen
 		[SerializeField]
 		[Tooltip("Sprite responsible for the oven's door.")]
 		private SpriteHandler spriteHandlerDoor = default;
+		[SerializeField]
 		private ItemStorage storage;
 		private APCPoweredDevice poweredDevice;
 		private readonly Dictionary<ItemSlot, Cookable> storedCookables = new Dictionary<ItemSlot, Cookable>();
@@ -120,7 +121,6 @@ namespace Objects.Kitchen
 		private void Awake()
 		{
 			registerTile = GetComponent<RegisterTile>();
-			storage = GetComponent<ItemStorage>();
 			poweredDevice = GetComponent<APCPoweredDevice>();
 
 			SetState(new OvenUnpowered(this));
@@ -238,17 +238,17 @@ namespace Objects.Kitchen
 		private void StartOven(bool silent)
 		{
 			UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
-			if(!silent)
+			if(silent == false)
 				SoundManager.PlayNetworkedAtPos(startSfx, WorldPosition, sourceObj: gameObject);
-			playAudioLoop = true;
+			OnSyncPlayAudioLoop(playAudioLoop, true);
 		}
 
 		private void HaltOven(bool silent)
 		{
 			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
-			if(!silent)
+			if(silent == false)
 				SoundManager.PlayNetworkedAtPos(startSfx, WorldPosition, sourceObj: gameObject);
-			playAudioLoop = false;
+			OnSyncPlayAudioLoop(playAudioLoop, false);
 		}
 
 		private void CheckCooked(float cookTime)
@@ -281,6 +281,7 @@ namespace Objects.Kitchen
 
 		private void OnSyncPlayAudioLoop(bool oldState, bool newState)
 		{
+			playAudioLoop = newState;
 			if (newState)
 			{
 				StartCoroutine(DelayOvenRunningSfx());
@@ -288,7 +289,7 @@ namespace Objects.Kitchen
 			}
 			else
 			{
-				SoundManager.Stop(runLoopGUID);
+				SoundManager.ClientStop(runLoopGUID, true);
 				particles.Stop();
 			}
 		}
@@ -314,29 +315,27 @@ namespace Objects.Kitchen
 			if (playAudioLoop)
 			{
 				runLoopGUID = Guid.NewGuid().ToString();
-				SoundManager.PlayAtPositionAttached(RunningAudio, registerTile.WorldPosition, gameObject, runLoopGUID,
-						audioSourceParameters: new AudioSourceParameters(pitch: voltageModifier));
+				SoundManager.ClientPlayAtPositionAttached(RunningAudio, registerTile.WorldPosition, gameObject, runLoopGUID,
+						audioSourceParameters: new AudioSourceParameters(pitch: voltageModifier, loops: true));
 			}
 		}
 
 		#region IRefreshParts
 
-		public void RefreshParts(IDictionary<GameObject, int> partsInFrame)
+		public void RefreshParts(List<PartReference> partsInFrame, Machine Frame)
 		{
 			// Get the machine stock parts used in this instance and get the tier of each part.
 			// Collection is unorganized so run through the whole list.
-			foreach (GameObject part in partsInFrame.Keys)
+			foreach (PartReference part in partsInFrame)
 			{
-				ItemAttributesV2 partAttributes = part.GetComponent<ItemAttributesV2>();
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MicroLaser))
+				if (part.itemTrait == MachinePartsItemTraits.Instance.MicroLaser)
 				{
-					laserTier = part.GetComponent<StockTier>().Tier;
+					laserTier = part.tier;
 				}
 
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MatterBin))
+				if (part.itemTrait ==  MachinePartsItemTraits.Instance.MatterBin)
 				{
-					int binTier = part.GetComponent<StockTier>().Tier;
-
+					int binTier = part.tier;
 					// Decide ItemStorageStructure based on tier. Currently: slot size == twice the bin tier.
 					storage.AcceptNewStructure(TierStorage[binTier - 1]);
 				}
@@ -386,8 +385,8 @@ namespace Objects.Kitchen
 			{
 				this.oven = oven;
 				StateMsgForExamine = "idle";
-				oven.spriteHandlerOven.ChangeSprite((int) SpriteStateOven.Idle);
-				oven.spriteHandlerDoor.ChangeSprite((int) SpriteStateDoor.Closed);
+				oven.spriteHandlerOven.SetCatalogueIndexSprite((int) SpriteStateOven.Idle);
+				oven.spriteHandlerDoor.SetCatalogueIndexSprite((int) SpriteStateDoor.Closed);
 				oven.OnSyncScreenGlow(oven.screenGlowEnabled, false);
 				oven.OnSyncOvenGlow(oven.ovenGlowEnabled, false);
 				oven.HaltOven(true);
@@ -421,8 +420,8 @@ namespace Objects.Kitchen
 			{
 				this.oven = oven;
 				StateMsgForExamine = "open";
-				oven.spriteHandlerOven.ChangeSprite((int) SpriteStateOven.Idle);
-				oven.spriteHandlerDoor.ChangeSprite((int) SpriteStateDoor.Open);
+				oven.spriteHandlerOven.SetCatalogueIndexSprite((int) SpriteStateOven.Idle);
+				oven.spriteHandlerDoor.SetCatalogueIndexSprite((int) SpriteStateDoor.Open);
 				oven.OnSyncScreenGlow(oven.screenGlowEnabled, false);
 				oven.OnSyncOvenGlow(oven.ovenGlowEnabled, true);
 				oven.HaltOven(true);
@@ -456,8 +455,8 @@ namespace Objects.Kitchen
 				StateMsgForExamine = "running";
 				oven.OnSyncScreenGlow(oven.screenGlowEnabled, true);
 				oven.OnSyncOvenGlow(oven.ovenGlowEnabled, true);
-				oven.spriteHandlerOven.ChangeSprite((int) SpriteStateOven.Running);
-				oven.spriteHandlerDoor.ChangeSprite((int) SpriteStateDoor.Closed);
+				oven.spriteHandlerOven.SetCatalogueIndexSprite((int) SpriteStateOven.Running);
+				oven.spriteHandlerDoor.SetCatalogueIndexSprite((int) SpriteStateDoor.Closed);
 				oven.SetWattage(oven.circuitWattage + oven.ovenBulbWattage + oven.magnetronWattage);
 			}
 
@@ -477,6 +476,7 @@ namespace Objects.Kitchen
 			{
 				if (state == PowerState.Off)
 				{
+					oven.OnSyncPlayAudioLoop(oven.playAudioLoop, false);
 					oven.SetState(new OvenUnpowered(oven));
 				}
 			}
@@ -488,8 +488,8 @@ namespace Objects.Kitchen
 			{
 				this.oven = oven;
 				StateMsgForExamine = "unpowered";
-				oven.spriteHandlerOven.ChangeSprite((int) SpriteStateOven.Idle);
-				oven.spriteHandlerDoor.ChangeSprite((int) SpriteStateDoor.Closed);
+				oven.spriteHandlerOven.SetCatalogueIndexSprite((int) SpriteStateOven.Idle);
+				oven.spriteHandlerDoor.SetCatalogueIndexSprite((int) SpriteStateDoor.Closed);
 				oven.OnSyncScreenGlow(oven.screenGlowEnabled, false);
 				oven.OnSyncOvenGlow(oven.ovenGlowEnabled, false);
 				oven.HaltOven(true);
@@ -519,8 +519,8 @@ namespace Objects.Kitchen
 			{
 				this.oven = oven;
 				StateMsgForExamine = "unpowered and open";
-				oven.spriteHandlerOven.ChangeSprite((int) SpriteStateOven.Idle);
-				oven.spriteHandlerDoor.ChangeSprite((int) SpriteStateDoor.Open);
+				oven.spriteHandlerOven.SetCatalogueIndexSprite((int) SpriteStateOven.Idle);
+				oven.spriteHandlerDoor.SetCatalogueIndexSprite((int) SpriteStateDoor.Open);
 				oven.OnSyncScreenGlow(oven.screenGlowEnabled, false);
 				oven.OnSyncOvenGlow(oven.ovenGlowEnabled, false);
 				oven.HaltOven(true);

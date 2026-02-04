@@ -5,21 +5,22 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 363731210469635200, guid: b98a08b3dafb3364bab457d9e3eba3b9,
         type: 3}
-      propertyPath: initialReagentMix.reagents.m_values.Array.data[0]
+      propertyPath: 'initialReagentMix.reagents.m_values.Array.data[0]'
       value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 363731210469635200, guid: b98a08b3dafb3364bab457d9e3eba3b9,
         type: 3}
-      propertyPath: initialReagentMix.reagents.m_values.Array.data[1]
+      propertyPath: 'initialReagentMix.reagents.m_values.Array.data[1]'
       value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 363731210469635200, guid: b98a08b3dafb3364bab457d9e3eba3b9,
         type: 3}
-      propertyPath: initialReagentMix.reagents.m_values.Array.data[2]
+      propertyPath: 'initialReagentMix.reagents.m_values.Array.data[2]'
       value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 1354363993479140170, guid: b98a08b3dafb3364bab457d9e3eba3b9,
@@ -96,6 +97,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1563318395579171228, guid: b98a08b3dafb3364bab457d9e3eba3b9,
         type: 3}
+      propertyPath: _assetId
+      value: 4080740478
+      objectReference: {fileID: 0}
+    - target: {fileID: 1563318395579171228, guid: b98a08b3dafb3364bab457d9e3eba3b9,
+        type: 3}
       propertyPath: m_AssetId
       value: ca97eaf4916babe459dab1c7b889f955
       objectReference: {fileID: 0}
@@ -103,7 +109,7 @@ PrefabInstance:
         type: 3}
       propertyPath: customNetTransform
       value: 
-      objectReference: {fileID: 1024735818341609324}
+      objectReference: {fileID: 0}
     - target: {fileID: 1646001653868892020, guid: b98a08b3dafb3364bab457d9e3eba3b9,
         type: 3}
       propertyPath: m_Sprite
@@ -118,20 +124,16 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 5520438634223841349, guid: b98a08b3dafb3364bab457d9e3eba3b9,
         type: 3}
+      propertyPath: parentID
+      value: bakedcheeeeese
+      objectReference: {fileID: 0}
+    - target: {fileID: 5520438634223841349, guid: b98a08b3dafb3364bab457d9e3eba3b9,
+        type: 3}
       propertyPath: foreverID
       value: bakedcheesewithbread
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b98a08b3dafb3364bab457d9e3eba3b9, type: 3}
---- !u!114 &1024735818341609324 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1563768407257649656, guid: b98a08b3dafb3364bab457d9e3eba3b9,
-    type: 3}
-  m_PrefabInstance: {fileID: 1984689788372713108}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 

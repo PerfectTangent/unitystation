@@ -9,6 +9,9 @@ using AdminTools;
 using AdminTools.VariableViewer;
 using Audio.Managers;
 using Initialisation;
+using Learning;
+using Logs;
+using Messages.Client.Lobby;
 using UI;
 using UI.Core;
 using UI.Core.Windows;
@@ -17,7 +20,13 @@ using UI.Jobs;
 using UI.UI_Bottom;
 using UI.Windows;
 using Systems.CraftingV2.GUI;
-using UI.Core.RightClick;
+using Systems.Faith.UI;
+using UI.Character;
+using UI.Systems.AdminTools.AdminLogs;
+using UI.Systems.AdminTools.DevTools;
+using UI.Systems.EndRound;
+using UI.Systems.ServerInfoPanel;
+using UI.Systems.Tooltips.HoverTooltips;
 
 public class UIManager : MonoBehaviour, IInitialise
 {
@@ -38,9 +47,12 @@ public class UIManager : MonoBehaviour, IInitialise
 	public StatsTab statsTab;
 	public Text toolTip;
 	public Text pingDisplay;
-	[SerializeField]
-	[Tooltip("Text displaying the game's version number.")]
+
+	public ClientAlertManager ClientAlertManager;
+
+	[SerializeField] [Tooltip("Text displaying the game's version number.")]
 	public Text versionDisplay;
+
 	public GUI_Info infoWindow;
 	public TeleportWindow teleportWindow;
 	[SerializeField] private GhostRoleWindow ghostRoleWindow = default;
@@ -53,12 +65,12 @@ public class UIManager : MonoBehaviour, IInitialise
 	public AnimationCurve strandedZoomOutCurve;
 	public AdminChatButtons adminChatButtons;
 	public AdminChatButtons mentorChatButtons;
+	public AdminChatButtons prayerChatButtons;
 	public AdminChatWindows adminChatWindows;
 	public ProfileScrollView profileScrollView;
-	public PlayerAlerts playerAlerts;
 	[FormerlySerializedAs("antagBanner")] public GUIAntagBanner spawnBanner;
-	private bool preventChatInput;
-	[SerializeField] [Range(0.1f,10f)] private float PhoneZoomFactor = 1.6f;
+	private static bool preventChatInput;
+	[SerializeField] [Range(0.1f, 10f)] private float PhoneZoomFactor = 1.6f;
 	public LobbyUIPlayerListController lobbyUIPlayerListController = null;
 
 	public SurgeryDialogue SurgeryDialogue;
@@ -73,10 +85,21 @@ public class UIManager : MonoBehaviour, IInitialise
 
 	public SplittingMenu SplittingMenu;
 
+	public GUI_DevTileChanger TileChanger;
+
+	public CharacterSettings CharacterSettings;
+
+	[field: SerializeField] public ServerInfoPanelWindow ServerInfoPanelWindow { get; private set; }
+
+	public RoundEndScoreScreen ScoreScreen;
+
+	[field: SerializeField] public ExpLevelUI FirstTimePlayerExperienceScreen { get; set; }
+	[field: SerializeField] public ColorPicker GlobalColorPicker { get; set; }
+
 	public static bool PreventChatInput
 	{
-		get { return uiManager.preventChatInput; }
-		set { uiManager.preventChatInput = value; }
+		get { return preventChatInput; }
+		set { preventChatInput = value; }
 	}
 
 	//map from progress bar id to actual progress bar component.
@@ -142,8 +165,9 @@ public class UIManager : MonoBehaviour, IInitialise
 #endif
 
 	public static bool IsTablet => DeviceDiagonalSizeInInches > 6.5f && AspectRatio < 2f;
+
 	public static float AspectRatio =>
-		(float) Mathf.Max(Screen.width, Screen.height) / Mathf.Min(Screen.width, Screen.height);
+		(float)Mathf.Max(Screen.width, Screen.height) / Mathf.Min(Screen.width, Screen.height);
 
 	public static float DeviceDiagonalSizeInInches
 	{
@@ -151,9 +175,9 @@ public class UIManager : MonoBehaviour, IInitialise
 		{
 			float screenWidth = Screen.width / Screen.dpi;
 			float screenHeight = Screen.height / Screen.dpi;
-			float diagonalInches = Mathf.Sqrt (Mathf.Pow (screenWidth, 2) + Mathf.Pow (screenHeight, 2));
+			float diagonalInches = Mathf.Sqrt(Mathf.Pow(screenWidth, 2) + Mathf.Pow(screenHeight, 2));
 
-			Logger.Log("Getting mobile device screen size in inches: " + diagonalInches, Category.UI);
+			Loggy.Info("Getting mobile device screen size in inches: " + diagonalInches, Category.UI);
 
 			return diagonalInches;
 		}
@@ -201,9 +225,33 @@ public class UIManager : MonoBehaviour, IInitialise
 
 	private float pingUpdate;
 
+	[SerializeField] private PanelTooltipManager panelTooltipManager;
+	public PanelTooltipManager PanelTooltipManager => panelTooltipManager;
+
+	[SerializeField] private HoverTooltipUI hoverTooltipUI;
+	public HoverTooltipUI HoverTooltipUI => hoverTooltipUI;
+
+	[SerializeField] public CanvasScaler Scaler;
+
+	[field: SerializeField] public ChaplainFirstTimeSelectScreen ChaplainFirstTimeSelectScreen { get; private set; }
+	[field: SerializeField] public AdminLogsWindow AdminLogsWindow { get; private set; }
+
 	public static string SetToolTip
 	{
-		set { Instance.toolTip.text = value; }
+		set
+		{
+			if (Instance.PanelTooltipManager == null) return;
+			Instance.PanelTooltipManager.UpdateActiveTooltip(value);
+		}
+	}
+
+	public static GameObject SetHoverToolTip
+	{
+		set
+		{
+			if (Instance.HoverTooltipUI == null) return;
+			Instance.hoverTooltipUI.SetupTooltip(value, false);
+		}
 	}
 
 	public static string SetVersionDisplay
@@ -222,9 +270,9 @@ public class UIManager : MonoBehaviour, IInitialise
 			currentIntent = value;
 
 			//update the intent of the player on server so server knows we are swappable or not
-			if (PlayerManager.LocalPlayerScript != null)
+			if (PlayerManager.LocalPlayerScript != null && PlayerManager.LocalPlayerScript.IsNormal)
 			{
-				PlayerManager.LocalPlayerScript.playerMove.CmdSetHelpIntent(currentIntent == global::Intent.Help);
+				PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdSetCurrentIntent(currentIntent);
 			}
 		}
 	}
@@ -251,13 +299,13 @@ public class UIManager : MonoBehaviour, IInitialise
 	void IInitialise.Initialise()
 	{
 		DetermineInitialTargetFrameRate();
-		Logger.Log("Touchscreen support = " + CommonInput.IsTouchscreen, Category.Sprites);
+		Loggy.Info("Touchscreen support = " + CommonInput.IsTouchscreen, Category.Sprites);
 		InitMobile();
 
-		if (!PlayerPrefs.HasKey(PlayerPrefKeys.TTSToggleKey))
+		if (PlayerPrefs.HasKey(PlayerPrefKeys.TTSToggleKey) == false)
 		{
-			PlayerPrefs.SetInt(PlayerPrefKeys.TTSToggleKey, 0);
-			ttsToggle = false;
+			PlayerPrefs.SetInt(PlayerPrefKeys.TTSToggleKey, 1);
+			ttsToggle = true;
 			PlayerPrefs.Save();
 		}
 		else
@@ -267,6 +315,7 @@ public class UIManager : MonoBehaviour, IInitialise
 
 		adminChatButtons.transform.parent.gameObject.SetActive(false);
 		mentorChatButtons.transform.parent.gameObject.SetActive(false);
+		prayerChatButtons.transform.parent.gameObject.SetActive(false);
 		SetVersionDisplay = $"Work In Progress {GameData.BuildNumber}";
 	}
 
@@ -279,7 +328,7 @@ public class UIManager : MonoBehaviour, IInitialise
 
 		if (!IsTablet) //tablets should be fine as is
 		{
-			Logger.Log("Looks like it's a phone, scaling UI", Category.UI);
+			Loggy.Info("Looks like it's a phone, scaling UI", Category.UI);
 			var canvasScaler = GetComponent<CanvasScaler>();
 			if (!canvasScaler)
 			{
@@ -289,7 +338,7 @@ public class UIManager : MonoBehaviour, IInitialise
 			canvasScaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
 			canvasScaler.matchWidthOrHeight = 0f; //match width
 			canvasScaler.referenceResolution =
-				new Vector2(Screen.width/PhoneZoomFactor, canvasScaler.referenceResolution.y);
+				new Vector2(Screen.width / PhoneZoomFactor, canvasScaler.referenceResolution.y);
 
 		}
 	}
@@ -310,13 +359,13 @@ public class UIManager : MonoBehaviour, IInitialise
 	{
 		adminChatButtons.ClearAllNotifications();
 		mentorChatButtons.ClearAllNotifications();
+		prayerChatButtons.ClearAllNotifications();
 		adminChatWindows.ResetAll();
-		playerAlerts.ClearLogs();
 	}
 
 	void DetermineInitialTargetFrameRate()
 	{
-		if(!PlayerPrefs.HasKey(PlayerPrefKeys.TargetFrameRate))
+		if (!PlayerPrefs.HasKey(PlayerPrefKeys.TargetFrameRate))
 		{
 			PlayerPrefs.SetInt(PlayerPrefKeys.TargetFrameRate, 99);
 			PlayerPrefs.Save();
@@ -379,7 +428,7 @@ public class UIManager : MonoBehaviour, IInitialise
 		// 		);
 		// 		break;
 		// 	default:
-		// 		Logger.LogWarning($"There is no keybind text for KeyAction {keyAction}", Category.Keybindings);
+		// 		Loggy.LogWarning($"There is no keybind text for KeyAction {keyAction}", Category.Keybindings);
 		// 		break;
 		// }
 	}
@@ -402,12 +451,7 @@ public class UIManager : MonoBehaviour, IInitialise
 
 	public static void ResetAllUI()
 	{
-		UI_ItemSlot[] slots = Instance.GetComponentsInChildren<UI_ItemSlot>(true);
-		foreach (UI_ItemSlot slot in slots)
-		{
-			slot.Reset();
-		}
-
+		if (StorageHandler == null) return;
 		StorageHandler.CloseStorageUI();
 		Camera2DFollow.followControl.ZeroStars();
 		IsOxygen = false;
@@ -441,8 +485,8 @@ public class UIManager : MonoBehaviour, IInitialise
 	{
 		//convert to local position so it appears correct on moving matrix
 		//do not use tileworldposition for actual spawn position - bar will appear shifted on moving matrix
-		var targetWorldPosition = PlayerManager.LocalPlayer.transform.position + offsetFromPlayer.To3Int();
-		var targetTilePosition = PlayerManager.LocalPlayer.TileWorldPosition() + offsetFromPlayer;
+		var targetWorldPosition = PlayerManager.LocalPlayerObject.transform.position + offsetFromPlayer.To3Int();
+		var targetTilePosition = PlayerManager.LocalPlayerObject.TileWorldPosition() + offsetFromPlayer;
 		var targetMatrixInfo = MatrixManager.AtPoint(targetTilePosition.To3Int(), true);
 		var targetParent = targetMatrixInfo.Objects;
 		//snap to local position
@@ -468,7 +512,7 @@ public class UIManager : MonoBehaviour, IInitialise
 		var bar = GetProgressBar(progressBarId);
 		if (bar == null)
 		{
-			Logger.LogWarningFormat("Tried to destroy progress bar with unrecognized id {0}, nothing will be done.",
+			Loggy.Warning().Format("Tried to destroy progress bar with unrecognized id {0}, nothing will be done.",
 				Category.UI, progressBarId);
 		}
 		else
@@ -492,7 +536,7 @@ public class UIManager : MonoBehaviour, IInitialise
 	/// <returns>progress bar associated with this action (can use this to interrupt progress). Null if
 	/// progress was not started for some reason (such as already in progress for this action on the specified tile).</returns>
 	public static ProgressBar _ServerStartProgress(
-			IProgressAction progressAction, ActionTarget actionTarget, float timeForCompletion, GameObject player)
+		IProgressAction progressAction, ActionTarget actionTarget, float timeForCompletion, GameObject player)
 	{
 		var targetMatrixInfo = MatrixManager.AtPoint(actionTarget.TargetWorldPosition.CutToInt(), true);
 		var targetParent = targetMatrixInfo.Objects;
@@ -505,7 +549,8 @@ public class UIManager : MonoBehaviour, IInitialise
 		if (!progressAction.OnServerStartProgress(startProgressInfo))
 		{
 			//stop it without even having started it
-			Logger.LogTraceFormat("Server cancelling progress start, OnServerStartProgress=false for {0}", Category.ProgressAction,
+			Loggy.Trace().Format("Server cancelling progress start, OnServerStartProgress=false for {0}",
+				Category.ProgressAction,
 				startProgressInfo);
 			Despawn.ClientSingle(barObject);
 			return null;
@@ -515,7 +560,7 @@ public class UIManager : MonoBehaviour, IInitialise
 		progressBar._ServerStartProgress(progressAction, startProgressInfo);
 		Instance.progressBars.Add(progressBar.ID, progressBar);
 
-		Logger.LogTraceFormat("Server started progress bar {0} for {1}", Category.ProgressAction, progressBar.ID,
+		Loggy.Trace().Format("Server started progress bar {0} for {1}", Category.ProgressAction, progressBar.ID,
 			startProgressInfo);
 
 		return progressBar;
@@ -594,5 +639,17 @@ public class UIManager : MonoBehaviour, IInitialise
 		}
 
 		ChatUI.Instance.OpenChatWindow();
+	}
+
+	public void ToggleUiVisibility()
+	{
+		gameObject.SetActive(!gameObject.activeInHierarchy);
+		ChatUI.Instance.CloseChatWindow(true);
+	}
+
+	public void RefreshAndShowServerInfoUI()
+	{
+		InfoPanelMessageClient.Send();
+		if (Instance.ServerInfoPanelWindow != null) Instance.ServerInfoPanelWindow.SetActive(true);
 	}
 }

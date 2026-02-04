@@ -1,109 +1,130 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &1278961696047121072
+--- !u!1001 &4028902883767580106
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1800839840428714, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_Name
-      value: Condimaster Neo
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_RootOrder
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4868564961159832, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 114145799171838922, guid: 85791fbcb6be942d1b318907cb2edec3,
+    - target: {fileID: 631451412882678877, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
-      propertyPath: m_AssetId
-      value: a9bb1c419d48721408c99e53b0a1cd01
+      propertyPath: ChemMasterProducts.Array.size
+      value: 2
       objectReference: {fileID: 0}
-    - target: {fileID: 114543502171424504, guid: 85791fbcb6be942d1b318907cb2edec3,
+    - target: {fileID: 631451412882678877, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
-      propertyPath: customNetTransform
+      propertyPath: 'ChemMasterProducts.Array.data[0]'
       value: 
-      objectReference: {fileID: 1164698779781791848}
-    - target: {fileID: 212326510480741832, guid: 85791fbcb6be942d1b318907cb2edec3,
+      objectReference: {fileID: 8437426176302514975, guid: 32a48818544878d4c8e14ac2fd2b195a,
+        type: 3}
+    - target: {fileID: 631451412882678877, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: 'ChemMasterProducts.Array.data[1]'
+      value: 
+      objectReference: {fileID: 8794281008087571349, guid: 2b02e24d0d03e6241a36792d168e4bb7,
+        type: 3}
+    - target: {fileID: 2108535551643631250, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 21300000, guid: 3adab5704bc67504a9f520d6673810f1,
         type: 3}
-    - target: {fileID: 5969397313784283653, guid: 85791fbcb6be942d1b318907cb2edec3,
+    - target: {fileID: 2171642123480734341, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
-      propertyPath: ChemMasterProducts.Array.size
-      value: 2
+      propertyPath: m_Name
+      value: New Condimaster Neo
       objectReference: {fileID: 0}
-    - target: {fileID: 5969397313784283653, guid: 85791fbcb6be942d1b318907cb2edec3,
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
-      propertyPath: ChemMasterProducts.Array.data[0]
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2177082274044042335, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2977672256540435660, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: foreverID
+      value: Condimaster
+      objectReference: {fileID: 0}
+    - target: {fileID: 6661890231997542495, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: PresentSpriteSet
       value: 
-      objectReference: {fileID: 8437426176302514975, guid: 32a48818544878d4c8e14ac2fd2b195a,
+      objectReference: {fileID: 11400000, guid: 191cc3cd5cd7cc048846d7331f22f9eb,
+        type: 2}
+    - target: {fileID: 6661890231997542495, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
-    - target: {fileID: 5969397313784283653, guid: 85791fbcb6be942d1b318907cb2edec3,
-        type: 3}
-      propertyPath: ChemMasterProducts.Array.data[1]
+      propertyPath: InitialPresentSpriteSet
       value: 
-      objectReference: {fileID: 8794281008087571349, guid: 2b02e24d0d03e6241a36792d168e4bb7,
-        type: 3}
-    - target: {fileID: 8277409669599951684, guid: 85791fbcb6be942d1b318907cb2edec3,
+      objectReference: {fileID: 11400000, guid: 191cc3cd5cd7cc048846d7331f22f9eb,
+        type: 2}
+    - target: {fileID: 7202499757115405119, guid: c85b38a32cd1e7f4c986496e0f11223f,
         type: 3}
       propertyPath: NetTabType
       value: 39
       objectReference: {fileID: 0}
+    - target: {fileID: 7781913165378138087, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: _assetId
+      value: 3358186170
+      objectReference: {fileID: 0}
+    - target: {fileID: 8828960688711763381, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: initialName
+      value: CondiMaster 3000
+      objectReference: {fileID: 0}
+    - target: {fileID: 8828960688711763381, guid: c85b38a32cd1e7f4c986496e0f11223f,
+        type: 3}
+      propertyPath: initialDescription
+      value: Used to create condiments and other cooking supplies.
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 85791fbcb6be942d1b318907cb2edec3, type: 3}
---- !u!114 &1164698779781791848 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 114313734620562136, guid: 85791fbcb6be942d1b318907cb2edec3,
-    type: 3}
-  m_PrefabInstance: {fileID: 1278961696047121072}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 579884b05ae74e8499329b64997147d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: c85b38a32cd1e7f4c986496e0f11223f, type: 3}

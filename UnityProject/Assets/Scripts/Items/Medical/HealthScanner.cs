@@ -2,8 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Globalization;
+using System.Linq;
 using HealthV2;
+using HealthV2.Living.PolymorphicSystems;
 using UnityEngine;
+using Util.Independent.FluentRichText;
+using Color = UnityEngine.Color;
 
 namespace Items.Medical
 {
@@ -19,6 +23,8 @@ namespace Items.Medical
 		private string burnColor;
 		private string toxinColor;
 		private string oxylossColor;
+		private string CloneDMGColor;
+		private string radiationStacksColor;
 
 		private TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
 
@@ -28,6 +34,8 @@ namespace Items.Medical
 			burnColor = ColorUtility.ToHtmlStringRGB(Color.yellow);
 			toxinColor = ColorUtility.ToHtmlStringRGB(Color.green);
 			oxylossColor = ColorUtility.ToHtmlStringRGB(new Color(0.50f, 0.50f, 1));
+			CloneDMGColor = ColorUtility.ToHtmlStringRGB(new Color(0,1,1));
+			radiationStacksColor = ColorUtility.ToHtmlStringRGB(new Color(1,0.4980f,0.3137254f));
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
@@ -46,16 +54,56 @@ namespace Items.Medical
 					$"{performerName} analyzes {targetName}'s vitals.");
 
 			var health = interaction.TargetObject.GetComponent<LivingHealthMasterBase>();
+			var trauma = interaction.TargetObject.GetComponent<CreatureTraumaManager>();
 			var totalPercent = Mathf.Floor(100 * health.OverallHealth / health.MaxHealth);
-			var bloodTotal = Mathf.Round(health.GetTotalBlood());
-			var bloodPercent = Mathf.Round(bloodTotal / health.CirculatorySystem.BloodInfo.BLOOD_NORMAL * 100);
+
+			var bloodTotal = 0f;
+			var bloodPercent = 0f;
+			if (health.reagentPoolSystem != null)
+			{
+				bloodTotal = Mathf.Round(health.reagentPoolSystem.GetTotalBlood());
+				bloodPercent = Mathf.Round(bloodTotal / health.reagentPoolSystem.NormalBlood * 100);
+			}
+
+			var heartState = "";
+
+			if (health.reagentPoolSystem != null)
+			{
+				foreach (var Part in health.reagentPoolSystem.PumpingDevices)
+				{
+					if (Part.HeartAttack)
+					{
+						heartState += "stopped!,".Color(RichTextColor.Red);
+					}
+					else
+					{
+						heartState += "operating normally,".Color(RichTextColor.Green);
+					}
+				}
+			}
+			else
+			{
+				heartState = "N/A";
+			}
+
+
+			var LivingHunger = health.ActiveSystems.FirstOrDefault(x => x is HungerSystem);
+
+			string DescriptionHunger = "N/A";
+			if (LivingHunger != null)
+			{
+				DescriptionHunger = ((HungerSystem) LivingHunger).CashedHungerState.ToString();
+			}
+
 			float[] fullDamage = new float[7];
 
 			StringBuilder scanMessage = new StringBuilder(
 					"----------------------------------------\n" +
 					$"{targetName} is {health.ConsciousState}\n" +
+					$"{targetName}'s heart is {heartState}\n" +
 					$"<b>Overall status: {totalPercent} % healthy</b>\n" +
-					$"Blood level: {bloodTotal}cc, {bloodPercent} %\n");
+					$"Blood Pool level: {bloodTotal}cc, {bloodPercent} %\n" +
+					$"Patients hunger is: {DescriptionHunger} \n");
 			StringBuilder partMessages = new StringBuilder();
 			foreach (var bodypart in health.BodyPartList)
 			{
@@ -84,30 +132,26 @@ namespace Items.Medical
 						$"<color=#{bruteColor}>{Mathf.Round(fullDamage[(int)DamageType.Brute]), 16}</color>" +
 						$"<color=#{burnColor}>{Mathf.Round(fullDamage[(int)DamageType.Burn]), 4}</color>" +
 						$"<color=#{toxinColor}>{Mathf.Round(fullDamage[(int)DamageType.Tox]), 4}</color>" +
-						$"<color=#{oxylossColor}>{Mathf.Round(fullDamage[(int)DamageType.Oxy]), 4}</color>"
+						$"<color=#{oxylossColor}>{Mathf.Round(fullDamage[(int)DamageType.Oxy]), 4}</color>" +
+						$"<color=#{CloneDMGColor}>{Mathf.Round(fullDamage[(int)DamageType.Clone]), 4}</color>"+
+						$"<color=#{radiationStacksColor}>{Mathf.Round(fullDamage[(int)DamageType.Radiation]), 4}</color>"
 				);
 				scanMessage.Append(partMessages);
 				scanMessage.Append("</mspace>");
 			}
 
-			if (interaction.IsAltClick && AdvancedHealthScanner)
+			if (AdvancedHealthScanner)
 			{
-				foreach(BodyPart part in health.BodyPartList)
-				{
-					if(part.BodyPartType == interaction.TargetBodyPart)
-					{
-						scanMessage.AppendLine(part.GetFullBodyPartDamageDescReport());
-					}
-				}
+				if (trauma != null) scanMessage.AppendLine(GetTraumaText(trauma));
 			}
 
 			scanMessage.AppendLine("-------===== Internal damage =====------");
 			partMessages.Clear();
 			foreach (var bodypart in health.BodyPartList)
 			{
-				if ( bodypart.DamageContributesToOverallHealth) continue;
-				if (bodypart.TotalDamage == 0) continue;
-				
+				if ( bodypart.DamageContributesToOverallHealth ) continue;
+				if ( bodypart.TotalDamage == 0 ) continue;
+
 				partMessages.AppendLine(GetBodypartMessage(bodypart));
 			}
 
@@ -116,6 +160,20 @@ namespace Items.Medical
 			scanMessage.Append("----------------------------------------");
 
 			Chat.AddExamineMsgFromServer(interaction.Performer, $"</i>{scanMessage}<i>");
+		}
+
+		private string GetTraumaText(CreatureTraumaManager creatureTrauma)
+		{
+			var traumaText = new StringBuilder();
+			foreach (BodyPartTrauma part in creatureTrauma.Traumas.Values)
+			{
+				foreach (TraumaLogic traumaLogic in part.TraumaTypesOnBodyPart)
+				{
+					if (traumaLogic.StageDescriptor() != null) traumaText.AppendLine(traumaLogic.StageDescriptor());
+				}
+			}
+
+			return traumaText.ToString();
 		}
 
 		private string GetBodypartMessage(BodyPart bodypart)

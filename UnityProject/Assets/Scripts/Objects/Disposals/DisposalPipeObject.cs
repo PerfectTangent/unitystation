@@ -1,6 +1,10 @@
 using System.Linq;
+using Core;
+using Logs;
 using UnityEngine;
 using Mirror;
+using Systems.Disposals;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Disposals
 {
@@ -12,7 +16,7 @@ namespace Objects.Disposals
 		private float weldTime = 3;
 
 		private RegisterTile registerTile;
-		private ObjectBehaviour behaviour;
+		private UniversalObjectPhysics behaviour;
 
 		[SerializeField]
 		[Tooltip("Tile to spawn when pipe is welded in the Up orientation.")]
@@ -33,12 +37,12 @@ namespace Objects.Disposals
 		private string objectName;
 		private HandApply currentInteraction;
 
-		public bool Anchored => behaviour.IsPushable == false;
+		public bool Anchored => behaviour.IsNotPushable;
 
 		private void Awake()
 		{
 			registerTile = gameObject.RegisterTile();
-			behaviour = GetComponent<ObjectBehaviour>();
+			behaviour = GetComponent<UniversalObjectPhysics>();
 		}
 
 		public override void OnStartServer()
@@ -46,7 +50,7 @@ namespace Objects.Disposals
 			objectName = gameObject.ExpensiveName();
 			if (gameObject.TryGetComponent<ObjectAttributes>(out var attributes))
 			{
-				objectName = attributes.InitialName;
+				objectName = attributes.ArticleName;
 			}
 		}
 
@@ -56,7 +60,7 @@ namespace Objects.Disposals
 		{
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-			return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench)
+			return Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench)
 				|| Validations.HasUsedActiveWelder(interaction);
 		}
 
@@ -64,7 +68,7 @@ namespace Objects.Disposals
 		{
 			currentInteraction = interaction;
 
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 			{
 				TryWrench();
 			}
@@ -220,7 +224,7 @@ namespace Objects.Disposals
 			}
 			else
 			{
-				Logger.LogError($"Failed to spawn disposal pipe tile! Is {name} missing reference to tile asset for {orientation}?",
+				Loggy.Error($"Failed to spawn disposal pipe tile! Is {name} missing reference to tile asset for {orientation}?",
 					Category.Pipes);
 			}
 		}

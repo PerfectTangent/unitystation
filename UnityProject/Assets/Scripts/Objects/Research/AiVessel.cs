@@ -45,11 +45,53 @@ namespace Objects.Research
 		private bool allowRadio;
 		public bool AllowRadio => allowRadio;
 
+		public int CurrentSpriteSet = 0;
+
+		[System.Serializable]
+		public class SpriteAndDead
+		{
+			public SpriteDataSO Normal;
+			public SpriteDataSO Dead;
+		}
+
+		public List<SpriteAndDead> AICoreSprites;
+
+		[Server]
+		public void NextCoreSprite()
+		{
+			if (vesselSpriteHandler.CataloguePage != 1 &&
+			    vesselSpriteHandler.PresentSpritesSet != AICoreSprites[CurrentSpriteSet].Normal)
+			{
+				return;
+			}
+
+			CurrentSpriteSet++;
+			if (CurrentSpriteSet >= AICoreSprites.Count)
+			{
+				CurrentSpriteSet = 0;
+			}
+
+			vesselSpriteHandler.SetSpriteSO(AICoreSprites[CurrentSpriteSet].Normal);
+		}
+
+		public void ShowDead()
+		{
+			if (AICoreSprites[CurrentSpriteSet].Dead != null)
+			{
+				vesselSpriteHandler.SetSpriteSO(AICoreSprites[CurrentSpriteSet].Dead);
+			}
+			else
+			{
+				vesselSpriteHandler.SetCatalogueIndexSprite(2);
+			}
+		}
+
+
 		[Server]
 		public void SetLinkedPlayer(AiPlayer aiPlayer)
 		{
 			linkedPlayer = aiPlayer;
-			vesselSpriteHandler.ChangeSprite(aiPlayer == null ? 0 : 1);
+			vesselSpriteHandler.SetCatalogueIndexSprite(aiPlayer == null ? 0 : 1);
 
 			if (isInteliCard)
 			{
@@ -68,9 +110,9 @@ namespace Objects.Research
 
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver)) return true;
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver)) return true;
 
-			if (Validations.HasUsedItemTrait(interaction, inteliCardTrait)) return true;
+			if (Validations.HasItemTrait(interaction, inteliCardTrait)) return true;
 
 			//Allow law changes directly on core
 			if (Validations.HasItemTrait(interaction.HandObject, moduleTrait)) return true;
@@ -81,14 +123,14 @@ namespace Objects.Research
 		public void ServerPerformInteraction(HandApply interaction)
 		{
 			//Deconstruct core
-			if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver))
+			if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver))
 			{
 				TryDeconstruct(interaction);
 				return;
 			}
 
 			//Upload law to core
-			if (Validations.HasUsedItemTrait(interaction, moduleTrait))
+			if (Validations.HasItemTrait(interaction, moduleTrait))
 			{
 				TryUpload(interaction);
 				return;
@@ -181,7 +223,7 @@ namespace Objects.Research
 		//Move camera to item position/ root container
 		public void OnInventoryMoveServer(InventoryMove info)
 		{
-			if(isInteliCard == false || LinkedPlayer == null) return;
+			if(isInteliCard == false || LinkedPlayer == null || info.MovedObject.gameObject != gameObject) return;
 
 			//Leaving inventory and to no slot, therefore going to floor
 			if (info.ToRootPlayer == null && info.ToSlot == null)

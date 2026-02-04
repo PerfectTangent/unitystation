@@ -1,20 +1,36 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Core.Camera;
+using Core.Physics;
+using Core.Utils;
+using Logs;
+using NaughtyAttributes;
+using Objects;
+using Shared.Managers;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace CameraEffects
 {
-	public class CameraEffectControlScript : MonoBehaviour
+	public class CameraEffectControlScript :  SingletonManager<CameraEffectControlScript>
 	{
-
+		[Header("Effect scripts")]
 		public DrunkCamera drunkCamera;
 		public GreyscaleCamera greyscaleCamera;
 		public GlitchEffect glitchEffect;
 		public NightVisionCamera nightVisionCamera;
 
+		public BlurryVision blurryVisionEffect;
+		public ColourblindEmulation colourblindEmulationEffect;
+		public HighCamera HighCamera;
+
+		[field: SerializeField] public FlashbangCamera FlashbangCamera { get; private set; }
+
+		[Header("Settings")]
 		[SerializeField]
 		private GameObject minimalVisibilitySprite;
+		public Vector3 MinimalVisibilityScale { private set; get; } = new(3.5f, 3.5f, 8);
 
 
 		[SerializeField] private int maxDrunkTime = 120000;
@@ -22,6 +38,111 @@ namespace CameraEffects
 
 		private const float TIMER_INTERVAL = 1f;
 		private float drunkCameraTime = 0;
+
+		[FormerlySerializedAs("LightingSystem")] public LightingSystem lightingSystem;
+
+
+		private readonly MultiInterestBool _blindness = new MultiInterestBool(false,
+			MultiInterestBool.RegisterBehaviour.RegisterFalse,
+			MultiInterestBool.BoolBehaviour.ReturnOnFalse);
+
+		public MultiInterestBool Blindness => _blindness;
+		private readonly MultiInterestBool _Xray = new MultiInterestBool(false,
+			MultiInterestBool.RegisterBehaviour.RemoveFalse,
+			MultiInterestBool.BoolBehaviour.ReturnOnTrue);
+
+		public MultiInterestBool Xray => _Xray;
+
+
+		[FormerlySerializedAs("BlindFOVDistance")] public float blindFOVDistance = 0.65f;
+		[FormerlySerializedAs("FullVisionFOVDistance")] public float fullVisionFOVDistance = 15;
+
+		private Coroutine _lastFlashbangCoroutine = null;
+
+
+		private SubCameraEffectControl _backgroundEffects;
+		private SubCameraEffectControl _lightMaskEffects;
+
+
+		public void Awake()
+		{
+			lightingSystem = this.GetComponent<LightingSystem>();
+			lightingSystem.OnLightingSystemEnabled += InitialiseSubCameraEffects;
+
+			_blindness.OnBoolChange.AddListener(BlindnessValue);
+			_Xray.OnBoolChange.AddListener(XrayValue);
+			if (CustomNetworkManager.IsHeadless == false)
+			{
+				UpdateManager.Add(CallbackType.UPDATE,UpdateMe);
+			}
+
+
+			if (minimalVisibilitySprite != null)
+			{
+				MinimalVisibilityScale = minimalVisibilitySprite.transform.localScale;
+				return;
+			}
+			Loggy.Warning("[CameraEffectControlScript] - visibilitySprite is null! please set it from the inspector.");
+		}
+
+		public List<IBumpableObject> Bumps = new List<IBumpableObject>();
+
+
+		public void UpdateMe()
+		{
+			if (PlayerManager.LocalPlayerObject == null) return;
+			Camera cam = Camera.main;
+			if (cam == null) return;
+			var position = PlayerManager.LocalPlayerObject.AssumedWorldPosServer(false);
+			var matrix = position.GetMatrixAtWorld();
+			var Localpos = position.ToLocal(matrix);
+			Bumps.Clear();
+
+			bool HasFovMOd = Camera2DFollow.followControl.FOVtarget != null;
+
+			if (matrix.MetaTileMap.GetTile(Localpos.RoundToInt(), LayerType.Walls) != null && HasFovMOd == false)
+			{
+				if (Xray.HasPosition(this.gameObject) == false)
+				{
+					if (Xray == false && cam.TryGetComponent<CameraEffectControlScript>(out var camEffect))
+					{
+						camEffect.lightingSystem.renderSettings.fovHorizonSmooth = 90;
+						camEffect.lightingSystem.fovDistance = 1.1f;
+						Xray.RecordPosition(this.gameObject, true);
+					}
+				}
+			}
+			else
+			{
+				if (Xray.HasPosition(this.gameObject))
+				{
+					Xray.RemovePosition(this.gameObject);
+					BlindnessValue(Blindness);
+				}
+			}
+		}
+
+		public void InitialiseSubCameraEffects(bool enabled)
+		{
+			if (enabled == false) return;
+
+			//Setup mask cameras for effects
+			if (_backgroundEffects == false)
+			{
+				var backgroundRenderer = GetComponentInChildren<BackgroundRenderer>();
+				if (backgroundRenderer != null)
+					_backgroundEffects = backgroundRenderer.gameObject.AddComponent<SubCameraEffectControl>();
+			}
+
+			if (_lightMaskEffects == false)
+			{
+				var lightMaskRenderer = GetComponentInChildren<LightMaskRenderer>();
+				if (lightMaskRenderer != null)
+					_lightMaskEffects = lightMaskRenderer.gameObject.AddComponent<SubCameraEffectControl>();
+			}
+
+			EnsureAllEffectsAreDisabled();
+		}
 
 		private void OnEnable()
 		{
@@ -37,37 +158,75 @@ namespace CameraEffects
 		private void OnGhostSpawn()
 		{
 			drunkCameraTime = 0;
-			ToggleNightVisionEffectState(false);
+			ToggleNightVisionEffectState(false, Color.white);
 			ToggleGlitchEffectState(false);
+
+			_backgroundEffects?.OnGhostSpawn();
+			_lightMaskEffects?.OnGhostSpawn();
 		}
 
-		public void AddDrunkTime(float time)
+		public void XrayValue(bool Hasxray)
 		{
-			drunkCameraTime += time;
-
-			drunkCameraTime = Mathf.Min(drunkCameraTime, maxDrunkTime);
-
-			if (drunkCamera.enabled == false)
+			if (Hasxray)
 			{
-				ToggleDrunkEffectState(true);
-				drunkCamera.ModerateDrunk();
-				UpdateManager.Add(DoEffectTimeCheck, TIMER_INTERVAL);
+				Camera.main.GetComponent<CameraEffects.CameraEffectControlScript>().lightingSystem.renderSettings.fovOcclusionSpread = 1;
 			}
+			else
+			{
+				Camera.main.GetComponent<CameraEffects.CameraEffectControlScript>().lightingSystem.renderSettings.fovOcclusionSpread = 0;
+			}
+		}
+
+
+		//setts the FOV to emulate blindness on the player
+		public void BlindnessValue(bool isBlind)
+		{
+			var System = Camera.main.GetComponent<CameraEffects.CameraEffectControlScript>().lightingSystem;
+			if (isBlind)
+			{
+				System.renderSettings.fovHorizonSmooth = 90;
+				System.fovDistance = blindFOVDistance;
+			}
+			else
+			{
+				System.fovDistance = fullVisionFOVDistance;
+				System.renderSettings.fovHorizonSmooth = 23;
+			}
+		}
+
+		[Button("[DEBUG] - Flash me!")]
+		public void DebugFlashMeDaddy()
+		{
+			FlashEyes(5f);
 		}
 
 		public void FlashEyes(float flashTime)
 		{
-			StartCoroutine(FlashEyesCoroutine(flashTime));
-		}
-		private IEnumerator FlashEyesCoroutine(float flashTime)
-		{
-			//TODO : Add flash effects here later
-			yield break;
+			if (_lastFlashbangCoroutine != null) StopCoroutine(_lastFlashbangCoroutine);
+			_lastFlashbangCoroutine = StartCoroutine(FlashEyesCoroutine(flashTime));
 		}
 
-		public void ToggleDrunkEffectState(bool state)
+		private IEnumerator FlashEyesCoroutine(float flashTime)
 		{
-			drunkCamera.enabled = state;
+			FlashbangCamera.enabled = true;
+			FlashbangCamera.Power = 4f;
+			FlashbangCamera.SetFlashbangSoundStrength(FlashbangCamera.LOWPASS);
+			yield return WaitFor.Seconds(flashTime);
+			LeanTween.value(gameObject, f => FlashbangCamera.Power = f, FlashbangCamera.Power, 0, 1.9f).setEaseInOutQuad();
+			LeanTween.value(gameObject, f => FlashbangCamera.SetFlashbangSoundStrength(f),
+				FlashbangCamera.GetFlashbangSoundStrength(), FlashbangCamera.NO_LOWPASS, 1.9f).setEaseInOutQuad();
+			yield return WaitFor.Seconds(1.91f);
+			FlashbangCamera.enabled = false;
+			_lastFlashbangCoroutine = null;
+		}
+
+		public void Stop()
+		{
+			if (_lastFlashbangCoroutine == null) return;
+			StopCoroutine(_lastFlashbangCoroutine);
+			_lastFlashbangCoroutine = null;
+			FlashbangCamera.enabled = false;
+			_lastFlashbangCoroutine = null;
 		}
 
 		public void ToggleGlitchEffectState(bool state)
@@ -75,9 +234,17 @@ namespace CameraEffects
 			glitchEffect.enabled = state;
 		}
 
-		public void ToggleNightVisionEffectState(bool state)
+		public void ToggleNightVisionEffectState(bool state, Color nightVisionColour)
 		{
 			nightVisionCamera.enabled = state;
+			if(state) nightVisionCamera.ToShaderColour = nightVisionColour;
+			_backgroundEffects?.ToggleNightVisionEffectState(state, nightVisionColour);
+		}
+
+		public void NvgHasMaxedLensRadius(bool set)
+		{
+			nightVisionCamera.HasMaxedLensRadius(set);
+			_backgroundEffects?.NvgHasMaxedLensRadius(set);
 		}
 
 		private void DoEffectTimeCheck()
@@ -104,11 +271,17 @@ namespace CameraEffects
 
 		public void EnsureAllEffectsAreDisabled()
 		{
+			_backgroundEffects?.EnsureAllEffectsAreDisabled();
+			_lightMaskEffects?.EnsureAllEffectsAreDisabled();
+
 			//TODO: Find out a solution in the shaders why the screen inverts if both drunk and greyscale are both on
 			drunkCamera.enabled = false;
 			glitchEffect.enabled = false;
 			nightVisionCamera.enabled = false;
 			greyscaleCamera.enabled = false;
+			FlashbangCamera.enabled = false;
+			colourblindEmulationEffect.SetColourMode(ColourBlindMode.None);
+			blurryVisionEffect.SetBlurStrength(0);
 		}
 	}
 }

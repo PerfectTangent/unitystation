@@ -7,9 +7,9 @@ namespace UI.SpellBook
 	public class GUI_SpellBookCategoryEntry : DynamicEntry
 	{
 		[SerializeField]
-		private NetLabel nameLabel = default;
+		private NetText_label nameLabel = default;
 		[SerializeField]
-		private NetLabel descriptionLabel = default;
+		private NetText_label descriptionLabel = default;
 
 		private GUI_SpellBook spellBook;
 		private SpellBookCategory category;
@@ -19,8 +19,8 @@ namespace UI.SpellBook
 			this.spellBook = spellBook;
 			this.category = category;
 
-			nameLabel.SetValueServer(category.Name);
-			descriptionLabel.SetValueServer(category.Description);
+			nameLabel.MasterSetValue(category.Name);
+			descriptionLabel.MasterSetValue(category.Description);
 		}
 
 		public void SelectCategory()

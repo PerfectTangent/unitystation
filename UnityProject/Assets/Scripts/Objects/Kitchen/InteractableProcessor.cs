@@ -1,4 +1,5 @@
 using System;
+using Logs;
 using UnityEngine;
 
 namespace Objects.Kitchen
@@ -31,9 +32,10 @@ namespace Objects.Kitchen
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-			return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver) == false;
+			return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver) == false
+			       && Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar) == false;
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
@@ -96,7 +98,7 @@ namespace Objects.Kitchen
 					foodProcessor.RequestEjectContents();
 					break;
 				default:
-					Logger.LogError("Unexpected interaction request occurred in food processor context menu.", Category.Interaction);
+					Loggy.Error("Unexpected interaction request occurred in food processor context menu.", Category.Interaction);
 					break;
 			}
 		}

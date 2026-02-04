@@ -44,9 +44,9 @@ public class Restraint : MonoBehaviour, ICheckedInteractable<HandApply>
 
 	public bool WillInteract(HandApply interaction, NetworkSide side)
 	{
-		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
-		PlayerMove targetPM = interaction.TargetObject?.GetComponent<PlayerMove>();
+		MovementSynchronisation targetPM = interaction.TargetObject.OrNull()?.GetComponent<MovementSynchronisation>();
 
 		// Interacts iff the target isn't cuffed
 		return interaction.UsedObject == gameObject
@@ -63,7 +63,7 @@ public class Restraint : MonoBehaviour, ICheckedInteractable<HandApply>
 		{
 			if(performer.GetComponent<PlayerScript>()?.IsGameObjectReachable(target, true) ?? false)
 			{
-				target.GetComponent<PlayerMove>().Cuff(interaction);
+				target.GetComponent<MovementSynchronisation>().Cuff(interaction);
 				Chat.AddActionMsgToChat(performer, $"You successfully restrain {target.ExpensiveName()}.",
 					$"{performer.ExpensiveName()} successfully restrains {target.ExpensiveName()}.");
 			}

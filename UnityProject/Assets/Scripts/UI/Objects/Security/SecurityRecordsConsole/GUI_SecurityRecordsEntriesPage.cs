@@ -13,7 +13,7 @@ namespace UI.Objects.Security
 		private GUI_SecurityRecords securityRecordsTab;
 		private List<SecurityRecord> currentRecords = new List<SecurityRecord>();
 		[SerializeField]
-		private NetLabel idNameText = null;
+		private NetText_label idNameText = null;
 
 		public void OnOpen(GUI_SecurityRecords recordsTab)
 		{
@@ -66,7 +66,7 @@ namespace UI.Objects.Security
 			UpdateTab();
 		}
 
-		public void RemoveID(ConnectedPlayer player)
+		public void RemoveID(PlayerInfo player)
 		{
 			securityRecordsTab.RemoveId(player);
 			securityRecordsTab.UpdateIdText(idNameText);
@@ -74,7 +74,7 @@ namespace UI.Objects.Security
 
 		public void UpdateTab()
 		{
-			if (!CustomNetworkManager.Instance._isServer)
+			if (!CustomNetworkManager.IsServer)
 			{
 				return;
 			}

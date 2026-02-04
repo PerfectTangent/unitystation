@@ -44,7 +44,7 @@ namespace Objects.Construction
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			//start with the default HandApply WillInteract logic.
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			//only care about interactions targeting us
 			if (interaction.TargetObject != gameObject) return false;
@@ -103,12 +103,12 @@ namespace Objects.Construction
 				$"{interaction.Performer.ExpensiveName()} assembles a {tableType} table.",
 				() => SpawnTable(interaction, layerTile));
 			AudioSourceParameters audioSourceParameters = new AudioSourceParameters(pitch: 1f);
-			SoundManager.PlayNetworkedAtPos(assemblySound, gameObject.WorldPosServer(), audioSourceParameters, sourceObj: gameObject);
+			SoundManager.PlayNetworkedAtPos(assemblySound, gameObject.AssumedWorldPosServer(), audioSourceParameters, sourceObj: gameObject);
 		}
 
 		private void Disassemble()
 		{
-			Spawn.ServerPrefab(CommonPrefabs.Instance.MetalRods, gameObject.WorldPosServer(), count: 2);
+			Spawn.ServerPrefab(CommonPrefabs.Instance.MetalRods, gameObject.AssumedWorldPosServer(), count: 2);
 			_ = Despawn.ServerSingle(gameObject);
 		}
 

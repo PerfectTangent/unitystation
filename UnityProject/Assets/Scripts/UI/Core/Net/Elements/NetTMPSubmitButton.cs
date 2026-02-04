@@ -18,7 +18,7 @@ namespace UI.Core.NetUI
 		public override string Value
 		{
 			get => SourceInputField?.text ?? "-1";
-			set
+			protected set
 			{
 				externalChange = true;
 				SourceInputField.text = value;
@@ -28,7 +28,7 @@ namespace UI.Core.NetUI
 		public StringEvent ServerMethod;
 		public TMP_InputField SourceInputField;
 
-		public override void ExecuteServer(ConnectedPlayer subject)
+		public override void ExecuteServer(PlayerInfo subject)
 		{
 			ServerMethod.Invoke(Value);
 		}

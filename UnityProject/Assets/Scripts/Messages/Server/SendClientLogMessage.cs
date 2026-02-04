@@ -1,6 +1,5 @@
-﻿using System.Collections;
+﻿using Logs;
 using Mirror;
-using UnityEngine;
 
 namespace Messages.Server
 {
@@ -21,20 +20,37 @@ namespace Messages.Server
 		{
 			if (msg.IsError)
 			{
-				Logger.LogError(msg.Message, msg.Category);
+				Loggy.Error(msg.Message, msg.Category);
 			}
 			else
 			{
-				Logger.Log(msg.Message, msg.Category);
+				Loggy.Info(msg.Message, msg.Category);
 			}
 		}
 
-		public static NetMessage SendLogToClient(GameObject clientPlayer, string message, Category logCat,
-			bool showError)
+		public static NetMessage SendLogToClient(PlayerInfo player, string message, Category category = Category.Unknown)
 		{
-			NetMessage msg = new NetMessage {Message = message, Category = logCat, IsError = showError};
+			var msg = new NetMessage
+			{
+				Message = message,
+				Category = category,
+				IsError = false,
+			};
 
-			SendTo(clientPlayer, msg);
+			SendTo(player, msg);
+			return msg;
+		}
+
+		public static NetMessage SendErrorToClient(PlayerInfo player, string message, Category category = Category.Unknown)
+		{
+			var msg = new NetMessage
+			{
+				Message = message,
+				Category = category,
+				IsError = true,
+			};
+
+			SendTo(player, msg);
 			return msg;
 		}
 	}

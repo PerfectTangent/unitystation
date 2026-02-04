@@ -3,6 +3,9 @@ using Items.Bureaucracy;
 using Mirror;
 using Objects.Construction;
 using System.Collections.Generic;
+using Logs;
+using Objects.Doors;
+using ScriptableObjects;
 using UI.Core.RightClick;
 using UnityEngine;
 using Util;
@@ -21,12 +24,12 @@ namespace Doors
 		private RightClickRadialOptions RadialOptions =>
 			this.VerifyNonChildReference(radialOptions, "right click branchless options SO");
 
-		[Tooltip("Airlock painting jobs.")]
-		public List<GameObject> AvailablePaintJobs;
+		[Tooltip("Airlock painting jobs.")] [SerializeField]
+		private DoorsSO AvailablePaintJobs;
 
 		private List<RightClickMenuItem> painterMenuItems;
 
-		private List<RightClickMenuItem> PainterMenuItems => painterMenuItems ??= GeneratePaintMenu(AvailablePaintJobs);
+		private List<RightClickMenuItem> PainterMenuItems => painterMenuItems ??= GeneratePaintMenu(AvailablePaintJobs.Doors);
 
 		private int currentPaintJobIndex = -1;
 		public int CurrentPaintJobIndex
@@ -52,7 +55,7 @@ namespace Doors
 		{
 			if (tonerPrefab == null)
 			{
-				Logger.LogError($"{gameObject.name} toner prefab was null, cannot auto-populate.", Category.ItemSpawn);
+				Loggy.Error($"{gameObject.name} toner prefab was null, cannot auto-populate.", Category.ItemSpawn);
 				return;
 			}
 			Inventory.ServerSpawnPrefab(tonerPrefab, tonerSlot);
@@ -75,7 +78,7 @@ namespace Doors
 			for (var i = 0; i < objects.Count; i++)
 			{
 				var index = i; // Copy for action function
-				Action setPaint = () => PlayerManager.LocalPlayerScript.playerNetworkActions.CmdSetPaintJob(index);
+				Action setPaint = () => PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdSetPaintJob(index);
 				var res = RightClickManager.CreateObjectMenu(objects[i], null, setPaint);
 				result.Add(res);
 			}
@@ -95,7 +98,7 @@ namespace Doors
 			if (CheckToner(performer) == false) return;
 
 			DoorMasterController airlockToPaint = paintableAirlock.GetComponent<DoorMasterController>();
-			GameObject airlockAssemblyPrefab = AvailablePaintJobs[currentPaintJobIndex].GetComponent<ConstructibleDoor>().AirlockAssemblyPrefab;
+			GameObject airlockAssemblyPrefab = AvailablePaintJobs.Doors[currentPaintJobIndex].GetComponent<ConstructibleDoor>().AirlockAssemblyPrefab;
 			AirlockAssembly assemblyPaintJob = airlockAssemblyPrefab.GetComponent<AirlockAssembly>();
 			DoorAnimatorV2 paintJob = assemblyPaintJob.AirlockToSpawn.GetComponent<DoorAnimatorV2>();
 
@@ -109,14 +112,8 @@ namespace Doors
 				}
 			}
 
-			DoorAnimatorV2 airlockAnim = paintableAirlock.GetComponent<DoorAnimatorV2>();
-
-			ServerChangeDoorBase(airlockAnim, paintJob);
-			ServerChangeOverlaySparks(airlockAnim, paintJob);
-			ServerChangeOverlayLights(airlockAnim, paintJob);
-			ServerChangeOverlayFill(airlockAnim, paintJob);
-			ServerChangeOverlayWeld(airlockAnim, paintJob);
-			ServerChangeOverlayHacking(airlockAnim, paintJob);
+			AirlockCatalogueSync airlockAnim = paintableAirlock.GetComponent<AirlockCatalogueSync>();
+			airlockAnim.SetNewIndex(currentPaintJobIndex);
 
 			TonerCartridge.SpendInk();
 		}
@@ -200,7 +197,7 @@ namespace Doors
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (!Validations.IsTarget(gameObject, interaction)) return false;
 
 			if (Validations.HasUsedComponent<Toner>(interaction))
@@ -240,53 +237,6 @@ namespace Doors
 		#endregion
 
 		#region Airlock sprites changes
-		private void ServerChangeDoorBase(DoorAnimatorV2 paintableAirlock, DoorAnimatorV2 paintJob)
-		{
-			SpriteHandler airlockSprite = paintableAirlock.DoorBase.GetComponent<SpriteHandler>();
-			SpriteHandler paintSprite = paintJob.DoorBase.GetComponent<SpriteHandler>();
-			List<SpriteDataSO> spriteCatalog = paintSprite.GetSubCatalogue();
-			ServerSetCatalogue(airlockSprite, spriteCatalog);
-		}
-		private void ServerChangeOverlaySparks(DoorAnimatorV2 paintableAirlock, DoorAnimatorV2 paintJob)
-		{
-			SpriteHandler airlockSprite = paintableAirlock.OverlaySparks.GetComponent<SpriteHandler>();
-			SpriteHandler paintSprite = paintJob.OverlaySparks.GetComponent<SpriteHandler>();
-			List<SpriteDataSO> spriteCatalog = paintSprite.GetSubCatalogue();
-			ServerSetCatalogue(airlockSprite, spriteCatalog);
-		}
-		private void ServerChangeOverlayLights(DoorAnimatorV2 paintableAirlock, DoorAnimatorV2 paintJob)
-		{
-			SpriteHandler airlockSprite = paintableAirlock.OverlayLights.GetComponent<SpriteHandler>();
-			SpriteHandler paintSprite = paintJob.OverlayLights.GetComponent<SpriteHandler>();
-			List<SpriteDataSO> spriteCatalog = paintSprite.GetSubCatalogue();
-			ServerSetCatalogue(airlockSprite, spriteCatalog);
-		}
-		private void ServerChangeOverlayFill(DoorAnimatorV2 paintableAirlock, DoorAnimatorV2 paintJob)
-		{
-			SpriteHandler airlockSprite = paintableAirlock.OverlayFill.GetComponent<SpriteHandler>();
-			SpriteHandler paintSprite = paintJob.OverlayFill.GetComponent<SpriteHandler>();
-			List<SpriteDataSO> spriteCatalog = paintSprite.GetSubCatalogue();
-			ServerSetCatalogue(airlockSprite, spriteCatalog);
-		}
-		private void ServerChangeOverlayWeld(DoorAnimatorV2 paintableAirlock, DoorAnimatorV2 paintJob)
-		{
-			SpriteHandler airlockSprite = paintableAirlock.OverlayWeld.GetComponent<SpriteHandler>();
-			SpriteHandler paintSprite = paintJob.OverlayWeld.GetComponent<SpriteHandler>();
-			List<SpriteDataSO> spriteCatalog = paintSprite.GetSubCatalogue();
-			ServerSetCatalogue(airlockSprite, spriteCatalog);
-		}
-		private void ServerChangeOverlayHacking(DoorAnimatorV2 paintableAirlock, DoorAnimatorV2 paintJob)
-		{
-			SpriteHandler airlockSprite = paintableAirlock.OverlayHacking.GetComponent<SpriteHandler>();
-			SpriteHandler paintSprite = paintJob.OverlayHacking.GetComponent<SpriteHandler>();
-			List<SpriteDataSO> spriteCatalog = paintSprite.GetSubCatalogue();
-			ServerSetCatalogue(airlockSprite, spriteCatalog);
-		}
-		private void ServerSetCatalogue(SpriteHandler airlockSprite, List<SpriteDataSO> spriteCatalog)
-		{
-			airlockSprite.SetCatalogue(spriteCatalog, 0);
-			airlockSprite.SetSpriteSO(spriteCatalog[0]);    //For update the sprite when re-painting
-		}
 		#endregion
 
 		public string Examine(Vector3 worldPos)
@@ -295,11 +245,11 @@ namespace Doors
 
 			if (currentPaintJobIndex == -1)
 			{
-				msg += "Paint job is not selected.\n"; 
+				msg += "Paint job is not selected.\n";
 			}
 			else
 			{
-				msg += $"Current paint job is the {AvailablePaintJobs[currentPaintJobIndex].ExpensiveName()}.\n";
+				msg += $"Current paint job is the {AvailablePaintJobs.Doors[currentPaintJobIndex].ExpensiveName()}.\n";
 			}
 
 			if (TonerCartridge == null)

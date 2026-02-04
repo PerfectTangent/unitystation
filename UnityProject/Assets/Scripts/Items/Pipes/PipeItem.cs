@@ -40,7 +40,7 @@ namespace Items.Atmospherics
 
 		public virtual bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.TargetObject != gameObject) return false;
 			if (interaction.HandObject == null) return false;
 			return true;
@@ -58,8 +58,12 @@ namespace Items.Atmospherics
 				{
 					return;
 				}
-				ToolUtils.ServerPlayToolSound(interaction);
-				BuildPipe();
+				ToolUtils.ServerUseToolWithActionMessages(interaction, 0,
+						string.Empty,
+						string.Empty,
+						$"You fasten the {gameObject.ExpensiveName()}.",
+						$"{interaction.Performer} fastens the {gameObject.ExpensiveName()}",
+						BuildPipe);
 			}
 			else
 			{

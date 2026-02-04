@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3495234765619245072, guid: ab1e465a59765f84b8691daa8693f857,
@@ -18,6 +19,29 @@ PrefabInstance:
       value: It protected doctors from the Black Death, back then. You bet your arse
         it's gonna help you against viruses.
       objectReference: {fileID: 0}
+    - target: {fileID: 3495234765619245072, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3495234765619245072, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 5a088ab3ae96cb145af5f61b61514ac8,
+        type: 2}
+    - target: {fileID: 3495234765619245072, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 2264dcc16d2a5df45a51306528f5a915,
+        type: 2}
+    - target: {fileID: 3495234765619245072, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: InitialitemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 2264dcc16d2a5df45a51306528f5a915,
+        type: 2}
     - target: {fileID: 3791466462619397166, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
       propertyPath: m_Sprite
@@ -86,12 +110,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4033042375367942854, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
+      propertyPath: _assetId
+      value: 3977334910
+      objectReference: {fileID: 0}
+    - target: {fileID: 4033042375367942854, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
       propertyPath: m_AssetId
       value: 706adbdc94f3ee04ea1d02ddbb027dae
       objectReference: {fileID: 0}
     - target: {fileID: 7145545764318209269, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
       propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 2264dcc16d2a5df45a51306528f5a915,
+        type: 2}
+    - target: {fileID: 7145545764318209269, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: 2264dcc16d2a5df45a51306528f5a915,
         type: 2}
@@ -112,14 +147,22 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7931175119129480439, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: a85722536b6e0534a8e216f2daeb243a,
         type: 2}
+    - target: {fileID: 7986767595912221471, guid: ab1e465a59765f84b8691daa8693f857,
+        type: 3}
+      propertyPath: parentID
+      value: ab1e465a59765f84b8691daa8693f857
+      objectReference: {fileID: 0}
     - target: {fileID: 7986767595912221471, guid: ab1e465a59765f84b8691daa8693f857,
         type: 3}
       propertyPath: foreverID
       value: 706adbdc94f3ee04ea1d02ddbb027dae
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ab1e465a59765f84b8691daa8693f857, type: 3}

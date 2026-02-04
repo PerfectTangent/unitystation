@@ -31,7 +31,7 @@ namespace Objects.Engineering
 
 		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (!Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Wirecutter)) return false;
 			if (interaction.TargetObject != gameObject) return false;
 			return true;
@@ -40,7 +40,7 @@ namespace Objects.Engineering
 		public void ServerPerformInteraction(PositionalHandApply interaction)
 		{
 			//wirecutters can be used to cut this cable
-			Vector3Int worldPosInt = interaction.WorldPositionTarget.To2Int().To3Int();
+			Vector3Int worldPosInt = interaction.WorldPositionTarget.RoundTo2Int().To3Int();
 			var matrixInfo = MatrixManager.AtPoint(worldPosInt, true);
 			var localPosInt = MatrixManager.WorldToLocalInt(worldPosInt, matrixInfo);
 			var matrix = matrixInfo?.Matrix;

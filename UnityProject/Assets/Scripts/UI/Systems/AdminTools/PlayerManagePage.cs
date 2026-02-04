@@ -1,10 +1,17 @@
-﻿using AdminCommands;
+using AdminCommands;
 using DatabaseAPI;
+using Logs;
 using Messages.Client.Admin;
 using UI.AdminTools;
 using UI.Systems.AdminTools;
+
 using UnityEngine;
 using UnityEngine.UI;
+using Core.Accounts;
+using AdminCommands;
+using Messages.Client.Admin;
+using TMPro;
+using UI.AdminTools;
 
 
 namespace AdminTools
@@ -15,7 +22,15 @@ namespace AdminTools
 		[SerializeField] private Toggle quickRespawnToggle = default;
 		[SerializeField] private Text mentorButtonText = null;
 		[SerializeField] private AdminRespawnPage adminRespawnPage = default;
+		[SerializeField] private PlayerObjectiveManagerPage antagManagerPage = default;
 
+		[SerializeField] private Text oocMuteButtonText = null;
+
+		[SerializeField] private TMP_InputField PlayerNotes = null;
+
+		[SerializeField] private Toggle OnWatchlist = null;
+
+		[SerializeField] private Text JailText;
 
 		public AdminPlayerEntry PlayerEntry { get; private set; }
 
@@ -23,8 +38,33 @@ namespace AdminTools
 		{
 			PlayerEntry = entry;
 
-			mentorButtonText.text = entry.PlayerData.isMentor ? "REMOVE MENTOR" : "MAKE MENTOR";
-			mentorToggle.gameObject.SetActive(entry.PlayerData.isMentor == false);
+			mentorButtonText.text = entry.PlayerData.hasMentorRole ? "<color=cyan>Remove Player Mentor</color>" : "<color=cyan>Make Player Mentor</color>";
+			mentorToggle.gameObject.SetActive(entry.PlayerData.hasMentorRole == false);
+
+			oocMuteButtonText.text = entry.PlayerData.isOOCMuted ? "<color=grey>Unmute OOC</color>" : "<color=grey>Mute OOC</color>";
+
+			PlayerNotes.SetTextWithoutNotify( entry.PlayerData.PlayerNotes);
+			OnWatchlist.isOn = (entry.PlayerData.OnWatchlist);
+
+			JailText.text = entry.PlayerData.InJail ? "<color=yellow>UNJAIL</color>" : "<color=red>JAIL</color>";
+		}
+
+		public void OnJailTextBtn()
+		{
+			var State = !PlayerEntry.PlayerData.InJail;
+			AdminSetJail.Send(State, PlayerEntry.PlayerData.uid);
+			PlayerEntry.PlayerData.InJail = State;
+			JailText.text = PlayerEntry.PlayerData.InJail ? " UnJail " : " Send To Jail ";
+		}
+
+		public void OnSetWatchlistBtn()
+		{
+			AdminSetWatchlist.Send(OnWatchlist.isOn, PlayerEntry.PlayerData.uid);
+		}
+
+		public void OnInputFinishEditingNotes()
+		{
+			AdminRequestSetNote.Send(PlayerNotes.text, PlayerEntry.PlayerData.uid);
 		}
 
 		public void OnKickBtn()
@@ -51,7 +91,7 @@ namespace AdminTools
 
 		public void OnDeputiseBtn()
 		{
-			if (PlayerEntry.PlayerData.isMentor == false)
+			if (PlayerEntry.PlayerData.hasMentorRole == false)
 			{
 				adminTools.areYouSurePage.SetAreYouSurePage(
 					$"Are you sure you want to make {PlayerEntry.PlayerData.accountName} a {(mentorToggle.isOn ? "temporary" : "permanent")} mentor?",
@@ -72,12 +112,12 @@ namespace AdminTools
 				Occupation spawnOcc = new Occupation();
 				foreach (var connectedPlayer in PlayerList.Instance.AllPlayers)
 				{
-					if(connectedPlayer.UserId != PlayerEntry.PlayerData.uid) continue;
-					spawnOcc = connectedPlayer.Script.mind.occupation;
+					if(connectedPlayer.AccountId != PlayerEntry.PlayerData.uid) continue;
+					spawnOcc = connectedPlayer?.Script?.Mind?.occupation;
 				}
 				if (spawnOcc == null)
 				{
-					Logger.LogError("Cannot find Occupation for selected player, they most likely haven't joined yet.");
+					Loggy.Error("Cannot find Occupation for selected player, they most likely haven't joined yet.");
 					return;
 				}
 				RequestRespawnPlayer.SendNormalRespawn(PlayerEntry.PlayerData.uid, spawnOcc);
@@ -90,6 +130,12 @@ namespace AdminTools
 		public void OnHealUpButton()
 		{
 			AdminCommandsManager.Instance.CmdHealUpPlayer(PlayerEntry.PlayerData.uid);
+			RefreshPage();
+		}
+
+		public void OnCureSicknessButton()
+		{
+			AdminCommandsManager.Instance.CmdCurePlayer(PlayerEntry.PlayerData.uid);
 			RefreshPage();
 		}
 
@@ -146,7 +192,7 @@ namespace AdminTools
 				null,
 				RequestAdminTeleport.OpperationList.PlayerToAdmin,
 				false,
-				PlayerManager.LocalPlayerScript.PlayerSync.ClientPosition
+				PlayerManager.LocalPlayerScript.PlayerSync.OrNull()?.registerTile.OrNull()?.WorldPosition != null ? PlayerManager.LocalPlayerScript.PlayerSync.registerTile.WorldPosition : PlayerManager.LocalPlayerScript.transform.position
 				);
 		}
 
@@ -159,10 +205,7 @@ namespace AdminTools
 
 		private void SendTeleportAdminToPlayerAghost()
 		{
-			if (PlayerManager.LocalPlayerScript.IsGhost == false)
-			{
-				PlayerManager.LocalPlayerScript.playerNetworkActions.CmdAGhost();
-			}
+			PlayerManager.LocalMindScript.CmdForceAGhost();
 
 			RequestAdminTeleport.Send(
 				null,
@@ -186,9 +229,9 @@ namespace AdminTools
 
 			bool isAghost;
 
-			if (PlayerManager.LocalPlayerScript.IsGhost && PlayerEntry.PlayerData.uid == ServerData.UserID)
+			if (PlayerManager.LocalPlayerScript.IsGhost && PlayerEntry.PlayerData.uid == PlayerManager.Account.Id)
 			{
-				coord = PlayerManager.LocalPlayerScript.PlayerSync.ClientPosition;
+				coord = PlayerManager.LocalPlayerScript.PlayerSync.registerTile.WorldPosition;
 				isAghost = true;
 			}
 			else
@@ -198,30 +241,31 @@ namespace AdminTools
 			}
 
 			RequestAdminTeleport.Send(
-				null,
-				PlayerEntry.PlayerData.uid,
-				RequestAdminTeleport.OpperationList.AllPlayersToPlayer,
-				isAghost,
-				coord
-				);
+					null,
+					PlayerEntry.PlayerData.uid,
+					RequestAdminTeleport.OpperationList.AllPlayersToPlayer,
+					isAghost,
+					coord);
 		}
 
 		public void GiveItemToPlayerButton()
 		{
-			adminTools.giveItemPage.selectedPlayer = null;
-			var players = FindObjectsOfType<PlayerScript>(); //since this is client sided it's fiinnnneee
-			foreach (var possiblePlayer in players)
-			{
-				if(possiblePlayer.connectedPlayer.Username != PlayerEntry.PlayerData.accountName) continue;
-				adminTools.giveItemPage.selectedPlayer = possiblePlayer.gameObject;
-			}
+			adminTools.giveItemPage.selectedPlayerId = PlayerEntry.PlayerData.uid;
 
-			if (adminTools.giveItemPage.selectedPlayer == null)
-			{
-				Logger.LogWarning("Unable to find player to give item to! Are you sure that they joined the game?");
-				return;
-			}
 			adminTools.ShowGiveItemPagePage();
+		}
+
+		public void OnOOCMuteBtn()
+		{
+			AdminCommandsManager.Instance.CmdOOCMutePlayer(PlayerEntry.PlayerData.uid);
+			RefreshPage();
+		}
+
+		public void OnOpenAChat()
+		{
+
+			UIManager.Instance.adminChatButtons.adminChatWindows.adminPlayerChat.gameObject.SetActive(true);
+			UIManager.Instance.adminChatButtons.adminChatWindows.adminPlayerChat.OnPlayerSelect(PlayerEntry.PlayerData);
 		}
 	}
 }

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using Managers.SettingsManager;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -64,7 +66,7 @@ public class CameraZoomHandler : MonoBehaviour
 	/// <summary>
 	/// Increment at which zoom changes when using Increase / DecreaseZoomLevel().
 	/// </summary>
-	private readonly int zoomIncrement = 8;
+	private readonly int zoomIncrement = 32;
 
 	void UpdateMe()
 	{
@@ -103,7 +105,17 @@ public class CameraZoomHandler : MonoBehaviour
 		{
 			Camera2DFollow.followControl.SetCameraXOffset();
 		}
+
+		StartCoroutine(RefreshUI());
 	}
+
+
+	private IEnumerator RefreshUI()
+	{
+		yield return WaitFor.EndOfFrame;
+		Camera.main.GetComponent<CameraReferences>().UICamera.orthographicSize = Camera.main.orthographicSize;
+	}
+
 
 	public void SetZoomLevel(int _zoomLevel)
 	{

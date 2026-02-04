@@ -1,9 +1,12 @@
-﻿using UnityEngine;
+﻿using Logs;
+using Player.Movement;
+using UnityEngine;
 using UnityEngine.UI;
 
 public enum Intent
 {
-	Help,
+	None,
+	Help = 0,
 	Disarm,
 	Grab,
 	Harm
@@ -22,12 +25,8 @@ namespace UI
 		[SerializeField] private GameObject runWalkBorder = default;
 		[SerializeField] private GameObject helpWindow = default;
 		[Header("Message settings")]
-		[SerializeField] private string startRestMessage = "You try to lie down.";
-		[SerializeField] private string endRestMessage = "You try to stand up.";
 		[SerializeField] private string startRunningMessage = "You start running";
 		[SerializeField] private string startWalkingMessage = "You start walking";
-
-		private bool clientResting = false;
 
 		public bool Running { get; set; } = true;
 
@@ -38,7 +37,7 @@ namespace UI
 			if (runWalkBorder == null)
 			{
 				// TODO: wait for UI changes to settle down before refactoring this to reflect the changes.
-				Logger.LogWarning("At least one intent GameObject is unassigned.", Category.Interaction);
+				Loggy.Warning("At least one intent GameObject is unassigned.", Category.Interaction);
 			}
 			else
 			{
@@ -53,11 +52,16 @@ namespace UI
 		/// </summary>
 		public void OnClickRest()
 		{
-			Logger.Log("OnClickRest", Category.UserInput);
+			var registerPlayer = PlayerManager.LocalPlayerScript.OrNull()?.RegisterPlayer;
+			if (registerPlayer == null) return;
+
+			if(registerPlayer.PlayerScript.PlayerTypeSettings.CanRest == false) return;
+
+			Loggy.Info("OnClickRest", Category.UserInput);
+
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			clientResting = !clientResting;
-			RequestRest.Send(clientResting);
-			Chat.AddExamineMsgToClient(clientResting ? startRestMessage : endRestMessage);
+
+			registerPlayer.CmdSetRest(!registerPlayer.IsLayingDown);
 			// TODO: trigger rest intent
 		}
 
@@ -66,7 +70,9 @@ namespace UI
 		/// </summary>
 		public void OnClickCrafting()
 		{
-			Logger.Log("OnClickCrafting", Category.UserInput);
+			if(PlayerManager.LocalPlayerScript.PlayerTypeSettings.CanCraft == false) return;
+
+			Loggy.Info("OnClickCrafting", Category.UserInput);
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
 			UIManager.Instance.CraftingMenu.Open();
@@ -77,11 +83,18 @@ namespace UI
 		/// </summary>
 		public void OnClickRunWalk()
 		{
-			Logger.Log("OnClickRunWalk", Category.UserInput);
+			Loggy.Info("OnClickRunWalk", Category.UserInput);
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
+			if(PlayerManager.LocalPlayerScript.playerHealth.IsSoftCrit)
+			{
+				Chat.AddExamineMsg(PlayerManager.LocalPlayerObject, "You struggle to change how fast you move!");
+				return;
+			}
 
 			Running = !Running;
 			runWalkBorder.SetActive(Running);
+			PlayerManager.LocalPlayerScript.playerMove.ClientRequestedType = Running ? MovementType.Running : MovementType.Walking;
+			PlayerManager.LocalPlayerScript.playerMove.CmdChangeCurrentWalkMode(Running);
 
 			Chat.AddExamineMsgToClient(Running ? startRunningMessage : startWalkingMessage);
 		}
@@ -91,7 +104,7 @@ namespace UI
 		/// </summary>
 		public void OnClickResist()
 		{
-			Logger.Log("OnClickResist", Category.UserInput);
+			Loggy.Info("OnClickResist", Category.UserInput);
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
 			UIManager.Action.Resist();
@@ -102,7 +115,7 @@ namespace UI
 		/// </summary>
 		public void OnClickHelp()
 		{
-			Logger.Log("OnClickHelp", Category.UserInput);
+			Loggy.Info("OnClickHelp", Category.UserInput);
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
 			helpWindow.SetActive(!helpWindow.activeSelf);
@@ -112,7 +125,7 @@ namespace UI
 
 		public void CycleIntent(bool cycleLeft = true)
 		{
-			Logger.Log("Intent cycling " + (cycleLeft ? "left" : "right"), Category.UserInput);
+			Loggy.Info("Intent cycling " + (cycleLeft ? "left" : "right"), Category.UserInput);
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
 			int intent = (int)UIManager.CurrentIntent;
@@ -135,7 +148,7 @@ namespace UI
 		// The selected intent can be passed from a button in the UI
 		public void IntentButton(int selectedIntent)
 		{
-			Logger.Log("Intent Button", Category.UserInput);
+			Loggy.Info("Intent Button", Category.UserInput);
 
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 

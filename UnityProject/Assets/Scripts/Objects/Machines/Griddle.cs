@@ -2,17 +2,20 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using UnityEngine;
 using Mirror;
 using NaughtyAttributes;
 using AddressableReferences;
 using Audio.Containers;
+using Core;
 using Messages.Server.SoundMessages;
 using Systems.Electricity;
 using Items;
 using Items.Food;
 using Machines;
 using Objects.Machines;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 namespace Objects.Kitchen
@@ -22,7 +25,7 @@ namespace Objects.Kitchen
 	/// If the item has the Cookable component, the item will be cooked
 	/// once enough time has lapsed as determined in that component.
 	/// </summary>
-	public class Griddle : NetworkBehaviour, IAPCPowerable, IRefreshParts
+	public class Griddle : NetworkBehaviour, IAPCPowerable, IRefreshParts, IDisposable
 	{
 		private enum SpriteState
 		{
@@ -35,8 +38,6 @@ namespace Objects.Kitchen
 		[SerializeField]
 		[Tooltip("The looped audio source to play while the griddle is running.")]
 		private AddressableAudioSource RunningAudio = default;
-
-		private string runLoopGUID = "";
 
 		[SerializeField, Foldout("Power Usages")]
 		[Tooltip("Wattage of the griddle's circuitry and display.")]
@@ -52,8 +53,11 @@ namespace Objects.Kitchen
 		private SpriteHandler spriteHandler;
 		private APCPoweredDevice poweredDevice;
 
+		// Audio loop related vars
 		[SyncVar(hook = nameof(OnSyncPlayAudioLoop))]
 		private bool playAudioLoop;
+		private Mutex audioLoopLock = new Mutex();
+		private string audioLoopGUID = string.Empty;
 
 		public bool IsOperating => CurrentState is GriddleRunning;
 
@@ -87,6 +91,11 @@ namespace Objects.Kitchen
 		private void OnDisable()
 		{
 			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+		}
+
+		void OnDestroy()
+		{
+			this.Dispose();
 		}
 
 		#endregion
@@ -155,44 +164,42 @@ namespace Objects.Kitchen
 
 		private void CheckCooked(float cookTime)
 		{
-			var itemsOnGrill = Matrix.Get<ObjectBehaviour>(registerTile.LocalPositionServer, ObjectType.Item, true)
+			var itemsOnGrill = Matrix.Get<UniversalObjectPhysics>(registerTile.LocalPositionServer, ObjectType.Item, true)
 				.Where(ob => ob != null && ob.gameObject != gameObject);
 			foreach (var onGrill in itemsOnGrill)
 			{
 				if(onGrill.gameObject.TryGetComponent(out Cookable slotCooked) && slotCooked.CookableBy.HasFlag(CookSource.Griddle))
 				{
-					if (slotCooked.AddCookingTime(cookTime) == true)
-					{
-						// Swap item for its cooked version, if applicable.
-						if (slotCooked.CookedProduct == null) return;
-						Spawn.ServerPrefab(slotCooked.CookedProduct, slotCooked.gameObject.transform.position, transform.parent);
-						var stackable = slotCooked.GetComponent<Stackable>();
-						if (stackable != null && stackable.Amount > 1)
-						{
-							stackable.ServerConsume(1);
-							slotCooked.ResetTimeCooked();
-						}
-						else
-						{
-							_ = Despawn.ServerSingle(slotCooked.gameObject);
-						}
-
-
-					}
+					slotCooked.AddCookingTime(cookTime);
 				}
 			}
 		}
 
 		private void OnSyncPlayAudioLoop(bool oldState, bool newState)
 		{
+
+			// Only one thread should be able to try to play the sound at a time.
+			// Otherwise causes issues where while one thread is waiting another thread
+			// can get in here to request it a second time and the sound plays twice.
+			audioLoopLock.WaitOne();
+
 			if (newState)
 			{
+				if (string.IsNullOrEmpty(audioLoopGUID) == false)
+				{
+					SoundManager.ClientStop(audioLoopGUID, true);
+					audioLoopGUID = string.Empty;
+				}
+
 				StartCoroutine(DelayGriddleRunningSfx());
 			}
 			else
 			{
-				SoundManager.Stop(runLoopGUID);
+				SoundManager.ClientStop(audioLoopGUID, true);
+				audioLoopGUID = string.Empty;
 			}
+
+			audioLoopLock.ReleaseMutex();
 		}
 
 		// We delay the running Sfx so the starting Sfx has time to play.
@@ -201,26 +208,26 @@ namespace Objects.Kitchen
 			yield return WaitFor.Seconds(0.25f);
 
 			// Check to make sure the state hasn't changed in the meantime.
-			if (playAudioLoop)
+			if (playAudioLoop && string.IsNullOrEmpty(audioLoopGUID))
 			{
-				runLoopGUID = Guid.NewGuid().ToString();
-				SoundManager.PlayAtPositionAttached(RunningAudio, registerTile.WorldPosition, gameObject, runLoopGUID,
-						audioSourceParameters: new AudioSourceParameters(pitch: voltageModifier));
+				audioLoopGUID = Guid.NewGuid().ToString();
+
+				SoundManager.ClientPlayAtPositionAttached(RunningAudio, registerTile.WorldPosition, gameObject, audioLoopGUID,
+						audioSourceParameters: new AudioSourceParameters(pitch: voltageModifier, volume: 1, loops: true) );
 			}
 		}
 
 		#region IRefreshParts
 
-		public void RefreshParts(IDictionary<GameObject, int> partsInFrame)
+		public void RefreshParts(List<PartReference> partsInFrame, Machine Frame)
 		{
 			// Get the machine stock parts used in this instance and get the tier of each part.
 			// Collection is unorganized so run through the whole list.
-			foreach (GameObject part in partsInFrame.Keys)
+			foreach (var part in partsInFrame)
 			{
-				ItemAttributesV2 partAttributes = part.GetComponent<ItemAttributesV2>();
-				if (partAttributes.HasTrait(MachinePartsItemTraits.Instance.MicroLaser))
+				if (part.itemTrait == MachinePartsItemTraits.Instance.MicroLaser)
 				{
-					laserTier = part.GetComponent<StockTier>().Tier;
+					laserTier = part.tier;
 				}
 			}
 		}
@@ -267,7 +274,7 @@ namespace Objects.Kitchen
 			{
 				this.griddle = griddle;
 				StateMsgForExamine = "idle";
-				griddle.spriteHandler.ChangeSprite((int) SpriteState.Idle);
+				griddle.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Idle);
 				griddle.HaltGriddle();
 				griddle.SetWattage(griddle.circuitWattage);
 			}
@@ -293,7 +300,7 @@ namespace Objects.Kitchen
 			{
 				this.griddle = griddle;
 				StateMsgForExamine = "running";
-				griddle.spriteHandler.ChangeSprite((int) SpriteState.Running);
+				griddle.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Running);
 				griddle.SetWattage(griddle.circuitWattage + griddle.magnetronWattage);
 			}
 
@@ -317,7 +324,7 @@ namespace Objects.Kitchen
 			{
 				this.griddle = griddle;
 				StateMsgForExamine = "unpowered";
-				griddle.spriteHandler.ChangeSprite((int) SpriteState.Idle);
+				griddle.spriteHandler.SetCatalogueIndexSprite((int) SpriteState.Idle);
 				griddle.HaltGriddle();
 				griddle.SetWattage(griddle.circuitWattage);
 			}
@@ -334,5 +341,10 @@ namespace Objects.Kitchen
 		}
 
 		#endregion
+
+		public void Dispose()
+		{
+			audioLoopLock?.Dispose();
+		}
 	}
 }

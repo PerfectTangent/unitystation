@@ -2,14 +2,13 @@
 using UnityEngine;
 using UI.Core.NetUI;
 using Objects.Machines;
-using UI.Objects.Robotics;
 using Systems.Research;
 
 namespace UI.Objects
 {
 	public class GUI_RDProQueueItem : DynamicEntry
 	{
-		private GUI_RDProductionMachine RDProMasterTab => MasterTab as GUI_RDProductionMachine;
+		private GUI_RDProductionMachine RDProMasterTab => containedInTab as GUI_RDProductionMachine;
 
 		public string DesignID { get; set; }
 
@@ -19,14 +18,14 @@ namespace UI.Objects
 		public NetInteractiveButton UpButton => upButton;
 		private NetInteractiveButton downButton;
 		public NetInteractiveButton DownButton => downButton;
-		private GUI_ExoFabQueueLabel numberInQueueColorElement;
-		private GUI_ExoFabQueueLabel productTextColorElement;
+		private GUI_RDProQueueLabel numberInQueueColorElement;
+		private GUI_RDProQueueLabel productTextColorElement;
 
 		public void ForwardInQueue()
 		{
 			if (RDProMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_RDProductionMachine>().OnUpQueueClicked.Invoke(NumberInQueue);
+				containedInTab.GetComponent<GUI_RDProductionMachine>().OnUpQueueClicked.Invoke(NumberInQueue);
 			}
 			else
 			{
@@ -38,7 +37,7 @@ namespace UI.Objects
 		{
 			if (RDProMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_RDProductionMachine>().OnDownQueueClicked.Invoke(NumberInQueue);
+				containedInTab.GetComponent<GUI_RDProductionMachine>().OnDownQueueClicked.Invoke(NumberInQueue);
 			}
 			else
 			{
@@ -50,7 +49,7 @@ namespace UI.Objects
 		{
 			if (RDProMasterTab == null)
 			{
-				MasterTab.GetComponent<GUI_RDProductionMachine>().OnRemoveProductClicked.Invoke(NumberInQueue);
+				containedInTab.GetComponent<GUI_RDProductionMachine>().OnRemoveProductClicked.Invoke(NumberInQueue);
 			}
 			else
 			{
@@ -72,23 +71,23 @@ namespace UI.Objects
 				switch (nameBeforeIndex)
 				{
 					case "QueueNumber":
-						numberInQueueColorElement = element as GUI_ExoFabQueueLabel;
-						((NetUIElement<string>)element).SetValueServer(NumberInQueue.ToString());
+						numberInQueueColorElement = element as GUI_RDProQueueLabel;
+						((NetUIElement<string>)element).MasterSetValue(NumberInQueue.ToString());
 						break;
 
 					case "ProductName":
-						productTextColorElement = element as GUI_ExoFabQueueLabel;
-						((NetUIElement<string>)element).SetValueServer(productDesign.Name);
+						productTextColorElement = element as GUI_RDProQueueLabel;
+						((NetUIElement<string>)element).MasterSetValue(productDesign.Name);
 						break;
 
 					case "UpButton":
 						upButton = element as NetInteractiveButton;
-						upButton.SetValueServer("true");
+						upButton.MasterSetValue("true");
 						break;
 
 					case "DownButton":
 						downButton = element as NetInteractiveButton;
-						downButton.SetValueServer("true");
+						downButton.MasterSetValue("true");
 						break;
 				}
 			}

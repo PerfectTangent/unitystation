@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UI.Core.NetUI;
 using Items.Botany;
+using Objects.Botany;
 
 namespace UI.Objects.Botany
 {
@@ -13,29 +14,29 @@ namespace UI.Objects.Botany
 		[SerializeField]
 		private GUI_SeedExtractor seedExtractorWindow;
 		[SerializeField]
-		private NetLabel itemName = null;
+		private NetText_label itemName = null;
 		[SerializeField]
-		private NetLabel itemCount = null;
+		private NetText_label itemCount = null;
 		[SerializeField]
 		private NetPrefabImage itemIcon = null;
 		[SerializeField]
 		private NetColorChanger itemBackground = null;
 
-		private List<SeedPacket> seedPackets;
+		private List<SeedExtractor.SeedAndPlantData> seedPackets;
 
-		public void SetItem(List<SeedPacket> item, GUI_SeedExtractor correspondingWindow)
+		public void SetItem(List<SeedExtractor.SeedAndPlantData> item, GUI_SeedExtractor correspondingWindow)
 		{
 			seedPackets = item;
 			seedExtractorWindow = correspondingWindow;
-			itemName.SetValueServer(seedPackets.First().name);
-			itemIcon.SetValueServer(seedPackets.First().name);
-			itemCount.SetValueServer($"({seedPackets.Count})");
-			itemBackground.SetValueServer(regularColor);
+			itemName.MasterSetValue(seedPackets.First().SeedPacket.name);
+			itemIcon.MasterSetValue(seedPackets.First().SeedPacket.name);
+			itemCount.MasterSetValue($"({seedPackets.Count})");
+			itemBackground.MasterSetValue(regularColor);
 		}
 
 		public void Show()
 		{
-			seedExtractorWindow.SelectSeedType(seedPackets.First().name);
+			seedExtractorWindow.SelectSeedType(seedPackets.First().SeedPacket.name);
 		}
 	}
 }

@@ -1,209 +1,201 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using HealthV2;
+using Items.Implants.Organs;
 using UnityEngine;
 
 public class UI_SlotManager : MonoBehaviour
 {
 	public List<UI_DynamicItemSlot> OpenSlots = new List<UI_DynamicItemSlot>();
 
-	public Dictionary<IDynamicItemSlotS, List<GameObject>> BodyPartToSlot =
-		new Dictionary<IDynamicItemSlotS, List<GameObject>>();
+	public Dictionary<int, List<GameObject>> BodyPartToSlot =
+		new Dictionary<int, List<GameObject>>();
 
 	public GameObject Pockets;
 	public GameObject SuitStorage;
-
-	public GameObject Hands;
-
 	public GameObject BeltPDABackpack;
-
 	public GameObject Clothing;
-
-
 	public GameObject SlotPrefab;
 
 	public HandsController HandsController;
 
+	private static readonly Dictionary<NamedSlot, int> NamedSlotOrder = new Dictionary<NamedSlot, int>
+	{
+		{ NamedSlot.head, 0 },
+		{ NamedSlot.ear, 1 },
+		{ NamedSlot.eyes, 2 },
+		{ NamedSlot.mask, 3 },
+		{ NamedSlot.neck, 4 },
+		{ NamedSlot.uniform, 5 },
+		{ NamedSlot.outerwear, 6 },
+		{ NamedSlot.hands, 7 },
+		{ NamedSlot.belt, 8 },
+		{ NamedSlot.feet, 9 },
+		{ NamedSlot.leftHand, 10 },
+		{ NamedSlot.rightHand, 11 },
+		{ NamedSlot.back, 12 },
+		{ NamedSlot.id, 13 },
+		{ NamedSlot.handcuffs, 14 },
+		{ NamedSlot.suitStorage, 15 },
+		{ NamedSlot.storage01, 16 },
+		{ NamedSlot.storage02, 17 },
+		{ NamedSlot.storage03, 18 },
+		{ NamedSlot.storage04, 19 },
+		{ NamedSlot.storage05, 20 },
+		{ NamedSlot.storage06, 21 },
+		{ NamedSlot.storage07, 22 },
+		{ NamedSlot.storage08, 23 },
+		{ NamedSlot.storage09, 24 },
+		{ NamedSlot.storage10, 25 },
+		{ NamedSlot.storage11, 26 },
+		{ NamedSlot.storage12, 27 },
+		{ NamedSlot.storage13, 28 },
+		{ NamedSlot.storage14, 29 },
+		{ NamedSlot.storage15, 30 },
+		{ NamedSlot.storage16, 31 },
+		{ NamedSlot.storage17, 32 },
+		{ NamedSlot.storage18, 33 },
+		{ NamedSlot.storage19, 34 },
+		{ NamedSlot.storage20, 35 },
+		{ NamedSlot.ghostStorage01, 36 },
+		{ NamedSlot.ghostStorage02, 37 },
+		{ NamedSlot.ghostStorage03, 38 },
+		{ NamedSlot.none, int.MaxValue }
+	}; // (Max): Hacky workaround to how the NamedSlots enum cannot be re-ordered.
 
-	public List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>> ContainSlots = new List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>>();
+
+	//Instance ID of class that implements it
+	public List<Tuple<int, BodyPartUISlots.StorageCharacteristics>> ContainSlots = new List<Tuple<int, BodyPartUISlots.StorageCharacteristics>>();
 	public void Start()
 	{
-		EventManager.AddHandler(Event.LoggedOut, UpdateUI);
+		EventManager.AddHandler(Event.ServerLoggedOut, CompleteClean);
 		EventManager.AddHandler(Event.PlayerSpawned, UpdateUI);
 		EventManager.AddHandler(Event.RoundEnded, UpdateUI);
-		EventManager.AddHandler(Event.PreRoundStarted, UpdateUI);
+		EventManager.AddHandler(Event.PreRoundStarted, CompleteClean);
+	}
+
+	private void OnDestroy()
+	{
+		EventManager.RemoveHandler(Event.ServerLoggedOut, CompleteClean);
+		EventManager.RemoveHandler(Event.PlayerSpawned, UpdateUI);
+		EventManager.RemoveHandler(Event.RoundEnded, UpdateUI);
+		EventManager.RemoveHandler(Event.PreRoundStarted, CompleteClean);
+		OpenSlots.Clear();
+	}
+	public void CompleteClean()
+	{
+		foreach (var contained in ContainSlots)
+		{
+			RemoveSpecifyedUISlot(contained.Item1, contained.Item2);
+		}
+		ContainSlots.Clear();
 	}
 
 	public void UpdateUI()
 	{
 		if (PlayerManager.LocalPlayerScript.OrNull()?.DynamicItemStorage != null)
 		{
-			var DynamicItemStorage = PlayerManager.LocalPlayerScript.DynamicItemStorage;
-			var Newstored = DynamicItemStorage.ClientSlotCharacteristic;
-			List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>> Inadd = new List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>>();
-			List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>> Inremove = new List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>>();
-
-			foreach (var slot in Newstored)
-			{
-				if (slot.Value.NotPresentOnUI) continue;
-
-				bool NotPresent = true;
-				foreach (var Oldslot in ContainSlots)
-				{
-					if (Oldslot.Item1 == slot.Value.RelatedIDynamicItemSlotS && Oldslot.Item2 == slot.Value)
-					{
-						NotPresent = false;
-					}
-				}
-
-				if (NotPresent)
-				{
-					Inadd.Add(new Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>(slot.Value.RelatedIDynamicItemSlotS, slot.Value));
-				}
-
-			}
-
-			foreach (var OLDslot in ContainSlots)
-			{
-				bool NotPresent = true;
-				foreach (var Newslot in Newstored)
-				{
-					if (OLDslot.Item1 == Newslot.Value.RelatedIDynamicItemSlotS && OLDslot.Item2 == Newslot.Value)
-					{
-						NotPresent = false;
-					}
-				}
-
-				if (NotPresent)
-				{
-					Inremove.Add(OLDslot);
-				}
-			}
-
-			foreach (var removeing in Inremove)
-			{
-				RemoveSpecifyedUISlot(removeing.Item1, removeing.Item2);
-				ContainSlots.Remove(removeing);
-
-			}
-
-			foreach (var Adding in Inadd)
-			{
-				AddIndividual(Adding.Item1, Adding.Item2);
-				ContainSlots.Add(Adding);
-			}
+			SyncUISlots();
 		}
 		else
 		{
-
 			foreach (var contained in ContainSlots)
 			{
 				RemoveSpecifyedUISlot(contained.Item1, contained.Item2);
 			}
 			ContainSlots.Clear();
 		}
-
+		SortSlots(Clothing.transform);
 	}
 
-	public void AddContainer(IDynamicItemSlotS bodyPartUISlots)
+	private void SyncUISlots()
 	{
-		foreach (var storageCharacteristicse in bodyPartUISlots.Storage)
+		var dynamicItemStorage = PlayerManager.LocalPlayerScript.DynamicItemStorage;
+		var newstored = dynamicItemStorage.ClientSlotCharacteristic;
+		List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>> Inadd = new List<Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>>();
+		List<Tuple<int, BodyPartUISlots.StorageCharacteristics>> Inremove = new List<Tuple<int, BodyPartUISlots.StorageCharacteristics>>();
+
+		foreach (var slot in newstored)
 		{
-			if (storageCharacteristicse.SlotArea == SlotArea.Hands)
+			if (slot.Value.NotPresentOnUI) continue;
+
+			bool NotPresent = true;
+			foreach (var Oldslot in ContainSlots)
 			{
-				HandsController.AddHand(bodyPartUISlots, storageCharacteristicse);
-			}
-			else
-			{
-				var gameobjt = Instantiate(SlotPrefab);
-				var NewSlot = gameobjt.GetComponentInChildren<UI_DynamicItemSlot>();
-				NewSlot.SetupSlot(bodyPartUISlots, storageCharacteristicse);
-				switch (storageCharacteristicse.SlotArea)
+				if (Oldslot.Item1 == slot.Value.RelatedIDynamicItemSlotS.InterfaceGetInstanceID && Oldslot.Item2 == slot.Value)
 				{
-					case SlotArea.Pockets:
-						gameobjt.transform.SetParent(Pockets.transform);
-						break;
-					case SlotArea.SuitStorage:
-						gameobjt.transform.SetParent(SuitStorage.transform);
-						break;
-					case SlotArea.BeltPDABackpack:
-						gameobjt.transform.SetParent(BeltPDABackpack.transform);
-						break;
-					case SlotArea.Clothing:
-						gameobjt.transform.SetParent(Clothing.transform);
-						break;
+					NotPresent = false;
 				}
-
-				// if (ClientContents.ContainsKey(storageCharacteristicse.SlotArea) == false) ClientContents[storageCharacteristicse.SlotArea] = new List<UI_DynamicItemSlot>();
-				// ClientContents[storageCharacteristicse.SlotArea].Add(NewSlot);
-				gameobjt.transform.localScale = Vector3.one;
-				if (BodyPartToSlot.ContainsKey(bodyPartUISlots) == false)
-					BodyPartToSlot[bodyPartUISlots] = new List<GameObject>();
-				BodyPartToSlot[bodyPartUISlots].Add(gameobjt);
-
-				OpenSlots.Add(NewSlot);
 			}
-		}
-	}
 
-	public void RemoveContainer(BodyPartUISlots bodyPartUISlots)
-	{
-		if (BodyPartToSlot.ContainsKey(bodyPartUISlots) == false)
-			BodyPartToSlot[bodyPartUISlots] = new List<GameObject>();
-		foreach (var uiDynamicItemSlot in BodyPartToSlot[bodyPartUISlots])
-		{
-			OpenSlots.Remove(uiDynamicItemSlot.GetComponentInChildren<UI_DynamicItemSlot>());
-			uiDynamicItemSlot.GetComponentInChildren<UI_DynamicItemSlot>().ReSetSlot();
-			Destroy(uiDynamicItemSlot);
-		}
-
-		BodyPartToSlot.Remove(bodyPartUISlots);
-		foreach (var storageCharacteristicse in bodyPartUISlots.Storage)
-		{
-			if (storageCharacteristicse.SlotArea == SlotArea.Hands)
+			if (NotPresent)
 			{
-				HandsController.RemoveHand( storageCharacteristicse);
+				Inadd.Add(new Tuple<IDynamicItemSlotS, BodyPartUISlots.StorageCharacteristics>(slot.Value.RelatedIDynamicItemSlotS, slot.Value));
 			}
+		}
+
+		foreach (var OLDslot in ContainSlots)
+		{
+			bool NotPresent = true;
+			foreach (var Newslot in newstored)
+			{
+				if (OLDslot.Item1 == Newslot.Value.RelatedIDynamicItemSlotS.InterfaceGetInstanceID && OLDslot.Item2 == Newslot.Value)
+				{
+					NotPresent = false;
+				}
+			}
+
+			if (NotPresent)
+			{
+				Inremove.Add(OLDslot);
+			}
+		}
+
+		foreach (var removeing in Inremove)
+		{
+			RemoveSpecifyedUISlot(removeing.Item1, removeing.Item2);
+			ContainSlots.Remove(removeing);
+
+		}
+
+		foreach (var Adding in Inadd)
+		{
+			AddIndividual(Adding.Item1, Adding.Item2);
+			ContainSlots.Add(new Tuple<int, BodyPartUISlots.StorageCharacteristics>(Adding.Item1.InterfaceGetInstanceID,Adding.Item2 ));
 		}
 	}
 
-
-	public void RemoveSpecifyedUISlot(IDynamicItemSlotS bodyPartUISlots,
+	public void RemoveSpecifyedUISlot(int bodyPartUISlots,
 		BodyPartUISlots.StorageCharacteristics StorageCharacteristics)
 	{
-		if (BodyPartToSlot.ContainsKey(bodyPartUISlots) == false)
-			BodyPartToSlot[bodyPartUISlots] = new List<GameObject>();
-		var namedItemSlot = bodyPartUISlots.RelatedStorage.GetNamedItemSlot(StorageCharacteristics.namedSlot);
-		for (int i = 0; i < BodyPartToSlot[bodyPartUISlots].Count; i++)
-		{
-			var slot = BodyPartToSlot[bodyPartUISlots][i].OrNull()?.GetComponentInChildren<UI_DynamicItemSlot>();
-
-			if (slot == null)
-			{
-				Logger.LogError($"{bodyPartUISlots.RelatedStorage.OrNull()?.gameObject.ExpensiveName()} has null UI_DynamicItemSlot, slot: {StorageCharacteristics.namedSlot}");
-				continue;
-			}
-
-			if (slot.ItemSlot == namedItemSlot)
-			{
-				OpenSlots.Remove(BodyPartToSlot[bodyPartUISlots][i].GetComponentInChildren<UI_DynamicItemSlot>());
-				BodyPartToSlot[bodyPartUISlots][i].GetComponentInChildren<UI_DynamicItemSlot>().ReSetSlot();
-				Destroy(BodyPartToSlot[bodyPartUISlots][i]);
-				BodyPartToSlot[bodyPartUISlots].RemoveAt(i);
-			}
-		}
-
-
-		if (BodyPartToSlot[bodyPartUISlots].Count == 0)
-		{
-			BodyPartToSlot.Remove(bodyPartUISlots);
-		}
-
 		if (StorageCharacteristics.SlotArea == SlotArea.Hands)
 		{
 			HandsController.RemoveHand(StorageCharacteristics);
+		}
+
+		if (BodyPartToSlot.TryGetValue(bodyPartUISlots, out var uiSlots) == false) return;
+
+		for (int i = uiSlots.Count - 1; i >= 0; i--)
+		{
+			var go = uiSlots[i];
+			var slot = go.OrNull()?.GetComponentInChildren<UI_DynamicItemSlot>();
+
+			if (slot == null)
+			{
+				uiSlots.RemoveAt(i);
+				continue;
+			}
+
+			if (slot._storageCharacteristics != StorageCharacteristics) continue;
+
+			OpenSlots.Remove(slot);
+			slot.ReSetSlot();
+			Destroy(go);
+			uiSlots.RemoveAt(i);
+		}
+
+		if (uiSlots.Count == 0)
+		{
+			BodyPartToSlot.Remove(bodyPartUISlots);
 		}
 	}
 
@@ -237,14 +229,28 @@ public class UI_SlotManager : MonoBehaviour
 					break;
 			}
 
-			// if (ClientContents.ContainsKey(storageCharacteristicse.SlotArea) == false) ClientContents[storageCharacteristicse.SlotArea] = new List<UI_DynamicItemSlot>();
-			// ClientContents[storageCharacteristicse.SlotArea].Add(NewSlot);
 			gameobjt.transform.localScale = Vector3.one;
-			if (BodyPartToSlot.ContainsKey(bodyPartUISlots) == false)
-				BodyPartToSlot[bodyPartUISlots] = new List<GameObject>();
-			BodyPartToSlot[bodyPartUISlots].Add(gameobjt);
-
+			if (BodyPartToSlot.ContainsKey(bodyPartUISlots.InterfaceGetInstanceID) == false)
+				BodyPartToSlot[bodyPartUISlots.InterfaceGetInstanceID] = new List<GameObject>();
+			BodyPartToSlot[bodyPartUISlots.InterfaceGetInstanceID].Add(gameobjt);
 			OpenSlots.Add(NewSlot);
+		}
+	}
+
+	private void SortSlots(Transform parentTransform)
+	{
+		if (parentTransform == null) return;
+		var slots = parentTransform.GetComponentsInChildren<UI_DynamicItemSlot>();
+		Array.Sort(slots, (slot1, slot2) =>
+		{
+			int order1 = NamedSlotOrder.ContainsKey(slot1.NamedSlot) ? -NamedSlotOrder[slot1.NamedSlot] : int.MaxValue;
+			int order2 = NamedSlotOrder.ContainsKey(slot2.NamedSlot) ? -NamedSlotOrder[slot2.NamedSlot] : int.MaxValue;
+			return order1.CompareTo(order2);
+		});
+
+		for (int i = 0; i < slots.Length; i++)
+		{
+			slots[i].transform.parent.SetSiblingIndex(i);
 		}
 	}
 

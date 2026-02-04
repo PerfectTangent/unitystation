@@ -1,17 +1,39 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Security.Policy;
+using System.Text;
+using System.Threading.Tasks;
+using CAPSearch;
+using Core.Admin.Logs;
+using Core.Admin.Logs.Stores;
 using Doors;
+using Initialisation;
 using UnityEditor;
 using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Items;
 using Items.Botany;
+using Logs;
+using SecureStuff;
+using Systems.Atmospherics;
+using Systems.Character;
+using Systems.Clothing;
 using Debug = UnityEngine.Debug;
+using Random = System.Random;
 
 namespace Util
 {
+
+
+
 	/// <summary>
 	/// Used for random ass editor scripts, Has all the functions you need in a pinch
 	/// </summary>
@@ -22,122 +44,273 @@ namespace Util
 
 		public static SpriteCatalogue spriteCatalogue;
 
-
-		// SerializedObject serializedObject = new UnityEditor.SerializedObject(transform);
-
-		// foreach (var ob in serializedObject.GetIterator())
-		// {
-		// 	Logger.LogError(ob.ToString()); // You can use this to reset every property on a scene object/Prefab object
-		// }
-		// var localRotation = serializedObject.FindProperty("m_LocalRotation");
-		// PrefabUtility.RevertPropertyOverride(localRotation, InteractionMode.AutomatedAction);
-
-		[MenuItem("Tools/Refresh Sound Catalogue")]
-		public static void RefreshSoundCatalogue()
+		[MenuItem("Tools/Delete All Root GameObjects ^#q")]
+		public static void DeleteAllRootGameObjects()
 		{
-			AddressablePicker.Refresh();
+			// Get all root GameObjects in the scene
+			var rootGameObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+
+			// Loop through each root GameObject and destroy it
+			foreach (GameObject rootObject in rootGameObjects)
+			{
+				DestroyImmediate(rootObject);
+			}
+
+			Debug.Log("All root GameObjects have been deleted.");
 		}
 
-		[MenuItem("Tools/Get Music keys")]
-		public static void GetMusicKeys()
+
+		private static IEnumerator Do()
 		{
-			var path = Application.dataPath.Remove(Application.dataPath.IndexOf("/Assets"));
-			path = path + "/AddressablePackingProjects/SoundAndMusic/ServerData"; //Make OS agnostic
-			Logger.Log(path, Category.Editor);
-			var Files = Directory.GetFiles(path);
-			string FoundFile = "";
-			foreach (var File in Files)
+
+			var Mind1 = PlayerSpawn.NewSpawnCharacterV2(null, new CharacterSheet());
+			var Mind2 = PlayerSpawn.NewSpawnCharacterV2(null, new CharacterSheet());
+
+			var Body1 = Mind1.Body.GetComponent<MovementSynchronisation>();
+			var Body2 = Mind2.Body.GetComponent<MovementSynchronisation>();
+
+			Body1.AppearAtWorldPositionServer(new Vector3(99, 106, 0));
+
+			Body2.AppearAtWorldPositionServer(new Vector3(98, 106,0));
+
+			yield return WaitFor.EndOfFrame;
+
+
+			Body2.ReceivePlayerMoveAction(new PlayerAction()
 			{
-				Logger.Log(File, Category.Editor);
-				if (File.EndsWith(".json"))
+				moveActions = new[] {(int) MoveAction.MoveUp,(int) MoveAction.MoveLeft }
+			});
+
+			yield return WaitFor.EndOfFrame;
+
+			Body1.ReceivePlayerMoveAction(new PlayerAction()
+			{
+				moveActions = new[] {(int) MoveAction.MoveLeft }
+			});
+
+			yield return WaitFor.Seconds(5);
+
+			Destroy(Body2.gameObject);
+			Destroy(Body1.gameObject);
+			Destroy(Mind2.gameObject);
+			Destroy(Mind1.gameObject);
+
+		}
+
+		[MenuItem("Tools/Debug/------------ Debug function -----------")]
+		public static void Generate()
+		{
+
+
+			//LoadManager.Instance.StartCoroutine(Do());
+			AssetDatabase.StartAssetEditing();
+			//var AaAA = FindAssetsByType<SeedPacket>();
+			var AaAA = LoadAllPrefabsOfType<SeedPacket>(Application.dataPath).ToHashSet();
+			foreach (var a in AaAA)
+			{
+				foreach(var PD in a.plantData.ReagentProduction)
 				{
-					FoundFile = File;
+					if (PD.ChemistryReagent.name is "Nutriment" or "Vitamin")
+					{
+						PD.percentage = PD.percentage * 10;
+					}
+				}
+
+				EditorUtility.SetDirty(a);
+			}
+
+			AssetDatabase.StopAssetEditing();
+			AssetDatabase.SaveAssets();
+
+			return;
+			AdminLogsManager.AddNewLog("bob Murdered irrelevant", LogCategory.Admin);
+			AdminLogsManager.AddNewLog("cat Attacked bob", LogCategory.Admin);
+			AdminLogsManager.AddNewLog("bob Attacked cat", LogCategory.Admin);
+			AdminLogsManager.AddNewLog("Bob murdered cat", LogCategory.Admin, BubbleUpToChatAdmin: true);
+			AdminLogsManager.AddNewLog("Banana house six was set on fire by Jimbo", LogCategory.Admin, Severity.IMMEDIATE_ATTENTION);
+			AdminLogsManager.AddNewLog("Bob HID cat in Disposal bin 67", LogCategory.Admin, BubbleUpToChatAdmin: true);
+
+			Loggy.Error(JsonConvert.SerializeObject(SearchCAP.ParseSearch("NOT bob")), LogOption:LogOption.NoStacktrace);
+
+			//AdminLogsStorage.ParseSearch("bob AND cat");
+			//AdminLogsStorage.ParseSearch("bob OR cat");
+			//AdminLogsStorage.ParseSearch("bob AND cat OR car");
+			//AdminLogsStorage.ParseSearch("bob OR cat AND car");
+			//AdminLogsStorage.ParseSearch("{bob AND cat} OR car");
+
+			//AdminLogsStorage.ParseSearch("NOT bob2 AND {{cat OR bob} AND NOT Mike} OR NOT car");
+
+			//AdminLogsStorage.ParseSearch("1 OR 2 AND 3 OR 4 AND 5 AND 6 OR NOT 7");
+
+			//AdminLogsStorage.ParseSearch("{1 OR {{2 AND 3} OR 4} AND {5 AND 6 OR NOT 7}}");
+
+			return;
+			AdminLogsManager.AddNewLog("log1 sdaasfdfgh fdg dfdfgdfg dfgd fgd oje", LogCategory.Admin);
+			AdminLogsManager.AddNewLog("log2 sdaasfdfgh fdg dfdfgdfg dfgd fgd oje", PlayerManager.LocalPlayerObject , LogCategory.Admin);
+			AdminLogsManager.AddNewLog("log3 sdaasfdfgh fdg dfdfgdfg dfgd fgd oje", PlayerManager.LocalPlayerObject,
+				" dasjhk ads jhkgasdhmgjshkadnhjkgsadhjsak gjh hjgsad jhasd",
+			PlayerManager.LocalPlayerScript.RegisterPlayer.Matrix.GetComponentInChildren<Rotatable>().gameObject
+				, LogCategory.Admin);
+
+			return;
+			System.Diagnostics.Stopwatch t1 = new Stopwatch();
+			t1.Start();
+			for (int i = 0; i < 1000; i++)
+			{
+				var randomChatEnum = ChatChannel.Action | ChatChannel.Admin;
+				if (randomChatEnum.HasFlagFast(ChatChannel.Action))
+				{
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+			t1.Stop();
+			Debug.Log($"[HasFlagFast] - Ticks taken: {t1.ElapsedTicks}");
+
+			System.Diagnostics.Stopwatch t2 = new Stopwatch();
+			t2.Start();
+			for (int i = 0; i < 1000; i++)
+			{
+				var randomChatEnum = ChatChannel.Action | ChatChannel.Admin;
+				if (randomChatEnum.HasFlag(ChatChannel.Action))
+				{
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+			t2.Stop();
+			Debug.Log($"[HasFlag] - Ticks taken: {t2.ElapsedTicks}");
+
+			// AssetDatabase.StartAssetEditing();
+			// var AAAa = FindAssetsByType<Chemistry.Reaction>();
+			// foreach (var a in AAAa)
+			// {
+			// 	if (a.effects == null) continue;
+			// 	foreach (var effect in a.effects)
+			// 	{
+			// 		if (effect == null) continue;
+			// 		if (a.effectDict.Contains(effect) == false)
+			// 		{
+			// 			a.effectDict[effect] = 1;
+			// 		}
+			// 	}
+			// 	EditorUtility.SetDirty(a);
+			// }
+			//
+			// AssetDatabase.StopAssetEditing();
+			// AssetDatabase.SaveAssets();
+
+			return;
+
+			var ChunkedTileMap = new ChunkedTileMap<coolClass>();
+			var url = new Uri( "https://dev-api.unitystation.org/accounts/login-credentials");
+			var coiol = new HttpClient();
+			var ree = new HttpRequestMessage();
+			ree.Content = new StringContent(JsonConvert.SerializeObject(new LoginBody()
+			{
+				email = "AAA",
+				password = "bbbbb"
+			}), Encoding.UTF8, "application/json");
+
+			ree.Method = HttpMethod.Post;
+			ree.RequestUri = url;
+			ree.Headers.Add("Accept", "application/json");
+		 	var tt = coiol.SendAsync(ree);
+		    var data = tt.Result.Content.ReadAsStringAsync().Result;
+			// AssetDatabase.StartAssetEditing();
+			                     			// AssetDatabase.ForceReserializeAssets();
+			                     		// AssetDatabase.StopAssetEditing();
+			                             			// AssetDatabase.SaveAssets();
+
+			string aa = @"0​
+UnityEngine";
+			string Text = "0\u200b";
+			Loggy.Error("Text > " + Text);
+			var nub = float.Parse(Text);
+
+			var OldTileMap = new Dictionary<Vector3, coolClass>();
+
+			for (int i = 0; i < 1000; i++)
+			{
+				for (int j = 0; j < 1000; j++)
+				{
+
+					var TheValue = new coolClass()
+					{
+						val = j
+					};
+
+					ChunkedTileMap[new Vector3Int(i, j)] = TheValue;
+					OldTileMap[new Vector3Int(i, j)] = TheValue;
 				}
 			}
 
-			if (FoundFile == "")
+			var RNG = new Random();
+
+			var Stopwatch = new Stopwatch();
+			Stopwatch.Start();
+			for (int i = 0; i < 1000; i++)
 			{
-				Logger.LogWarning("missing json file", Category.Editor);
-				return;
-			}
+				for (int j = 0; j < 1000; j++)
+				{
 
-			JObject o1 = JObject.Parse(File.ReadAllText((@FoundFile.Replace("/", @"\"))));
-			var IDs = o1.GetValue("m_InternalIds");
-			var ListIDs = IDs.ToObject<List<string>>().Where(x => x.Contains(".bundle") == false);
-			foreach (var ListID in ListIDs)
+					var cool = ChunkedTileMap[new Vector3Int(RNG.Next(0,1000), RNG.Next(0,1000))];
+				}
+			}
+			Stopwatch.Stop();
+			Loggy.Error("ChunkedTileMap > " + Stopwatch.ElapsedTicks);
+			Stopwatch.Reset();
+			Stopwatch.Start();
+			for (int i = 0; i < 1000; i++)
 			{
-				Logger.Log(ListID, Category.Editor);
+				for (int j = 0; j < 1000; j++)
+				{
+					var cool = OldTileMap[new Vector3Int(RNG.Next(0,1000), RNG.Next(0,1000))];
+
+				}
 			}
-		}
+			Stopwatch.Stop();
 
-		[MenuItem("Tools/StopAssetEditing")]
-		public static void StopAssetEditing()
-		{
-			AssetDatabase.StopAssetEditing();
-		}
+			Loggy.Error("OldTileMap > " + Stopwatch.ElapsedTicks);
 
-		[MenuItem("Tools/StartAssetEditing")]
-		public static void StartAssetEditing()
-		{
-			AssetDatabase.StartAssetEditing();
-		}
+			return;
+			//
+			//
+			//Loggy.LogError("nub > " + nub);
+			 // AssetDatabase.StartAssetEditing();
+			 //                     			AssetDatabase.ForceReserializeAssets();
+			 //                     		AssetDatabase.StopAssetEditing();
+			 //                             			AssetDatabase.SaveAssets();
 
-		[MenuItem("Tools/Convert Json Sprites")]
-		public static void ConvertJsonSprites()
-		{
-			spriteCatalogue =
-				AssetDatabase.LoadAssetAtPath<SpriteCatalogue>(
-					"Assets/Resources/ScriptableObjectsSingletons/SpriteCatalogueSingleton.asset");
-			ToSeve.Clear();
-			ToDel.Clear();
-			DirSearch_ex3(Application.dataPath + "/SpriteJsonToSO");
 
-			foreach (var oDe in ToDel)
-			{
-				AssetDatabase.DeleteAsset(oDe);
-			}
-			var AAA = FindAssetsByType<SpriteCatalogue>();
-			foreach (var Seve in ToSeve)
-			{
-				AssetDatabase.CreateAsset(Seve.Value, Seve.Key);
-				AAA[0].AddToCatalogue(Seve.Value);
-			}
 
-			ToSeve.Clear();
-			ToDel.Clear();
-			EditorUtility.SetDirty(AAA[0]);
-			AssetDatabase.SaveAssets();
-		}
+			// Get the type (class) that contains the method
+			// Type type = typeof(MiscFunctions_RRT);
+			//
+			// // Get the method information
+			// MethodInfo methodInfo = type.GetMethod("Dothing");
+			//
+			// var Info = methodInfo.GetCustomAttributes();
 
-		[MenuItem("Tools/Reset SO index")]
-		public static void Reset()
-		{
-			AssetDatabase.StartAssetEditing();
-			var AAA = FindAssetsByType<SpriteCatalogue>();
-			foreach (var AA in AAA)
-			{
-				AA.Catalogue = new List<SpriteDataSO>();
-				EditorUtility.SetDirty(AA);
-			}
+			return;
 
-			var SOs = FindAssetsByType<SpriteDataSO>();
-			foreach (var SO in SOs)
-			{
-				AAA[0].AddToCatalogue(SO);
-			}
-			EditorUtility.SetDirty(AAA[0]);
-			AssetDatabase.StopAssetEditing();
-			AssetDatabase.SaveAssets();
-		}
 
-		[MenuItem("Tools/GenerateSpriteSO")]
-		public static void Generate()
-		{
+			EditorPrefs.SetInt("kAutoRefreshMode", (int) 1);
+			EditorPrefs.SetInt("kAutoRefresh", 1); //older unity versions
+			//var SGen = new SudokuGenerator();
+
+			//Loggy.LogError(SGen.generate("hard"));
 			return;
 			AssetDatabase.StartAssetEditing();
 			AssetDatabase.ForceReserializeAssets();
 			//FindInGo
-			var doors = LoadAllPrefabsOfType<DoorController>("");
+			var doors = LoadAllPrefabsOfType<DoorMasterController>("");
 
 			foreach (var door in doors)
 			{
@@ -217,7 +390,7 @@ namespace Util
 				}
 				catch
 				{
-					Logger.Log(GetRoot(SH.gameObject).name + "Not root apparently", Category.Editor);
+					Loggy.Info(GetRoot(SH.gameObject).name + "Not root apparently", Category.Editor);
 				}
 			}
 
@@ -372,6 +545,355 @@ namespace Util
 			*/
 		}
 
+		// SerializedObject serializedObject = new UnityEditor.SerializedObject(transform);
+
+		// foreach (var ob in serializedObject.GetIterator())
+		// {
+		// 	Loggy.LogError(ob.ToString()); // You can use this to reset every property on a scene object/Prefab object
+		// }
+		// var localRotation = serializedObject.FindProperty("m_LocalRotation");
+		// PrefabUtility.RevertPropertyOverride(localRotation, InteractionMode.AutomatedAction);
+
+		[MenuItem("Tools/Audio/Refresh Sound Catalogue")]
+		public static void RefreshSoundCatalogue()
+		{
+			AddressablePicker.Refresh();
+		}
+
+		[MenuItem("Tools/regenerateID parents of prefabs")]
+		public static void RegenerateIDparents()
+		{
+			var prefabs = LoadAllPrefabsOfType<PrefabTracker>("");
+			foreach (var prefab in prefabs)
+			{
+
+				if (prefab.TryGetComponent<PrefabTracker>(out var prefabTracker) == false) continue;
+
+				var OLdv = prefabTracker.GetUnmodifiedParentID();
+				if (string.IsNullOrEmpty(OLdv))
+				{
+					var PID = prefabTracker.ParentID;
+					Loggy.Error($"{prefabTracker.name} or {prefabTracker.OrNull()?.name} NEEDS to be committed with it's Parent ID.");
+					continue;
+				}
+
+				prefabTracker.ReassignParentID();
+
+				if (prefabTracker.ParentID != OLdv)
+				{
+					Loggy.Error($"{prefabTracker.name} or {prefabTracker.OrNull()?.name} NEEDS to be committed with it's Parent ID.");
+				}
+			}
+
+		}
+
+		[MenuItem("Tools/---CompiledDammit!!!!!!!!! #&q")]
+		public static void CompiledDammit()
+		{
+			EditorPrefs.SetInt("kAutoRefresh", 1);
+			UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
+
+		}
+
+
+		public static List<string> FilesToKeepInManaged
+		{
+			get
+			{
+				var path = Application.dataPath.Replace("/UnityProject/Assets", "") + "/Tools/CodeScanning/CodeScan/CodeScan/bin/Debug/net7.0/FilesToMoveToManaged.json";
+				return JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(path));
+			}
+		}
+
+
+		[MenuItem("Tools/𓀠 - 𓀠 - ConvertBuildToGoodFiles 𓀂 - 𓀂 -")]
+		public static void ConvertBuildToGoodFiles()
+		{
+			PrepareWindows();
+			PrepareMac();
+			PrepareLinux();
+		}
+
+		[MenuItem("Tools/𓀠 𓀠 𓀠 𓀠 GenGoodFiles 𓀂 𓀂 𓀂 𓀂")]
+		public static void GenGoodFiles()
+		{
+
+
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+			path = Path.Combine(path, "Build");
+			var Directory = new DirectoryInfo(path);
+			if (Directory.Exists)
+			{
+				Directory.Delete(true);
+			}
+			Directory.Create();
+
+			BuildWindows();
+			BuildLinux();
+			BuildMac();
+		}
+
+		private static void BuildWindows()
+		{
+			string[] levels = new string[] {};
+
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+
+			path = Path.Combine(path, "Build");
+
+			// Build player.
+			BuildPipeline.BuildPlayer(levels, Path.Combine(path, "Windows", "Unitystation.exe") , BuildTarget.StandaloneWindows64, BuildOptions.None);
+
+			PrepareWindows();
+		}
+
+		private static void PrepareWindows()
+		{
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+
+			path = Path.Combine(path, "Build");
+
+			var Directory = new DirectoryInfo(Path.Combine(path, "Windows", @"Unitystation_Data\Managed"));
+
+			var GoodFilesToKeepInManaged = FilesToKeepInManaged;
+
+			foreach (var file in Directory.GetFiles())
+			{
+				if (GoodFilesToKeepInManaged.Contains(file.Name.Replace(file.Extension, ""))) continue;
+				file.Delete();
+			}
+			Directory = new DirectoryInfo(Path.Combine(path, "Windows", @"Unitystation_Data\Resources"));
+			Directory.Delete(true);
+			Directory = new DirectoryInfo(Path.Combine(path, "Windows", @"Unitystation_Data\StreamingAssets"));
+			Directory.Delete(true);
+
+			Directory = new DirectoryInfo(Path.Combine(path, "Windows", @"Unitystation_Data"));
+			foreach (var file in Directory.GetFiles())
+			{
+				file.Delete();
+			}
+		}
+
+
+		private static void BuildLinux()
+		{
+			string[] levels = new string[] {};
+
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+
+			path = Path.Combine(path, "Build");
+
+			// Build player.
+			BuildPipeline.BuildPlayer(levels, Path.Combine(path, "Linux", "Unitystation.x86_64") , BuildTarget.StandaloneLinux64, BuildOptions.None);
+
+			PrepareLinux();
+		}
+
+		private static void PrepareLinux()
+		{
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+
+			path = Path.Combine(path, "Build");
+
+			var Directory = new DirectoryInfo(Path.Combine(path, "Linux", @"Unitystation_Data\Managed"));
+			var GoodFilesToKeepInManaged = FilesToKeepInManaged;
+			foreach (var file in Directory.GetFiles())
+			{
+				if (GoodFilesToKeepInManaged.Contains(file.Name.Replace(file.Extension, ""))) continue;
+				file.Delete();
+			}
+			Directory = new DirectoryInfo(Path.Combine(path, "Linux", @"Unitystation_Data\Resources"));
+			Directory.Delete(true);
+			Directory = new DirectoryInfo(Path.Combine(path, "Linux", @"Unitystation_Data\StreamingAssets"));
+			Directory.Delete(true);
+
+			Directory = new DirectoryInfo(Path.Combine(path, "Linux", @"Unitystation_Data"));
+			foreach (var file in Directory.GetFiles())
+			{
+				file.Delete();
+			}
+		}
+
+		private static void BuildMac()
+		{
+			string[] levels = new string[] {};
+
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+
+			path = Path.Combine(path, "Build");
+
+			// Build player.
+			BuildPipeline.BuildPlayer(levels, Path.Combine(path, "Mac", "Unitystation.app") , BuildTarget.StandaloneOSX, BuildOptions.None);
+
+			PrepareMac();
+		}
+
+		private static void PrepareMac()
+		{
+			string path = Application.dataPath;
+			path = path.Replace("/Assets", "");
+
+			path = Path.Combine(path, "Build");
+			var Directory = new DirectoryInfo(Path.Combine(path, "Mac", @"Unitystation.app\Contents\Resources\Data\Managed"));
+			var GoodFilesToKeepInManaged = FilesToKeepInManaged;
+			foreach (var file in Directory.GetFiles())
+			{
+				if (GoodFilesToKeepInManaged.Contains(file.Name.Replace(file.Extension, ""))) continue;
+				file.Delete();
+			}
+			Directory = new DirectoryInfo(Path.Combine(path, "Mac", @"Unitystation.app\Contents\Resources\Data\StreamingAssets"));
+			Directory.Delete(true);
+
+			Directory = new DirectoryInfo(Path.Combine(path, "Mac", @"Unitystation.app\Contents\Resources\Data"));
+			foreach (var file in Directory.GetFiles())
+			{
+				file.Delete();
+			}
+		}
+
+		[MenuItem("Tools/Audio/Get Music keys")]
+		public static void GetMusicKeys()
+		{
+			var path = Application.dataPath.Remove(Application.dataPath.IndexOf("/Assets"));
+			path = path + "/AddressablePackingProjects/SoundAndMusic/ServerData"; //Make OS agnostic
+			Loggy.Info(path, Category.Editor);
+			var Files = Directory.GetFiles(path);
+			string FoundFile = "";
+			foreach (var File in Files)
+			{
+				Loggy.Info(File, Category.Editor);
+				if (File.EndsWith(".json"))
+				{
+					FoundFile = File;
+				}
+			}
+
+			if (FoundFile == "")
+			{
+				Loggy.Warning("missing json file", Category.Editor);
+				return;
+			}
+
+			JObject o1 = JObject.Parse(File.ReadAllText((@FoundFile.Replace("/", @"\"))));
+			var IDs = o1.GetValue("m_InternalIds");
+			var ListIDs = IDs.ToObject<List<string>>().Where(x => x.Contains(".bundle") == false);
+			foreach (var ListID in ListIDs)
+			{
+				Loggy.Info(ListID, Category.Editor);
+			}
+		}
+
+		[MenuItem("Tools/StopAssetEditing")]
+		public static void StopAssetEditing()
+		{
+			AssetDatabase.StopAssetEditing();
+		}
+
+		[MenuItem("Tools/StartAssetEditing")]
+		public static void StartAssetEditing()
+		{
+			AssetDatabase.StartAssetEditing();
+		}
+
+		[MenuItem("Tools/Sprites/SetUpClothingSprites")]
+		public static void SetSpriteDataForClothing()
+		{
+			AssetDatabase.StartAssetEditing();
+			var ClothingPefabs = LoadAllPrefabsOfType<ClothingV2>(Application.dataPath);
+			foreach (var ClothingPefab in ClothingPefabs)
+			{
+				var DataToUse = ClothingPefab.CurrentClothData;
+				if (DataToUse == null) continue;
+				var Data = ClothingPefab.GenItemsSprites(DataToUse);
+				if (Data == null) continue;
+				var att = ClothingPefab.GetComponent<ItemAttributesV2>();
+				att.SetSprites(Data);
+
+				EditorUtility.SetDirty(ClothingPefab.gameObject);
+				Undo.RecordObject(ClothingPefab.gameObject, "set SetSprites");
+			}
+			AssetDatabase.StopAssetEditing();
+			AssetDatabase.SaveAssets();
+		}
+
+
+		[MenuItem("Tools/Sprites/Convert Json Sprites")]
+		public static void ConvertJsonSprites()
+		{
+			spriteCatalogue =
+				AssetDatabase.LoadAssetAtPath<SpriteCatalogue>(
+					"Assets/Resources/ScriptableObjectsSingletons/SpriteCatalogueSingleton.asset");
+			ToSeve.Clear();
+			ToDel.Clear();
+			DirSearch_ex3(Application.dataPath + "/SpriteJsonToSO");
+
+			foreach (var oDe in ToDel)
+			{
+				AssetDatabase.DeleteAsset(oDe);
+			}
+
+			var AAA = FindAssetsByType<SpriteCatalogue>();
+			foreach (var Seve in ToSeve)
+			{
+				AssetDatabase.CreateAsset(Seve.Value, Seve.Key);
+				AAA[0].AddToCatalogue(Seve.Value);
+			}
+
+			ToSeve.Clear();
+			ToDel.Clear();
+			EditorUtility.SetDirty(AAA[0]);
+			AssetDatabase.SaveAssets();
+		}
+
+		[MenuItem("Tools/Sprites/Reset SO index")]
+		public static void Reset()
+		{
+			AssetDatabase.StartAssetEditing();
+			var AAA = FindAssetsByType<SpriteCatalogue>();
+			foreach (var AA in AAA)
+			{
+				AA.Catalogue = new List<SpriteDataSO>();
+				EditorUtility.SetDirty(AA);
+			}
+
+			var SOs = FindAssetsByType<SpriteDataSO>();
+			foreach (var SO in SOs)
+			{
+				AAA[0].AddToCatalogue(SO);
+			}
+
+			EditorUtility.SetDirty(AAA[0]);
+			AssetDatabase.StopAssetEditing();
+			AssetDatabase.SaveAssets();
+		}
+
+		[MenuItem("Tools/Debug/CheckURLHubValidation")]
+		public static async Task Dothing()
+		{
+			var data = await HubValidation.RequestOpenURL(new Uri("https://old.reddit.com"), " because lol ", false);
+			data = await HubValidation.RequestAPIURL(new Uri("https://old.reddit.com"), " Because I needed ", false);
+			data = await HubValidation.RequestTrustedMode("AAAAAAAAAAAAAAAA");
+			Loggy.Error(data.ToString());
+		}
+
+		public class coolClass
+		{
+			public int val = 0;
+		}
+
+		class LoginBody
+		{
+			public string email { get; set; }
+			public string password { get; set; }
+		}
+
+
 		private static void FindInGo(GameObject g)
 		{
 			var components = g.GetComponents<Component>();
@@ -494,7 +1016,7 @@ namespace Util
 		{
 			//Console.WriteLine("DirSearch..(" + sDir + ")");
 
-			//Logger.Log(sDir);
+			//Loggy.Log(sDir);
 			var aDDll = LoadAllPrefabsOfType<ItemAttributesV2>(sDir);
 			foreach (var f in aDDll)
 			{
@@ -507,7 +1029,7 @@ namespace Util
 				//f.ItemSprites.SpriteRightHand =
 				//	PullOutSO(f.ItemSprites.RightHand.Texture);
 				PrefabUtility.SavePrefabAsset(f.gameObject);
-				//Logger.Log(f);
+				//Loggy.Log(f);
 			}
 		}
 
@@ -556,7 +1078,7 @@ namespace Util
 		{
 			//Console.WriteLine("DirSearch..(" + sDir + ")");
 
-			//Logger.Log(sDir);
+			//Loggy.Log(sDir);
 
 			var Files = Directory.GetFiles(sDir);
 			foreach (string f in Files)
@@ -570,11 +1092,12 @@ namespace Util
 					var Sprites = AssetDatabase.LoadAllAssetsAtPath(TT).OfType<Sprite>().ToArray();
 					if (Sprites.Length > 1)
 					{
-						Sprites = Sprites.OrderBy(x => int.Parse(x.name.Substring(x.name.LastIndexOf('_') + 1))).ToArray();
+						Sprites = Sprites.OrderBy(x => int.Parse(x.name.Substring(x.name.LastIndexOf('_') + 1)))
+							.ToArray();
 					}
 
 					//yeah If you named your sub sprites rip, have to find another way of ordering them correctly since the editor doesnt want to do that		E
-					var EquippedData = (TextAsset)AssetDatabase.LoadAssetAtPath(
+					var EquippedData = (TextAsset) AssetDatabase.LoadAssetAtPath(
 						path.Replace(".png", ".json").Replace(Application.dataPath, "Assets"), typeof(TextAsset));
 					var SpriteData = ScriptableObject.CreateInstance<SpriteDataSO>();
 
@@ -591,8 +1114,9 @@ namespace Util
 					//https://forum.unity.com/threads/editor-changing-an-items-icon-in-the-project-window.272061/
 				}
 
-				//Logger.Log(f);
+				//Loggy.Log(f);
 			}
+
 
 			foreach (string d in Directory.GetDirectories(sDir))
 			{
@@ -612,10 +1136,12 @@ namespace Util
 			{
 				if (Sprites.Length > 1)
 				{
-					Logger.LogError("OH NO json File wasn't found for " + Sprites[0].name, Category.Editor);
+					Loggy.Error("OH NO json File wasn't found for " + Sprites[0].name, Category.Editor);
 				}
 
-				SpriteData.Variance.Add(new SpriteDataSO.Variant());
+				var Variant = new SpriteDataSO.Variant();
+				Variant.Frames = new List<SpriteDataSO.Frame>();
+				SpriteData.Variance.Add(Variant);
 				SpriteData.Variance[0].Frames.Add(new SpriteDataSO.Frame());
 				SpriteData.Variance[0].Frames[0].sprite = Sprites[0];
 				return SpriteData;
@@ -625,7 +1151,9 @@ namespace Util
 			int frame = 0;
 			for (int J = 0; J < spriteJson.Number_Of_Variants; J++)
 			{
-				SpriteData.Variance.Add(new SpriteDataSO.Variant());
+				var Variant = new SpriteDataSO.Variant();
+				Variant.Frames = new List<SpriteDataSO.Frame>();
+				SpriteData.Variance.Add(Variant);
 			}
 
 			foreach (var SP in Sprites)

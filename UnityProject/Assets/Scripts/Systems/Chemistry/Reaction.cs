@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using System.Linq;
+using System.Text;
+using Core.RootSillys;
 
 namespace Chemistry
 {
@@ -11,6 +12,9 @@ namespace Chemistry
 	{
 		public SerializableDictionary<Reagent, int> ingredients;
 		public bool useExactAmounts = false;
+
+		public float MinimumReactionMultiple = 0f;
+
 		public SerializableDictionary<Reagent, int> catalysts;
 		public SerializableDictionary<Reagent, int> inhibitors;
 		[HideInInspector]
@@ -22,66 +26,177 @@ namespace Chemistry
 		[HideInInspector]
 		public float serializableTempMax;
 		public SerializableDictionary<Reagent, int> results;
-		public Effect[] effects;
+		public SerializableDictionary<Effect, int> effectDict;
 
 		public float? tempMin;
 		public float? tempMax;
 
-		public virtual bool Apply(MonoBehaviour sender, ReagentMix reagentMix)
+		[SerializeField] private string overrideDisplayName = null;
+
+		private string displayName = null;
+
+		//For ingame GUIs that might need to indentify this reaction. See ExplosiveBountyUIEntry.cs for an example
+		public string DisplayName
+		{
+			get
+			{
+				if (overrideDisplayName != null) return overrideDisplayName;
+				if (displayName != null) return displayName;
+
+				StringBuilder sb = new StringBuilder();
+
+				foreach (KeyValuePair<Reagent, int> product in results.m_dict)
+				{
+					sb.Append($"{product.Key.Name},");
+				}
+
+				sb.Remove(sb.Length - 1, 1); //remove last comma
+
+				displayName = sb.ToString();
+				return displayName;
+			}
+		}
+
+		[SerializeField, HideInInspector]
+		private int indexInSingleton = -1;
+		public int IndexInSingleton
+		{
+			get => indexInSingleton;
+#if UNITY_EDITOR
+			set => indexInSingleton = value;
+#endif
+		}
+
+		public virtual bool Apply(object sender, Vector3 woldPosition , ReagentMix reagentMix)
+		{
+			if (IsReactionValid(reagentMix) == false) return false;
+
+			ApplyReaction(sender as MonoBehaviour, woldPosition,  reagentMix);
+
+			return true;
+		}
+
+		public virtual List<CachedEffect> ApplyWithoutEffects(ReagentMix reagentMix)
+		{
+			if (IsReactionValid(reagentMix) == false) return null;
+
+			return ApplyReactionWithoutEffects(reagentMix);
+		}
+
+		public bool IsReactionValid(ReagentMix reagentMix)
 		{
 			if (HasIngredients(reagentMix) == false)
 			{
 				return false;
 			}
 
-			var reactionAmount = GetReactionAmount(reagentMix);
+			var reactionMultiple = GetReactionMultiple(reagentMix);
 
 			if (useExactAmounts)
 			{
-				reactionAmount = (float) Math.Floor(reactionAmount);
-				if (reactionAmount == 0)
+				reactionMultiple = (float)Math.Floor(reactionMultiple);
+				if (reactionMultiple == 0)
 				{
 					return false;
 				}
 			}
 
-			if (CanReactionHappen(reagentMix, reactionAmount) == false)
+			if (CanReactionHappen(reagentMix, reactionMultiple) == false)
 			{
 				return false;
-			}
-
-			foreach (var ingredient in ingredients.m_dict)
-			{
-				reagentMix.Subtract(ingredient.Key, reactionAmount * ingredient.Value);
-			}
-
-			foreach (var result in results.m_dict)
-			{
-				var reactionResult = reactionAmount * result.Value;
-				reagentMix.Add(result.Key, reactionResult);
-			}
-
-			foreach (var effect in effects)
-			{
-				if (effect != null)
-					effect.Apply(sender, reactionAmount);
 			}
 
 			return true;
 		}
 
-		public float GetReactionAmount(ReagentMix reagentMix)
+		public void ApplyReaction(MonoBehaviour sender, Vector3 WorldPosition, ReagentMix reagentMix)
 		{
-			var reactionAmount = Mathf.Infinity;
+			var reactionMultiplier = GetReactionMultiple(reagentMix);
+
+			foreach (var ingredient in ingredients.m_dict)
+			{
+				reagentMix.Subtract(ingredient.Key, reactionMultiplier * ingredient.Value);
+			}
+
+			foreach (var result in results.m_dict)
+			{
+				var reactionResult = reactionMultiplier * result.Value;
+				reagentMix.Add(result.Key, reactionResult);
+			}
+
+			foreach (var effect in effectDict.m_dict)
+			{
+				var reactionResult = reactionMultiplier * effect.Value;
+				effect.Key.Apply(sender, reagentMix, WorldPosition, reactionResult);
+			}
+		}
+
+		public List<CachedEffect> ApplyReactionWithoutEffects( ReagentMix reagentMix)
+		{
+			List<CachedEffect> effectsToCache = new List<CachedEffect>();
+			var reactionMultiplier = GetReactionMultiple(reagentMix);
+
+			foreach (var ingredient in ingredients.m_dict)
+			{
+				reagentMix.Subtract(ingredient.Key, reactionMultiplier * ingredient.Value);
+			}
+
+			foreach (var result in results.m_dict)
+			{
+				var reactionResult = reactionMultiplier * result.Value;
+				reagentMix.Add(result.Key, reactionResult);
+			}
+
+			foreach (var effect in effectDict.m_dict)
+			{
+				var reactionResult = reactionMultiplier * effect.Value;
+				effectsToCache.Add(new CachedEffect(effect.Key, reactionResult));
+			}
+
+			return effectsToCache;
+		}
+
+		public float GetReactionMultiple(ReagentMix reagentMix)
+		{
+			var reactionMultiplier = Mathf.Infinity;
 			foreach (var ingredient in ingredients.m_dict)
 			{
 				var value = reagentMix.reagents.m_dict[ingredient.Key] / ingredient.Value;
-				if (value < reactionAmount)
+				if (value < reactionMultiplier)
 				{
-					reactionAmount = value;
+					reactionMultiplier = value;
 				}
 			}
-			return reactionAmount;
+
+			if (reactionMultiplier.IsUnreasonableNumber())
+			{
+				reactionMultiplier = 0;
+			}
+
+			return reactionMultiplier;
+		}
+
+		/// <summary>
+		/// Calculates the total volume of products + quanity of reaction effects produced from this reaction.
+		/// Does not perform this reaction.
+		/// </summary>
+		public float GetReactionQuantity(ReagentMix reagentMix)
+		{
+			var multiplier = GetReactionMultiple(reagentMix);
+
+			float quantity = 0;
+
+			foreach (var result in results.m_dict)
+			{
+				quantity += multiplier * result.Value;
+			}
+
+			foreach (var effect in effectDict.m_dict)
+			{
+				quantity += multiplier * effect.Value;
+			}
+
+			return quantity;
 		}
 
 		public bool HasIngredients(ReagentMix reagentMix)
@@ -112,7 +227,7 @@ namespace Chemistry
 			return true;
 		}
 
-		public bool CanReactionHappen(ReagentMix reagentMix, float reactionAmount = 1)
+		public bool CanReactionHappen(ReagentMix reagentMix, float reactionMultiple = 1)
 		{
 			//correct temperature?
 			tempMin = hasMinTemp ? (float?)serializableTempMin : null;
@@ -123,10 +238,15 @@ namespace Chemistry
 				return false;
 			}
 
+			if (MinimumReactionMultiple > reactionMultiple)
+			{
+				return false;
+			}
+
 			//are all catalysts present?
 			foreach (var catalyst in catalysts.m_dict)
 			{
-				if (reagentMix[catalyst.Key] < catalyst.Value * reactionAmount)
+				if (reagentMix[catalyst.Key] < catalyst.Value * reactionMultiple)
 				{
 					return false;
 				}
@@ -135,7 +255,7 @@ namespace Chemistry
 			//is a single inhibitor present?
 			foreach (var inhibitor in inhibitors.m_dict)
 			{
-				if (reagentMix[inhibitor.Key] > inhibitor.Value * reactionAmount)
+				if (reagentMix[inhibitor.Key] >= inhibitor.Value * reactionMultiple)
 				{
 					return false;
 				}
@@ -143,5 +263,16 @@ namespace Chemistry
 			return true;
 		}
 
+	}
+
+	public struct CachedEffect
+	{
+		public CachedEffect(Effect _effectType, float _effectAmount)
+		{
+			effectAmount = _effectAmount;
+			effectType = _effectType;
+		}
+		public Effect effectType;
+		public float effectAmount;
 	}
 }

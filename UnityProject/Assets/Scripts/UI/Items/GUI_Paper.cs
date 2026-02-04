@@ -1,10 +1,7 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Items.Others;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
-using UI;
 
 namespace UI.Items
 {
@@ -16,7 +13,14 @@ namespace UI.Items
 		{
 			base.OnEnable();
 			StartCoroutine(WaitForProvider());
-			textField.readOnly = true;
+			UIManager.IsInputFocus = true;
+			UIManager.PreventChatInput = true;
+		}
+
+		public void OnDisable()
+		{
+			UIManager.IsInputFocus = false;
+			UIManager.PreventChatInput = false;
 		}
 
 		IEnumerator WaitForProvider()
@@ -35,12 +39,12 @@ namespace UI.Items
 			base.RefreshTab();
 		}
 
-		public void RefreshText()
+		private void RefreshText()
 		{
-			if (Provider != null)
-			{
-				textField.text = Provider.GetComponent<Paper>().PaperString;
-			}
+			if (Provider == null || Provider.TryGetComponent<Paper>(out var paper) == false) return;
+			textField.lineLimit = paper.CustomLineLimit;
+			textField.characterLimit = paper.CustomCharacterLimit;
+			textField.text = Provider.GetComponent<Paper>()?.PaperString;
 		}
 
 		public void ClosePaper()
@@ -63,7 +67,6 @@ namespace UI.Items
 
 			UIManager.IsInputFocus = true;
 			UIManager.PreventChatInput = true;
-			CheckForInput();
 		}
 
 		private bool IsPenInHand()
@@ -80,21 +83,10 @@ namespace UI.Items
 			return pen != null;
 		}
 
-		//Safety measure:
-		private async void CheckForInput()
-		{
-			await Task.Delay(500);
-			if (!textField.isFocused)
-			{
-				UIManager.IsInputFocus = false;
-				UIManager.PreventChatInput = false;
-			}
-		}
-
 		//Request an edit from server:
 		public void OnTextEditEnd()
 		{
-			PlayerManager.LocalPlayerScript.playerNetworkActions.CmdRequestPaperEdit(Provider.gameObject,
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdRequestPaperEdit(Provider.gameObject,
 				textField.text);
 			UIManager.IsInputFocus = false;
 			UIManager.PreventChatInput = false;

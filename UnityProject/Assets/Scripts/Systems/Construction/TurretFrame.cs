@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Core;
 using Objects.Other;
 using ScriptableObjects;
 using UnityEngine;
 using Weapons;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Systems.Construction
 {
@@ -28,14 +30,14 @@ namespace Systems.Construction
 		private ItemSlot gunSlot;
 		private Stateful stateful;
 		private StatefulState CurrentState => stateful.CurrentState;
-		private ObjectBehaviour objectBehaviour;
+		private UniversalObjectPhysics objectBehaviour;
 		private Integrity integrity;
 
 		private void Awake()
 		{
 			gunSlot = GetComponent<ItemStorage>().GetIndexedItemSlot(0);
 			stateful = GetComponent<Stateful>();
-			objectBehaviour = GetComponent<ObjectBehaviour>();
+			objectBehaviour = GetComponent<UniversalObjectPhysics>();
 			integrity = GetComponent<Integrity>();
 		}
 
@@ -50,64 +52,64 @@ namespace Systems.Construction
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			if (!Validations.IsTarget(gameObject, interaction)) return false;
 
 			//Anchor or disassemble
 			if (CurrentState == initialState)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar);
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench) ||
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar);
 			}
 
 			//Adding metal or unanchor
 			if (CurrentState == anchoredState)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.MetalSheet) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench);
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.MetalSheet) ||
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench);
 			}
 
 			//Wrench or remove metal
 			if (CurrentState == metalAddedState)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench) ||
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench) ||
 				       Validations.HasUsedActiveWelder(interaction);
 			}
 
 			//Add gun or unwrench
 			if (CurrentState == wrenchState)
 			{
-				return Validations.HasUsedItemTrait(interaction, gunTrait) ||
-					Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench);
+				return Validations.HasItemTrait(interaction, gunTrait) ||
+					Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench);
 			}
 
 			//Add prox or remove gun
 			if (CurrentState == gunAddedState)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.ProximitySensor) ||
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.ProximitySensor) ||
 				       interaction.HandObject == null;
 			}
 
 			//Screw or remove prox
 			if (CurrentState == proxAddedState)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver) ||
 				       interaction.HandObject == null;
 			}
 
 			//Add metal or unscrew
 			if (CurrentState == screwState)
 			{
-				return Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.MetalSheet) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver);
+				return Validations.HasItemTrait(interaction, CommonTraits.Instance.MetalSheet) ||
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver);
 			}
 
 			//Finish construction or remove metal
 			if (CurrentState == secondMetalAddedState)
 			{
 				return Validations.HasUsedActiveWelder(interaction) ||
-				       Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar);
+				       Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar);
 			}
 
 			return false;
@@ -118,7 +120,7 @@ namespace Systems.Construction
 			//Anchor or disassemble
 			if (CurrentState == initialState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 				{
 					if (!ServerValidations.IsAnchorBlocked(interaction))
 					{
@@ -140,7 +142,7 @@ namespace Systems.Construction
 
 					Chat.AddExamineMsgFromServer(interaction.Performer, "Unable to anchor turret frame here");
 				}
-				else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar))
+				else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar))
 				{
 					//deconstruct
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -161,7 +163,7 @@ namespace Systems.Construction
 			//Adding metal or unanchor
 			if (CurrentState == anchoredState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.MetalSheet))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.MetalSheet))
 				{
 					//Add metal
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -175,7 +177,7 @@ namespace Systems.Construction
 							stateful.ServerChangeState(metalAddedState);
 						});
 				}
-				else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+				else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 				{
 					//Unanchor
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -197,7 +199,7 @@ namespace Systems.Construction
 			//Wrench or remove metal
 			if (CurrentState == metalAddedState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 				{
 					//Wrench
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -231,7 +233,7 @@ namespace Systems.Construction
 			//Add gun or unwrench
 			if (CurrentState == wrenchState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, gunTrait))
+				if (Validations.HasItemTrait(interaction, gunTrait))
 				{
 					//Add energy gun
 					Chat.AddActionMsgToChat(interaction, $"You place the {interaction.UsedObject.ExpensiveName()} inside the turret frame.",
@@ -239,7 +241,7 @@ namespace Systems.Construction
 					Inventory.ServerTransfer(interaction.HandSlot, gunSlot);
 					stateful.ServerChangeState(gunAddedState);
 				}
-				else if  (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Wrench))
+				else if  (Validations.HasItemTrait(interaction, CommonTraits.Instance.Wrench))
 				{
 					//Remove unwrench bolts
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -259,7 +261,7 @@ namespace Systems.Construction
 			//Add prox or remove gun
 			if (CurrentState == gunAddedState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.ProximitySensor))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.ProximitySensor))
 				{
 					//Add proximity sensor
 					Chat.AddActionMsgToChat(interaction, $"You place the {interaction.UsedObject.ExpensiveName()} inside the turret frame.",
@@ -283,7 +285,7 @@ namespace Systems.Construction
 			//Screw or remove prox
 			if (CurrentState == proxAddedState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver))
 				{
 					//Screw
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -312,7 +314,7 @@ namespace Systems.Construction
 			//Add metal or unscrew
 			if (CurrentState == screwState)
 			{
-				if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.MetalSheet))
+				if (Validations.HasItemTrait(interaction, CommonTraits.Instance.MetalSheet))
 				{
 					//Add metal
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -326,7 +328,7 @@ namespace Systems.Construction
 							stateful.ServerChangeState(secondMetalAddedState);
 						});
 				}
-				else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Screwdriver))
+				else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Screwdriver))
 				{
 					//Unscrew
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,
@@ -366,7 +368,7 @@ namespace Systems.Construction
 							_ = Despawn.ServerSingle(gameObject);
 						});
 				}
-				else if (Validations.HasUsedItemTrait(interaction, CommonTraits.Instance.Crowbar))
+				else if (Validations.HasItemTrait(interaction, CommonTraits.Instance.Crowbar))
 				{
 					//remove metal
 					ToolUtils.ServerUseToolWithActionMessages(interaction, 2f,

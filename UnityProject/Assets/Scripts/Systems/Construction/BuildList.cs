@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Logs;
 using UnityEngine;
 
 namespace Construction
@@ -78,6 +79,11 @@ namespace Construction
 			/// </summary>
 			public bool OnePerTile => onePerTile;
 
+			[SerializeField]
+			[Tooltip("When constructed will face the player")]
+			private bool facePlayerDirectionOnConstruction = false;
+			public bool FacePlayerDirectionOnConstruction => facePlayerDirectionOnConstruction;
+
 			/// <summary>
 			/// build this at the indicated location.
 			/// </summary>
@@ -91,7 +97,7 @@ namespace Construction
 				{
 					if (stackable.Amount < cost)
 					{
-						Logger.LogWarningFormat("Server logic error. " +
+						Loggy.Warning().Format("Server logic error. " +
 						                        "Tried building {0} with insufficient materials in hand ({1})." +
 						                        " Build will not be performed.", Category.Construction, name,
 							buildingMaterial);
@@ -103,7 +109,7 @@ namespace Construction
 				{
 					if (cost > 1)
 					{
-						Logger.LogWarningFormat("Server logic error. " +
+						Loggy.Warning().Format("Server logic error. " +
 						                        "Tried building {0} with insufficient materials in hand ({1})." +
 						                        " Build will not be performed.", Category.Construction, name,
 							buildingMaterial);

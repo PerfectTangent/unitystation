@@ -25,13 +25,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9022212187074110458}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: -1, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8586105927633606280}
-  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &3327325209178255850
 SpriteRenderer:
@@ -50,6 +50,8 @@ SpriteRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -110,6 +112,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 511634085231996503, guid: 9a9e0975a92c4564094bbb26dd165002,
@@ -119,12 +122,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 511634085231996503, guid: 9a9e0975a92c4564094bbb26dd165002,
         type: 3}
-      propertyPath: spriteHandlers.Array.data[3]
+      propertyPath: 'spriteHandlers.Array.data[3]'
       value: 
       objectReference: {fileID: 1367751887141801738}
     - target: {fileID: 511634085231996503, guid: 9a9e0975a92c4564094bbb26dd165002,
         type: 3}
-      propertyPath: spriteHandlers.Array.data[4]
+      propertyPath: 'spriteHandlers.Array.data[4]'
       value: 
       objectReference: {fileID: 245935552815682260}
     - target: {fileID: 1580494814286032113, guid: 9a9e0975a92c4564094bbb26dd165002,
@@ -200,6 +203,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2494681440875532984, guid: 9a9e0975a92c4564094bbb26dd165002,
         type: 3}
+      propertyPath: parentID
+      value: 9a9e0975a92c4564094bbb26dd165002
+      objectReference: {fileID: 0}
+    - target: {fileID: 2494681440875532984, guid: 9a9e0975a92c4564094bbb26dd165002,
+        type: 3}
       propertyPath: foreverID
       value: f04f1148822d6c949aaafb1e43e5d59b
       objectReference: {fileID: 0}
@@ -216,6 +224,11 @@ PrefabInstance:
         type: 2}
     - target: {fileID: 6931842893682907539, guid: 9a9e0975a92c4564094bbb26dd165002,
         type: 3}
+      propertyPath: _assetId
+      value: 435543228
+      objectReference: {fileID: 0}
+    - target: {fileID: 6931842893682907539, guid: 9a9e0975a92c4564094bbb26dd165002,
+        type: 3}
       propertyPath: m_AssetId
       value: f04f1148822d6c949aaafb1e43e5d59b
       objectReference: {fileID: 0}
@@ -230,6 +243,21 @@ PrefabInstance:
       value: Very useful for filtering gasses.
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 1583787549853510187, guid: 9a9e0975a92c4564094bbb26dd165002,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5798747285961487761}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1580494814286032113, guid: 9a9e0975a92c4564094bbb26dd165002,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3395688390007674471}
+    - targetCorrespondingSourceObject: {fileID: 1580494814286032113, guid: 9a9e0975a92c4564094bbb26dd165002,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7643419451972840866}
   m_SourcePrefab: {fileID: 100100000, guid: 9a9e0975a92c4564094bbb26dd165002, type: 3}
 --- !u!114 &1367751887141801738 stripped
 MonoBehaviour:
@@ -279,6 +307,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d7277dcc993463cb6c7f79b663f36fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
   NetTabType: 28
   aiInteractable: 1
 --- !u!114 &7643419451972840866
@@ -293,6 +324,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 736da1ab3a3a1b541a497b7e274fa188, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0.1
   spritehandler: {fileID: 3846844616381856392}
   SpawnOnDeconstruct: {fileID: 5773598838638270813, guid: cd09f64dd236ae541abf991d8e00da65,
     type: 3}
@@ -302,23 +336,28 @@ MonoBehaviour:
     Connections:
       Directions:
       - Bool: 1
+        MappedNeeded: 1
         pipeType: 1
         PortType: 0
         flagLogic: 1
       - Bool: 1
+        MappedNeeded: 1
         pipeType: 1
         PortType: 0
         flagLogic: 2
       - Bool: 1
+        MappedNeeded: 1
         pipeType: 1
         PortType: 3
         flagLogic: 0
       - Bool: 0
+        MappedNeeded: 0
         pipeType: 1
         PortType: 0
         flagLogic: 0
     CustomLogic: 0
     NetCompatible: 0
+    SelfSufficient: 0
     mixAndVolume:
       mix:
         temperature: 273.15
@@ -329,9 +368,9 @@ MonoBehaviour:
       gasMix:
         GasData:
           GasesArray: []
-        Pressure: 0
+        pressure: 0
         Volume: 0.1
-        Temperature: 293.15
+        temperature: 293.15
     MonoPipe: {fileID: 0}
   Colour: {r: 1, g: 1, b: 1, a: 1}
   spawnedFromItem: 1

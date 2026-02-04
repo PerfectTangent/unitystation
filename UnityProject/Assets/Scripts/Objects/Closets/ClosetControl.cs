@@ -4,15 +4,20 @@ using System.Linq;
 using UnityEngine;
 using Mirror;
 using AddressableReferences;
+using Core;
 using Items;
 using Objects.Atmospherics;
+using Systems.Clearance;
+using UI.Systems.Tooltips.HoverTooltips;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
 	/// <summary>
 	/// Allows closet to be opened / closed / locked
 	/// </summary>
-	public class ClosetControl : NetworkBehaviour, IServerSpawn, ICheckedInteractable<PositionalHandApply>, IRightClickable, IExaminable, IEscapable
+	public class ClosetControl : NetworkBehaviour, IServerSpawn, ICheckedInteractable<PositionalHandApply>,
+		IRightClickable, IExaminable, IEscapable, IHoverTooltip, ICheckedInteractable<MouseDrop>
 	{
 		// These sprite enums coincide with the sprite SOs set in SpriteHandler.
 		public enum Door
@@ -104,38 +109,42 @@ namespace Objects
 		#endregion
 
 		// Components
-		private RegisterObject registerObject;
+		protected RegisterObject registerObject;
 		private ObjectAttributes attributes;
-		private ObjectContainer objectContainer;
+		protected ObjectContainer objectContainer;
 		private GasContainer gasContainer;
-		private PushPull pushPull;
-		private AccessRestrictions accessRestrictions;
+		private UniversalObjectPhysics objectPhysics;
+		private ClearanceRestricted clearanceRestricted;
 
 		private static readonly float weldTime = 5.0f;
 
 		private string closetName;
 
 		[SyncVar(hook = nameof(SyncDoorState))]
-		private Door doorState = Door.Closed;
-		private Lock lockState;
-		private Weld weldState = Weld.NotWelded;
+		protected Door doorState = Door.Closed;
+		protected Lock lockState;
+		protected Weld weldState = Weld.NotWelded;
 
 		private Matrix Matrix => registerObject.Matrix;
 		public bool IsOpen => doorState == Door.Opened;
 		public bool IsLocked => lockState == Lock.Locked;
 		public bool IsWelded => weldState == Weld.Welded;
 
+		[SerializeField] protected ItemTrait handPriorityTrait;
+
+
+		[SerializeField] private bool CannotBeInteractedWithWhenClosed = false;
+
 		#region Lifecycle
 
-		private void Awake()
+		public virtual void Awake()
 		{
 			registerObject = GetComponent<RegisterObject>();
 			attributes = GetComponent<ObjectAttributes>();
 			objectContainer = GetComponent<ObjectContainer>();
 			gasContainer = GetComponent<GasContainer>();
-			pushPull = GetComponent<PushPull>();
-			accessRestrictions = GetComponent<AccessRestrictions>();
-
+			clearanceRestricted = GetComponent<ClearanceRestricted>();
+			objectPhysics = this.GetComponent<UniversalObjectPhysics>();
 			lockState = isLockable ? Lock.Locked : Lock.NoLock;
 			GetComponent<Integrity>().OnWillDestroyServer.AddListener(OnWillDestroyServer);
 
@@ -148,7 +157,7 @@ namespace Objects
 			SyncDoorState(doorState, doorState);
 		}
 
-		public virtual void OnSpawnServer(SpawnInfo info)
+		public void OnSpawnServer(SpawnInfo info)
 		{
 			// Always spawn closed
 			SyncDoorState(doorState, Door.Closed);
@@ -157,6 +166,17 @@ namespace Objects
 			if (info.SpawnType == SpawnType.Mapped)
 			{
 				CollectObjects();
+			}
+		}
+
+		public void Start()
+		{
+			if (CustomNetworkManager.IsServer)
+			{
+				if (GetComponent<RuntimeSpawned>() == null)
+				{
+					CollectObjects();
+				}
 			}
 		}
 
@@ -177,10 +197,10 @@ namespace Objects
 			if (newState == doorState) return;
 
 			doorState = newState;
-			doorSpriteHandler.ChangeSprite((int) doorState);
+			doorSpriteHandler.SetCatalogueIndexSprite((int) doorState);
 			if (hideLockWhenOpened && lockState != Lock.NoLock)
 			{
-				lockSpritehandler.ChangeSprite((int) (IsOpen ? Lock.NoLock : lockState));
+				lockSpritehandler.SetCatalogueIndexSprite((int) (IsOpen ? Lock.NoLock : lockState));
 			}
 
 			SoundManager.PlayNetworkedAtPos(IsOpen ? soundOnOpen : soundOnClose, registerObject.WorldPositionServer, sourceObj: gameObject);
@@ -202,7 +222,7 @@ namespace Objects
 			if (isLockable == false) return;
 
 			lockState = newState;
-			lockSpritehandler.ChangeSprite((int) lockState);
+			lockSpritehandler.SetCatalogueIndexSprite((int) lockState);
 		}
 
 		public void SetWeld(Weld newState)
@@ -216,36 +236,34 @@ namespace Objects
 				UpdateGasContainer();
 			}
 
-			weldSpriteHandler.ChangeSprite((int) weldState);
+			weldSpriteHandler.SetCatalogueIndexSprite((int) weldState);
 		}
 
 		private void UpdateGasContainer()
 		{
-			if (gasContainer != null)
-			{
-				gasContainer.IsSealed = IsOpen == false && (isOnlySealedWhenWelded == false || IsWelded);
-				gasContainer.EqualiseWithTile();
-			}
+			if (gasContainer == null) return;
+			gasContainer.IsSealed = IsOpen == false && (isOnlySealedWhenWelded == false || IsWelded);
+			gasContainer.EqualiseWithTile();
 		}
 
 		public void BreakLock()
 		{
 			isLockable = false;
 			lockState = Lock.Broken;
-			lockSpritehandler.ChangeSprite((int) lockState);
+			lockSpritehandler.SetCatalogueIndexSprite((int) lockState);
 		}
 
-		public void CollectObjects()
+		public virtual void CollectObjects()
 		{
 			objectContainer.GatherObjects();
 		}
 
-		public void ReleaseObjects()
+		public virtual void ReleaseObjects()
 		{
 			objectContainer.RetrieveObjects();
 		}
 
-		public void EntityTryEscape(GameObject performer, Action ifCompleted)
+		public void EntityTryEscape(GameObject performer, Action ifCompleted, MoveAction moveAction)
 		{
 			// First, try to just open the closet. Anything can do this.
 			if (IsLocked == false && IsWelded == false)
@@ -257,9 +275,9 @@ namespace Objects
 
 			GameObject sourceobjbehavior = gameObject;
 			RegisterObject sourceregisterobject = registerObject;
-			if (pushPull.parentContainer != null)
+			if (objectPhysics.ContainedInObjectContainer != null)
 			{
-				sourceobjbehavior = pushPull.parentContainer.gameObject;
+				sourceobjbehavior = objectPhysics.ContainedInObjectContainer.gameObject;
 				sourceregisterobject = sourceobjbehavior.GetComponent<RegisterObject>();
 			}
 
@@ -319,20 +337,64 @@ namespace Objects
 
 		#region Interaction
 
+		public bool WillInteract(MouseDrop interaction, NetworkSide side)
+		{
+			if (CannotBeInteractedWithWhenClosed && lockState == Lock.Locked) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
+			if (IsOpen == false) return false;
+			//only allow interactions targeting this closet
+			return interaction.TargetObject == gameObject;
+		}
+
+		public void ServerPerformInteraction(MouseDrop interaction)
+		{
+			var Pickupable =  interaction.DroppedObject.gameObject.GetComponent<Pickupable>();
+
+			if (Pickupable != null && Pickupable.ItemSlot != null)
+			{
+				Inventory.ServerDrop(Pickupable.ItemSlot, gameObject.AssumedWorldPosServer());
+			}
+			else
+			{
+				interaction.DroppedObject.GetUniversalObjectPhysics().AppearAtWorldPositionServer(gameObject.AssumedWorldPosServer());
+			}
+
+
+			if (objectContainer.IsAnotherContainerNear())
+			{
+				Chat.AddExamineMsgFromServer(interaction.Performer, $"You cannot close {closetName} with another container in the way!");
+			}
+			else
+			{
+				SetDoor(Door.Closed);
+			}
+		}
+
 		public bool WillInteract(PositionalHandApply interaction, NetworkSide side)
 		{
+			if (CannotBeInteractedWithWhenClosed && lockState == Lock.Locked) return false;
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.HandObject != null && interaction.Intent == Intent.Harm) return false;
+			if (interaction.HandObject != null &&
+			    handPriorityTrait != null && HasHandPriority(interaction.HandObject.PickupableOrNull()?.ItemAttributesV2)) return false;
 
 			//only allow interactions targeting this closet
-			if (interaction.TargetObject != gameObject) return false;
+			return interaction.TargetObject == gameObject;
+		}
 
-			return true;
+		private bool HasHandPriority(ItemAttributesV2 handObjectAttributes)
+		{
+			return handObjectAttributes.GetTraits().Contains(handPriorityTrait);
 		}
 
 		public void ServerPerformInteraction(PositionalHandApply interaction)
 		{
-			if (interaction.IsAltClick)
+			InteractionChecks(interaction);
+		}
+
+		public virtual void InteractionChecks(PositionalHandApply interaction)
+		{
+			if (interaction.IsAltClick && IsOpen == false)
 			{
 				TryToggleLock(interaction);
 			}
@@ -342,7 +404,7 @@ namespace Objects
 			}
 			else if (IsLocked)
 			{
-				if (interaction.HandSlot.IsOccupied && interaction.HandObject.TryGetComponent<Emag>(out var emag))
+				if (interaction.HandSlot.IsOccupied && interaction.HandObject.TryGetComponent<Emag>(out var emag) && interaction.IsAltClick == false)
 				{
 					TryEmag(interaction, emag);
 				}
@@ -353,7 +415,7 @@ namespace Objects
 			}
 			else if (IsOpen)
 			{
-				if (interaction.HandSlot.IsOccupied)
+				if (interaction.HandSlot.IsOccupied && interaction.IsAltClick == false)
 				{
 					// If nothing in the player's hand can be used on the closet, drop it in the closet.
 					TryStoreItem(interaction);
@@ -364,7 +426,7 @@ namespace Objects
 					TryToggleDoor(interaction);
 				}
 			}
-			else if (Validations.HasUsedComponent<IDCard>(interaction) || Validations.HasUsedComponent<Items.PDA.PDALogic>(interaction))
+			else if (Validations.HasUsedComponent<IDCard>(interaction) || Validations.HasUsedComponent<Items.PDA.PDALogic>(interaction) && interaction.IsAltClick == false)
 			{
 				TryToggleLock(interaction);
 			}
@@ -384,6 +446,11 @@ namespace Objects
 
 			if (IsWelded)
 			{
+				if (IsLocked == false)
+				{
+					Chat.AddExamineMsgFromServer(interaction.Performer, $"The {closetName}'s hinges have been welded and cannot be closed anymore!");
+					return;
+				}
 				Chat.AddExamineMsgFromServer(interaction.Performer, $"The {closetName} is welded shut!");
 				return;
 			}
@@ -412,7 +479,7 @@ namespace Objects
 			if (interaction.IsAltClick)
 			{
 				var idSource = interaction.PerformerPlayerScript.DynamicItemStorage.GetNamedItemSlots(NamedSlot.id)
-						.FirstOrDefault(slot => slot.IsOccupied);
+					.FirstOrDefault(slot => slot.IsOccupied);
 				if (idSource != null)
 				{
 					effector = idSource.ItemObject.ExpensiveName();
@@ -428,24 +495,25 @@ namespace Objects
 				Chat.AddExamineMsg(interaction.Performer, $"You wave your {effector} over the panel but the lock appears to be broken!");
 				return;
 			}
-			else if (isLockable == false)
+
+			if (isLockable == false)
 			{
 				Chat.AddExamineMsg(
-						interaction.Performer,
-						$"You can't figure out where to wave your {effector}... Perhaps this closet isn't lockable?");
+					interaction.Performer,
+					$"You can't figure out where to wave your {effector}... Perhaps this closet isn't lockable?");
 				return;
 			}
 
 			if (IsOpen)
 			{
 				Chat.AddExamineMsg(
-						interaction.Performer,
-						$"You wave your {effector} over the panel but soon realise the {closetName} is still open! D'oh!");
+					interaction.Performer,
+					$"You wave your {effector} over the panel but soon realise the {closetName} is still open! D'oh!");
 				return;
 			}
 
 			// First checks performer's ID in ID slot, else fall back to hand item.
-			if (accessRestrictions.CheckAccess(interaction.Performer))
+			if (clearanceRestricted.HasClearance(interaction.Performer))
 			{
 				SetLock(IsLocked ? Lock.Unlocked : Lock.Locked);
 				Chat.AddExamineMsg(interaction.Performer, $"You {(IsLocked ? "lock" : "unlock")} the {closetName}.");
@@ -465,12 +533,12 @@ namespace Objects
 			}
 
 			ToolUtils.ServerUseToolWithActionMessages(
-					interaction, weldTime,
-					$"You start {(IsWelded ? "unwelding" : "welding")} the {closetName}...",
-					$"{interaction.Performer.ExpensiveName()} starts {(IsWelded ? "unwelding" : "welding")} the {closetName}...",
-					$"You {(IsWelded ? "unweld" : "weld")} the {closetName}.",
-					$"{interaction.Performer.ExpensiveName()} {(IsWelded ? "unwelds" : "welds")} the {closetName}.",
-					() => SetWeld(IsWelded ? Weld.NotWelded : Weld.Welded));
+				interaction, weldTime,
+				$"You start {(IsWelded ? "unwelding" : "welding")} the {closetName}...",
+				$"{interaction.Performer.ExpensiveName()} starts {(IsWelded ? "unwelding" : "welding")} the {closetName}...",
+				$"You {(IsWelded ? "unweld" : "weld")} the {closetName}.",
+				$"{interaction.Performer.ExpensiveName()} {(IsWelded ? "unwelds" : "welds")} the {closetName}.",
+				() => SetWeld(IsWelded ? Weld.NotWelded : Weld.Welded));
 		}
 
 		private void TryEmag(PositionalHandApply interaction, Emag emag)
@@ -484,8 +552,8 @@ namespace Objects
 			if (lockState == Lock.Broken)
 			{
 				Chat.AddExamineMsgFromServer(
-						interaction.Performer,
-						"You wave the emag over the panel, but it looks to be already destroyed...");
+					interaction.Performer,
+					"You wave the emag over the panel, but it looks to be already destroyed...");
 				return;
 			}
 
@@ -495,7 +563,7 @@ namespace Objects
 			BreakLock();
 			Chat.AddActionMsgToChat(interaction,
 				"The access panel errors. A slight amount of smoke pours from behind the panel...",
-						"You can smell caustic smoke from somewhere...");
+				"You can smell caustic smoke from somewhere...");
 		}
 
 		private void TryStoreItem(PositionalHandApply interaction)
@@ -539,5 +607,59 @@ namespace Objects
 		}
 
 		#endregion
+
+		public string HoverTip()
+		{
+			return null;
+		}
+
+		public string CustomTitle()
+		{
+			return null;
+		}
+
+		public Sprite CustomIcon()
+		{
+			return null;
+		}
+
+		public List<Sprite> IconIndicators()
+		{
+			return null;
+		}
+
+		public List<TextColor> InteractionsStrings()
+		{
+			List<TextColor> interactions = new List<TextColor>();
+			TextColor text = new TextColor
+			{
+				Text = "Left-Click: Open/Close.",
+				Color = IntentColors.Help
+			};
+			interactions.Add(text);
+			if (LocalPlayerHasWelder())
+			{
+				TextColor welderText = new TextColor
+				{
+					Text = "Left-Click with Welder: Weld Door.",
+					Color = IntentColors.Help
+				};
+				interactions.Add(welderText);
+			}
+			return interactions;
+		}
+
+		private bool LocalPlayerHasWelder()
+		{
+			if (PlayerManager.LocalPlayerScript == null) return false;
+			if (PlayerManager.LocalPlayerScript.DynamicItemStorage == null) return false;
+			foreach (var slot in PlayerManager.LocalPlayerScript.DynamicItemStorage.GetHandSlots())
+			{
+				if (slot.IsEmpty) continue;
+				if (slot.ItemAttributes.GetTraits().Contains(CommonTraits.Instance.Welder)) return true;
+			}
+
+			return false;
+		}
 	}
 }

@@ -2,10 +2,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Core;
+using Logs;
 using Mirror;
 using UnityEngine;
 using Messages.Server;
 using UI;
+using UnityEngine.Serialization;
+using Util;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Allows an item to be stacked, occupying a single inventory slot.
@@ -22,11 +27,18 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	[SerializeField]
 	private int maxAmount = 50;
 
+	private List<GameObject> stacksWith = new List<GameObject>();
+
+	[SerializeField, FormerlySerializedAs("stacksWith")]
 	[Tooltip("Other prefabs which can stack with this object. By default a stackable can stack with its own" +
-				" prefab, but if you create any variants which have a different initial amount you can assign them" +
-				" in this list on either prefab to allow it to recognize that it's stackable with the parent.")]
-	[SerializeField]
-	private List<GameObject> stacksWith;
+	         " prefab, but if you create any variants which have a different initial amount you can assign them" +
+	         " in this list on either prefab to allow it to recognize that it's stackable with the parent.")]
+	private List<GameObject> InitialstacksWith;
+
+	[FormerlySerializedAs("IsRepresentationOfStack")] [SerializeField][Tooltip("Basically is this a representation of a stack vs an actual stack used in cyborg inventory ")]
+	private bool isRepresentationOfStack = false;
+
+	public bool IsRepresentationOfStack => isRepresentationOfStack;
 
 	/// <summary>
 	/// Amount of things in this stack.
@@ -47,7 +59,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	private bool amountInit;
 
 	private Pickupable pickupable;
-	private PushPull pushPull;
+	private UniversalObjectPhysics objectPhysics;
 	private RegisterTile registerTile;
 	private GameObject prefab;
 	private SpriteHandler spriteHandler;
@@ -58,8 +70,17 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	[SerializeField] private bool autoStackOnDrop = true;
 
 
+	void OnDestroy()
+	{
+		if (CustomNetworkManager.IsServer)
+		{
+			registerTile.OnLocalPositionChangedServer.RemoveListener(OnLocalPositionChangedServer);
+		}
+	}
+
 	private void Awake()
 	{
+		stacksWith.AddRange(InitialstacksWith);
 		EnsureInit();
 		this.WaitForNetworkManager(() =>
 		{
@@ -74,7 +95,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 		if (pickupable != null) return;
 		pickupable = GetComponent<Pickupable>();
 		amount = initialAmount;
-		pushPull = GetComponent<PushPull>();
+		objectPhysics = GetComponent<UniversalObjectPhysics>();
 		registerTile = GetComponent<RegisterTile>();
 		spriteHandler = GetComponentInChildren<SpriteHandler>();
 	}
@@ -82,7 +103,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	private void OnLocalPositionChangedServer(Vector3Int newLocalPos)
 	{
 		//if we are being pulled, combine the stacks with any on the ground under us.
-		if (pushPull.IsBeingPulled)
+		if (objectPhysics.PulledBy.HasComponent)
 		{
 			//check for stacking with things on the ground
 			ServerStackOnGround(newLocalPos);
@@ -117,7 +138,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 
 	public void OnSpawnServer(SpawnInfo info)
 	{
-		Logger.LogTraceFormat("Spawning {0}", Category.ItemSpawn, GetInstanceID());
+		Loggy.Trace().Format("Spawning {0}", Category.ItemSpawn, GetInstanceID());
 		InitStacksWith();
 		SyncAmount(amount, initialAmount);
 		amountInit = true;
@@ -126,7 +147,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 
 	public void OnDespawnServer(DespawnInfo info)
 	{
-		Logger.LogTraceFormat("Despawning {0}", Category.ItemSpawn, GetInstanceID());
+		Loggy.Trace().Format("Despawning {0}", Category.ItemSpawn, GetInstanceID());
 		amountInit = false;
 	}
 
@@ -154,10 +175,10 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	private void SyncAmount(int oldAmount, int newAmount)
 	{
 		EnsureInit();
-		Logger.LogTraceFormat("Amount {0}->{1} for {2}", Category.Objects, amount, newAmount, GetInstanceID());
+		Loggy.Trace().Format("Amount {0}->{1} for {2}", Category.Objects, amount, newAmount, GetInstanceID());
 		this.amount = newAmount;
 		pickupable.RefreshUISlotImage();
-		if (CustomNetworkManager.Instance._isServer)
+		if (CustomNetworkManager.IsServer)
 		{
 			UpdateStackName(gameObject.Item());
 			UpdateStackSprites();
@@ -169,12 +190,25 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 		if (stackSprites.Count == 0 || spriteHandler == null) return;
 		if (amount > 1)
 		{
+			bool found = false;
+
+
 			foreach (var sprite in stackSprites)
 			{
 				if (sprite.OverAmount <= amount) continue;
-				if (spriteHandler.GetCurrentSpriteSO() != sprite.SpriteSO) spriteHandler.SetSpriteSO(sprite.SpriteSO);
+				found = true;
+				if (spriteHandler.GetCurrentSpriteSO() != sprite.SpriteSO)
+				{
+					spriteHandler.SetSpriteSO(sprite.SpriteSO);
+				}
 				break;
 			}
+
+			if (found == false)
+			{
+				spriteHandler.SetSpriteSO(stackSprites.Last().SpriteSO);
+			}
+
 		}
 		else if(amount == 1)
 		{
@@ -209,14 +243,12 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	[Server]
 	public bool ServerConsume(int consumed)
 	{
-
 		if (consumed > amount)
 		{
-			Logger.LogErrorFormat($"Consumed amount {consumed} is greater than amount in this stack {amount}, will not consume.", Category.Objects);
 			return false;
 		}
 		SyncAmount(amount, amount - consumed);
-		if (amount <= 0)
+		if (amount <= 0 && isRepresentationOfStack == false)
 		{
 			_ = Despawn.ServerSingle(gameObject);
 		}
@@ -239,7 +271,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 
 		if (increase < 0)
 		{
-			Logger.LogErrorFormat("Attempted to increase stacks by a negative value, ignored", Category.Objects);
+			Loggy.Error().Format("Attempted to increase stacks by a negative value, ignored", Category.Objects);
 			return 0;
 		}
 
@@ -247,7 +279,7 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 
 		if (overflow > 0)
 		{
-			Logger.LogErrorFormat($"Increased amount {increase} will overfill stack, filled to max",
+			Loggy.Error().Format($"Increased amount {increase} will overfill stack, filled to max",
 					Category.Objects);
 
 			SyncAmount(amount, MaxAmount);
@@ -276,6 +308,21 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 		return spawnInfo.GameObject;
 	}
 
+
+	[Server]
+	public GameObject ServerTake(int ToTake)
+	{
+		if ((amount-ToTake) <= 0)
+		{
+			return gameObject;
+		}
+		SyncAmount(amount, amount - ToTake);
+
+		var spawnInfo = Spawn.ServerPrefab(prefab, gameObject.transform.position, gameObject.transform);
+		spawnInfo.GameObject.GetComponent<Stackable>().ServerSetAmount(ToTake);
+		return spawnInfo.GameObject;
+	}
+
 	/// <summary>
 	/// Adds the quantity in toAdd to this stackable (up to maxAmount) and despawns toAdd
 	/// if it is entirely used up.
@@ -287,14 +334,14 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	{
 		if (!StacksWith(toAdd))
 		{
-			Logger.LogErrorFormat($"{toAdd} doesn't stack with {this}, cannot combine. Consider adding" +
+			Loggy.Error().Format($"{toAdd} doesn't stack with {this}, cannot combine. Consider adding" +
 									" this prefab to stacksWith if these really should be stackable.",
 				Category.Objects);
 			return 0;
 		}
 		var amountToConsume = Math.Min(toAdd.amount, SpareCapacity);
 		if (amountToConsume <= 0) return 0;
-		Logger.LogTraceFormat("Combining {0} <- {1}", Category.Objects, GetInstanceID(), toAdd.GetInstanceID());
+		Loggy.Trace().Format("Combining {0} <- {1}", Category.Objects, GetInstanceID(), toAdd.GetInstanceID());
 		toAdd.ServerConsume(amountToConsume);
 		SyncAmount(amount, amount + amountToConsume);
 		return amountToConsume;
@@ -332,6 +379,20 @@ public class Stackable : NetworkBehaviour, IServerLifecycle, ICheckedInteractabl
 	public bool StacksWith(Stackable toCheck)
 	{
 		if (toCheck == null) return false;
+
+		var Tracker = toCheck.GetComponent<PrefabTracker>();
+
+		if (Tracker != null)
+		{
+			foreach (var InObject in stacksWith)
+			{
+				var OtherTracker = InObject.GetComponent<PrefabTracker>();
+				if (OtherTracker.ForeverID == Tracker.ForeverID)
+				{
+					return true;
+				}
+			}
+		}
 
 		return stacksWith.Intersect(toCheck.stacksWith).Any();
 	}

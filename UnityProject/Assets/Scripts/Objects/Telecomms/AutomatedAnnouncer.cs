@@ -1,10 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using Systems.Electricity;
 using UnityEngine;
+using Communications;
+using Core;
+using Objects.Machines.ServerMachines.Communications;
+using ScriptableObjects.Communications;
+using Systems.Communications;
+using InGameEvents;
+using Logs;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects.Telecomms
 {
-	public class AutomatedAnnouncer : MonoBehaviour
+	public class AutomatedAnnouncer : SignalEmitter, IChatInfluencer
 	{
 		private const string machineName = "Announcing Machine";
 
@@ -20,11 +29,24 @@ namespace Objects.Telecomms
 		{ JobType.HOS, ChatChannel.Security }
 	};
 
+		private UniversalObjectPhysics objectPhysics;
+		private APCPoweredDevice poweredDevice;
+		private Integrity integrity;
+
+		[SerializeField] private SignalDataSO radioSO;
+
+		private void Start()
+		{
+			objectPhysics = GetComponent<UniversalObjectPhysics>();
+			poweredDevice = GetComponent<APCPoweredDevice>();
+			integrity = GetComponent<Integrity>();
+		}
+
 		private void OnEnable()
 		{
 			if (CustomNetworkManager.IsServer)
 			{
-				PlayerSpawn.SpawnEvent += ServerOnPlayerSpawned;
+				PlayerSpawn.OnNewMindSpawnEvent += ServerOnPlayerSpawned;
 			}
 		}
 
@@ -32,62 +54,70 @@ namespace Objects.Telecomms
 		{
 			if (CustomNetworkManager.IsServer)
 			{
-				PlayerSpawn.SpawnEvent -= ServerOnPlayerSpawned;
+				PlayerSpawn.OnNewMindSpawnEvent -= ServerOnPlayerSpawned;
 			}
 		}
 
-		private void ServerOnPlayerSpawned(object sender, PlayerSpawn.SpawnEventArgs args)
+		private void ServerOnPlayerSpawned(Mind player)
 		{
-			if (GameManager.Instance.stationTime < TIME_BEFORE_JOIN_ANNOUNCEMENTS)
+			if (GameManager.Instance.RoundTime < TIME_BEFORE_JOIN_ANNOUNCEMENTS)
 			{
 				return;
 			}
-
-			AnnounceNewCrewmember(args.player);
+			AnnounceNewCrewmember(player);
 		}
 
-		private void AnnounceNewCrewmember(GameObject player)
+		protected override bool SendSignalLogic()
 		{
-			PlayerScript playerScript = player.GetComponent<PlayerScript>();
-			Occupation playerOccupation = playerScript.mind.occupation;
-			string playerName = player.ExpensiveName();
-			Loudness annoucementImportance = GetAnnouncementImportance(playerOccupation);
+			if (GameManager.Instance.CommsServers.Count == 0) return false;
+			return true;
+		}
+
+		public override void SignalFailed() { }
+
+
+		private void AnnounceNewCrewmember(Mind player)
+		{
+			if (player.occupation == null) return;
+			string playerName = player.CurrentCharacterSettings.Name;
+			Loudness annoucementImportance = GetAnnouncementImportance(player.occupation);
 
 			ChatChannel chatChannels = ChatChannel.Common;
-			string commonMessage = $"{playerName} has signed up as {playerOccupation.DisplayName}.";
-			string deptMessage = $"{playerName}, {playerOccupation.DisplayName}, is the department head.";
+			string commonMessage = $"{playerName} has signed up as {player.occupation?.DisplayName}.";
+			string deptMessage = $"{playerName}, {player.occupation.DisplayName}, is the department head.";
 
 			// Get the channel of the newly joined head from their occupation.
-			if (channelFromJob.ContainsKey(playerOccupation.JobType))
+			if (channelFromJob.ContainsKey(player.occupation.JobType))
 			{
-				BroadcastCommMsg(channelFromJob[playerOccupation.JobType], deptMessage, annoucementImportance);
+				BroadcastCommMsg(channelFromJob[player.occupation.JobType], deptMessage, annoucementImportance);
 			}
 
 			// Announce the arrival on the CentComm channel if is a CentComm occupation.
-			if (JobCategories.CentCommJobs.Contains(playerOccupation.JobType))
+			if (JobCategories.CentCommJobs.Contains(player.occupation.JobType))
 			{
 				chatChannels = ChatChannel.CentComm;
 			}
 
-			if (playerOccupation.JobType == JobType.AI)
+			if (player.occupation.JobType == JobType.AI)
 			{
-				commonMessage = $"{player.ExpensiveName()} has been bluespace-beamed into the AI core!";
+				commonMessage = $"{player.CurrentCharacterSettings.AiName} has been bluespace-beamed into the AI core!";
 			}
-			else if (playerOccupation.JobType == JobType.SYNDICATE)
+			else if (player.occupation.JobType == JobType.SYNDICATE)
 			{
 				chatChannels = ChatChannel.Syndicate;
 			}
-			else if (playerOccupation.IsCrewmember == false)
+			else if (player.occupation.IsCrewmember == false)
 			{
 				// Don't announce non-crewmembers like wizards, fugitives at all (they don't have their own chat channel).
 				return;
 			}
 
-			BroadcastCommMsg(chatChannels, commonMessage, GetAnnouncementImportance(playerOccupation));
+			BroadcastCommMsg(chatChannels, commonMessage, GetAnnouncementImportance(player.occupation));
 		}
 
 		private Loudness GetAnnouncementImportance(Occupation job)
 		{
+			if (job == null) return Loudness.NORMAL;
 			if (job.JobType == JobType.AI || job.JobType == JobType.HOP || job.JobType == JobType.CAPTAIN ||
 			    job.JobType == JobType.CMO || job.JobType == JobType.CENTCOMM_COMMANDER || job.JobType == JobType.RD
 			    || job.JobType == JobType.HOS || job.JobType == JobType.CHIEF_ENGINEER || job.JobType == JobType.CARGOTECH)
@@ -102,7 +132,43 @@ namespace Objects.Telecomms
 
 		private void BroadcastCommMsg(ChatChannel chatChannels, string message, Loudness importance)
 		{
-			Chat.AddCommMsgByMachineToChat(gameObject, message, chatChannels, importance, ChatModifier.ColdlyState,  machineName);
+			ChatEvent chatEvent = new ChatEvent();
+			chatEvent.message = message;
+			chatEvent.channels = chatChannels;
+			chatEvent.VoiceLevel = importance;
+			chatEvent.position = objectPhysics.OfficialPosition;
+			chatEvent.originator = gameObject;
+			InfluenceChat(chatEvent);
+		}
+
+		public bool WillInfluenceChat()
+		{
+			if (poweredDevice == null || integrity == null)
+			{
+				Loggy.Error("[Telecomms/AutomatedAnnouncer] - Missing components detected on a terminal.");
+				return false;
+			}
+			// Don't send anything if this terminal has no power
+			return poweredDevice.State != PowerState.Off;
+		}
+
+
+		public ChatEvent InfluenceChat(ChatEvent chatToManipulate)
+		{
+			CommsServer.RadioMessageData msg = new CommsServer.RadioMessageData();
+			// If the integrity of this terminal is so low, start scrambling text.
+			if (integrity.integrity > minimumDamageBeforeObfuscation)
+			{
+				msg.ChatEvent = chatToManipulate;
+				TrySendSignal(radioSO, msg);
+				return chatToManipulate;
+			}
+
+			var scrambledText = chatToManipulate;
+			scrambledText.message = EventProcessorOverload.ProcessMessage(scrambledText.message);
+			msg.ChatEvent = scrambledText;
+			TrySendSignal(radioSO, msg);
+			return scrambledText;
 		}
 	}
 }

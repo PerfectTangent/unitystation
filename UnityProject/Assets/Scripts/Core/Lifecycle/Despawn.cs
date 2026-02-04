@@ -1,6 +1,10 @@
+using System;
 using System.Threading.Tasks;
+using Core;
+using Logs;
 using UnityEngine;
 using Systems.Electricity;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Main API for despawning objects. If you ever need to despawn something, look here
@@ -40,7 +44,7 @@ public static class Despawn
 	{
 		if (info == null)
 		{
-			Logger.LogError("Cannot despawn - info is null", Category.ItemSpawn);
+			Loggy.Error("Cannot despawn - info is null", Category.ItemSpawn);
 			return DespawnResult.Fail(info);
 		}
 
@@ -71,12 +75,20 @@ public static class Despawn
 			}
 		}
 
-		_ServerFireDespawnHooks(DespawnResult.Single(info));
-
-		var cnt = info.GameObject.GetComponent<CustomNetTransform>();
-		if (cnt != null)
+		try
 		{
-			cnt.DisappearFromWorldServer();
+			_ServerFireDespawnHooks(DespawnResult.Single(info));
+		}
+		catch (Exception e)
+		{
+			Loggy.Error(e.ToString());
+		}
+
+
+		var objectPhysics = info.GameObject.GetComponent<UniversalObjectPhysics>();
+		if (objectPhysics != null)
+		{
+			objectPhysics.DisappearFromWorld();
 		}
 
 		await Task.Delay(10);
@@ -116,7 +128,7 @@ public static class Despawn
 	{
 		if (info == null)
 		{
-			Logger.LogError("Cannot despawn - info is null", Category.ItemSpawn);
+			Loggy.Error("Cannot despawn - info is null", Category.ItemSpawn);
 			return DespawnResult.Fail(info);
 		}
 
@@ -136,6 +148,8 @@ public static class Despawn
 	/// <param name="result"></param>
 	public static void _ServerFireDespawnHooks(DespawnResult result)
 	{
+		result.GameObject.GetComponent<RegisterTile>().OrNull()?.ChangeActiveState(false);
+
 		//fire server hooks
 		var comps = result.GameObject.GetComponents<IServerDespawn>();
 		if (comps != null)

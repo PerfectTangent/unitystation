@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
@@ -16,6 +17,27 @@ PrefabInstance:
         type: 3}
       propertyPath: initialDescription
       value: A horribly bloated and mismatched human head.
+      objectReference: {fileID: 0}
+    - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: itemSprites.SpriteLeftHand
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: itemSprites.SpriteRightHand
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 810653604209616596, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: 6fa0b92072d6918479afa2aa9686be4c,
+        type: 2}
+    - target: {fileID: 880922137936671746, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: _assetId
+      value: 1122222004
       objectReference: {fileID: 0}
     - target: {fileID: 880922137936671746, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
@@ -90,6 +112,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 6131411715875374555, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
+      propertyPath: parentID
+      value: 3bc560c485f5ecb4491bce031cde1635
+      objectReference: {fileID: 0}
+    - target: {fileID: 6131411715875374555, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
       propertyPath: foreverID
       value: 3bc560c485f5ecb4491bce031cde1636
       objectReference: {fileID: 0}
@@ -105,7 +132,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6183623809446730291, guid: 3bc560c485f5ecb4491bce031cde1635,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 0e2e0cd31a10fd640b35ec046e022bcc,
         type: 2}
@@ -115,5 +142,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 6fa0b92072d6918479afa2aa9686be4c,
         type: 2}
+    - target: {fileID: 6407356370313720369, guid: 3bc560c485f5ecb4491bce031cde1635,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 6fa0b92072d6918479afa2aa9686be4c,
+        type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3bc560c485f5ecb4491bce031cde1635, type: 3}

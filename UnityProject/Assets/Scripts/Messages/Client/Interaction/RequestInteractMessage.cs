@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Logs;
 using Systems.Interaction;
 using Mirror;
 using Shuttles;
@@ -138,13 +139,14 @@ namespace Messages.Client.Interaction
 
 			var UnsafeClientPredictedPosition = msg.UnsafeClientPredictedPosition;
 
-			var performer = SentByPlayer.GameObject;
 
-
-			if (SentByPlayer == null || SentByPlayer.Script == null)
+			if (SentByPlayer == null || SentByPlayer.Script == null || SentByPlayer.Mind == null)
 			{
 				return;
 			}
+
+			var performer = SentByPlayer.GameObject;
+			var Mind = SentByPlayer.Mind;
 
 			if (SentByPlayer.Script.DynamicItemStorage == null)
 			{
@@ -154,7 +156,7 @@ namespace Messages.Client.Interaction
 					var targetObj = NetworkObjects[0];
 					var processorObj = NetworkObjects[1];
 
-					var interaction = new AiActivate(performer, null, targetObj, Intent, msg.ClickTypes);
+					var interaction = new AiActivate(performer, null, targetObj, Intent, Mind, msg.ClickTypes);
 					ProcessInteraction(interaction, processorObj, ComponentType);
 				}
 
@@ -176,7 +178,7 @@ namespace Messages.Client.Interaction
 				CheckMatrixSync(ref processorObj);
 
 				var interaction = PositionalHandApply.ByClient(
-						performer, usedObject, targetObj, TargetPosition, usedSlot, Intent, TargetBodyPart, IsAltUsed);
+						performer, usedObject, targetObj, TargetPosition, usedSlot, Intent, Mind, TargetBodyPart, IsAltUsed);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(HandApply))
@@ -192,7 +194,7 @@ namespace Messages.Client.Interaction
 				CheckMatrixSync(ref targetObj);
 				CheckMatrixSync(ref processorObj);
 
-				var interaction = HandApply.ByClient(performer, usedObject, targetObj, TargetBodyPart, usedSlot, Intent, IsAltUsed);
+				var interaction = HandApply.ByClient(performer, usedObject, targetObj, TargetBodyPart, usedSlot, Intent,Mind, IsAltUsed);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(AimApply))
@@ -204,7 +206,7 @@ namespace Messages.Client.Interaction
 				var processorObj = NetworkObject;
 				CheckMatrixSync(ref processorObj);
 
-				var interaction = AimApply.ByClient(performer, TargetPosition, usedObject, usedSlot, MouseButtonState, TargetBodyPart, Intent, UnsafeClientPredictedPosition);
+				var interaction = AimApply.ByClient(performer, TargetPosition, usedObject, usedSlot, MouseButtonState, TargetBodyPart, Intent, UnsafeClientPredictedPosition, Mind);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(MouseDrop))
@@ -219,7 +221,7 @@ namespace Messages.Client.Interaction
 				CheckMatrixSync(ref targetObj);
 				CheckMatrixSync(ref processorObj);
 
-				var interaction = MouseDrop.ByClient(performer, usedObj, targetObj, Intent);
+				var interaction = MouseDrop.ByClient(performer, usedObj, targetObj, Intent, Mind);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(HandActivate))
@@ -234,7 +236,7 @@ namespace Messages.Client.Interaction
 				var clientStorage = SentByPlayer.Script.DynamicItemStorage;
 				var usedSlot = clientStorage.GetActiveHandSlot();
 				var usedObject = clientStorage.GetActiveHandSlot().ItemObject;
-				var interaction = HandActivate.ByClient(performer, usedObject, usedSlot, Intent);
+				var interaction = HandActivate.ByClient(performer, usedObject, usedSlot, Intent, Mind, IsAltUsed);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(InventoryApply))
@@ -267,7 +269,7 @@ namespace Messages.Client.Interaction
 				{
 					fromSlot = usedObj.GetComponent<Pickupable>().ItemSlot;
 				}
-				var interaction = InventoryApply.ByClient(performer, targetSlot, fromSlot, Intent, IsAltUsed);
+				var interaction = InventoryApply.ByClient(performer, targetSlot, fromSlot, Intent, Mind, IsAltUsed);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(TileApply))
@@ -282,12 +284,12 @@ namespace Messages.Client.Interaction
 					CheckMatrixSync(ref processorObj);
 
 					processorObj.GetComponent<InteractableTiles>().ServerProcessInteraction(SentByPlayer.GameObject,
-						TargetPosition, processorObj, usedSlot, usedObject, Intent,
+						TargetPosition, processorObj, usedSlot, usedObject, Intent, Mind,
 						TileApply.ApplyType.HandApply);
 				}
 				catch (NullReferenceException exception)
 				{
-					Logger.LogError($"Caught a NRE in RequestInteractMessage.Process(): {exception.Message} \n {exception.StackTrace}", Category.Interaction);
+					Loggy.Error($"Caught a NRE in RequestInteractMessage.Process(): {exception.Message} \n {exception.StackTrace}", Category.Interaction);
 				}
 			}
 			else if (InteractionType == typeof(TileMouseDrop))
@@ -301,7 +303,7 @@ namespace Messages.Client.Interaction
 				CheckMatrixSync(ref processorObj);
 
 				processorObj.GetComponent<InteractableTiles>().ServerProcessInteraction(SentByPlayer.GameObject,
-					TargetPosition, processorObj, null, usedObj, Intent,
+					TargetPosition, processorObj, null, usedObj, Intent, Mind,
 					TileApply.ApplyType.MouseDrop);
 			}
 			else if (InteractionType == typeof(ConnectionApply))
@@ -318,20 +320,20 @@ namespace Messages.Client.Interaction
 				CheckMatrixSync(ref targetObj);
 				CheckMatrixSync(ref processorObj);
 
-				var interaction = ConnectionApply.ByClient(performer, usedObject, targetObj, connectionPointA, connectionPointB, TargetPosition, usedSlot, Intent);
+				var interaction = ConnectionApply.ByClient(performer, usedObject, targetObj, connectionPointA, connectionPointB, TargetPosition, usedSlot, Intent, Mind);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 			else if (InteractionType == typeof(ContextMenuApply))
 			{
 				LoadMultipleObjects(new uint[] { TargetObject, ProcessorObject });
-				var clientStorage = SentByPlayer.Script.DynamicItemStorage;
+				var clientStorage = SentByPlayer.Mind.GetDeepestBody().GetComponent<DynamicItemStorage>();
 				var usedObj = clientStorage.GetActiveHandSlot().ItemObject;
 				var targetObj = NetworkObjects[0];
 				var processorObj = NetworkObjects[1];
 				CheckMatrixSync(ref targetObj);
 				CheckMatrixSync(ref processorObj);
 
-				var interaction = ContextMenuApply.ByClient(performer, usedObj, targetObj, RequestedOption, Intent);
+				var interaction = ContextMenuApply.ByClient(performer, usedObj, targetObj, RequestedOption, Intent, Mind);
 				ProcessInteraction(interaction, processorObj, ComponentType);
 			}
 		}
@@ -353,20 +355,20 @@ namespace Messages.Client.Interaction
 			{
 				if (processorObj == null)
 				{
-					Logger.LogWarning("processorObj is null, action will not be performed.", Category.Interaction);
+					Loggy.Warning("processorObj is null, action will not be performed.", Category.Interaction);
 					return;
 				}
 				var component = processorObj.GetComponent(ComponentType);
 				if (component == null)
 				{
-					Logger.LogWarningFormat("No component found of requested type {0} on {1}," +
+					Loggy.Warning().Format("No component found of requested type {0} on {1}," +
 					                        " action will not be performed.",
 						Category.Interaction, ComponentType.Name, processorObj.name);
 					return;
 				}
 				if (!(component is IInteractable<T>))
 				{
-					Logger.LogWarningFormat("Component of type {0} doesn't implement IInteractable" +
+					Loggy.Warning().Format("Component of type {0} doesn't implement IInteractable" +
 					                        " for interaction type {1} on {2}," +
 					                        " action will not be performed.",
 						Category.Interaction, ComponentType.Name, typeof(T).Name, processorObj.name);
@@ -379,6 +381,7 @@ namespace Messages.Client.Interaction
 				{
 					//perform
 					interactable.ServerPerformInteraction(interaction);
+					interaction.PerformerPlayerScript.OnInteract(interaction as TargetedInteraction, interactable as Component);
 				}
 				else
 				{
@@ -399,7 +402,7 @@ namespace Messages.Client.Interaction
 				{
 					var interactables = interaction.UsedObject.GetComponents<IInteractable<T>>()
 						.Where(c => c != null && (c as MonoBehaviour).enabled);
-					Logger.LogTraceFormat("Server checking which component to trigger for {0} on object {1}", Category.Interaction,
+					Loggy.Trace().Format("Server checking which component to trigger for {0} on object {1}", Category.Interaction,
 						typeof(T).Name, interaction.UsedObject.name);
 					if (ServerCheckAndTrigger(interaction, interactables))
 					{
@@ -412,7 +415,7 @@ namespace Messages.Client.Interaction
 					if(targetedInteraction.TargetObject == null) return;
 					var interactables = targetedInteraction.TargetObject.GetComponents<IInteractable<T>>()
 						.Where(c => c != null && (c as MonoBehaviour)?.enabled == true);
-					Logger.LogTraceFormat("Server checking which component to trigger for {0} on object {1}", Category.Interaction,
+					Loggy.Trace().Format("Server checking which component to trigger for {0} on object {1}", Category.Interaction,
 						typeof(T).Name, targetedInteraction.TargetObject.name);
 					if (ServerCheckAndTrigger(interaction, interactables))
 					{
@@ -431,6 +434,7 @@ namespace Messages.Client.Interaction
 					//perform if not on cooldown
 					if (Cooldowns.TryStartServer(interaction, CommonCooldowns.Instance.Interaction))
 					{
+						interaction.PerformerPlayerScript.OnInteract(interaction as TargetedInteraction, interactable as Component);
 						interactable.ServerPerformInteraction(interaction);
 					}
 					else
@@ -468,13 +472,13 @@ namespace Messages.Client.Interaction
 		{
 			if (typeof(T) == typeof(TileApply))
 			{
-				Logger.LogError("Cannot use Send with TileApply, please use SendTileApply instead.", Category.Interaction);
+				Loggy.Error("Cannot use Send with TileApply, please use SendTileApply instead.", Category.Interaction);
 				return;
 			}
 			//never send anything for client-side-only interactions
 			if (interactableComponent is IClientInteractable<T> && !(interactableComponent is IInteractable<T>))
 			{
-				Logger.LogWarningFormat("Interaction request {0} will not be sent because interactable component {1} is" +
+				Loggy.Warning().Format("Interaction request {0} will not be sent because interactable component {1} is" +
 				                        " IClientInteractable only (client-side only).", Category.Interaction, interaction, interactableComponent);
 				return;
 			}
@@ -482,12 +486,12 @@ namespace Messages.Client.Interaction
 			//Note that client prediction is not triggered for server player.
 			if (!CustomNetworkManager.IsServer && interactableComponent is IPredictedInteractable<T> predictedInteractable)
 			{
-				Logger.LogTraceFormat("Predicting {0} interaction for {1} on {2}", Category.Interaction, typeof(T).Name, interactableComponent.GetType().Name, ((Component) interactableComponent).gameObject.name);
+				Loggy.Trace().Format("Predicting {0} interaction for {1} on {2}", Category.Interaction, typeof(T).Name, interactableComponent.GetType().Name, ((Component) interactableComponent).gameObject.name);
 				predictedInteractable.ClientPredictInteraction(interaction);
 			}
-			if (!interaction.Performer.Equals(PlayerManager.LocalPlayer))
+			if (!interaction.Performer.Equals(PlayerManager.LocalPlayerObject))
 			{
-				Logger.LogError("Client attempting to perform an interaction on behalf of another player." +
+				Loggy.Error("Client attempting to perform an interaction on behalf of another player." +
 				                " This is not allowed. Client can only perform an interaction as themselves. Message" +
 				                " will not be sent.", Category.Exploits);
 				return;
@@ -495,7 +499,7 @@ namespace Messages.Client.Interaction
 
 			if (interactableComponent != null && !(interactableComponent is Component))
 			{
-				Logger.LogError("interactableComponent must be a component, but isn't. The message will not be sent.",
+				Loggy.Error("interactableComponent must be a component, but isn't. The message will not be sent.",
 					Category.Exploits);
 				return;
 			}
@@ -508,6 +512,7 @@ namespace Messages.Client.Interaction
 				ProcessorObject = comp == null ? NetId.Invalid : GetNetId(comp.gameObject),
 				Intent = interaction.Intent
 			};
+
 			if (typeof(T) == typeof(PositionalHandApply))
 			{
 				var casted = interaction as PositionalHandApply;
@@ -539,10 +544,11 @@ namespace Messages.Client.Interaction
 			else if (typeof(T) == typeof(InventoryApply))
 			{
 				var casted = interaction as InventoryApply;
+				var spawned = CustomNetworkManager.IsServer ? NetworkServer.spawned : NetworkClient.spawned;
 
 				//StorageIndexOnGameObject
 				msg.StorageIndexOnGameObject = 0;
-				foreach (var itemStorage in NetworkIdentity.spawned[casted.TargetSlot.ItemStorageNetID].GetComponents<ItemStorage>())
+				foreach (var itemStorage in spawned[casted.TargetSlot.ItemStorageNetID].GetComponents<ItemStorage>())
 				{
 					if (itemStorage == casted.TargetSlot.ItemStorage)
 					{
@@ -577,6 +583,11 @@ namespace Messages.Client.Interaction
 				msg.TargetObject = GetNetId(casted.TargetObject);
 				msg.ClickTypes = casted.ClickType;
 			}
+			else if (typeof(T) == typeof(HandActivate))
+			{
+				var casted = interaction as HandActivate;
+				msg.IsAltUsed = casted.IsAltClick;
+			}
 
 			Send(msg);
 		}
@@ -588,12 +599,12 @@ namespace Messages.Client.Interaction
 			//Note that client prediction is not triggered for server player.
 			if (!CustomNetworkManager.IsServer)
 			{
-				Logger.LogTraceFormat("Predicting TileApply interaction {0}", Category.Interaction, tileApply);
+				Loggy.Trace().Format("Predicting TileApply interaction {0}", Category.Interaction, tileApply);
 				tileInteraction.ClientPredictInteraction(tileApply);
 			}
-			if (!tileApply.Performer.Equals(PlayerManager.LocalPlayer))
+			if (!tileApply.Performer.Equals(PlayerManager.LocalPlayerObject))
 			{
-				Logger.LogError("Client attempting to perform an interaction on behalf of another player." +
+				Loggy.Error("Client attempting to perform an interaction on behalf of another player." +
 				                " This is not allowed. Client can only perform an interaction as themselves. Message" +
 				                " will not be sent.", Category.Exploits);
 				return;
@@ -612,9 +623,9 @@ namespace Messages.Client.Interaction
 
 		public static void SendTileMouseDrop(TileMouseDrop mouseDrop, InteractableTiles interactableTiles)
 		{
-			if (!mouseDrop.Performer.Equals(PlayerManager.LocalPlayer))
+			if (!mouseDrop.Performer.Equals(PlayerManager.LocalPlayerObject))
 			{
-				Logger.LogError("Client attempting to perform an interaction on behalf of another player." +
+				Loggy.Error("Client attempting to perform an interaction on behalf of another player." +
 				                " This is not allowed. Client can only perform an interaction as themselves. Message" +
 				                " will not be sent.", Category.Exploits);
 				return;
@@ -658,7 +669,7 @@ namespace Messages.Client.Interaction
 				return netMatrix.MatrixSync.netId;
 			}
 
-			Logger.LogError($"Failed to find netId for {objectNetIdWanted.name}");
+			Loggy.Error($"Failed to find netId for {objectNetIdWanted.name}");
 
 			return NetId.Invalid;
 		}
@@ -755,6 +766,10 @@ namespace Messages.Client.Interaction
 				message.TargetObject = reader.ReadUInt();
 				message.ClickTypes = (AiActivate.ClickTypes)reader.ReadByte();
 			}
+			else if (message.InteractionType == typeof(HandActivate))
+			{
+				message.IsAltUsed = reader.ReadBool();
+			}
 
 			return message;
 		}
@@ -837,6 +852,10 @@ namespace Messages.Client.Interaction
 			{
 				writer.WriteUInt(message.TargetObject);
 				writer.WriteByte((byte)message.ClickTypes);
+			}
+			else if (message.InteractionType == typeof(HandActivate))
+			{
+				writer.WriteBool(message.IsAltUsed);
 			}
 		}
 	}

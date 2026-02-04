@@ -1,41 +1,38 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-
-public class UI_PressureAlert : TooltipMonoBehaviour
+﻿public class UI_PressureAlert : TooltipMonoBehaviour
 {
 	public override string Tooltip => (activeImageIndex < 2) ? "Low Pressure" : "High Pressure";
 
-	public Sprite[] statusImages;
 	private int activeImageIndex = -1;
+	private SpriteHandler spriteHandler;
 
-	public Image image;
-
-	public void SetPressureSprite(float pressure)
+	private void Awake()
 	{
-		if (pressure < 50)
+		spriteHandler = GetComponent<SpriteHandler>();
+	}
+
+	public void SetPressureSprite(PressureAlert pressure)
+	{
+		switch (pressure)
 		{
-			if (pressure > 20)
-			{
-				SetSprite(1);	//low pressure
-			}
-			else
-			{
+			case PressureAlert.PressureTooLow:
+				this.gameObject.SetActive(true);
 				SetSprite(0);	//really low pressure
-			}
-		}
-		else
-		{
-			if (pressure > 550)
-			{
-				SetSprite(3);	//really high pressure
-			}
-			else
-			{
+				break;
+			case PressureAlert.PressureLow:
+				this.gameObject.SetActive(true);
+				SetSprite(1);	//low pressurec
+				break;
+			case PressureAlert.None:
+				this.gameObject.SetActive(false);
+				break;
+			case PressureAlert.PressureHigher:
+				this.gameObject.SetActive(true);
 				SetSprite(2);	//high pressure
-			}
+				break;
+			case PressureAlert.PressureTooHigher:
+				this.gameObject.SetActive(true);
+				SetSprite(3);	 //really high pressure
+				break;
 		}
 	}
 
@@ -45,7 +42,17 @@ public class UI_PressureAlert : TooltipMonoBehaviour
 		{
 			return;
 		}
+
 		activeImageIndex = index;
-		image.sprite = statusImages[index];
+		spriteHandler.SetCatalogueIndexSprite(index, false);
 	}
+}
+
+public enum PressureAlert
+{
+	None,
+	PressureTooLow,
+	PressureLow,
+	PressureHigher,
+	PressureTooHigher
 }

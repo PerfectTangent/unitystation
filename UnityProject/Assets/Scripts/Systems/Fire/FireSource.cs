@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Core;
 using UnityEngine;
 using Objects;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 /// <summary>
 /// Defines fire sources like candles, lighters or activated welder
@@ -20,7 +22,7 @@ public class FireSource : MonoBehaviour, IServerSpawn
 	[Tooltip("Will change temperature of tile to the hotspotTemperature if this temperature is greater than the current gas mix temperature when true")]
 	private bool changeGasMixTemp = false;
 
-	private PushPull pushPull = null;
+	private UniversalObjectPhysics objectPhysics = null;
 	private bool isBurning = false;
 
 	/// <summary>
@@ -42,7 +44,7 @@ public class FireSource : MonoBehaviour, IServerSpawn
 			isBurning = value;
 
 			// when item emits flame we need to send heat to surroundings
-			if (pushPull && CustomNetworkManager.IsServer)
+			if (objectPhysics && CustomNetworkManager.IsServer)
 			{
 				if (isBurning)
 				{
@@ -60,13 +62,13 @@ public class FireSource : MonoBehaviour, IServerSpawn
 
 	private void Awake()
 	{
-		pushPull = GetComponent<PushPull>();
+		objectPhysics = GetComponent<UniversalObjectPhysics>();
 	}
 
 	private void OnDisable()
 	{
 		// unsubscribe hotspot from updates
-		if (pushPull && CustomNetworkManager.IsServer)
+		if (objectPhysics && CustomNetworkManager.IsServer)
 		{
 			if (isBurning)
 			{
@@ -78,14 +80,14 @@ public class FireSource : MonoBehaviour, IServerSpawn
 	private void CreateHotspot()
 	{
 		// send some heat on firesource position
-		var position = pushPull.AssumedWorldPositionServer();
+		var position = transform.localPosition;
 		if (position != TransformState.HiddenPos)
 		{
-			var registerTile = pushPull.registerTile;
+			var registerTile = objectPhysics.registerTile;
 			if (registerTile)
 			{
 				var reactionManager = registerTile.Matrix.ReactionManager;
-				reactionManager.ExposeHotspotWorldPosition(position.To2Int(), hotspotTemperature, changeGasMixTemp);
+				reactionManager.ExposeHotspot(position.RoundToInt(), hotspotTemperature, changeGasMixTemp);
 			}
 		}
 	}

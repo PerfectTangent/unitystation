@@ -1,20 +1,22 @@
-﻿using System;
+using System;
 using System.Collections;
-using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using SecureStuff;
 using DatabaseAPI;
-using Firebase.Auth;
-using Firebase.Extensions;
+using Initialisation;
 using Lobby;
+using Logs;
 using Managers;
+using Newtonsoft.Json;
+using Shared.Util;
 using UnityEngine;
-using UnityEngine.Networking;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
-public class GameData : MonoBehaviour
+public class GameData : MonoBehaviour, IInitialise
 {
 	private static GameData gameData;
 
@@ -34,10 +36,13 @@ public class GameData : MonoBehaviour
 	/// Is offline mode enabled, allowing login skip / working without connection to server.?
 	/// Disabled always for release builds.
 	/// </summary>
-	public bool OfflineMode => (!BuildPreferences.isForRelease && offlineMode) || forceOfflineMode;
+	public bool OfflineMode =>  offlineMode || forceOfflineMode || Application.isEditor;
+	//(BuildPreferences.isForRelease == false) (IIs not used)
 
 	public bool testServer;
 	private RconManager rconManager;
+
+	public bool DoNotLoadEditorPreviousScene;
 
 	/// <summary>
 	///     Check to see if you are in the game or in the lobby
@@ -55,94 +60,87 @@ public class GameData : MonoBehaviour
 	public static int BuildNumber { get; private set; }
 	public static string ForkName { get; private set; }
 
-	public static GameData Instance
-	{
-		get
-		{
-			if (!gameData)
-			{
-				gameData = FindObjectOfType<GameData>();
-			}
-
-			return gameData;
-		}
-	}
+	public static GameData Instance => FindUtils.LazyFindObject(ref gameData);
 
 	public bool DevBuild = false;
 
+	public HubJoinArgs JoinArgs = null;
+
+	public class HubJoinArgs
+	{
+		public string ServerIP;
+		public string Port;
+		public string Token;
+		public string UID;
+
+		public HubJoinArgs(string IP, string p, string t, string uuid)
+		{
+			ServerIP = IP;
+			Port = p;
+			Token = t;
+			UID = uuid;
+		}
+	}
+
 	#region Lifecycle
 
-	private void Start()
+	public async UniTask<bool> CheckBackendAlive()
 	{
-		Init();
-	}
+		var url = $"https://{GameManager.Instance.AccountAPIHost}/";
 
-	public async void APITest()
-	{
-		var url = "https://api.unitystation.org/validatetoken?data=";
-
-		HttpRequestMessage r = new HttpRequestMessage(HttpMethod.Get,
-			url + UnityWebRequest.EscapeURL(JsonUtility.ToJson("")));
-
+		var request = new HttpRequestMessage(HttpMethod.Get, url);
 		CancellationToken cancellationToken = new CancellationTokenSource(120000).Token;
-
-		HttpResponseMessage res;
 		try
 		{
-			res = await ServerData.HttpClient.SendAsync(r, cancellationToken);
+			_ = await SafeHttpRequest.SendAsync(request, cancellationToken);
 		}
-		catch (System.Net.Http.HttpRequestException e)
+		catch (HttpRequestException e)
 		{
-			forceOfflineMode = true;
-			return;
+			Loggy.Error("Could not connect to the backend. It is either dead or there is no internet. Error: " + e);
+			return false;
 		}
 
-		forceOfflineMode = false;
+		return true;
 	}
 
+	public void SetForceOfflineMode(bool value)
+	{
+		forceOfflineMode = value;
+	}
 
-	private void Init()
+	private async Task Init()
 	{
 #if UNITY_EDITOR
 		DevBuild = true;
 #endif
-		var buildInfo =
-			JsonUtility.FromJson<BuildInfo>(File.ReadAllText(Path.Combine(Application.streamingAssetsPath,
-				"buildinfo.json")));
+		var buildInfo = JsonConvert.DeserializeObject<BuildInfo>(AccessFile.Load("buildinfo.json"));
 		BuildNumber = buildInfo.BuildNumber;
 		ForkName = buildInfo.ForkName;
 		forceOfflineMode = !string.IsNullOrEmpty(GetArgument("-offlinemode"));
-		Logger.Log($"Build Version is: {BuildNumber}. " + (OfflineMode ? "Offline mode" : string.Empty));
+		Loggy.Info($"Build Version is: {BuildNumber}. " + (OfflineMode ? "Offline mode" : string.Empty));
 		CheckHeadlessState();
-		APITest();
-		Environment.SetEnvironmentVariable("MONO_REFLECTION_SERIALIZER", "yes");
-
-		string testServerEnv = Environment.GetEnvironmentVariable("TEST_SERVER");
-		if (!string.IsNullOrEmpty(testServerEnv))
+		bool isBackendAlive = await CheckBackendAlive();
+		if (isBackendAlive == false)
 		{
+			forceOfflineMode = true;
+		}
+
+		AllowedEnvironmentVariables.SetMONO_REFLECTION_SERIALIZER();
+
+		string testServerEnv = AllowedEnvironmentVariables.GetTEST_SERVER();
+		if (!string.IsNullOrEmpty(testServerEnv))
+		{		_ = LobbyManager.Instance.TryAutoLogin();
+
 			testServer = Convert.ToBoolean(testServerEnv);
 		}
 
-		if (!CheckCommandLineArgs())
-		{
-			if (FirebaseAuth.DefaultInstance.CurrentUser != null)
-			{
-				if (LobbyManager.Instance.OrNull()?.lobbyDialogue != null)
-				{
-					AttemptAutoJoin(LobbyManager.Instance.lobbyDialogue.LoginSuccess);
-				}
-				else
-				{
-					Logger.LogWarning("LobbyManager.Instance == null");
-				}
-
-			}
-		}
+		if (await TryJoinViaCmdArgs()) return;
+		_ = LobbyManager.Instance.TryAutoLogin();
 	}
 
 	private void OnEnable()
 	{
-		Logger.RefreshPreferences();
+		Loggy.RefreshPreferences();
 
 		SceneManager.activeSceneChanged += OnLevelFinishedLoading;
 	}
@@ -155,7 +153,7 @@ public class GameData : MonoBehaviour
 	private IEnumerator WaitToStartServer()
 	{
 		yield return WaitFor.Seconds(0.1f);
-		CustomNetworkManager.Instance.StartHost();
+		CustomNetworkManager.Instance.StartHostWrapper();
 	}
 
 	private void OnLevelFinishedLoading(Scene oldScene, Scene newScene)
@@ -177,7 +175,7 @@ public class GameData : MonoBehaviour
 			//Reset stuff
 			CheckHeadlessState();
 
-			if (IsInGame && GameManager.Instance != null && CustomNetworkManager.Instance._isServer)
+			if (IsInGame && GameManager.Instance != null && CustomNetworkManager.IsServer)
 			{
 				GameManager.Instance.ResetRoundTime();
 			}
@@ -190,10 +188,10 @@ public class GameData : MonoBehaviour
 		{
 			//			float calcFrameRate = 1f / Time.deltaTime;
 			//			Application.targetFrameRate = (int) calcFrameRate;
-			//			Logger.Log($"Starting server in HEADLESS mode. Target framerate is {Application.targetFrameRate}",
+			//			Loggy.Log($"Starting server in HEADLESS mode. Target framerate is {Application.targetFrameRate}",
 			//				Category.Server);
 
-			Logger.Log($"FrameRate limiting has been disabled on Headless Server",
+			Loggy.Info($"FrameRate limiting has been disabled on Headless Server",
 				Category.Server);
 			IsHeadlessServer = true;
 			StartCoroutine(WaitToStartServer());
@@ -202,134 +200,64 @@ public class GameData : MonoBehaviour
 			{
 				GameObject rcon = Instantiate(Resources.Load("Rcon/RconManager") as GameObject, null) as GameObject;
 				rconManager = rcon.GetComponent<RconManager>();
-				Logger.Log("Start rcon server", Category.Rcon);
+				Loggy.Info("Start rcon server", Category.Rcon);
 			}
 		}
 	}
 
 	#endregion
 
-	private bool CheckCommandLineArgs()
+	private async Task<bool> TryJoinViaCmdArgs()
 	{
-		//Check for Hub Message
 		string serverIp = GetArgument("-server");
-		string port = GetArgument("-port");
+		string portStr = GetArgument("-port");
 		string token = GetArgument("-refreshtoken");
 		string uid = GetArgument("-uid");
 
-		//This is a hub message, attempt to login and connect to server
-		if (!string.IsNullOrEmpty(serverIp) && !string.IsNullOrEmpty(port))
+		JoinArgs = new HubJoinArgs(serverIp, portStr, token, uid);
+
+		if (string.IsNullOrEmpty(serverIp) || string.IsNullOrEmpty(portStr)) return false;
+
+		if (ushort.TryParse(portStr, out var port) == false)
 		{
-			HubToServerConnect(serverIp, port, uid, token);
-			return true;
+			Loggy.Warning("Invalid port provided in command line. Cannot join game via args.");
+			return false;
 		}
 
-		return false;
+		return await HubToServerConnect(serverIp, port, uid, token);
 	}
 
-	private async void AttemptAutoJoin(Action<string> OnLoginSuccess)
+	public async Task TryLoginThenServerConnectFromJoinArgs()
 	{
 		await Task.Delay(TimeSpan.FromSeconds(0.1));
-
-		if (LobbyManager.Instance == null) return;
-
-		LobbyManager.Instance.lobbyDialogue.ShowLoggingInStatus(
-			$"Loading user profile for {FirebaseAuth.DefaultInstance.CurrentUser.DisplayName}");
-
-		await FirebaseAuth.DefaultInstance.CurrentUser.TokenAsync(true).ContinueWithOnMainThread(
-			task => {
-				if (task.IsCanceled || task.IsFaulted)
-				{
-					LobbyManager.Instance.lobbyDialogue.LoginError(task.Exception?.Message);
-					return;
-				}
-			});
-
-		await ServerData.ValidateUser(FirebaseAuth.DefaultInstance.CurrentUser,
-			OnLoginSuccess,
-			LobbyManager.Instance.lobbyDialogue.LoginError);
+		LobbyManager.Instance.JoinServer(JoinArgs.ServerIP, ushort.Parse(JoinArgs.Port));
+		LoadManager.DoInMainThread(() => Loggy.Info($"HubToServerConnect Connecting to IP {JoinArgs.ServerIP}, port {JoinArgs.Port}"));
 	}
 
-	private async void HubToServerConnect(string ip, string port, string uid, string token)
+	private async Task<bool> HubToServerConnect(string ip, ushort port, string uid, string token)
 	{
+		Loggy.Info($"HubToServerConnect Connecting to IP {ip}, port {port}, with uid {uid}");
 		await Task.Delay(TimeSpan.FromSeconds(0.1));
-
-		LobbyManager.Instance.lobbyDialogue.serverAddressInput.text = ip;
-		LobbyManager.Instance.lobbyDialogue.serverPortInput.text = port;
-
-		GameScreenManager.Instance.serverIP = ip;
 
 		if (string.IsNullOrEmpty(token) == false)
 		{
-			LobbyManager.Instance.lobbyDialogue.ShowLoggingInStatus("Verifying account details..");
-			var refreshToken = new RefreshToken();
-			refreshToken.refreshToken = token;
-			refreshToken.userID = uid;
-
-			var response = await ServerData.ValidateToken(refreshToken);
-
-			if (response == null)
+			Loggy.Info("Logging in via hub account...");
+			if (await LobbyManager.Instance.TryTokenLogin(token)) // TODO uid not needed anymore?
 			{
-				LobbyManager.Instance.lobbyDialogue.LoginError(
-					$"Unknown server error. Please check your logs for more information by press F5");
-				return;
+				LobbyManager.Instance.JoinServer(ip, port);
+				return true;
 			}
-
-			if (string.IsNullOrEmpty(response.errorMsg) == false)
-			{
-				Logger.LogError($"Something went wrong with hub token validation {response.errorMsg}", Category.DatabaseAPI);
-				LobbyManager.Instance.lobbyDialogue.LoginError($"Could not verify your details {response.errorMsg}");
-				return;
-			}
-
-			await FirebaseAuth.DefaultInstance.SignInWithCustomTokenAsync(response.message).ContinueWithOnMainThread(
-				async task =>
-				{
-					if (task.IsCanceled)
-					{
-						Logger.LogError("Custom token sign in was canceled.", Category.DatabaseAPI);
-						LobbyManager.Instance.lobbyDialogue.LoginError($"Sign in was cancelled");
-						return;
-					}
-
-					if (task.IsFaulted)
-					{
-						Logger.LogError("Task Faulted: " + task.Exception, Category.DatabaseAPI);
-						LobbyManager.Instance.lobbyDialogue.LoginError($"Task Faulted: " + task.Exception);
-						return;
-					}
-
-					var success = await ServerData.ValidateUser(task.Result, null, null);
-
-					if (success)
-					{
-						Logger.Log("Signed in successfully with valid token", Category.DatabaseAPI);
-						OnCharacterScreenCloseFromHubConnect();
-					}
-					else
-					{
-						LobbyManager.Instance.lobbyDialogue.LoginError(
-							"Unknown error occured when verifying character settings on the server");
-					}
-				});
+			Loggy.Warning("Logging in via hub account (via command line args) failed.");
 		}
-		else
+
+		if (await LobbyManager.Instance.TryAutoLogin())
 		{
-			if (FirebaseAuth.DefaultInstance.CurrentUser != null)
-			{
-				AttemptAutoJoin(OnCharacterScreenCloseFromHubConnect);
-			}
+			LobbyManager.Instance.JoinServer(ip, port);
+			return true;
 		}
-	}
 
-	private void OnCharacterScreenCloseFromHubConnect()
-	{
-		LobbyManager.Instance.lobbyDialogue.OnStartGameFromHub();
-	}
-
-	private void OnCharacterScreenCloseFromHubConnect(string msg)
-	{
-		LobbyManager.Instance.lobbyDialogue.OnStartGameFromHub();
+		Loggy.Warning("Logging in via stored account token failed.");
+		return false;
 	}
 
 	private bool CheckHeadlessState()
@@ -343,7 +271,9 @@ public class GameData : MonoBehaviour
 		return false;
 	}
 
-	private string GetArgument(string name)
+	#region Helpers
+
+	private static string GetArgument(string name)
 	{
 		string[] args = Environment.GetCommandLineArgs();
 		for (int i = 0; i < args.Length; i++)
@@ -355,5 +285,13 @@ public class GameData : MonoBehaviour
 		}
 
 		return null;
+	}
+
+	#endregion
+
+	public InitialisationSystems Subsystem => InitialisationSystems.GameData;
+	public void Initialise()
+	{
+		_ = Init();
 	}
 }

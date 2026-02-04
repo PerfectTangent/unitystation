@@ -1,8 +1,8 @@
 using System;
 using UI.Core.Net;
 using UnityEngine;
-using Core.Editor.Attributes;
 using Messages.Server;
+using Mirror;
 using Systems.Interaction;
 
 
@@ -14,17 +14,19 @@ namespace Objects
 	/// please ensure this component is placed below them, otherwise the tab open/close will
 	/// be the interaction that always takes precedence.
 	/// </summary>
-	public class HasNetworkTab : MonoBehaviour, ICheckedInteractable<HandApply>, IServerDespawn, ICheckedInteractable<AiActivate>
+	public class HasNetworkTab : NetworkBehaviour, ICheckedInteractable<HandApply>, IServerDespawn, ICheckedInteractable<AiActivate>,  ICheckedInteractable<PositionalHandApply>
 	{
 		[NonSerialized]
 		private GameObject playerInteracted;
 
-		[PrefabModeOnly]
+
 		[Tooltip("Network tab to display.")]
 		public NetTabType NetTabType = NetTabType.None;
 
-		[SerializeField, PrefabModeOnly]
+		[SerializeField ]
 		private bool aiInteractable = true;
+
+		public event Action<GameObject> OnShowUI;
 
 		/// <summary>
 		/// This method simply tells the script what player last interacted, giving an reference to their gameobject
@@ -34,16 +36,35 @@ namespace Objects
 			return playerInteracted;
 		}
 
+		[TargetRpc]
+		private void InvokeEventOnClient(NetworkConnection target, GameObject player)
+		{
+			OnShowUI?.Invoke(player);
+		}
+
+		bool ICheckable<PositionalHandApply>.WillInteract(PositionalHandApply interaction, NetworkSide side)
+		{
+			return WillInteract(interaction, side);
+		}
+
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side))
+			if (DefaultWillInteract.Default(interaction, side, AllowTelekinesis : false) == false)
 				return false;
+
+			if (NetTabType == NetTabType.None) return false;
+
 			playerInteracted = interaction.Performer;
 			//interaction only works if hand is empty
-			if (interaction.HandObject != null)
+			if (interaction.HandObject != null && interaction.IsAltClick == false)
 			{ return false; }
 
 			return true;
+		}
+
+		void IInteractable<PositionalHandApply>.ServerPerformInteraction(PositionalHandApply interaction)
+		{
+			 ServerPerformInteraction(interaction);
 		}
 
 		public void ServerPerformInteraction(HandApply interaction)
@@ -58,9 +79,10 @@ namespace Objects
 
 			playerInteracted = interaction.Performer;
 			TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType, TabAction.Open);
+			InvokeEventOnClient(interaction.PerformerPlayerScript.connectionToClient, interaction.Performer);
 		}
 
-		public void ServerPerformInteraction(PositionalHandApply interaction)
+		public void ServerPerformInteraction(HandActivate interaction)
 		{
 			foreach (var validateNetTab in GetComponents<ICanOpenNetTab>())
 			{
@@ -72,7 +94,9 @@ namespace Objects
 
 			playerInteracted = interaction.Performer;
 			TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType, TabAction.Open);
+			InvokeEventOnClient(interaction.PerformerPlayerScript.connectionToClient, interaction.Performer);
 		}
+
 
 		public void OnDespawnServer(DespawnInfo info)
 		{
@@ -105,6 +129,7 @@ namespace Objects
 
 			playerInteracted = interaction.Performer;
 			TabUpdateMessage.Send(interaction.Performer, gameObject, NetTabType, TabAction.Open);
+			InvokeEventOnClient(interaction.PerformerMind.connectionToServer, interaction.Performer);
 		}
 
 		#endregion

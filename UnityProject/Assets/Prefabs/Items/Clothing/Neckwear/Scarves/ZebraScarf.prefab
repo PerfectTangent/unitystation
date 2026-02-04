@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3465284675447965665, guid: a4981081d749e834085ce1ec714c4b50,
@@ -12,6 +13,12 @@ PrefabInstance:
       propertyPath: initialName
       value: zebra scarf
       objectReference: {fileID: 0}
+    - target: {fileID: 3465284675447965665, guid: a4981081d749e834085ce1ec714c4b50,
+        type: 3}
+      propertyPath: itemSprites.SpriteInventoryIcon
+      value: 
+      objectReference: {fileID: 11400000, guid: a4e71246bc6eea842aac5dab3b8600f4,
+        type: 2}
     - target: {fileID: 3750167143099309023, guid: a4981081d749e834085ce1ec714c4b50,
         type: 3}
       propertyPath: m_Sprite
@@ -80,6 +87,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3994276298403714359, guid: a4981081d749e834085ce1ec714c4b50,
         type: 3}
+      propertyPath: _assetId
+      value: 1959334796
+      objectReference: {fileID: 0}
+    - target: {fileID: 3994276298403714359, guid: a4981081d749e834085ce1ec714c4b50,
+        type: 3}
       propertyPath: m_AssetId
       value: a76985fa0cbc73041bedf07bd17754db
       objectReference: {fileID: 0}
@@ -89,6 +101,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: a4e71246bc6eea842aac5dab3b8600f4,
         type: 2}
+    - target: {fileID: 7186812133261251332, guid: a4981081d749e834085ce1ec714c4b50,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: a4e71246bc6eea842aac5dab3b8600f4,
+        type: 2}
+    - target: {fileID: 7944360039044097262, guid: a4981081d749e834085ce1ec714c4b50,
+        type: 3}
+      propertyPath: parentID
+      value: a4981081d749e834085ce1ec714c4b50
+      objectReference: {fileID: 0}
     - target: {fileID: 7944360039044097262, guid: a4981081d749e834085ce1ec714c4b50,
         type: 3}
       propertyPath: foreverID
@@ -106,9 +129,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7964486416432102150, guid: a4981081d749e834085ce1ec714c4b50,
         type: 3}
-      propertyPath: allClothingData.Array.data[0]
+      propertyPath: 'allClothingData.Array.data[0]'
       value: 
       objectReference: {fileID: 11400000, guid: 78ac0ccde0ad1a94688b194d7c280702,
         type: 2}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a4981081d749e834085ce1ec714c4b50, type: 3}

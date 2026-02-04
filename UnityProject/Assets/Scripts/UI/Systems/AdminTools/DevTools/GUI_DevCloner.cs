@@ -1,10 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Items;
+using Logs;
 using Messages.Client.DevSpawner;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 
 /// <summary>
@@ -167,7 +170,7 @@ public class GUI_DevCloner : MonoBehaviour
 			{
 				//NOTE: Avoiding multiple enumeration by converting IEnumerables to lists.
 				var hitGOs = MouseUtils.GetOrderedObjectsUnderMouse(layerMask,
-					go => go.GetComponent<CustomNetTransform>() != null).ToList();
+					go => go.GetComponent<UniversalObjectPhysics>() != null).ToList();
 				//warn about objects which cannot be cloned
 				var nonPooledHits = hitGOs
 					.Where(go => Spawn.DeterminePrefab(go) == null).ToList();
@@ -175,7 +178,7 @@ public class GUI_DevCloner : MonoBehaviour
 				{
 					foreach (GameObject nonPooled in nonPooledHits)
 					{
-						Logger.LogWarningFormat("Object {0} does not have a PoolPrefabTracker component and its name" +
+						Loggy.Warning().Format("Object {0} does not have a PoolPrefabTracker component and its name" +
 						                        " did not match one of our existing prefabs " +
 						                        "therefore cannot be cloned (because we wouldn't know which prefab to instantiate). " +
 						                        "Please attach this component to the object and specify the prefab" +

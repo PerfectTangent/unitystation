@@ -1,46 +1,45 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using AdminCommands;
 using UnityEngine;
 using Mirror;
-using Systems.ObjectConnection;
 using CustomInspectors;
+using Systems.Clearance;
+using Shared.Systems.ObjectConnection;
+using Systems.Electricity;
+using Util.Independent.FluentRichText;
 
 namespace Objects.Wallmounts
 {
-	public class GeneralSwitch : ImnterfaceMultitoolGUI, ISubscriptionController, ICheckedInteractable<HandApply>, IMultitoolMasterable
+	public class GeneralSwitch : ImnterfaceMultitoolGUI, ISubscriptionController, ICheckedInteractable<HandApply>,
+		IMultitoolMasterable, IRightClickable
 	{
 		private SpriteRenderer spriteRenderer;
 		public Sprite greenSprite;
 		public Sprite offSprite;
 		public Sprite redSprite;
 
-		[Header("Access Restrictions for ID")]
-		[Tooltip("Is this door restricted?")]
-		public bool restricted;
-
-		[Tooltip("Access level to limit door if above is set.")]
-		public Access access;
-
 		public List<GeneralSwitchController> generalSwitchControllers = new List<GeneralSwitchController>();
 
 		private bool buttonCoolDown = false;
-		private AccessRestrictions accessRestrictions;
+		private ClearanceRestricted clearanceRestricted;
+
+		private APCPoweredDevice APCPoweredDevice;
+		[field: SerializeField] public bool CanRelink { get; set; } = true;
+		[field: SerializeField] public bool IgnoreMaxDistanceMapper { get; set; } = false;
 
 		private void Start()
 		{
 			//This is needed because you can no longer apply shutterSwitch prefabs (it will move all of the child sprite positions)
 			gameObject.layer = LayerMask.NameToLayer("WallMounts");
 			spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-			accessRestrictions = gameObject.AddComponent<AccessRestrictions>();
-			if (restricted)
-			{
-				accessRestrictions.restriction = access;
-			}
+			clearanceRestricted = GetComponent<ClearanceRestricted>();
+			APCPoweredDevice = GetComponent<APCPoweredDevice>();
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			//this validation is only done client side for their convenience - they can't
 			//press button while it's animating.
 			if (side == NetworkSide.Client)
@@ -55,28 +54,35 @@ namespace Objects.Wallmounts
 
 		public void ServerPerformInteraction(HandApply interaction)
 		{
-			if (accessRestrictions != null && restricted)
+			if (clearanceRestricted.HasClearance(interaction.Performer) == false)
 			{
-				if (!accessRestrictions.CheckAccess(interaction.Performer))
-				{
-					RpcPlayButtonAnim(false);
-					return;
-				}
+				RpcPlayButtonAnim(false);
+				Chat.AddExamineMsg(interaction.Performer, "You don't have clearance to use this switch.".Color(Color.red));
+				return;
 			}
-
-			RunDoorController();
-			RpcPlayButtonAnim(true);
-
+			RunDoorController(interaction);
 		}
 
-		private void RunDoorController()
+		public void RunDoorController(HandApply interaction = null)
 		{
-			for (int i = 0; i < generalSwitchControllers.Count; i++)
+			if (APCPoweredDevice != null)
 			{
-				if (generalSwitchControllers[i] == null) continue;
+				if (APCPoweredDevice.IsOn(PowerState.On) == false) return;
+			}
 
+			RpcPlayButtonAnim(true);
+
+			foreach (var controller in generalSwitchControllers)
+			{
+				if (controller == null) continue;
 				//Trigger Event
-				generalSwitchControllers[i].SwitchPressedDoAction.Invoke();
+				controller.SwitchPressedDoAction?.Invoke();
+			}
+
+			if (interaction != null)
+			{
+				Chat.AddActionMsgToChat(interaction.Performer, "Small chirps can be heard as " +
+				                                               $"{interaction.PerformerPlayerScript.visibleName} presses the {gameObject.ExpensiveName()}.");
 			}
 		}
 
@@ -104,28 +110,12 @@ namespace Objects.Wallmounts
 			{
 				if (status)
 				{
-					if (spriteRenderer.sprite == greenSprite)
-					{
-						spriteRenderer.sprite = offSprite;
-					}
-					else
-					{
-						spriteRenderer.sprite = greenSprite;
-					}
-
+					spriteRenderer.sprite = spriteRenderer.sprite == greenSprite ? offSprite : greenSprite;
 					yield return WaitFor.Seconds(0.2f);
 				}
 				else
 				{
-					if (spriteRenderer.sprite == redSprite)
-					{
-						spriteRenderer.sprite = offSprite;
-					}
-					else
-					{
-						spriteRenderer.sprite = redSprite;
-					}
-
+					spriteRenderer.sprite = spriteRenderer.sprite == redSprite ? offSprite : redSprite;
 					yield return WaitFor.Seconds(0.1f);
 				}
 			}
@@ -139,7 +129,7 @@ namespace Objects.Wallmounts
 		private MultitoolConnectionType conType = MultitoolConnectionType.GeneralSwitch;
 		public MultitoolConnectionType ConType => conType;
 
-		public bool MultiMaster => true;
+		public bool MultiMaster => true; //TODO
 		int IMultitoolMasterable.MaxDistance => int.MaxValue;
 
 		#endregion
@@ -191,5 +181,24 @@ namespace Objects.Wallmounts
 		}
 
 		#endregion
+
+		public RightClickableResult GenerateRightClickOptions()
+		{
+
+
+			if (PlayerList.HasTAGClient(TAG.ADMIN_PRESS_BUTTON) == false ||
+				    KeyboardInputManager.Instance.CheckKeyAction(KeyAction.ShowAdminOptions, KeyboardInputManager.KeyEventType.Hold) == false)
+			{
+				return null;
+			}
+
+			return RightClickableResult.Create()
+				.AddAdminElement("Activate", AdminPressButton);
+		}
+
+		private void AdminPressButton()
+		{
+			AdminCommandsManager.Instance.CmdActivateButton(gameObject);
+		}
 	}
 }

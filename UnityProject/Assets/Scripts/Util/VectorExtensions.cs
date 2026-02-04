@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Player;
 using UnityEngine;
 
 public static class VectorExtensions
@@ -40,6 +42,19 @@ public static class VectorExtensions
 		return RadianToVector2(degree * Mathf.Deg2Rad);
 	}
 
+	public static Vector2 RotateVectorBy(this Vector2 vector, Vector2 rotation)
+	{
+		Quaternion rotationQuat = Quaternion.Euler(0f, 0f, Mathf.Atan2(rotation.y, rotation.x) * Mathf.Rad2Deg);
+		Vector2 rotatedVector = rotationQuat * vector;
+		return rotatedVector;
+	}
+
+	public static Vector2 RotateVectorBy(this Vector2Int vector, Vector2 rotation)
+	{
+		var InVector2 = (vector.To2());
+		return InVector2.RotateVectorBy(rotation);
+	}
+
 	public static Vector2 Rotate(this Vector2 v, float degrees) {
 		float sin = Mathf.Sin(degrees * Mathf.Deg2Rad);
 		float cos = Mathf.Cos(degrees * Mathf.Deg2Rad);
@@ -49,5 +64,63 @@ public static class VectorExtensions
 		v.x = (cos * tx) - (sin * ty);
 		v.y = (sin * tx) + (cos * ty);
 		return v;
+	}
+
+	public static List<Vector3> GetNeighbors(this Vector3 v)
+	{
+		return new List<Vector3>
+		{
+			v + new Vector3(1, 0, 0),
+			v + new Vector3(-1, 0, 0),
+			v + new Vector3(0, 1, 0),
+			v + new Vector3(0, -1, 0)
+		};
+	}
+
+	public static List<Vector3Int> GetNeighbors(this Vector3Int v)
+	{
+		return new List<Vector3Int>
+		{
+			v + new Vector3Int(1, 0, 0),
+			v + new Vector3Int(-1, 0, 0),
+			v + new Vector3Int(0, 1, 0),
+			v + new Vector3Int(0, -1, 0)
+		};
+	}
+
+	public static Vector3 GetRandomScatteredDirection(this Vector3 v)
+	{
+		Vector3 offset= Vector3.zero;
+		switch (RNG.GetRandomNumber(1,9))
+		{
+			case 1:
+				offset= Vector3.zero;
+				break;
+			case 2:
+				offset= new Vector3(1,0,0);
+				break;
+			case 3:
+				offset= new Vector3(-1,0,0);
+				break;
+			case 4:
+				offset= new Vector3(0,1,0);
+				break;
+			case 5:
+				offset= new Vector3(0,-1,0);
+				break;
+			case 6:
+				offset= new Vector3(1,-1,0);
+				break;
+			case 7:
+				offset= new Vector3(-1,-1,0);
+				break;
+			case 8:
+				offset= new Vector3(-1,1,0);
+				break;
+			case 9:
+				offset= new Vector3(1,1,0);
+				break;
+		}
+		return offset;
 	}
 }

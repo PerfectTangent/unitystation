@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 339421454201269020, guid: d6404a068c8f36c489fbb0ad6325553d,
@@ -17,6 +18,22 @@ PrefabInstance:
       propertyPath: initialDescription
       value: reflects emitter lasers
       objectReference: {fileID: 0}
+    - target: {fileID: 339421454201269020, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 339421454201269020, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 876aa5faa4e1f394daafac6ec31c20ef,
+        type: 2}
+    - target: {fileID: 1571178199349526862, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: _assetId
+      value: 4281752503
+      objectReference: {fileID: 0}
     - target: {fileID: 1571178199349526862, guid: d6404a068c8f36c489fbb0ad6325553d,
         type: 3}
       propertyPath: m_AssetId
@@ -24,10 +41,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2468204777411321590, guid: d6404a068c8f36c489fbb0ad6325553d,
         type: 3}
+      propertyPath: spriteRenderer
+      value: 
+      objectReference: {fileID: 954842020145949925}
+    - target: {fileID: 2468204777411321590, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
       propertyPath: PresentSpriteSet
       value: 
       objectReference: {fileID: 11400000, guid: e371b0eb7abb0eb4b84edd038dd53698,
         type: 2}
+    - target: {fileID: 2468204777411321590, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: e371b0eb7abb0eb4b84edd038dd53698,
+        type: 2}
+    - target: {fileID: 4462699261549455670, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: m_Size.y
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 6296537849344641637, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: parentID
+      value: d6404a068c8f36c489fbb0ad6325553d
+      objectReference: {fileID: 0}
     - target: {fileID: 6296537849344641637, guid: d6404a068c8f36c489fbb0ad6325553d,
         type: 3}
       propertyPath: foreverID
@@ -98,6 +136,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: ReflectorSingle
       objectReference: {fileID: 0}
+    - target: {fileID: 7131911770228068182, guid: d6404a068c8f36c489fbb0ad6325553d,
+        type: 3}
+      propertyPath: isNotPushable
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7165261220794961979, guid: d6404a068c8f36c489fbb0ad6325553d,
         type: 3}
       propertyPath: m_Sprite
@@ -105,4 +148,13 @@ PrefabInstance:
       objectReference: {fileID: 21300000, guid: 3ff050cb30de6f44ab6cc14bd1845d0b,
         type: 3}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d6404a068c8f36c489fbb0ad6325553d, type: 3}
+--- !u!212 &954842020145949925 stripped
+SpriteRenderer:
+  m_CorrespondingSourceObject: {fileID: 7165261220794961979, guid: d6404a068c8f36c489fbb0ad6325553d,
+    type: 3}
+  m_PrefabInstance: {fileID: 7939943861600124126}
+  m_PrefabAsset: {fileID: 0}

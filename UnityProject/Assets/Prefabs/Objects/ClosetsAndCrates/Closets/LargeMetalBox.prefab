@@ -5,8 +5,14 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 494982147592720813, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: parentID
+      value: d0665b639a1bfc340afe3b1fde2773dd
+      objectReference: {fileID: 0}
     - target: {fileID: 494982147592720813, guid: d0665b639a1bfc340afe3b1fde2773dd,
         type: 3}
       propertyPath: foreverID
@@ -76,7 +82,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300000, guid: c3fd932f54dbc104c8aae0fb5e3f9eeb,
+      objectReference: {fileID: 21300000, guid: 2d29c5955b3fd724eb7498228168ddb0,
         type: 3}
     - target: {fileID: 3661236735629347827, guid: d0665b639a1bfc340afe3b1fde2773dd,
         type: 3}
@@ -102,6 +108,11 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 4932213772170353286, guid: d0665b639a1bfc340afe3b1fde2773dd,
         type: 3}
+      propertyPath: _assetId
+      value: 2860178714
+      objectReference: {fileID: 0}
+    - target: {fileID: 4932213772170353286, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
       propertyPath: m_AssetId
       value: 3555049802a2468419f3cff43928642d
       objectReference: {fileID: 0}
@@ -114,6 +125,11 @@ PrefabInstance:
         type: 3}
       propertyPath: Resistances.Flammable
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6127871286602494164, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: exportCost
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 6127871286602494164, guid: d0665b639a1bfc340afe3b1fde2773dd,
         type: 3}
@@ -136,11 +152,35 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 2d96a0de87f852e40958ddf0a94a30a9,
         type: 2}
+    - target: {fileID: 7947557062516400314, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 2d96a0de87f852e40958ddf0a94a30a9,
+        type: 2}
     - target: {fileID: 8358574662637569342, guid: d0665b639a1bfc340afe3b1fde2773dd,
         type: 3}
-      propertyPath: SubCatalogue.Array.data[1]
+      propertyPath: PresentSpriteSet
       value: 
-      objectReference: {fileID: 11400000, guid: b47b939d4743b124188ff4f58517fff0,
+      objectReference: {fileID: 11400000, guid: 0ba208bd2ec4e8c4c938c188a570d2b5,
+        type: 2}
+    - target: {fileID: 8358574662637569342, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: InitialPresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 0ba208bd2ec4e8c4c938c188a570d2b5,
+        type: 2}
+    - target: {fileID: 8358574662637569342, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 0ba208bd2ec4e8c4c938c188a570d2b5,
+        type: 2}
+    - target: {fileID: 8358574662637569342, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: 'SubCatalogue.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 4f172c381dca8fe40adc2c781edb035a,
         type: 2}
     - target: {fileID: 8687686136168823938, guid: d0665b639a1bfc340afe3b1fde2773dd,
         type: 3}
@@ -148,5 +188,13 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 21300000, guid: 0acfed262eec27544bacd419dfed4dbc,
         type: 3}
+    - target: {fileID: 8801251741159678034, guid: d0665b639a1bfc340afe3b1fde2773dd,
+        type: 3}
+      propertyPath: minimumFireDamageForStack
+      value: 20
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d0665b639a1bfc340afe3b1fde2773dd, type: 3}

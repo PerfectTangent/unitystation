@@ -5,6 +5,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 779667991303328757, guid: 1f61548e395dbe8449f041a728c5af66,
@@ -17,6 +18,22 @@ PrefabInstance:
       propertyPath: initialDescription
       value: A warning sign which reads 'HIGH VOLTAGE'.
       objectReference: {fileID: 0}
+    - target: {fileID: 779667991303328757, guid: 1f61548e395dbe8449f041a728c5af66,
+        type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 779667991303328757, guid: 1f61548e395dbe8449f041a728c5af66,
+        type: 3}
+      propertyPath: 'initialTraits.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: d868d0175c2ad014bb5c3cc4fb361248,
+        type: 2}
+    - target: {fileID: 1993339627899042215, guid: 1f61548e395dbe8449f041a728c5af66,
+        type: 3}
+      propertyPath: _assetId
+      value: 233629441
+      objectReference: {fileID: 0}
     - target: {fileID: 1993339627899042215, guid: 1f61548e395dbe8449f041a728c5af66,
         type: 3}
       propertyPath: m_AssetId
@@ -28,6 +45,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: adf1b7d21f3b0af4daf69f0d54087364,
         type: 2}
+    - target: {fileID: 6414808378359280268, guid: 1f61548e395dbe8449f041a728c5af66,
+        type: 3}
+      propertyPath: parentID
+      value: 1f61548e395dbe8449f041a728c5af66
+      objectReference: {fileID: 0}
     - target: {fileID: 6414808378359280268, guid: 1f61548e395dbe8449f041a728c5af66,
         type: 3}
       propertyPath: foreverID
@@ -85,4 +107,7 @@ PrefabInstance:
       value: SignHighVoltage
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1f61548e395dbe8449f041a728c5af66, type: 3}

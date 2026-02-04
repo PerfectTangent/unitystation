@@ -25,6 +25,8 @@ namespace Objects.Robotics
 		private ItemTrait InsertedMaterialType;
 		private IEnumerator currentProduction;
 
+		private Machine machine;
+
 		public delegate void MaterialsManipulating();
 
 		public static event MaterialsManipulating MaterialsManipulated;
@@ -55,12 +57,13 @@ namespace Objects.Robotics
 			registerObject = GetComponent<RegisterObject>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
 			materialStorageLink = GetComponent<MaterialStorageLink>();
+			machine = GetComponent<Machine>();
 		}
 
 		public bool WillInteract(HandApply interaction, NetworkSide side)
 		{
 			if (interaction.HandSlot.IsEmpty) return false;
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			InsertedMaterialType = materialStorageLink.usedStorage.FindMaterial(interaction.HandObject);
 			if (InsertedMaterialType != null)
@@ -82,7 +85,7 @@ namespace Objects.Robotics
 				int materialSheetAmount = interaction.HandSlot.Item.GetComponent<Stackable>().Amount;
 				if (materialStorageLink.usedStorage.TryAddSheet(InsertedMaterialType, materialSheetAmount))
 				{
-					Inventory.ServerDespawn(interaction.HandObject);
+					_ = Inventory.ServerDespawn(interaction.HandObject);
 					if (stateSync == ExosuitFabricatorState.Idle)
 					{
 						StartCoroutine(AnimateAcceptingMaterials());
@@ -113,7 +116,7 @@ namespace Objects.Robotics
 
 		public void DispenseMaterialSheet(int amountOfSheets, ItemTrait materialType)
 		{
-			materialStorageLink.usedStorage.DispenseSheet(amountOfSheets, materialType, gameObject.WorldPosServer());
+			materialStorageLink.usedStorage.DispenseSheet(amountOfSheets, materialType, gameObject.AssumedWorldPosServer());
 			UpdateGUI();
 		}
 
@@ -122,7 +125,7 @@ namespace Objects.Robotics
 		/// </summary>
 		public bool CanProcessProduct(MachineProduct product)
 		{
-			if (materialStorageLink.usedStorage.TryConsumeList(product.materialToAmounts))
+			if (materialStorageLink.usedStorage.TryConsumeList(product.materialToAmounts, 0.5f / (machine.GetPartMultiplier()/2f)))
 			{
 				currentProduction = ProcessProduction(product.Product, product.ProductionTime);
 				StartCoroutine(currentProduction);

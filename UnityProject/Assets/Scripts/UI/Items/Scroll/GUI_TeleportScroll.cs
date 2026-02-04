@@ -10,7 +10,7 @@ namespace UI.Scroll
 	public class GUI_TeleportScroll : NetTab
 	{
 		[SerializeField]
-		private NetLabel chargesLabel = default;
+		private NetText_label chargesLabel = default;
 		[SerializeField]
 		private EmptyItemList dynamicList = null;
 
@@ -61,11 +61,11 @@ namespace UI.Scroll
 		{
 			if (scroll.ChargesRemaining < 0)
 			{
-				chargesLabel.SetValueServer("");
+				chargesLabel.MasterSetValue("");
 			}
 			else
 			{
-				chargesLabel.SetValueServer($"Teleport Charges: {scroll.ChargesRemaining}");
+				chargesLabel.MasterSetValue($"Teleport Charges: {scroll.ChargesRemaining}");
 			}
 		}
 	}

@@ -1,7 +1,7 @@
-using AddressableReferences;
 using System.Collections.Generic;
 using Initialisation;
 using Items;
+using Logs;
 using NaughtyAttributes;
 using UnityEngine;
 
@@ -11,7 +11,6 @@ namespace Doors.Modules
 	{
 		[SerializeField] private ItemTrait IDToggleCard;
 
-
 		private bool boltsDown = false;
 		public bool BoltsDown => boltsDown;
 
@@ -19,12 +18,6 @@ namespace Doors.Modules
 
 		[SerializeField][Tooltip("If true, the door needs to be closed to see the bolts lights")]
 		private bool needsClosedToLight = true;
-
-		[SerializeField]
-		private AddressableAudioSource boltsUpSound= null;
-
-		[SerializeField]
-		private AddressableAudioSource boltsDownSound= null;
 
 		private bool CanShowLights
 		{
@@ -38,7 +31,6 @@ namespace Doors.Modules
 				return boltsLights && master.HasPower;
 			}
 		}
-
 
 		public void OnSpawnServer(SpawnInfo info)
 		{
@@ -54,9 +46,7 @@ namespace Doors.Modules
 		{
 			boltsDown = state;
 
-			master.ToggleBlockAutoClose(state);
-
-			SoundManager.PlayNetworkedAtPos(boltsDown ? boltsDownSound : boltsUpSound, master.RegisterTile.WorldPositionServer, sourceObj: master.gameObject);
+			master.SoundController.ServerPlaySound(boltsDown ? DoorSoundController.DoorSoundType.BoltsDown : DoorSoundController.DoorSoundType.BoltsUp);
 
 			if (boltsDown && CanShowLights)
 			{
@@ -84,40 +74,52 @@ namespace Doors.Modules
 			SetBoltsState(!boltsDown);
 		}
 
-		public override ModuleSignal OpenInteraction(HandApply interaction, HashSet<DoorProcessingStates> States)
+		public override void OpenInteraction(HandApply interaction, ref HashSet<DoorProcessingStates> States)
 		{
 			if (interaction != null && interaction.UsedObject != null)
 			{
 				if (interaction.UsedObject.GetComponent<ItemAttributesV2>().HasTrait(IDToggleCard))
 				{
 					PulseToggleBolts();
-					return ModuleSignal.Break;
+					States.Add(DoorProcessingStates.PreventSilently);
 				}
 
 				if (PulsePreventBoltsFall())
 				{
 					SetBoltsState(true); //so Preveving all cables
-					return ModuleSignal.Break;
 				}
 			}
 
-			return ModuleSignal.Continue;
+			if (boltsDown)
+			{
+				States.Add(DoorProcessingStates.PhysicallyPrevented);
+			}
+
+			return;
 		}
 
-		public override ModuleSignal ClosedInteraction(HandApply interaction, HashSet<DoorProcessingStates> States)
+		public override void ClosedInteraction(HandApply interaction, ref HashSet<DoorProcessingStates> States)
 		{
 			if (interaction != null && interaction.UsedObject != null)
 			{
 				if (interaction.UsedObject.GetComponent<ItemAttributesV2>().HasTrait(IDToggleCard))
 				{
 					PulseToggleBolts();
-					return ModuleSignal.Break;
+					States.Add(DoorProcessingStates.PreventSilently);
 				}
-
-
 			}
 
-			return ModuleSignal.Continue;
+			if (PulsePreventBoltsFall())
+			{
+				SetBoltsState(true); //so Preveving all cables
+			}
+
+			if (boltsDown)
+			{
+				States.Add(DoorProcessingStates.PhysicallyPrevented);
+			}
+
+			return;
 		}
 
 		public void PreventBoltsFall()
@@ -144,18 +146,18 @@ namespace Doors.Modules
 
 		}
 
-		public override ModuleSignal BumpingInteraction(GameObject byPlayer, HashSet<DoorProcessingStates> States)
-		{
-			return ModuleSignal.Continue;
-		}
-
-		public override bool CanDoorStateChange()
+		public override void BumpingInteraction(GameObject byPlayer, ref HashSet<DoorProcessingStates> States)
 		{
 			if (PulsePreventBoltsFall())
 			{
 				SetBoltsState(true);
 			}
-			return !boltsDown;
+
+			if (boltsDown)
+			{
+				States.Add(DoorProcessingStates.PhysicallyPrevented);
+			}
 		}
+
 	}
 }

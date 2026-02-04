@@ -1,7 +1,5 @@
-﻿using System.Collections;
-using Messages.Server;
-using UnityEngine;
-using Weapons;
+﻿using UnityEngine;
+using Weapons.Projectiles;
 
 namespace Systems.Spells.Wizard
 {
@@ -13,12 +11,13 @@ namespace Systems.Spells.Wizard
 		[SerializeField]
 		private GameObject projectilePrefab = default;
 
-		public override bool CastSpellServer(ConnectedPlayer caster, Vector3 clickPosition)
+		public override bool CastSpellServer(PlayerInfo caster, Vector3 clickPosition)
 		{
 			Vector3Int casterWorldPos = caster.Script.WorldPos;
 			Vector2 castVector = clickPosition - casterWorldPos;
 
-			CastProjectileMessage.SendToAll(caster.GameObject, projectilePrefab, castVector, default);
+			ProjectileManager.InstantiateAndShoot(projectilePrefab, castVector, caster.GameObject,
+				null, BodyPartType.None);
 			return true;
 		}
 	}

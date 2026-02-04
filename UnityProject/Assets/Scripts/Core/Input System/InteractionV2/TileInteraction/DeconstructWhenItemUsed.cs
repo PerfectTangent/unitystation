@@ -40,6 +40,7 @@ public class DeconstructWhenItemUsed : TileInteraction
 	public override bool WillInteract(TileApply interaction, NetworkSide side)
 	{
 		if (!DefaultWillInteract.Default(interaction, side)) return false;
+		if (interaction.Intent != Intent.Disarm) return false;
 		if (requiredTrait == CommonTraits.Instance.Welder)
 		{
 			return Validations.HasUsedActiveWelder(interaction);
@@ -57,6 +58,9 @@ public class DeconstructWhenItemUsed : TileInteraction
 			Chat.ReplacePerformer(othersFinishActionMessage, interaction.Performer),
 			() =>
 			{
+				var gotTile = interaction.TileChangeManager.MetaTileMap.GetTile(interaction.TargetCellPos);
+				if (gotTile == null) return;
+				if (gotTile != interaction.BasicTile) return;
 
 				interaction.TileChangeManager.MetaTileMap.RemoveTileWithlayer(interaction.TargetCellPos, interaction.BasicTile.LayerType);
 				interaction.TileChangeManager.MetaTileMap.RemoveFloorWallOverlaysOfType(interaction.TargetCellPos, OverlayType.Cleanable);
@@ -65,13 +69,13 @@ public class DeconstructWhenItemUsed : TileInteraction
 				if (interaction.BasicTile.SpawnOnDeconstruct != null &&
 				    interaction.BasicTile.SpawnAmountOnDeconstruct > 0)
 				{
-					Spawn.ServerPrefab(interaction.BasicTile.SpawnOnDeconstruct, interaction.WorldPositionTarget,
+					Spawn.ServerPrefab(interaction.BasicTile.SpawnOnDeconstruct, interaction.TargetPosition.RoundToInt().ToWorld(interaction.Performer.RegisterTile().Matrix),
 						count: interaction.BasicTile.SpawnAmountOnDeconstruct);
 				}
 
 				if (objectsToSpawn != null)
 				{
-					objectsToSpawn.SpawnAt(SpawnDestination.At(interaction.WorldPositionTarget));
+					objectsToSpawn.SpawnAt(SpawnDestination.At(interaction.TargetPosition.RoundToInt().ToWorld(interaction.Performer.RegisterTile().Matrix)));
 				}
 
 				interaction.TileChangeManager.SubsystemManager.UpdateAt(interaction.TargetCellPos);

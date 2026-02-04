@@ -4,13 +4,16 @@ using System.Linq;
 using Systems.ElectricalArcs;
 using Systems.Explosions;
 using AddressableReferences;
+using Core;
 using HealthV2;
+using Messages.Server.SoundMessages;
 using Mirror;
 using Objects.Engineering;
 using UnityEngine;
 using Weapons.Projectiles.Behaviours;
 using Random = UnityEngine.Random;
 using Tiles;
+using UniversalObjectPhysics = Core.Physics.UniversalObjectPhysics;
 
 namespace Objects
 {
@@ -66,7 +69,7 @@ namespace Objects
 
 		private RegisterTile registerTile;
 		private SpriteHandler spriteHandler;
-		private CustomNetTransform customNetTransform;
+		private UniversalObjectPhysics ObjectPhysics ;
 
 		private int lockTimer;
 		private bool pointLock;
@@ -91,7 +94,7 @@ namespace Objects
 		private void Awake()
 		{
 			registerTile = GetComponent<RegisterTile>();
-			customNetTransform = GetComponent<CustomNetTransform>();
+			ObjectPhysics = GetComponent<UniversalObjectPhysics>();
 			spriteHandler = GetComponentInChildren<SpriteHandler>();
 		}
 
@@ -130,7 +133,7 @@ namespace Objects
 
 			if (teslaPoints <= 0 && zeroPointDeath)
 			{
-				Chat.AddLocalMsgToChat("The energy ball fizzles out", gameObject);
+				Chat.AddActionMsgToChat(gameObject, "The energy ball fizzles out!");
 				_ = Despawn.ServerSingle(gameObject);
 				return;
 			}
@@ -184,7 +187,7 @@ namespace Objects
 
 			if(preventDowngrade && newStage < currentStage) return;
 
-			Chat.AddLocalMsgToChat($"The energy ball fluctuates and {(newStage < currentStage ? "decreases" : "increases")} in size", gameObject);
+			Chat.AddActionMsgToChat(gameObject, $"The energy ball fluctuates and {(newStage < currentStage ? "decreases" : "increases")} in size!");
 
 			currentStage = newStage;
 
@@ -217,7 +220,7 @@ namespace Objects
 		{
 			var objectsToShoot = new List<GameObject>();
 
-			var machines = GetNearbyEntities(registerTile.WorldPositionServer, LayerMask.GetMask("Machines", "WallMounts", "Objects", "Players", "NPC"), primaryRange).ToList();
+			var machines = GetNearbyEntities(transform.position, LayerMask.GetMask("Machines", "WallMounts", "Objects", "Players", "NPC"), primaryRange).ToList();
 
 			foreach (Collider2D entity in machines)
 			{
@@ -286,7 +289,7 @@ namespace Objects
 		{
 			Zap(gameObject, targetObject, Random.Range(1,3), targetObject == null ? targetObject.AssumedWorldPosServer() : default);
 
-			SoundManager.PlayNetworkedAtPos(lightningSound, targetObject == null ? targetObject.AssumedWorldPosServer() : default, sourceObj: targetObject);
+			SoundManager.PlayNetworkedAtPos(lightningSound, targetObject == null ? targetObject.AssumedWorldPosServer() : default, sourceObj: targetObject, audioSourceParameters: new AudioSourceParameters( spatialBlend: 2));
 
 			return targetObject;
 		}
@@ -431,7 +434,7 @@ namespace Objects
 			if (layerTile != null && layerTilesToIgnore.Any(l => l.name == layerTile.name )) return;
 
 			//Move
-			customNetTransform.SetPosition(coord);
+			ObjectPhysics.AppearAtWorldPositionServer(coord);
 		}
 
 		#endregion
@@ -462,7 +465,7 @@ namespace Objects
 		{
 			if(data.DamageData.AttackType != AttackType.Rad) return;
 
-			if (data.DamageData.Damage >= 20f)
+			if (data.DamageData.Damage >= 19f)
 			{
 				//PA at setting 0 will do 20 damage
 				pointLock = true;

@@ -2,12 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Antagonists;
+using Chemistry;
+using Core.Admin.Logs;
 using DiscordWebhook;
+using JetBrains.Annotations;
+using Logs;
 using UI.CharacterCreator;
 using UnityEngine;
 using UnityEngine.Serialization;
 using NaughtyAttributes;
 using Managers;
+using Mirror;
 using StationObjectives;
 using Player;
 
@@ -84,6 +89,10 @@ namespace GameModes
 		[SerializeField]
 		[Min(1)]
 		private int maxAntags = 100;
+
+		[SerializeField]
+		protected int hardNumberOfAntagsToSpawn = 0;
+
 		/// <summary>
 		/// The maximum amount of antags spawned in the gamemode.
 		/// If <see cref="forceMinAntags"/> is true, the number of chosen antags will be rounded up to this number.
@@ -164,6 +173,16 @@ namespace GameModes
 		/// </summary>
 		public List<JobType> NonAntagJobTypes => nonAntagJobTypes;
 
+
+		[SerializeField] private bool randomSicknesses = true;
+		[ShowIf(nameof(randomSicknesses)), SerializeField] private List<Reagent> possibleSicknesses = new List<Reagent>();
+		[ShowIf(nameof(randomSicknesses)), SerializeField] private float randomSicknessRatio = 0.5f;
+
+		[FormerlySerializedAs("mainStations")] public MainStationListSO MainStations;
+		public AsteroidListSO AsteroidList = null;
+		public AdditionalSceneListSO AdditionalSceneList = null;
+		public AwayWorldListSO AwayWorldList;
+
 		#endregion
 
 		#region Game Mode Methods
@@ -174,9 +193,25 @@ namespace GameModes
 		/// </summary>
 		public virtual bool IsPossible()
 		{
-			int players = PlayerList.Instance.ReadyPlayers.Count;
-			return players >= MinPlayers && (!ForceMinAntags ||
-			                                 (Math.Floor(players * antagRatio) >= MinAntags));
+			int players = NetworkServer.connections.Count;
+
+			if ((players >= MinPlayers) == false )
+			{
+				Loggy.Info($"Failed MinPlayers with Current {players} Needed {MinPlayers} for {name}", Category.GameMode);
+				return false;
+			}
+
+			if (ForceMinAntags)
+			{
+				if ((Math.Floor(players * antagRatio) >= MinAntags) == false)
+				{
+					Loggy.Info($"Failed ForceMinAntags with Current {players * antagRatio} Needed {MinAntags} for {name}", Category.GameMode);
+					return false;
+				}
+			}
+
+			return true;
+
 		}
 
 		/// <summary>
@@ -185,7 +220,17 @@ namespace GameModes
 		/// </summary>
 		public virtual void SetupRound()
 		{
-			Logger.LogFormat("Setting up {0} round!", Category.GameMode, Name);
+			Loggy.Info().Format("Setting up {0} round!", Category.GameMode, Name);
+			PlayerSpawn.OnNewMindSpawnEvent += OnPlayerMindSpawned;
+		}
+
+		protected virtual void OnPlayerMindSpawned(Mind m)
+		{
+			if (randomSicknesses == false) return;
+			if (DMMath.Prob(randomSicknessRatio * 100) == false) return;
+			if (m.Body is null || m.Body.playerHealth is null) return;
+
+			m.Body.playerHealth.reagentPoolSystem.BloodPool.Add(possibleSicknesses.PickRandom(), 0.5f);
 		}
 
 		/// <summary>
@@ -199,9 +244,10 @@ namespace GameModes
 		/// <returns>true if the viewer was spawned as an antag.</returns>
 		public bool TrySpawnAntag(PlayerSpawnRequest spawnRequest)
 		{
-			if (ShouldSpawnAntag(spawnRequest))
+			var Antagonist = HandleRatioAndPickAntagonist(spawnRequest.Player, spawnRequest, AntagManager.Instance.AntagCount);
+			if (Antagonist != null)
 			{
-				SpawnAntag(spawnRequest);
+				SpawnAntag(spawnRequest, Antagonist);
 				return true;
 			}
 
@@ -216,44 +262,68 @@ namespace GameModes
 		/// <param name="spawnRequest">player's spawn request, which should be used to determine
 		/// if they should spawn as an antag</param>
 		/// <returns>true if an antag should be spawned.</returns>
-		protected virtual bool ShouldSpawnAntag(PlayerSpawnRequest spawnRequest)
+		protected virtual Antagonist HandleRatioAndPickAntagonist(PlayerInfo PlayerInfo, [CanBeNull] PlayerSpawnRequest spawnRequest, int NumberChosenAlready)
 		{
 			// Does this game mode support mid-round antags?
-			if (!MidRoundAntags)
+			if (MidRoundAntags == false)
 			{
-				return false;
+				return null;
 			}
 
-			// Can this job be an antag?
-			if (NonAntagJobTypes.Contains(spawnRequest.RequestedOccupation.JobType))
+			if (spawnRequest != null)
 			{
-				return false;
+				// Can this job be an antag?
+				if (NonAntagJobTypes.Contains(spawnRequest.RequestedOccupation.JobType))
+				{
+					return null;
+				}
 			}
 
-			// Has this player enabled any of the possible antags?
-			if (!HasPossibleAntagEnabled(ref spawnRequest.CharacterSettings.AntagPreferences) || !HasPossibleAntagNotBanned(spawnRequest.UserID))
-			{
-				return false;
-			}
 
 			// Are there enough antags already?
-			int newPlayerCount = PlayerList.Instance.OnlineAndOfflineConnCount + 1;
+			int newPlayerCount = NetworkServer.connections.Count + 1;
 			var expectedAntagCount = Math.Min((int)Math.Round(newPlayerCount * AntagRatio), maxAntags);
 
-			if (AntagManager.Instance.AntagCount < expectedAntagCount)
+			if (expectedAntagCount > NumberChosenAlready)
 			{
 				//We times the percentage based on the amount of open antag spaces
 				//E.g if traitor with two open slots it will be 25 * 2 = 50% chance on spawn to get the antag
 				//This prevents midround players from guessing when they can join the game to guarantee antag status
-				var percentage = midRoundAntagsChance * (expectedAntagCount - AntagManager.Instance.AntagCount);
-				if (DMMath.Prob(percentage))
+				if (expectedAntagCount - NumberChosenAlready > 1)
 				{
-					return true;
+					return PickAndCheckAntagonist(PlayerInfo, spawnRequest); //Basically we are lacking antagonist so add them
+				}
+				else
+				{
+					if (DMMath.Prob(midRoundAntagsChance))
+					{
+						return PickAndCheckAntagonist(PlayerInfo, spawnRequest);
+					}
 				}
 			}
 
-			return false;
+			return null;
 		}
+
+		protected virtual Antagonist PickAndCheckAntagonist(PlayerInfo PlayerInfo, [CanBeNull] PlayerSpawnRequest spawnRequest)
+		{
+			var CharacterSheet = PlayerInfo.RequestedCharacterSettings;
+
+			if (spawnRequest != null)
+			{
+				CharacterSheet = spawnRequest.CharacterSettings;
+			}
+
+
+			// Has this player enabled any of the possible antags?
+			if (HasPossibleAntagEnabled(ref CharacterSheet.AntagPreferences) == false
+			    || HasPossibleAntagNotBanned(PlayerInfo.AccountId) == false)
+			{
+				return null;
+			}
+			return PossibleAntags.PickRandom();
+		}
+
 
 		/// <summary>
 		/// Spawn the player requesting the spawn as an antag, includes creating their player object
@@ -263,28 +333,12 @@ namespace GameModes
 		/// Defaults to picking a random antag from the possible antags list and
 		/// spawning them as per the antag-specific spawn logic.
 		/// </summary>
-		protected void SpawnAntag(PlayerSpawnRequest playerSpawnRequest)
+		protected virtual void SpawnAntag(PlayerSpawnRequest playerSpawnRequest, Antagonist Antagonist)
 		{
-			if (PossibleAntags.Count <= 0)
-			{
-				Logger.LogError("PossibleAntags is empty! Game mode must have some if spawning antags.",
-					Category.Antags);
-				return;
-			}
-
-			var antagPool = PossibleAntags.Where(a =>
-				HasAntagEnabled(ref playerSpawnRequest.CharacterSettings.AntagPreferences, a) && PlayerList.Instance.CheckJobBanState(playerSpawnRequest.UserID, a.AntagJobType)).ToList();
-
-			if (antagPool.Count < 1)
-			{
-				Logger.LogErrorFormat("No possible antags! Either PossibleAntags is empty or this player hasn't enabled " +
-				                      "any antags and they were spawned as one anyways.", Category.Antags);
-			}
-
-			var antag = antagPool.PickRandom();
+			var antag = Antagonist;
 			if (!AllocateJobsToAntags && antag.AntagOccupation == null)
 			{
-				Logger.LogErrorFormat("AllocateJobsToAntags is false but {0} AntagOccupation is null! " +
+				Loggy.Error().Format("AllocateJobsToAntags is false but {0} AntagOccupation is null! " +
 				                      "Game mode must either set AllocateJobsToAntags or possible antags neeed an AntagOccupation.",
 					Category.Antags, antag.AntagName);
 				return;
@@ -339,7 +393,7 @@ namespace GameModes
 		{
 			foreach (var antag in PossibleAntags)
 			{
-				if (PlayerList.Instance.CheckJobBanState(userID, antag.AntagJobType))
+				if (PlayerList.Instance.IsJobBanned(userID, antag.AntagJobType) == false)
 				{
 					//True if at least one of the antags can be spawned by the player
 					return true;
@@ -353,61 +407,114 @@ namespace GameModes
 		/// </summary>
 		public virtual void StartRound()
 		{
-			Logger.LogFormat("Starting {0} round!", Category.GameMode, Name);
+			Loggy.Info().Format("Starting {0} round!", Category.GameMode, Name);
 
-			List<PlayerSpawnRequest> playerSpawnRequests;
-			List<PlayerSpawnRequest> antagSpawnRequests;
-			int antagsToSpawn = CalculateAntagCount(PlayerList.Instance.ReadyPlayers.Count);
+			List<PlayerSpawnRequest> playerSpawnRequests = new List<PlayerSpawnRequest>();
+			List<Tuple<PlayerSpawnRequest, Antagonists.Antagonist>> antagSpawnRequests = new List<Tuple<PlayerSpawnRequest, Antagonist>>();;
 			var jobAllocator = new JobAllocator();
 			var playerPool = PlayerList.Instance.ReadyPlayers;
-			if (AllocateJobsToAntags)
-			{
-				// Allocate jobs to all players first then choose antags
-				playerSpawnRequests = jobAllocator.DetermineJobs(playerPool);
-				var antagCandidates = playerSpawnRequests.Where(p =>
-					!NonAntagJobTypes.Contains(p.RequestedOccupation.JobType) &&
-					HasPossibleAntagEnabled(ref p.CharacterSettings.AntagPreferences) && HasPossibleAntagNotBanned(p.UserID));
-				antagSpawnRequests = antagCandidates.PickRandom(antagsToSpawn).ToList();
-				// Player and antag spawn requests are kept separate to stop players being spawned twice
-				playerSpawnRequests.RemoveAll(antagSpawnRequests.Contains);
-			}
-			else
-			{
-				// Choose antags first then allocate jobs to all other players
-				var antagCandidates = playerPool.Where(p =>
-					HasPossibleAntagEnabled(ref p.CharacterSettings.AntagPreferences) && HasPossibleAntagNotBanned(p.UserId));
-				var chosenAntags = antagCandidates.PickRandom(antagsToSpawn).ToList();
-				// Player and antag spawn requests are kept separate to stop players being spawned twice
-				playerPool.RemoveAll(chosenAntags.Contains);
-				playerSpawnRequests = jobAllocator.DetermineJobs(playerPool);
-				antagSpawnRequests = chosenAntags.Select(player =>
-					PlayerSpawnRequest.RequestOccupation(player, null)).ToList();
-			}
+			AntagManager.Instance.ServerSpawnTeams();
+
+			AntagJobAllocation(jobAllocator, playerPool, ref playerSpawnRequests, ref antagSpawnRequests);
 
 			// Spawn all players and antags
 			foreach (var spawnReq in playerSpawnRequests)
 			{
-				PlayerSpawn.ServerSpawnPlayer(spawnReq);
+				try
+				{
+					PlayerSpawn.NewSpawnCharacterV2(spawnReq.Player, spawnReq.RequestedOccupation,
+						spawnReq.CharacterSettings);
+				}
+				catch (Exception e)
+				{
+					Loggy.Error($" Failed to spawn player {spawnReq?.Player?.Name} " + e.ToString());
+				}
 			}
+
 			foreach (var spawnReq in antagSpawnRequests)
 			{
-				SpawnAntag(spawnReq);
+				try
+				{
+					SpawnAntag(spawnReq.Item1, spawnReq.Item2);
+				}
+				catch (Exception e)
+				{
+					Loggy.Error($" Failed to SpawnAntag {spawnReq.Item1?.Player?.Name} Antag {spawnReq.Item1?.RequestedOccupation.OrNull()?.name}  " + e.ToString());
+				}
 			}
 
-			var msg =
-				$"{PlayerList.Instance.ReadyPlayers.Count} players ready, {antagsToSpawn} antags to spawn. {playerSpawnRequests.Count} players spawned (excludes antags), {antagSpawnRequests.Count} antags spawned";
 
-			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookAdminLogURL, msg, "[GameMode]");
+			var msg = $"{PlayerList.Instance.ReadyPlayers.Count} players ready, {antagSpawnRequests.Count} antags to spawn. {playerSpawnRequests.Count} players spawned (excludes antags), {antagSpawnRequests.Count} antags spawned";
+			try
+			{
+				DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookAdminLogURL, msg, "[GameMode]");
+			}
+			catch (Exception e)
+			{
+				Loggy.Error($" Failed to DiscordWebhookMessage Started round message " + e.ToString());
+			}
+
 			GameManager.Instance.CurrentRoundState = RoundState.Started;
 			EventManager.Broadcast(Event.RoundStarted, true);
+			AdminLogsManager.AddNewLog($"Round {GameManager.RoundID} has started. GameMode: {gameModeName}. {msg}.", LogCategory.RoundFlow);
 		}
+
+		protected void AntagJobAllocation(JobAllocator jobAllocator, List<PlayerInfo> playerPool,
+			ref List<PlayerSpawnRequest> playerSpawnRequests, ref List<Tuple<PlayerSpawnRequest, Antagonist>> antagSpawnRequests)
+		{
+			try
+			{
+				if (AllocateJobsToAntags)
+				{
+					// Allocate jobs to all players first then choose antags
+					playerSpawnRequests = jobAllocator.DetermineJobs(playerPool);
+					playerSpawnRequests.Shuffle();
+
+					var ToRemove = new List<PlayerSpawnRequest>();
+
+					foreach (var Request in playerSpawnRequests)
+					{
+						var Antagonist = HandleRatioAndPickAntagonist(Request.Player, Request, antagSpawnRequests.Count);
+						if (Antagonist == null) continue;
+						antagSpawnRequests.Add(new Tuple<PlayerSpawnRequest, Antagonist>(Request, Antagonist));
+						ToRemove.Add(Request);
+					}
+
+					// Player and antag spawn requests are kept separate to stop players being spawned twice
+					playerSpawnRequests.RemoveAll(ToRemove.Contains);
+				}
+				else
+				{
+					// Choose antags first then allocate jobs to all other players
+					var ToRemove = new List<PlayerInfo>();
+
+					foreach (var Player in playerPool)
+					{
+						var Antagonist = HandleRatioAndPickAntagonist(Player, null, antagSpawnRequests.Count);
+						if (Antagonist == null) continue;
+						antagSpawnRequests.Add(new Tuple<PlayerSpawnRequest, Antagonist>( new PlayerSpawnRequest(Player, null), Antagonist));
+						ToRemove.Add(Player);
+					}
+					// Player and antag spawn requests are kept separate to stop players being spawned twice
+					playerPool.RemoveAll(ToRemove.Contains);
+					playerSpawnRequests = jobAllocator.DetermineJobs(playerPool);
+				}
+			}
+			catch (Exception e)
+			{
+				Loggy.Error("Failed on Antag Job Allocation" + e.ToString());
+			}
+		}
+
+
 
 		/// <summary>
 		/// Calculates how many antags should be chosen at round start based on the player count.
 		/// </summary>
-		private int CalculateAntagCount(int playerCount)
+		protected int CalculateAntagCount(int playerCount)
 		{
-			var antagCount = Math.Min((int)Math.Floor(playerCount * antagRatio), maxAntags);
+			if (hardNumberOfAntagsToSpawn > 0) return hardNumberOfAntagsToSpawn;
+			var antagCount = Math.Min((int)Math.Floor(playerCount * AntagRatio), MaxAntags);
 			// If RequiresMinAntags is true then round up to MinAntags if antagCount is below
 			return ForceMinAntags ? Math.Max(MinAntags, antagCount) : antagCount;
 		}
@@ -417,24 +524,42 @@ namespace GameModes
 		/// </summary>
 		public virtual void CheckEndCondition()
 		{
-			Logger.Log("Checking end round conditions!", Category.GameMode);
+			Loggy.Info("Checking end round conditions!", Category.GameMode);
 		}
 
 		/// <summary>
 		/// End the round and display any relevant reports
 		/// </summary>
-		public void EndRoundReport()
+		public virtual void EndRoundReport()
 		{
-			var roundDuration = GameManager.Instance.stationTime.AddHours(-12);
+			PlayerSpawn.OnNewMindSpawnEvent -= OnPlayerMindSpawned;
+
+			var roundDuration = GameManager.Instance.RoundTime.AddHours(-12);
 			var output = $"A round has ended. Round duration: {roundDuration.ToString("HH:mm")}.";
 			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookOOCURL, $"`{output}`", "");
 			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookErrorLogURL, $"```{output} Total errors: {GameManager.Instance.errorCounter}. Unique errors: {GameManager.Instance.uniqueErrorCounter}```", "");
 			GameManager.Instance.errorCounter = 0;
 			GameManager.Instance.uniqueErrorCounter = 0;
 
-			Logger.LogFormat("Ending {0} round!", Category.GameMode, Name);
-			StationObjectiveManager.Instance.ShowStationStatusReport();
-			AntagManager.Instance.ShowAntagStatusReport();
+			Loggy.Info().Format("Ending {0} round!", Category.GameMode, Name);
+			try
+			{
+				AntagManager.Instance.ObjectiveEndAndShowAntagStatusReport();
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+			}
+
+			try
+			{
+				StationObjectiveManager.Instance.ShowStationStatusReport();
+			}
+			catch (Exception e)
+			{
+				Loggy.Error(e.ToString());
+			}
+
 
 			var msg = $"The round will restart in {GameManager.Instance.RoundEndTime} seconds.";
 			Chat.AddGameWideSystemMsgToChat(msg);

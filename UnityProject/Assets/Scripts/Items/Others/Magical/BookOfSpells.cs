@@ -60,7 +60,7 @@ namespace Items.Magical
 		{
 			if (spellEntry.Cost > Points) return;
 
-			ConnectedPlayer player = GetLastReader();
+			PlayerInfo player = GetLastReader();
 
 			int currentSpellTier = GetReaderSpellLevel(spellEntry.Spell);
 			if (currentSpellTier < spellEntry.Spell.TierCount)
@@ -77,14 +77,14 @@ namespace Items.Magical
 			}
 		}
 
-		private void LearnSpell(ConnectedPlayer player, SpellBookSpell spellEntry)
+		private void LearnSpell(PlayerInfo player, SpellBookSpell spellEntry)
 		{
 			points -= spellEntry.Cost;
 
 			SoundManager.PlayNetworkedAtPos(learningSound, player.Script.WorldPos, sourceObj: player.GameObject);
-			Chat.AddChatMsgToChat(player, spellEntry.Incantation, ChatChannel.Local, Loudness.SCREAMING);
+			Chat.AddChatMsgToChatServer(player, spellEntry.Incantation, ChatChannel.Local, Loudness.SCREAMING);
 
-			Spell spellInstance = player.Script.mind.GetSpellInstance(spellEntry.Spell);
+			Spell spellInstance = player.Mind.GetSpellInstance(spellEntry.Spell);
 
 			if (spellInstance != null)
 			{
@@ -92,8 +92,8 @@ namespace Items.Magical
 			}
 			else
 			{
-				Spell spell = spellEntry.Spell.AddToPlayer(player.Script);
-				player.Script.mind.AddSpell(spell);
+				Spell spell = spellEntry.Spell.AddToPlayer(player.Script.Mind);
+				player.Mind.AddSpell(spell);
 			}
 		}
 
@@ -125,11 +125,11 @@ namespace Items.Magical
 		{
 			if (ritualEntry.Cost > Points) return;
 
-			ConnectedPlayer player = GetLastReader();
+			PlayerInfo player = GetLastReader();
 
 			if (ritualEntry.InvocationMessage != default)
 			{
-				Chat.AddChatMsgToChat(player, ritualEntry.InvocationMessage, ChatChannel.Local, Loudness.LOUD);
+				Chat.AddChatMsgToChatServer(player, ritualEntry.InvocationMessage, ChatChannel.Local, Loudness.LOUD);
 			}
 
 			if (ritualEntry.CastSound != default)
@@ -157,7 +157,7 @@ namespace Items.Magical
 
 		public bool WillInteract(HandActivate interaction, NetworkSide side)
 		{
-			if (!DefaultWillInteract.Default(interaction, side)) return false;
+			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 
 			// Return true to stop NetTab interaction.
 			return IsRegistered || (isForWizardsOnly && !IsWizard(interaction.Performer.Player()));
@@ -171,14 +171,14 @@ namespace Items.Magical
 
 		#endregion Interaction
 
-		private bool IsWizard(ConnectedPlayer player)
+		private bool IsWizard(PlayerInfo player)
 		{
-			return player.Script.mind.IsOfAntag<Antagonists.Wizard>();
+			return player.Mind.IsOfAntag<Antagonists.Wizard>();
 		}
 
 		public Spell GetReaderSpellInstance(SpellData spell)
 		{
-			return GetLastReader().Script.mind.GetSpellInstance(spell);
+			return GetLastReader().Script.Mind.GetSpellInstance(spell);
 		}
 
 		public int GetReaderSpellLevel(SpellData spell)
@@ -196,7 +196,7 @@ namespace Items.Magical
 		{
 			foreach (SpellBookSpell entry in spell.ConflictsWith)
 			{
-				if (GetLastReader().Script.mind.Spells.Any(s => s.SpellData == entry.Spell)) return true;
+				if (GetLastReader().Script.Mind.Spells.Any(s => s.SpellData == entry.Spell)) return true;
 			}
 
 			return false;
@@ -204,7 +204,7 @@ namespace Items.Magical
 		/// <summary>
 		/// Gets the latest player to interact with tab.
 		/// </summary>
-		public ConnectedPlayer GetLastReader()
+		public PlayerInfo GetLastReader()
 		{
 			return netTab.LastInteractedPlayer().Player();
 		}

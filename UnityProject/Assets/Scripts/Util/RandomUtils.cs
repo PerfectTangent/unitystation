@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -53,23 +54,6 @@ public static class RandomUtils
 		return point;
 	}
 
-	public static SpinMode RandomSpin()
-	{
-		var num = Random.Range(0, 3);
-
-		switch (num)
-		{
-			case 0:
-				return SpinMode.None;
-			case 1:
-				return SpinMode.Clockwise;
-			case 2:
-				return SpinMode.CounterClockwise;
-			default:
-				return SpinMode.Clockwise;
-		}
-	}
-
 	public static string CreateRandomBrightColorString()
 	{
 		return ColorUtility.ToHtmlStringRGBA(CreateRandomBrightColor());
@@ -82,5 +66,24 @@ public static class RandomUtils
 		float v = 0.8f + ((1f - 0.8f) * Random.Range(0f, 1f));
 		Color c = Color.HSVToRGB(h, s, v);
 		return c;
+	}
+
+	/// <summary>Generate a random alphanumeric string (0-9, A-z)</summary>
+	/// <param name="length">Optional generated string length. Defaults to 8 characters.</param>
+	/// <returns>a random alphanumeric string</returns>
+	public static string GetRandomString(int length = 8)
+	{
+		StringBuilder sb = new();
+
+		for (int i = 0; i < length; i++)
+		{
+			int charIndex = Random.Range(55, 117);
+			charIndex = charIndex < 65 ? charIndex - 7 : charIndex;
+			charIndex = charIndex > 90 ? charIndex + 6 : charIndex;
+
+			sb.Append(Convert.ToChar(charIndex));
+		}
+
+		return sb.ToString();
 	}
 }

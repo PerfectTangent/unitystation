@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using Chemistry;
+using Core.RootSillys;
+using Logs;
 using ScriptableObjects.Atmospherics;
 using TileManagement;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Systems.Atmospherics
 {
@@ -36,6 +39,9 @@ namespace Systems.Atmospherics
 		public static GasSO Freon => GasesSingleton.Instance.Freon;
 		public static GasSO Smoke => GasesSingleton.Instance.Smoke;
 		public static GasSO Ash => GasesSingleton.Instance.Ash;
+		public static GasSO CarbonMonoxide => GasesSingleton.Instance.CarbonMonoxide;
+
+		public static GasSO Tobacco => GasesSingleton.Instance.Tobacco;
 	}
 
 	[Serializable]
@@ -79,8 +85,37 @@ namespace Systems.Atmospherics
 	{
 		public GasSO GasSO;
 
+		[SerializeField, FormerlySerializedAs("Moles")]
+		private float moles;
+
 		//Moles of this gas type
-		public float Moles;
+		public float Moles
+		{
+			get => moles;
+
+			set
+			{
+
+				if (value.IsUnreasonableNumber() && value != 0)
+				{
+					if (float.IsInfinity(value) || float.IsNaN(value))
+					{
+						Loggy.Error($"AAAAAAAAAAAAA REEEEEEEEE Moles Invalid number!!!! {value}");
+					}
+
+					return;
+				}
+
+				if (value.IsUnreasonableNumber() && value != 0)
+				{
+					return;
+				}
+
+
+				moles = value;
+
+			}
+		}
 
 		public void Pool()
 		{

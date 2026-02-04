@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using ServerInfo;
-using DatabaseAPI;
 using Learning;
+using Logs;
+using SecureStuff;
+using UI.Chat_UI;
 
 
 namespace UI
@@ -20,14 +20,14 @@ namespace UI
 
 		public VotePopUp VotePopUp;
 
-		public GameObject serverInfo;
-
 		private ModalPanelManager ModalPanelManager => ModalPanelManager.Instance;
 
 		private CustomNetworkManager NetworkManager => CustomNetworkManager.Instance;
 		public static GUI_IngameMenu Instance;
 
 		private bool sentData;
+
+		[SerializeField] private string wikiURL = "https://wiki.unitystation.org/index.php/Welcome_to_Unitystation";
 
 		#region Lifecycle
 
@@ -77,7 +77,7 @@ namespace UI
 		public void OpenMenuPanel(GameObject nextMenuPanel)
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			Logger.Log("Opening " + nextMenuPanel.name + " menu", Category.UI);
+			Loggy.Info("Opening " + nextMenuPanel.name + " menu", Category.UI);
 			nextMenuPanel.SetActive(true);
 		}
 
@@ -87,19 +87,9 @@ namespace UI
 		public void OpenMenuPanel()
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			Logger.Log($"Opening {menuWindow.name} menu", Category.UI);
+			Loggy.Info($"Opening {menuWindow.name} menu", Category.UI);
 			menuWindow.SetActive(true);
-			if (UIManager.Display.disclaimer != null) UIManager.Display.disclaimer.SetActive(true);
-
-			if (!sentData)
-			{
-				sentData = true;
-				ServerInfoMessageClient.Send();
-			}
-
-			serverInfo.SetActive(false);
-			if (string.IsNullOrEmpty(GetComponent<ServerInfoUI>().ServerDesc.text)) return;
-			serverInfo.SetActive(true);
+			UIManager.Instance.RefreshAndShowServerInfoUI();
 		}
 
 		/// <summary>
@@ -109,7 +99,7 @@ namespace UI
 		public void CloseMenuPanel(GameObject thisPanel)
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
-			Logger.Log("Closing " + thisPanel.name + " menu", Category.UI);
+			Loggy.Info("Closing " + thisPanel.name + " menu", Category.UI);
 			thisPanel.SetActive(false);
 		}
 
@@ -123,7 +113,7 @@ namespace UI
 				_ = SoundManager.Play(CommonSounds.Instance.Click01);
 			}
 
-			Logger.Log($"Closing {menuWindow.name} menu", Category.UI);
+			Loggy.Info($"Closing {menuWindow.name} menu", Category.UI);
 			HideAllMenus();
 		}
 
@@ -137,10 +127,10 @@ namespace UI
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
-			if (PlayerManager.PlayerScript == null) return;
-			if (PlayerManager.PlayerScript.playerNetworkActions == null) return;
+			if (PlayerManager.LocalPlayerScript == null) return;
+			if (PlayerManager.LocalPlayerScript.PlayerNetworkActions == null) return;
 
-			PlayerManager.PlayerScript.playerNetworkActions.CmdInitiateRestartVote();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdInitiateRestartVote();
 
 			CloseMenuPanel();
 		}
@@ -149,10 +139,10 @@ namespace UI
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
-			if (PlayerManager.PlayerScript == null) return;
-			if (PlayerManager.PlayerScript.playerNetworkActions == null) return;
+			if (PlayerManager.LocalPlayerScript == null) return;
+			if (PlayerManager.LocalPlayerScript.PlayerNetworkActions == null) return;
 
-			PlayerManager.PlayerScript.playerNetworkActions.CmdInitiateMapVote();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdInitiateMapVote();
 
 			CloseMenuPanel();
 		}
@@ -161,10 +151,22 @@ namespace UI
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 
-			if (PlayerManager.PlayerScript == null) return;
-			if (PlayerManager.PlayerScript.playerNetworkActions == null) return;
+			if (PlayerManager.LocalPlayerScript == null) return;
+			if (PlayerManager.LocalPlayerScript.PlayerNetworkActions == null) return;
 
-			PlayerManager.PlayerScript.playerNetworkActions.CmdInitiateGameModeVote();
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdInitiateGameModeVote();
+
+			CloseMenuPanel();
+		}
+
+		public void InitiateAwaysiteVote()
+		{
+			_ = SoundManager.Play(CommonSounds.Instance.Click01);
+
+			if (PlayerManager.LocalPlayerScript == null) return;
+			if (PlayerManager.LocalPlayerScript.PlayerNetworkActions == null) return;
+
+			PlayerManager.LocalPlayerScript.PlayerNetworkActions.CmdInitiateAwaysiteVote();
 
 			CloseMenuPanel();
 		}
@@ -186,6 +188,18 @@ namespace UI
 			ProtipManager.Instance.ShowListUI();
 		}
 
+		public void ShowMentorHelp()
+		{
+			HideAllMenus();
+			ChatUI.Instance.OnHelpButton();
+		}
+
+		public void OpenWiki()
+		{
+			HideAllMenus();
+			SafeURL.Open(wikiURL);
+		}
+
 		#endregion
 
 		#region Logout Confirmation Window Functions
@@ -199,6 +213,9 @@ namespace UI
 		{
 			_ = SoundManager.Play(CommonSounds.Instance.Click01);
 			EventManager.Broadcast(Event.RoundEnded);
+			EventManager.Broadcast(Event.PostRoundStarted);
+			EventManager.Broadcast(Event.SceneUnloading);
+
 			HideAllMenus();
 			GameManager.Instance.DisconnectExpected = true;
 			StopNetworking();
@@ -234,24 +251,28 @@ namespace UI
 		private void StopNetworking()
 		{
 			// Check if a host or regular client is shutting down
-			if (NetworkManager._isServer)
+			if (CustomNetworkManager.IsServer)
 			{
 				NetworkManager.StopHost();
-				Logger.Log("Stopping host", Category.Connections);
+				Loggy.Info("Stopping host", Category.Connections);
 			}
 			else
 			{
 				NetworkManager.StopClient();
-				Logger.Log("Stopping client", Category.Connections);
+				Loggy.Info("Stopping client", Category.Connections);
 			}
 		}
 
 		private void HideAllMenus()
 		{
 			menuWindow.SetActive(false);
-			serverInfo.SetActive(false);
 			votingWindow.SetActive(false);
-			if (UIManager.Display.disclaimer != null) UIManager.Display.disclaimer.SetActive(false);
+			helpWindow.SetActive(false);
+			if (UIManager.Display.disclaimer != null)
+			{
+				UIManager.Display.disclaimer.SetActive(false);
+				UIManager.Instance.ServerInfoPanelWindow.SetActive(false);
+			}
 		}
 
 		#endregion

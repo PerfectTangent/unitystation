@@ -6,9 +6,12 @@ namespace UI.Core.NetUI
 {
 	public class NetSliderDial : NetSlider
 	{
+
+
+
 		public override string Value {
 			get => ((int)(TargetValue * 100)).ToString();
-			set => SetTargetValue(int.Parse(value) / 100f);
+			protected set => SetTargetValue(int.Parse(value) / 100f);
 		}
 
 		public override ElementMode InteractionMode => ElementMode.ServerWrite;
@@ -54,12 +57,12 @@ namespace UI.Core.NetUI
 			}
 		}
 
-		public override void ExecuteServer(ConnectedPlayer subject) { }
+		public override void ExecuteServer(PlayerInfo subject) { }
 
 		/// <summary>
 		/// Server-only method for updating element (i.e. changing label text) from server GUI code
 		/// </summary>
-		public override void SetValueServer(string value)
+		public override void MasterSetValue(string value)
 		{
 			if (Value != value)
 			{

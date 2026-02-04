@@ -1,19 +1,19 @@
 using System.Collections.Generic;
+using Construction.Conveyors;
 using UnityEditor;
-using UnityEditor.Experimental.SceneManagement;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Core.Editor;
-using Core.Editor.Tools.Mapping;
-using Systems.ObjectConnection;
-
 using Doors;
 using Objects.Atmospherics;
 using Objects.Engineering;
+using Objects.Engineering.Reactor;
 using Objects.Lighting;
 using Objects.Other;
+using Shared.Editor;
+using Shared.Systems.ObjectConnection;
 using Systems.Electricity;
+using Systems.Electricity.PowerSupplies;
 
 
 namespace CustomInspectors
@@ -32,7 +32,7 @@ namespace CustomInspectors
 
 		private IMultitoolSlaveable thisDevice;
 
-		private float closestMasterDistance = -2;
+		private float closestMasterDistance = -1;
 
 		private void OnEnable()
 		{
@@ -133,9 +133,11 @@ namespace CustomInspectors
 
 		private void Save()
 		{
+			Undo.RecordObject ((Component) thisDevice, "Save");
 			EditorUtility.SetDirty((Component) thisDevice);
 			if (thisDevice.Master != null)
 			{
+				Undo.RecordObject ((Component) thisDevice.Master, "Save");
 				EditorUtility.SetDirty((Component) thisDevice.Master);
 			}
 			EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
@@ -160,7 +162,7 @@ namespace CustomInspectors
 	[CustomEditor(typeof(Turret))]
 	public class TurretInspector : SlaveDeviceInspector { }
 
-	[CustomEditor(typeof(DoorController))]
+	[CustomEditor(typeof(DoorMasterController))]
 	public class DoorControllerInspector : SlaveDeviceInspector { }
 
 	[CustomEditor(typeof(ReactorControlConsole))]
@@ -171,6 +173,12 @@ namespace CustomInspectors
 
 	[CustomEditor(typeof(ReactorTurbine))]
 	public class ReactorTurbineSlaveInspector : SlaveDeviceInspector { }
+
+	[CustomEditor(typeof(SolarPanel))]
+	public class SolarPanelInspector : SlaveDeviceInspector { }
+
+	[CustomEditor(typeof(ConveyorBelt))]
+	public class ConveyorBeltInspector : SlaveDeviceInspector { }
 
 	#endregion
 }
