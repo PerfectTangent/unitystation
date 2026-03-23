@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -9,9 +8,9 @@ using US13.Core.Chat;
 using US13.Core.Addressables.Types;
 using US13.Core.Input_System.InteractionV2.Interfaces;
 using US13.Core.Sprite_Handler;
+using US13.Items.Tool;
 using US13.Managers;
 using US13.Managers.UpdateManager;
-using US13.Messages.Server.SoundMessages;
 using US13.Objects.Engineering;
 using US13.Systems.Construction;
 using US13.Systems.Electricity.Interfaces;
@@ -21,9 +20,14 @@ using Util;
 
 namespace US13.Objects.Machines
 {
-	public class DeepFryer: NetworkBehaviour, IAPCPowerable, IRefreshParts, IExaminable
+	public class DeepFryer: NetworkBehaviour, IAPCPowerable, IRefreshParts, IExaminable, ICleanable
 	{
-		[SerializeField] private float oilPerSecond = 0.075f;
+		/// <summary>
+		/// Matches TG's SSmachines wait = 2 SECONDS.
+		/// </summary>
+		private const float SECONDS_PER_TICK = 2f;
+
+		[SerializeField] private float oilUsePerTick = 0.025f;
 		[SerializeField] private float idleWattsConsumption = 5f;
 		[SerializeField] private float activeWatsConsumption = 1000f;
 
@@ -35,7 +39,7 @@ namespace US13.Objects.Machines
 		[SerializeField] private AddressableAudioSource dingSfx;
 
 		[Tooltip("How long the frying loop takes to fade in from silence.")]
-		[SerializeField] private float crossfadeDuration = 0.75f;
+		[SerializeField] private float fadeInDuration = 0.75f;
 
 		[SerializeField] private SpriteHandler greaseOverlay;
 		[SerializeField] private SpriteHandler leftBasketSprite;
@@ -52,13 +56,11 @@ namespace US13.Objects.Machines
 		/// </summary>
 		private byte loopingBaskets;
 
-		[SyncVar(hook = nameof(OnSyncGreasy))]
-		private bool isGreasy;
+		[SyncVar(hook = nameof(OnSyncGreaseLevel))]
+		private float greaseLevel;
 
 		private string[] basketLoopGUIDs;
 		private CancellationTokenSource[] basketLoopCts;
-
-		private float greaseLevel;
 
 		private FryerBasket[] baskets;
 
@@ -66,7 +68,7 @@ namespace US13.Objects.Machines
 		private float oilUse;
 
 		/// <summary>
-		/// Fry speed multiplier from the micro-laser tier. Tier 1 = 1x, tier 2 = 2x, etc.
+		/// Fry speed multiplier from the micro-laser tier. Matches TG's fry_speed = oil_efficiency.
 		/// </summary>
 		public float FrySpeed => laserTier;
 
@@ -77,14 +79,14 @@ namespace US13.Objects.Machines
 
 		public FryerBasket GetBasket(int index) => baskets[index];
 
-		public bool HasEnoughOil() => container.ReagentMixTotal >= oilPerSecond;
+		public bool HasEnoughOil() => container.ReagentMixTotal >= oilUse;
 
 		private void Awake()
 		{
-			container = this.GetComponentCustom<ReagentContainer>();
-			poweredDevice = this.GetComponentCustom<APCPoweredDevice>();
-			registerTile = this.GetComponentCustom<RegisterTile>();
-			oilUse = oilPerSecond;
+			container = this.GetCachedComponent<ReagentContainer>();
+			poweredDevice = this.GetCachedComponent<APCPoweredDevice>();
+			registerTile = this.GetCachedComponent<RegisterTile>();
+			oilUse = oilUsePerTick;
 
 			greaseOverlay.SetCatalogueIndexSprite(0);
 
@@ -101,7 +103,7 @@ namespace US13.Objects.Machines
 
 		private void OnDisable()
 		{
-			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
 			StopAllBasketLoops();
 		}
 
@@ -109,7 +111,6 @@ namespace US13.Objects.Machines
 		{
 			if (IsPowered == false || baskets == null) return;
 
-			float delta = Time.deltaTime;
 			bool anyBasketDown = false;
 
 			for (int i = 0; i < baskets.Length; i++)
@@ -117,7 +118,7 @@ namespace US13.Objects.Machines
 				if (baskets[i].State == BasketState.Down)
 				{
 					anyBasketDown = true;
-					baskets[i].Tick(delta, VoltageModifier * FrySpeed);
+					baskets[i].Tick(SECONDS_PER_TICK, VoltageModifier * FrySpeed);
 				}
 			}
 
@@ -128,12 +129,12 @@ namespace US13.Objects.Machines
 		}
 
 		/// <summary>
-		/// Transfers oil from the fryer into the target container (for cookable items that become edible).
+		/// Transfers oil from the fryer into the target container.
 		/// </summary>
 		[Server]
-		public void TransferOilTo(ReagentContainer target, float deltaTime)
+		public void TransferOilTo(ReagentContainer target)
 		{
-			container.TransferTo(oilUse * deltaTime, target);
+			container.TransferTo(oilUse * SECONDS_PER_TICK, target);
 		}
 
 		public void PowerNetworkUpdate(float voltage) => VoltageModifier = voltage / 240f;
@@ -148,12 +149,12 @@ namespace US13.Objects.Machines
 
 			if (justGainedPower)
 			{
-				UpdateManager.Add(CallbackType.UPDATE, UpdateMe);
+				UpdateManager.Add(UpdateMe, SECONDS_PER_TICK);
 				poweredDevice.Wattusage = idleWattsConsumption;
 			}
 			else if (justLostPower)
 			{
-				UpdateManager.Remove(CallbackType.UPDATE, UpdateMe);
+				UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
 				UpdateLoopStates(0);
 				RaiseAllBaskets();
 			}
@@ -169,8 +170,8 @@ namespace US13.Objects.Machines
 				}
 			}
 
-			// Higher tier laser -> less oil consumed. Matches TG formula.
-			oilUse = oilPerSecond - (laserTier * 0.00475f);
+			// TG: oil_use = initial(oil_use) - (oil_efficiency * 0.00475)
+			oilUse = oilUsePerTick - (laserTier * 0.00475f);
 		}
 
 		private void RaiseAllBaskets()
@@ -229,83 +230,56 @@ namespace US13.Objects.Machines
 			loopingBaskets = newLoopState;
 		}
 
+		[Server]
+		private void AccumulateGrease()
+		{
+			if (greaseLevel >= 1f) return;
+			// TG: grease_level += prob(grease_increase_chance) * grease_Increase_amount
+			greaseLevel += DMMath.Prob(greaseChancePerTick) ? greaseAmountPerTick : 0f;
+		}
+
+		[Server]
+		public void Clean(ICleaner _)
+		{
+			greaseLevel = 0;
+		}
+
+		private void OnSyncGreaseLevel(float _, float newLevel)
+		{
+			greaseOverlay.SetCatalogueIndexSprite(newLevel >= 1f ? 1 : 0);
+		}
+
 		#region Play sounds!
 
 		public void PlayEmerge()
 		{
-			SoundManager.PlayNetworkedAtPos(emergeSfx, registerTile.WorldPosition, sourceObj: gameObject);
+			Sound.At(emergeSfx, gameObject).PlayNetworked();
 		}
 
 		public void PlayDing()
 		{
-			SoundManager.PlayNetworkedAtPos(dingSfx, registerTile.WorldPosition, sourceObj: gameObject);
+			Sound.At(dingSfx, gameObject).PlayNetworked();
 		}
-
-		#endregion
-
-		#region Grease
-
-		[Server]
-		private void AccumulateGrease()
-		{
-			if (isGreasy) return;
-			if (DMMath.Prob(greaseChancePerTick) == false) return;
-
-			greaseLevel += greaseAmountPerTick;
-			if (greaseLevel >= 1f)
-			{
-				isGreasy = true;
-			}
-		}
-
-		[Server]
-		public void CleanFryer()
-		{
-			greaseLevel = 0;
-			isGreasy = false;
-		}
-
-		private void OnSyncGreasy(bool _, bool newState)
-		{
-			greaseOverlay.SetCatalogueIndexSprite(newState ? 1 : 0);
-		}
-
-		#endregion
-
-		#region Audio
 
 		/// <summary>
 		/// Starts the frying loop muted and fades it in over crossfadeDuration.
 		/// </summary>
 		private async UniTaskVoid StartLoopWithFadeIn(int basketIndex, CancellationToken ct)
 		{
-			var loopSfx = UnityEngine.Random.value > 0.5f ? fryingLoopSfx1 : fryingLoopSfx2;
-			basketLoopGUIDs[basketIndex] = await SoundManager.PlayNetworkedAtPosAsync(loopSfx,
-				registerTile.WorldPosition,
-				audioSourceParameters: new AudioSourceParameters(pitch: VoltageModifier, isMute: true, loops: true),
-				sourceObj: gameObject);
-
-			if (ct.IsCancellationRequested) return;
-
-			// Fade in with discrete volume steps sent to all clients.
-			const int steps = 5;
-			float stepDuration = crossfadeDuration / steps;
-			for (int step = 1; step <= steps; step++)
-			{
-				if (ct.IsCancellationRequested) return;
-				await UniTask.WaitForSeconds(stepDuration, cancellationToken: ct);
-
-				float volume = (float)step / steps;
-				ChangeAudioSourceParametersMessage.SendToAll(basketLoopGUIDs[basketIndex],
-					new AudioSourceParameters(volume: volume, pitch: VoltageModifier, loops: true));
-			}
+			List<AddressableAudioSource> sounds = new() {fryingLoopSfx1, fryingLoopSfx2};
+			basketLoopGUIDs[basketIndex] = await Sound.At(sounds, gameObject)
+				.WithPitch(VoltageModifier)
+				.WithVolume(0.3f) // original sound is loud af
+				.WithLooping()
+				.WithFadeIn(fadeInDuration)
+				.PlayNetworkedAsync();
 		}
 
 		private void StopBasketLoop(int basketIndex)
 		{
 			if (string.IsNullOrEmpty(basketLoopGUIDs[basketIndex]) == false)
 			{
-				SoundManager.StopNetworked(basketLoopGUIDs[basketIndex]);
+				Sound.Stop(basketLoopGUIDs[basketIndex]);
 				basketLoopGUIDs[basketIndex] = "";
 			}
 		}

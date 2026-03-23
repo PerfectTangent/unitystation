@@ -47,17 +47,17 @@ namespace Util
 		}
 		public static ItemAttributesV2 Item(this GameObject go)
 		{
-			return go.OrNull()?.GetComponentCustom<ItemAttributesV2>();
+			return go.OrNull()?.GetCachedComponent<ItemAttributesV2>();
 		}
 
 		public static ObjectAttributes Object(this GameObject go)
 		{
-			return go.OrNull()?.GetComponentCustom<ObjectAttributes>();
+			return go.OrNull()?.GetCachedComponent<ObjectAttributes>();
 		}
 
 		public static Attributes AttributesOrNull(this GameObject go)
 		{
-			return go.OrNull()?.GetComponentCustom<Attributes>();
+			return go.OrNull()?.GetCachedComponent<Attributes>();
 		}
 
 		public static bool HasComponent<T>(this GameObject go) where T : Component
@@ -67,15 +67,15 @@ namespace Util
 
 		public static bool ContainsAndHasComponentInStorage<T>(this GameObject go) where T : Component
 		{
-			if (go.GetComponentCustom<T>())
+			if (go.GetCachedComponent<T>())
 			{
 				return true;
 			}
 
-			var obj = go.GetComponentCustom<ItemStorage>();
+			var obj = go.GetCachedComponent<ItemStorage>();
 			if (obj == null)
 			{
-				var OBC = go.GetComponentCustom<ObjectContainer>();
+				var OBC = go.GetCachedComponent<ObjectContainer>();
 				if (OBC == null)
 				{
 					return false;
@@ -92,7 +92,7 @@ namespace Util
 			foreach (var itemSlot in obj.GetItemSlotTree())
 			{
 				if (itemSlot.IsEmpty) continue;
-				if (itemSlot.Item.GetComponentCustom<T>())
+				if (itemSlot.Item.GetCachedComponent<T>())
 				{
 					return true;
 				}
@@ -136,7 +136,7 @@ namespace Util
 				}
 			}
 
-			var Script = go.GetComponentCustom<PlayerScript>();
+			var Script = go.GetCachedComponent<PlayerScript>();
 
 			if (Script != null && string.IsNullOrWhiteSpace(Script.visibleName) == false)
 			{
@@ -213,7 +213,7 @@ namespace Util
 
 		public static uint NetIdCommonComponents(this GameObject go)
 		{
-			var net = go.GetComponentCustom<NetworkIdentity>();
+			var net = go.GetCachedComponent<NetworkIdentity>();
 			if (net)
 			{
 				return net.netId;
@@ -342,22 +342,6 @@ namespace Util
 			return go.TryGetComponent<CommonComponents>(out var slowGet) ? slowGet : null;
 		}
 
-
-		//New better system for Get component That caches results
-		public static T GetComponentCustom<T>(this Component go)  where T : Component
-		{
-			if (ComponentManager.TryGetCommonComponent(go.gameObject, out  var commonComponent))
-			{
-				return commonComponent.SafeGetComponent<T>();
-			}
-			else
-			{
-				if (go == null) return null;
-				return go.gameObject.GetComponent<T>();
-			}
-		}
-
-
 		//New better system for Get component That cashs results
 		public static UniversalObjectPhysics GetUniversalObjectPhysics(this GameObject go)
 		{
@@ -396,47 +380,99 @@ namespace Util
 		}
 
 
-		//New better system for Get component That cashs results
-		public static T GetComponentCustom<T>(this GameObject go)  where T : Component
+		/// <summary>
+		/// Improved version of GetComponent that chaches results. Please avoid using GetComponent if you can use this.
+		/// </summary>
+		/// <param name="go"></param>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public static T GetCachedComponent<T>(this Component go, bool includeDisabled = true)  where T : Component
 		{
-			if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
+			T component;
+			if (ComponentManager.TryGetCommonComponent(go.gameObject, out  var commonComponent))
 			{
-				return commonComponent.SafeGetComponent<T>();
+				component = commonComponent.SafeGetComponent<T>();
 			}
 			else
 			{
-				if (go == null) return null;
-				return go.GetComponent<T>();
+				component = go == null ? null : go.gameObject.GetComponent<T>();
 			}
+
+			if (includeDisabled == false && component is Behaviour behaviour && behaviour.enabled == false) return null;
+			return component;
 		}
 
+		/// <summary>
+		/// Improved version of GetComponent that chaches results. Please avoid using GetComponent if you can use this.
+		/// </summary>
+		/// <param name="go"></param>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public static T GetCachedComponent<T>(this GameObject go, bool includeDisabled = true)  where T : Component
+		{
+			T component;
+			if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
+			{
+				component = commonComponent.SafeGetComponent<T>();
+			}
+			else
+			{
+				component = go == null ? null : go.GetComponent<T>();
+			}
 
-		public static bool TryGetComponentCustom<T>(this Component go, out T component) where T : Component
+			if (includeDisabled == false && component is Behaviour behaviour && behaviour.enabled == false) return null;
+			return component;
+		}
+
+		/// <summary>
+		/// Try-pattern version of <see cref="GetCachedComponent{T}(GameObject)"/>.
+		/// Returns true if the component was found, with the result in <paramref name="component"/>.
+		/// </summary>
+		public static bool TryGetCachedComponent<T>(this Component go, out T component, bool includeDisabled = true) where T : Component
 		{
 			if (ComponentManager.TryGetCommonComponent(go.gameObject, out  var commonComponent))
 			{
-				return commonComponent.TrySafeGetComponent<T>(out component);
+				if (commonComponent.TrySafeGetComponent<T>(out component) == false) return false;
 			}
 			else
 			{
 				component = null;
 				return false;
 			}
+
+			if (includeDisabled == false && component is Behaviour behaviour && behaviour.enabled == false)
+			{
+				component = null;
+				return false;
+			}
+
+			return true;
 		}
 
-		public static bool TryGetComponentCustom<T>(this GameObject go, out T component)  where T : Component
+		/// <summary>
+		/// Try-pattern version of <see cref="GetCachedComponent{T}(GameObject)"/>.
+		/// Returns true if the component was found, with the result in <paramref name="component"/>.
+		/// </summary>
+		public static bool TryGetCachedComponent<T>(this GameObject go, out T component, bool includeDisabled = true)  where T : Component
 		{
 			if (ComponentManager.TryGetCommonComponent(go, out  var commonComponent))
 			{
-				return commonComponent.TrySafeGetComponent<T>(out component);
+				if (commonComponent.TrySafeGetComponent<T>(out component) == false) return false;
 			}
 			else
 			{
 				component = null;
 				return false;
 			}
-		}
 
+			if (includeDisabled == false && component is Behaviour behaviour && behaviour.enabled == false)
+			{
+				component = null;
+				return false;
+			}
+
+			return true;
+		}
 
 		/// <summary>
 		/// Returns true for adjacent coordinates

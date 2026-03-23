@@ -100,6 +100,7 @@ namespace US13.Items.Food
 
 		public bool WillInteract(HandActivate interaction, NetworkSide side)
 		{
+			if (enabled == false) return false;
 			if (DefaultWillInteract.Default(interaction, side) == false) return false;
 			if (interaction.Intent != Intent.Help) return false;
 			return true;
@@ -124,7 +125,7 @@ namespace US13.Items.Food
 
 			if (CanPlayerConsume(eater) == false) return;
 
-			if (feederGo == null || feederGo.TryGetComponentCustom(out PlayerScript feeder) == false)
+			if (feederGo == null || feederGo.TryGetCachedComponent(out PlayerScript feeder) == false)
 			{
 				if (projectileFed == false)
 				{
@@ -342,6 +343,7 @@ namespace US13.Items.Food
 
 		public string HoverTip()
 		{
+			if (enabled == false) return "";
 			var biteStatus = "";
 			if (currentBites == maxBites) biteStatus = "it is untouched.";
 			if (currentBites < maxBites) biteStatus = "someone took a bite out of it.";
@@ -355,6 +357,7 @@ namespace US13.Items.Food
 
 		public List<TextColor> InteractionsStrings()
 		{
+			if (enabled == false) return null;
 			var list = new List<TextColor>();
 			list.Add(new TextColor { Color = Color.green, Text = "Click on target to feed." });
 			list.Add(new TextColor { Color = Color.green,
