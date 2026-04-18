@@ -11,7 +11,8 @@ namespace US13.Player.HUDData
 	{
 		[SerializeField] private SpriteHandler stateIcon = null;
 		[SerializeField] private ProgressBar progressBar = null;
-
+		private bool isVisible = false;
+		public bool IsVisible => isVisible;
 
 		[Flags]
 		public enum HUDOptions
@@ -25,13 +26,14 @@ namespace US13.Player.HUDData
 			SetVisible(false, HUDOptions.showPower | HUDOptions.showState);
 		}
 
-		public void SetVisible(bool Visible, HUDOptions options)
+		public void SetVisible(bool visible, HUDOptions options)
 		{
-			if((options & HUDOptions.showState) != 0) stateIcon?.SetActive(Visible);
-			if ((options & HUDOptions.showPower) != 0)
+			isVisible = visible;
+			if((options & HUDOptions.showState) != 0) stateIcon?.SetActive(isVisible);
+			if((options & HUDOptions.showPower) != 0)
 			{
-				progressBar?.SetActive(Visible);
-				progressBar?.SetVisible(Visible);
+				progressBar?.SetActive(isVisible);
+				progressBar?.SetVisible(isVisible);
 			}
 		}
 
@@ -44,7 +46,7 @@ namespace US13.Player.HUDData
 		public void UpdateState(PowerState state)
 		{
 			if(stateIcon == null) return;
-			stateIcon.SetSpriteVariant((int)state, true);
+			stateIcon.SetSpriteVariant((int)state);
 		}
 
 	}
