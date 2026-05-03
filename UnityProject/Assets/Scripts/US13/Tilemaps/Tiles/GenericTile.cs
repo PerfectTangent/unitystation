@@ -53,6 +53,7 @@ namespace US13.Tilemaps.Tiles
 			191, 127, 239, 223, 55, 110, 205, 155, 175, 95
 		};
 
+
 		protected Sprite[] _sprites;
 
 		public ConnectCategory connectCategory = ConnectCategory.None;
@@ -198,7 +199,9 @@ namespace US13.Tilemaps.Tiles
 			if (tilemap.GetComponent<Tilemap>().name == "Layer1")
 			{
 				// don't connect while in palette
-				base.GetTileData(position, tilemap, ref tileData);
+				tileData.sprite = PreviewSprite;
+				tileData.flags = TileFlags.None;
+				tileData.colliderType = Tile.ColliderType.Grid;
 				return;
 			}
 
