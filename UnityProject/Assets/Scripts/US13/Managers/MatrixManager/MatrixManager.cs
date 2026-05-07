@@ -417,17 +417,14 @@ namespace US13.Managers.MatrixManager
 					return matrixInfo;
 				}
 			}
-#if UNITY_EDITOR
+			#if UNITY_EDITOR
 			if (Instance.spaceMatrix == null)
 			{
 				Instance.spaceMatrix = FindObjectsByType<MatrixSync>(FindObjectsSortMode.None)
 					.FirstOrDefault(x => x.IsSpaceMatrix)?.NetworkedMatrix?.matrix;
 			}
-#endif
-
-
-
-			return Instance.spaceMatrix.MatrixInfo;
+			#endif
+			return Instance.spaceMatrix?.MatrixInfo;
 		}
 
 		public static MatrixInfo GetByName_DEBUG_ONLY(string Name)
@@ -459,9 +456,9 @@ namespace US13.Managers.MatrixManager
 		}
 
 		public static CustomPhysicsHit Linecast(Vector3 Worldorigin, LayerTypeSelection layerMask, LayerMask? Layermask2D,
-			Vector3 WorldTo, bool DEBUG = false)
+			Vector3 WorldTo, LayerTile[] tileNamesToIgnore = null, bool DEBUG = false)
 		{
-			return RayCast(Worldorigin, Vector2.zero, 0, layerMask, Layermask2D, WorldTo, DEBUG: DEBUG);
+			return RayCast(Worldorigin, Vector2.zero, 0, layerMask, Layermask2D, WorldTo, tileNamesToIgnore : tileNamesToIgnore, DEBUG: DEBUG);
 		}
 
 		/// <summary>
@@ -582,6 +579,7 @@ namespace US13.Managers.MatrixManager
 			public float Distance;
 			public CollisionHit CollisionHit;
 			public bool ItHit;
+			public LayerTile TileHit;
 
 			public CustomPhysicsHit(bool unneededbool = false)
 			{
@@ -591,17 +589,19 @@ namespace US13.Managers.MatrixManager
 				Distance = 9999999999f;
 				CollisionHit = new CollisionHit(null, null);
 				ItHit = false;
+				TileHit = null;
 			}
 
 			public CustomPhysicsHit(Vector3 _TileHitWorld, Vector3 _HitWorld, Vector2 _Normal, float _RelativeHit,
-				TileLocation TileHit)
+				TileLocation tileHit)
 			{
 				TileHitWorld = _TileHitWorld;
 				HitWorld = _HitWorld;
 				Normal = _Normal;
 				Distance = _RelativeHit;
-				CollisionHit = new CollisionHit(null, TileHit);
-				ItHit = TileHit != null;
+				CollisionHit = new CollisionHit(null, tileHit);
+				ItHit = tileHit != null;
+				TileHit = tileHit?.layerTile;
 			}
 
 			public CustomPhysicsHit(RaycastHit2D raycastHit2D)
@@ -612,6 +612,7 @@ namespace US13.Managers.MatrixManager
 				Distance = raycastHit2D.distance;
 				CollisionHit = new CollisionHit(raycastHit2D.collider?.gameObject, null);
 				ItHit = raycastHit2D.collider?.gameObject != null;
+				TileHit = null;
 			}
 		}
 
