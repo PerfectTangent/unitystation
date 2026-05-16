@@ -31,12 +31,10 @@ namespace US13.Core.Chat
 {
 	public class ChatUI : SingletonManager<ChatUI>
 	{
-
-
 		public GameObject chatInputWindow = default;
 		public UnityEngine.Transform content = default;
 		public GameObject chatEntryPrefab = default;
-		public int maxLogLength = 90;
+		public static int maxLogLength = 90;
 
 		[SerializeField]
 		private TMP_Text chatInputLabel = null;
@@ -126,16 +124,15 @@ namespace US13.Core.Chat
 		public event System.Action OnChatWindowClosed;
 
 		[BoxGroup("Animation")] public float ChatFadeSpeed = 2f;
-		[FormerlySerializedAs("ChatMinimumAlpha")] [BoxGroup("Animation"), Range(0,1)] public float ChatMinimumBackgroundAlpha = 0.5f;
+		[FormerlySerializedAs("ChatMinimumAlpha")] [BoxGroup("Animation"), Range(0,1)] public static float ChatMinimumBackgroundAlpha = 0.5f;
 		[BoxGroup("Animation")] public bool SetChatBackgroundToHiddenOnStartup = true;
 
 		private const float FULLY_VISIBLE_ALPHA = 0.95f;
 
 
-		[BoxGroup("Animation"), Range(0,1)] public float ChatContentMinimumAlpha = 0f;
+		[BoxGroup("Animation"), Range(0,1)] public static float ChatContentMinimumAlpha = 0f;
 
-		[field: SerializeField] public List<TMP_FontAsset> Fonts = new List<TMP_FontAsset>();
-		public int FontIndexToUse = -1;
+		public bool AnimateNewChatEntries = true;
 
 
 		public void SetPreferenceChatContent(float preference)
@@ -186,17 +183,6 @@ namespace US13.Core.Chat
 			base.Awake();
 			ChatMinimumBackgroundAlpha = GetPreferenceChatBackground();
 			ChatContentMinimumAlpha = GetPreferenceChatContent();
-
-			var Option =UnityEngine.PlayerPrefs.GetString("fontPref", "LiberationSans SDF");
-
-			for (int i = 0; i < Fonts.Count; i++)
-			{
-				if (Fonts[i].name == Option)
-				{
-					FontIndexToUse = i;
-					break;
-				}
-			}
 		}
 
 		/// <summary>
@@ -353,7 +339,7 @@ namespace US13.Core.Chat
 			GameObject entry = entryPool.GetChatEntry();
 			var chatEntry = entry.GetComponent<ChatEntry>();
 			chatEntry.ViewportTransform = viewportTransform;
-			chatEntry.SetText(message, languageSprite, FontIndexToUse != -1 ? Fonts[FontIndexToUse] : null);
+			chatEntry.SetText(message, languageSprite, ChatManager.Instance.Fonts.FirstOrDefault(x => x.name == ChatManager.Instance.FontIndexToUse));
 			allEntries.Add(chatEntry);
 			SetEntryTransform(entry);
 			CheckLengthOfChatLog();

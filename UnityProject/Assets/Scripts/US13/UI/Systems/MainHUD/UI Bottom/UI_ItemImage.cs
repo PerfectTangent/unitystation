@@ -13,16 +13,28 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 	/// It creates new Image instances in root gameobject for each sprite render in item
 	/// </summary>
 	public class UI_ItemImage
+		//TODO how to Handle multiple of the same slot being shown?
+		//so, bool To allow repairing?
 	{
+		public static Dictionary<GameObject,UI_ItemImage> UI_ItemImages  = new Dictionary<GameObject,UI_ItemImage>(); //how to Clear on Round end?
+
+		public static float AnimationSpeed;
+
 		private static readonly int IsPaletted = Shader.PropertyToID("_IsPaletted");
 		private static readonly int PaletteSize = Shader.PropertyToID("_PaletteSize");
 		private static readonly int ColorPalette = Shader.PropertyToID("_ColorPalette");
-		private readonly GameObject root;
+		private GameObject CurrentlyOn;
+
+		private GameObject SpriteContainer;
+		public readonly GameObject Displaying;
 		private bool hidden;
 
 		private Stack<ImageAndHandler> usedImages = new Stack<ImageAndHandler>();
 		private Stack<ImageAndHandler> freeImages = new Stack<ImageAndHandler>();
-		private Image overlay;
+
+		private Material imgMat;
+		private bool Parentless;
+		private bool IsCanFitPreview;
 
 		/// <summary>
 		/// The first sprite in rendered item
@@ -48,14 +60,109 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 		/// <summary>
 		///
 		/// </summary>
-		/// <param name="root">Object to be used as parent for new Image instances</param>
-		public UI_ItemImage(GameObject root, Material imgMat)
+		/// <param name="currentlyOn">Object to be used as parent for new Image instances</param>
+		public UI_ItemImage(GameObject currentlyOn, GameObject CopyObject , Material imgMat, bool IsCanFitPreview = false, Color? colour = null)
 		{
-			this.root = root;
+			this.CurrentlyOn = currentlyOn;
+			this.Displaying = CopyObject;
+			this.IsCanFitPreview = IsCanFitPreview;
+			this.imgMat = imgMat;
+			if (IsCanFitPreview == false)
+			{
+				if (UI_ItemImages.ContainsKey(CopyObject) == false)
+				{
+					UI_ItemImages[CopyObject] = this;
+				}
+				else
+				{
+					Parentless = true;
+				}
+			}
 
-			// generate and hide overlay image
-			overlay = CreateNewImage(imgMat, "uiItemImageOverlay");
-			SetOverlay(null);
+			ShowItem(colour);
+		}
+
+
+		public static UI_ItemImage RequestItemImage(GameObject Container, GameObject ObjectCopy, bool IsCanFitPreview = false, Color? colour = null, bool MakeNewPreviewNotEmpty = false, bool ForceAnimationSnap = false)
+		{
+			Material imgMat = CommonMaterials.Instance.ItemSlotMaterial;
+
+			if (UI_ItemImages.ContainsKey(ObjectCopy) && IsCanFitPreview == false && MakeNewPreviewNotEmpty == false)
+			{
+				UI_ItemImages[ObjectCopy].SetParent(Container, ForceAnimationSnap);
+				return UI_ItemImages[ObjectCopy];
+			}
+			else
+			{
+				return new UI_ItemImage(Container, ObjectCopy, imgMat, IsCanFitPreview, colour);
+			}
+		}
+
+
+
+		public void SetParent(GameObject parent, bool Force)
+		{
+			CurrentlyOn = parent;
+			//SpriteContainer.transform.SetParent(CurrentlyOn.transform);
+			RectTransform rt = SpriteContainer.GetComponent<RectTransform>();
+
+			Transform overlayParent = UIManager.Instance.transform;   // highest canvas/sorting
+			Transform targetParent  = parent.transform;
+
+			RectTransform overlayRT = UIManager.Instance.transform as RectTransform;
+			RectTransform targetRT  = targetParent as RectTransform;
+
+
+			Vector3 worldPos = targetRT.TransformPoint(Vector3.zero);
+
+			Vector2 overlayLocalPos;
+			RectTransformUtility.ScreenPointToLocalPointInRectangle(
+				overlayRT,
+				RectTransformUtility.WorldToScreenPoint(null, worldPos),
+				null,
+				out overlayLocalPos
+			);
+
+			Vector3 targetWorldPos = targetParent.TransformPoint(Vector3.zero);
+
+			Vector3 startWorldPos = rt.position;
+			rt.SetParent(overlayParent, true);
+			rt.SetAsLastSibling();   // renders on top of other children
+			rt.position = startWorldPos;
+
+			if (Force == false)
+			{
+				LeanTween.value(rt.gameObject,
+						rt.anchoredPosition,
+						overlayLocalPos,
+						AnimationSpeed)
+					.setEase(LeanTweenType.easeInCirc)
+					.setOnUpdate((Vector2 p) =>
+					{
+						rt.anchoredPosition = p;
+					})
+					.setOnComplete(() =>
+					{
+						rt.SetParent(targetRT, true);
+
+						rt.anchorMin = Vector2.zero;
+						rt.anchorMax = Vector2.one;
+						rt.sizeDelta = Vector2.zero;
+						rt.anchoredPosition = Vector2.zero;
+						rt.localScale = Vector3.one;
+					});
+			}
+			else
+			{
+				rt.position = targetWorldPos;
+				rt.SetParent(targetParent, true);
+
+				rt.anchorMin = Vector2.zero;
+				rt.anchorMax = Vector2.one;
+				rt.sizeDelta = Vector2.zero;
+				rt.anchoredPosition = Vector2.zero;
+				rt.localScale = Vector3.one;
+			}
 		}
 
 		/// <summary>
@@ -71,15 +178,16 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 			}
 		}
 
+
+
+
 		/// <summary>
 		/// Display item as a composition of Image objects in UI
 		/// </summary>
-		public void ShowItem(GameObject item,  Material imgMat , Color? forcedColor = null)
+		private void ShowItem(Color? colour = null)
 		{
-			// hide previous image
-			ClearAll();
 			//determine the sprites to display based on the new item
-			var spriteHandlers = item.GetComponentsInChildren<SpriteHandler>(includeInactive: true);
+			var spriteHandlers = Displaying.GetComponentsInChildren<SpriteHandler>(includeInactive: true);
 			spriteHandlers = spriteHandlers.Where(x => x != Highlight.instance.spriteRenderer).ToArray();
 
 			foreach (var handler in spriteHandlers)
@@ -94,10 +202,10 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 				var sprite = handler.CurrentSprite;
 				image.sprite = sprite;
 
-				// set color
-				if (forcedColor != null)
+				//set color
+				if (colour != null)
 				{
-					image.color = forcedColor.GetValueOrDefault(Color.white);
+					image.color = colour.GetValueOrDefault(Color.white);
 				}
 				else
 				{
@@ -106,7 +214,7 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 				}
 
 				// Configure the shader to use palette if item uses it
-				var itemAttrs = item.GetComponent<ItemAttributesV2>();
+				var itemAttrs = Displaying.GetComponent<ItemAttributesV2>();
 				if (itemAttrs.ItemSprites.IsPaletted)
 				{
 					image.material.SetInt(IsPaletted, 1);
@@ -118,7 +226,7 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 					image.material.SetInt(IsPaletted, 0);
 				}
 
-				var colorSync = item.GetComponent<SpriteColorSync>();
+				var colorSync = Displaying.GetComponent<SpriteColorSync>();
 				if (colorSync != null)
 				{   //later find a way to remove this listener when no longer needed
 					colorSync.OnColorChange.AddListener(TrackColor);
@@ -139,30 +247,32 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 		}
 
 		/// <summary>
-		/// Set overlay image for item (like handcufs icon)
-		/// Null to clear sprite and hide image
+		/// Disable all images and reset their sprites
 		/// </summary>
-		/// <param name="sprite"></param>
-		public void SetOverlay(Sprite overlaySprite)
+		public void ClearAll(GameObject HolderRequesting, bool ForceDestroy = false, bool ClearOnlyPreviews = false)
 		{
-			if (overlaySprite != null)
+			if (ForceDestroy)
 			{
-				overlay.sprite = overlaySprite;
-				overlay.enabled = !hidden;
-				overlay.preserveAspect = true;
+				Object.Destroy(SpriteContainer);
+				UI_ItemImages.Remove(Displaying);
+				return;
+			}
+
+			if (IsCanFitPreview || Parentless)
+			{
+				Object.Destroy(SpriteContainer);
+				return;
 			}
 			else
 			{
-				overlay.sprite = null;
-				overlay.enabled = false;
+				if (HolderRequesting == CurrentlyOn && ClearOnlyPreviews == false)
+				{
+					UI_ItemImages.Remove(Displaying);
+					Object.Destroy(SpriteContainer);
+					//SetParent(UIManager.Instance.UI_SlotManager.gameObject,false);
+				}
 			}
-		}
-
-		/// <summary>
-		/// Disable all images and reset their sprites
-		/// </summary>
-		public void ClearAll()
-		{
+			return; //TODO
 			while (usedImages.Count != 0)
 			{
 				var usedImage = usedImages.Pop();
@@ -181,8 +291,6 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 				//usedImage.Handler = null;
 				//usedImage.UIImage.enabled = false;
 			}
-
-			SetOverlay(null);
 		}
 
 		private Image ConnectFreeImageToHandler(SpriteHandler handler, Material imgMat)
@@ -198,6 +306,28 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 				pair = new ImageAndHandler(img);
 			}
 
+
+			if (SpriteContainer == null)
+			{
+				SpriteContainer = new GameObject();
+				SpriteContainer.AddComponent<RectTransform>(); // This converts the Transform to RectTransform
+				SpriteContainer.transform.SetParent(CurrentlyOn.transform);
+				var rta = SpriteContainer.GetComponent<RectTransform>();
+				rta.anchorMin = Vector2.zero;
+				rta.anchorMax = Vector2.one;
+				rta.sizeDelta = Vector2.zero;
+				rta.anchoredPosition = Vector2.zero;
+				rta.localScale = Vector3.one;
+			}
+
+			var rt = pair.UIImage.GetComponent<RectTransform>();
+			rt.SetParent(SpriteContainer.transform);
+			rt.anchorMin = Vector2.zero;
+			rt.anchorMax = Vector2.one;
+			rt.sizeDelta = Vector2.zero;
+			rt.anchoredPosition = Vector2.zero;
+			rt.localScale = Vector3.one;
+
 			pair.Handler = handler;
 			usedImages.Push(pair);
 
@@ -205,20 +335,13 @@ namespace US13.UI.Systems.MainHUD.UI_Bottom
 		}
 
 		private Image CreateNewImage(Material imgMat, string name = "uiItemImage")
-		{
-			var go = new GameObject(name, typeof(RectTransform));
+		{ var go = new GameObject(name, typeof(RectTransform));
 
-			var rt = go.GetComponent<RectTransform>();
-			rt.SetParent(root.transform);
-			rt.anchorMin = Vector2.zero;
-			rt.anchorMax = Vector2.one;
-			rt.sizeDelta = Vector2.zero;
-			rt.anchoredPosition = Vector2.zero;
-			rt.localScale = Vector3.one;
 
 			var img = go.AddComponent<Image>();
 			img.material = Object.Instantiate(imgMat);
 			img.alphaHitTestMinimumThreshold = 0.5f;
+			img.raycastTarget = false;
 
 			return img;
 		}
