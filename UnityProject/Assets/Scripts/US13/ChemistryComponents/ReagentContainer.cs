@@ -78,7 +78,7 @@ namespace US13.ChemistryComponents
 		public bool StopReactions = false;
 
 		//How much room is there left in the container
-		public float SpareCapacity => maxCapacity - ReagentMixTotal;
+		public float SpareCapacity => maxCapacity - Total;
 
 		[Tooltip("Reactions list which can happen inside container. Use Default for generic containers")]
 		[SerializeField]
@@ -121,6 +121,8 @@ namespace US13.ChemistryComponents
 		[FormerlySerializedAs("reagentMix")]
 		[SerializeField]
 		private ReagentMix initialReagentMix = new ReagentMix();
+
+		public ReagentMix InitialReagentMix => initialReagentMix.Clone();
 
 		[SerializeField] private bool destroyOnEmpty = default;
 
@@ -180,9 +182,9 @@ namespace US13.ChemistryComponents
 		/// </summary>
 		public float this[Reagent reagent] => CurrentReagentMix[reagent];
 
-		public bool IsFull => ReagentMixTotal >= MaxCapacity;
+		public bool IsFull => Total >= MaxCapacity;
 
-		public bool IsEmpty => ReagentMixTotal <= 0f;
+		public bool IsEmpty => Total <= 0f;
 
 		/// <summary>
 		/// Server side only. Current temperature of reagent mix
@@ -203,7 +205,8 @@ namespace US13.ChemistryComponents
 		/// <summary>
 		/// Server side only. Total reagent mix amount in units
 		/// </summary>
-		public float ReagentMixTotal => CurrentReagentMix.Total;
+		public float Total => CurrentReagentMix.Total;
+
 
 		[SerializeField] private SpriteHandler spriteHandler;
 
@@ -354,7 +357,7 @@ namespace US13.ChemistryComponents
 			var afterReactionTotal = CurrentReagentMix.Total;
 
 			var message = string.Empty;
-			if (ReagentMixTotal > MaxCapacity)
+			if (Total > MaxCapacity)
 			{
 				//Reaction ends up in more reagents than container can hold
 				CurrentReagentMix.Max(MaxCapacity, out _);
@@ -500,7 +503,7 @@ namespace US13.ChemistryComponents
 		/// </summary>
 		public void Spill(Vector3Int worldPos, float amount)
 		{
-			if (amount > ReagentMixTotal) SpillAll(worldPos);
+			if (amount > Total) SpillAll(worldPos);
 			else
 			{
 				var spilledReagents = TakeReagents(amount);
@@ -544,7 +547,7 @@ namespace US13.ChemistryComponents
 		public override string ToString()
 		{
 			return $"[{gameObject.ExpensiveName()}" +
-			       $" |{ReagentMixTotal}/{MaxCapacity}|" +
+			       $" |{Total}/{MaxCapacity}|" +
 			       $" ({string.Join(",", CurrentReagentMix)})" +
 			       $" Mode: {transferMode}," +
 			       $" TransferAmount: {TransferAmount}," +

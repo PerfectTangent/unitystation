@@ -1,16 +1,20 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Logs;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using US13.Core.Input_System.InteractionV2;
 using US13.Managers;
+using US13.Managers.NetworkManagement;
 using US13.Managers.UpdateManager;
 using US13.Objects.Consoles;
 using US13.Shuttles;
 using US13.UI.Core;
 using US13.UI.Core.Net;
 using US13.UI.Core.Net.Elements;
+using US13.UI.Objects.Atmospherics.Canister;
 
 namespace US13.UI.Objects.Shuttles
 {
@@ -38,7 +42,7 @@ namespace US13.UI.Objects.Shuttles
 
 		public Image Preview;
 
-		public NetToggle ReverseButton;
+		public Wheel Wheel;
 
 		public override void OnEnable()
 		{
@@ -62,6 +66,7 @@ namespace US13.UI.Objects.Shuttles
 		public void OnDestroy()
 		{
 			UpdateManager.Remove(CallbackType.PERIODIC_UPDATE, UpdateMe);
+			UpdateManager.Remove(CallbackType.UPDATE, UpdateMe2);
 		}
 
 		private IEnumerator WaitForProvider()
@@ -143,6 +148,23 @@ namespace US13.UI.Objects.Shuttles
 				}
 			}
 		}
+
+		public void UpdateMe2()
+		{
+			if (matrixMove.NetworkedMatrixMove.SpinneyMode == false && IsMasterTab == false && Wheel.windowDrag.disableDrag == false )
+			{
+				Wheel.SetRotation(90);
+			}
+		}
+
+		public void Awake()
+		{
+			if (CustomNetworkManager.IsServer == false)
+			{
+				UpdateManager.Add(CallbackType.UPDATE, UpdateMe2);
+			}
+		}
+
 
 		public void OnStateChange(ShuttleConsoleState newState)
 		{
@@ -233,6 +255,14 @@ namespace US13.UI.Objects.Shuttles
 		}
 
 
+		public void ToggleShuttleHandbrake(bool Handbrake)
+		{
+			shuttleConsole.ShuttleMatrixMove.NetworkedMatrixMove.Handbrake = Handbrake;
+		}
+
+
+
+
 		/// <summary>
 		/// Starts or stops the shuttle.
 		/// </summary>
@@ -240,9 +270,10 @@ namespace US13.UI.Objects.Shuttles
 		public void ToggleEngine(bool engineState)
 		{
 			shuttleConsole.EngineOn = engineState;
-			if (engineState && shuttleConsole.shuttleConsoleState != ShuttleConsoleState.Off && !matrixMove.NetworkedMatrixMove.RCSModeActive)
+			if (engineState && shuttleConsole.shuttleConsoleState != ShuttleConsoleState.Off && matrixMove.NetworkedMatrixMove.RCSModeActive == false)
 			{
-
+				SetSpeed(EngineSlider.Element.value);
+				SetLeftAndRightThrusters(Wheel.degrees);
 			}
 			else
 			{
@@ -276,6 +307,8 @@ namespace US13.UI.Objects.Shuttles
 		public void SetLeftAndRightThrusters(float LeftAndRightMultiplier)
 		{
 			if (shuttleConsole.EngineOn == false) return;
+
+
 			if (LeftAndRightMultiplier is < 95 and > 85)
 			{
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Right,  0, true);
@@ -284,17 +317,60 @@ namespace US13.UI.Objects.Shuttles
 			}
 			else if (LeftAndRightMultiplier > 95)
 			{
+				if (matrixMove.NetworkedMatrixMove.SpinneyMode == false)
+				{
+					Wheel.degrees = 0;
+				}
+
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Right,  0, true);
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Left ,(LeftAndRightMultiplier - 90f) / 90, true);
 			}
 			else
 			{
+				if (matrixMove.NetworkedMatrixMove.SpinneyMode == false)
+				{
+					Wheel.degrees = 0;
+				}
+
+
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Left,  0, true);
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Right ,(90f - LeftAndRightMultiplier) / 90f, true);
 			}
 
 		}
 
+
+
+		public const float SnapLo  = 0.2f;
+		public const float SnapHi  = 0.3f;
+		public const float FwdExponent = 2.0f;
+		public const float RevExponent = 2.4f;
+
+		private static float Expo(float t, float e)
+		{
+			return (Mathf.Pow(10f, t * e) - 1f) / (Mathf.Pow(10f, e) - 1f);
+		}
+
+		public static float Evaluate(float raw, out bool isReverse)
+		{
+			if (raw >= SnapLo && raw <= SnapHi)
+			{
+				isReverse = false;
+				return 0f;
+			}
+
+			if (raw < SnapLo)
+			{
+				float t = 1f - (raw / SnapLo);
+				isReverse = true;
+				return Expo(t, RevExponent);
+			}
+
+			// forward
+			float tFwd = (raw - SnapHi) / (1f - SnapHi);
+			isReverse = false;
+			return Expo(tFwd, FwdExponent);
+		}
 
 		/// <summary>
 		/// Sets shuttle speed.
@@ -303,14 +379,17 @@ namespace US13.UI.Objects.Shuttles
 		public void SetSpeed(float speedMultiplier)
 		{
 			if (shuttleConsole.EngineOn == false) return;
-			if (ReverseButton.Value == "1")
+
+			var EngineMultiple = Evaluate(speedMultiplier, out var isReverse);
+
+			if (isReverse)
 			{
-				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Down ,speedMultiplier, true);
+				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Down ,EngineMultiple, true);
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Up ,0, true);
 			}
 			else
 			{
-				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Up ,speedMultiplier, true);
+				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Up ,EngineMultiple, true);
 				matrixMove.NetworkedMatrixMove.SetThrusterStrength( Thruster.ThrusterDirectionClassification.Down ,0, true);
 			}
 

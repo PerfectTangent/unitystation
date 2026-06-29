@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using Chemistry;
 using Cysharp.Threading.Tasks;
 using Light2D;
@@ -10,14 +9,12 @@ using Mirror;
 using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.Serialization;
-using US13.Actions.V2.UI;
+using US13.Clothing.Eyewear;
 using US13.Core;
 using US13.Core.Camera;
 using US13.Core.Chat;
-using US13.Core.Input_System.InteractionV2;
 using US13.Core.Lifecycle;
 using US13.Core.Lighting;
-using US13.Core.Utils;
 using US13.Health.Living.SimpleAnimal;
 using US13.Health.Objects;
 using US13.HealthV2;
@@ -26,14 +23,13 @@ using US13.HealthV2.Living.MedicalChemistry;
 using US13.HealthV2.Living.PolymorphicSystems;
 using US13.Managers.MatrixManager;
 using US13.Managers.NetworkManagement;
-using US13.Mobs;
+using US13.Messages.Server;
 using US13.Player;
+using US13.Player.HUDData;
 using US13.Systems.Inventory;
 using US13.Tilemaps.Behaviours.Layers;
-using US13.Tilemaps.Behaviours.Objects;
 using US13.Tilemaps.Utils;
 using US13.UI.Core.ProgressBar;
-using US13.UI.Systems;
 using Util;
 
 namespace US13.Systems.Antagonists
@@ -54,7 +50,7 @@ namespace US13.Systems.Antagonists
 		[SerializeField, BoxGroup("Corrupt")] private float corruptRange = 1.5f;
 		[SerializeField, BoxGroup("Corrupt")] private float corruptTime = 1.5f;
 		[SerializeField, BoxGroup("Corrupt")] private float corruptionAmount = 2.5f;
-		[SerializeField, BoxGroup("Corrupt")] private float selfCorruptionAmount = 10.0f;
+		[SerializeField, BoxGroup("Corrupt")] private float selfCorruptionAmount = 20.0f;
 
 		[SerializeField, BoxGroup("Hypnotic Stare")] private float hypnoticStareDuration = 10.0f;
 		[SerializeField, BoxGroup("Hypnotic Stare")] private float hypnoticStareRange = 4.5f;
@@ -97,6 +93,26 @@ namespace US13.Systems.Antagonists
 			_lightId = Guid.NewGuid().GetHashCode();
 			hypnoticStareLightData.Id = _lightId;
 			hypnoticStareLightData.lightSpriteObject = connectedPlayer.netIdentity;
+		}
+
+		public override void OnStartClient() //Ensure HUDs persist after relog / late start clients
+		{
+			vampireHud.SyncCurrentStage(-1, currentVampirismStage);
+			if (connectedPlayer.isLocalPlayer) //Update hudstate of joining client
+			{
+				bool hudState = currentVampirismStage > 0;
+				var hudType = typeof(VampireHUD);
+				if (HUDHandler.Categorys.ContainsKey(hudType))
+				{
+					var Listy = HUDHandler.Categorys[hudType];
+					foreach (var HUD in Listy)
+					{
+						HUD.SetVisible(hudState);
+					}
+				}
+				HUDHandler.CategoryEnabled[hudType] = hudState;
+			}
+			base.OnStartClient();
 		}
 
 		private void UpdateLights(bool newOn)
@@ -323,13 +339,13 @@ namespace US13.Systems.Antagonists
 			{
 				Chat.AddExamineMsg(connectedPlayer.gameObject, $"You successfully corrupt {firstPlayerOnTile.visibleName}'s blood.");
 				Chat.AddWarningMsgFromServer(firstPlayerOnTile.gameObject, "You feel a small prick on your neck.");
-			}).ServerStartProgress(firstPlayerOnTile.RegisterPlayer, corruptTime, connectedPlayer.gameObject);
-			if (bar != null)
-			{
-				Chat.AddExamineMsg(connectedPlayer.gameObject, $"You begin to corrupt {firstPlayerOnTile.visibleName}'s blood.");
+
+
 				victimReagentPool.BloodPool.Add(CommonSicknesses.Instance.VampirismReagent, corruptionAmount);
 				ReagentPool.BloodPool.Add(CommonSicknesses.Instance.VampirismReagent, selfCorruptionAmount);
-			}
+				Chat.AddExamineMsgFromServer(connectedPlayer.gameObject, $"Gained {selfCorruptionAmount} corruption from converting target");
+			}).ServerStartProgress(firstPlayerOnTile.RegisterPlayer, corruptTime, connectedPlayer.gameObject);
+			if (bar != null) Chat.AddExamineMsg(connectedPlayer.gameObject, $"You begin to corrupt {firstPlayerOnTile.visibleName}'s blood.");
 
 			return true;
 		}

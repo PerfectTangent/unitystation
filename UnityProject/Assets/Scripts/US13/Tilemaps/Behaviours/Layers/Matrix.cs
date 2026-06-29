@@ -117,6 +117,8 @@ namespace US13.Tilemaps.Behaviours.Layers
 
 		public AudioClipsArray EnteringSounds = null;
 
+		public List<MatrixIntersection> RelatedIntersections = new List<MatrixIntersection>();
+
 		public void Awake()
 		{
 			metaTileMap = GetComponent<MetaTileMap>();
@@ -154,6 +156,7 @@ namespace US13.Tilemaps.Behaviours.Layers
 			OnEarthquake.AddListener((worldPos, magnitude) =>
 			{
 				var cellPos = metaTileMap.WorldToCell(worldPos);
+
 
 				var bounds =
 					new BoundsInt(cellPos - new Vector3Int(magnitude, magnitude, 0),
